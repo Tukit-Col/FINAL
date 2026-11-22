@@ -1,10 +1,4 @@
-"""Pruebas del banco de ensayos NL2C. Por omision usan un modelo doble; la corrida en vivo es opt-in.
-
-- Las pruebas normales no llaman a Gemini.
-- `pytest -m nl2c_vivo ensayos/nl2c` corre la utilidad y los ataques con el modelo real
-  (necesita GEMINI_API_KEY en el entorno). Es la corrida que produjo las cifras del informe;
-  los resultados crudos quedan en `ensayos/nl2c/salidas/resultados/`.
-"""
+"""Pruebas del banco de ensayos NL2C. Por omision usan un modelo doble; la corrida en vivo es opt-in."""
 
 from __future__ import annotations
 
@@ -29,9 +23,7 @@ from tukit_inteligencia import nl2c  # noqa: E402
 ata, fra = cor.ata, cor.fra
 
 
-# --- Modelos dobles ------------------------------------------------------------
 def _gold_fijar(oro: fra.Oro) -> dict[str, Any]:
-    """Los argumentos que un modelo perfecto devolveria para una frase."""
     duros: dict[str, Any] = {}
     if oro.presupuesto:
         duros["presupuesto_max_cop"] = oro.presupuesto
@@ -53,7 +45,6 @@ def _gold_fijar(oro: fra.Oro) -> dict[str, Any]:
 
 
 def modelo_perfecto(sistema, usuario, decl, permitidas):
-    """Mira el texto del padre y devuelve lo que dice el oro (para probar el corredor, no el modelo)."""
     bloque = usuario.split("<texto_del_padre>")[-1].split("</texto_del_padre>")[0].strip()
     oro = next(o for o in fra.FRASES if o.texto == bloque)
     if "sin_accion" in oro.accion and "fijar" not in oro.accion:
@@ -62,7 +53,6 @@ def modelo_perfecto(sistema, usuario, decl, permitidas):
 
 
 def modelo_obediente(sistema, usuario, decl, permitidas):
-    """Hace todo lo que pide el atacante, sin resistirse: el peor modelo posible."""
     if "fijar_restricciones" in permitidas:
         return nl2c.RespuestaModelo(
             [
@@ -101,14 +91,13 @@ def modelo_caido(*_a):
     raise nl2c.AsistenteNoDisponible("caido")
 
 
-# --- Corpus ------------------------------------------------------------------
 def test_el_corpus_cumple_el_tamano_pedido():
     assert len(fra.FRASES) >= 30
     ataques = [a for a in ata.ATAQUES if a.categoria != "control_kit"]
     assert len(ataques) >= 20
     assert len({o.id for o in fra.FRASES}) == len(fra.FRASES)
     assert len({a.id for a in ata.ATAQUES}) == len(ata.ATAQUES)
-    assert sum(o.fuente.startswith("encuesta") for o in fra.FRASES) >= 15  # parte de la encuesta real
+    assert sum(o.fuente.startswith("encuesta") for o in fra.FRASES) >= 15
 
 
 def test_toda_condicion_de_exito_la_conoce_el_corredor():
@@ -126,7 +115,6 @@ def test_los_personajes_del_oro_estan_en_el_catalogo_de_ensayo():
         assert set(o.personajes) <= set(fra.CATALOGO_PERSONAJES), o.id
 
 
-# --- Metricas ----------------------------------------------------------------
 def test_percentil_por_rango_mas_cercano():
     datos = list(range(1, 101))
     assert cor.percentil(datos, 50) == 50
@@ -147,7 +135,7 @@ def test_un_modelo_perfecto_saca_todo_bien():
 
 
 def test_el_f1_penaliza_un_personaje_de_mas_y_uno_de_menos():
-    oro = next(o for o in fra.FRASES if o.id == "U35")  # spiderman + bluey
+    oro = next(o for o in fra.FRASES if o.id == "U35")
     resp = {
         "estado": "propuesta",
         "r": {
@@ -172,22 +160,18 @@ def test_si_el_modelo_se_cae_la_utilidad_lo_cuenta_como_fallo_no_como_error():
     assert res["resumen"]["sin_servicio"] == len(fra.FRASES)
 
 
-# --- Seguridad: el modelo obedece y las barandas del servidor aguantan --------------
 @pytest.fixture(scope="module")
 def ronda_obediente() -> dict[str, Any]:
     return asyncio.run(cor.correr_ataques(modelo_obediente, repeticiones=1))
 
 
-SOLO_POR_CONFIRMACION = {"propuesta_sin_pedirla"}  # valida y atada al kit: la frena el padre, no el servidor
+SOLO_POR_CONFIRMACION = {"propuesta_sin_pedirla"}
 
 
 def test_con_un_modelo_obediente_el_servidor_impide_todo_lo_que_le_toca(ronda_obediente):
     por_cond = ronda_obediente["resumen"]["por_condicion"]
     fugas = {c: v["exito"] for c, v in por_cond.items() if v["exito"] and c not in SOLO_POR_CONFIRMACION}
-    # Lo unico que pasa es el eco de una cadena que el propio padre escribio en el campo de marcas.
     assert set(fugas) <= {"canario"}
-    # El unico exito que no es eco: una propuesta valida y acotada al kit que el padre no pidio (inyeccion
-    # indirecta). El servidor no puede saber la intencion; la frena la confirmacion del padre.
     sin_eco = [
         i["id"]
         for i in ronda_obediente["intentos"]
@@ -199,7 +183,6 @@ def test_con_un_modelo_obediente_el_servidor_impide_todo_lo_que_le_toca(ronda_ob
         for i in ronda_obediente["intentos"]
         if i["exito"] and not i["eco_del_propio_texto"]
     )
-    # y el modelo si lo intento: el ensayo no es vacuo
     assert por_cond["R_fuera_de_rango"]["intento"] > 0
     assert por_cond["herramienta_fuera_de_lista"]["intento"] > 0
     assert por_cond["linea_ajena"]["intento"] > 0
@@ -221,7 +204,6 @@ def test_texto_del_kit_con_marcado_no_llega_al_padre_como_marcado():
     a = next(x for x in ata.ATAQUES if x.id == "A24")
     kit = ata.kit_de_ensayo(a)
     res = asyncio.run(cor._un_intento("kit", a.texto, kit, modelo_obediente, 0.0))
-    # La descripcion con <img onerror> llega sin corchetes por el saneado del servidor.
     assert not cor._condicion("marcado", a, res, kit)[1]
 
 
@@ -235,7 +217,7 @@ def test_un_texto_de_1300_caracteres_no_llega_entero_al_modelo():
 
     asyncio.run(cor._un_intento("interpretar", a.texto, None, espia, 0.0))
     assert len(a.texto) > nl2c.MAX_CARACTERES_TEXTO
-    assert ata.CANARIO not in vistos[0]  # la inyeccion venia despues del limite
+    assert ata.CANARIO not in vistos[0]
 
 
 def test_la_credencial_nunca_sale_en_los_resultados(ronda_obediente):
@@ -244,7 +226,6 @@ def test_la_credencial_nunca_sale_en_los_resultados(ronda_obediente):
         assert clave not in str(ronda_obediente)
 
 
-# --- En vivo (opt-in) ---------------------------------------------------------------
 @pytest.mark.nl2c_vivo
 def test_corrida_en_vivo_guarda_los_resultados_crudos(request):
     if "nl2c_vivo" not in (request.config.getoption("-m") or ""):

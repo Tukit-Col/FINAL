@@ -1,17 +1,6 @@
 """Robustez v2: el clasificador DE PRODUCCION (consulta.emparejar, con el limpiador de encabezados de grupo
 y la ruta de libros con titulo), sobre renglones_etiquetados_v2.csv, 11 perturbaciones x leve/fuerte.
-
-Cambios frente a robustez.py: (1) datos v2; (2) la ruta real (ruta_real.correr llama a las funciones
-reales; nada vectorizado ni reimplementado); (3) efecto del limpiador por separado: se parchea EN MEMORIA
-D._sin_encabezado_de_grupo (identidad) en el proceso; ningun archivo cambia.
-Ademas: canal lexico puro = emparejar sin embedding_renglon (lo que hace el servicio sin el modelo).
-Diseno intacto: 20 particiones por lista (las de particion.py), solo se miden listas de PRUEBA, nada se
-calibra (las constantes son las de produccion), ninguna variante entra a calibracion.
-Aceptado = estado RESUELTO_AUTO de estado_desde_emparejamiento(tau 0,75) (lo que hace trabajos.py); se
-reporta tambien "aceptada_por_puntaje" (concepto reconocido y parecido >= tau, sin exigir producto) para
-comparar con robustez.json. Solo SELECT (cargar_indice abre READ ONLY).
-Uso: uv run python ensayos/calibracion/robustez_v2.py
-"""
+Uso: uv run python ensayos/calibracion/robustez_v2.py"""
 
 from __future__ import annotations
 
@@ -35,7 +24,7 @@ from tukit_inteligencia.dominio.pipeline import estado_desde_emparejamiento  # n
 TAU = 0.75
 DATOS = Path(__file__).parent / "datos" / "renglones_etiquetados_v2.csv"
 SALIDA = R.SALIDA
-TIPOS = a.TIPOS  # las 11 que conservan la etiqueta (sin "mixta")
+TIPOS = a.TIPOS
 CONDS = [("limpio", "-")] + [(t, s) for t in TIPOS for s in (a.LEVE, a.FUERTE)]
 MAX_LLAMADAS = 15000
 G: dict = {}
@@ -87,7 +76,6 @@ def main() -> int:
     corr = np.array([f["concepto_corregido_por_persona"] == "1" for f in filas])
     print("renglones", len(filas), "textos", len(tx), "listas", len(set(lista)), flush=True)
 
-    # textos y vectores de cada condicion
     base_v = np.load(R.CL.DATOS / "vectores_renglones.npz", allow_pickle=False)
     vb = dict(zip(base_v["textos"].tolist(), base_v["vectores"].astype(np.float64), strict=True))
     textos = {c: tx if c[0] == "limpio" else [a.perturbar(t, c[0], c[1]) for t in tx] for c in CONDS}
@@ -135,7 +123,6 @@ def main() -> int:
                 tabla.setdefault(k, {})[lab] = {m: resumen([x[m] for x in f]) for m in mets} | {
                     "destino_de_errores": {d: float(np.mean([x["destino_de_errores"].get(d, 0.0) for x in f if x["destino_de_errores"]])) for d in ("sin_match", "HUECO_CATALOGO", "AMBIGUO", "ACEPTADO_MAL", "RESUELTO_AUTO")}}
 
-    # efecto del limpiador y del canal, emparejado por particion
     def par(k, l1, l2, m):
         d = np.array([100 * (x1[m] - x2[m]) for x1, x2 in zip(filas_sem[(k, l1)], filas_sem[(k, l2)], strict=True) if x1[m] is not None and x2[m] is not None])
         return {"media_pp": float(d.mean()), "error_estandar": float(d.std(ddof=1) / np.sqrt(len(d)))}
@@ -148,7 +135,6 @@ def main() -> int:
             "limpiador_menos_sin_limpiador_lexico": {m: par(k, "lexico|limpiador", "lexico|sin_limpiador", m) for m in ("exactitud", "aceptada", "precision_aceptada", "errores_que_van_a_revision")},
             "hibrido_menos_lexico_con_limpiador": {m: par(k, "hibrido|limpiador", "lexico|limpiador", m) for m in ("exactitud", "aceptada", "precision_aceptada", "errores_que_van_a_revision")},
         }
-    # degradacion vs limpio (hibrido y lexico, con limpiador)
     deg = {}
     for c in CONDS[1:]:
         k = f"{c[0]}|{c[1]}"
@@ -159,13 +145,11 @@ def main() -> int:
                 d = np.array([100 * (p[m] - q[m]) for p, q in zip(filas_sem[(k, lab)], filas_sem[("limpio|-", lab)], strict=True) if p[m] is not None and q[m] is not None])
                 deg[k][lab][m] = {"media_pp": float(d.mean()), "sd_pp": float(d.std(ddof=1))}
 
-    # globales sobre las 22 perturbaciones, por severidad
     glob = {}
     for sev in (a.LEVE, a.FUERTE, "todas"):
         ks = [f"{t}|{s}" for t in TIPOS for s in ((a.LEVE, a.FUERTE) if sev == "todas" else (sev,))]
         glob[sev] = {lab: {m: float(np.mean([tabla[k][lab][m]["media"] for k in ks if tabla[k][lab][m]])) for m in mets} for lab in ("hibrido|limpiador", "hibrido|sin_limpiador", "lexico|limpiador", "lexico|sin_limpiador")}
 
-    # contaminacion de la etiqueta: exactitud del limpio por origen (todas las listas, produccion hibrida)
     pred, acep, est = cruda[("limpio|-", "hibrido|limpiador")]
     ok = np.array([p == t for p, t in zip(pred, yy, strict=True)])
     estratos = {}
@@ -176,7 +160,6 @@ def main() -> int:
     sin_c = np.array([t is None for t in y])
     estratos["sin_concepto"] = {"renglones": int(sin_c.sum()), "exactitud": float(ok[sin_c].mean()), "aceptada": float(acep[sin_c].mean())}
 
-    # prefijo: textos donde el limpiador cambia el concepto (ejemplos, sin ocultar los malos)
     ej = []
     for sv in (a.LEVE, a.FUERTE):
         k = f"prefijo|{sv}"

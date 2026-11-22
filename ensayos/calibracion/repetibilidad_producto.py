@@ -1,12 +1,4 @@
-"""Repetibilidad en el PRODUCTO: la lectura varia, ¿varia el concepto resuelto y el kit?
-
-Reusa las lecturas guardadas en repetibilidad.json (6 listas x 5 corridas; no relee, 0 llamadas de lectura).
-Cada renglon pasa por la resolucion real del sistema: `corregir` + `descubrir.clasificar` (con el vector del
-renglon, como produccion), corte 0,5 (sin_match) y tau = 0,75 (aceptacion automatica vs revision humana).
-Los vectores de textos nuevos se piden al mismo embeder del sistema (`embeder_gemini`) y se cachean.
-
-    uv run python ensayos/calibracion/repetibilidad_producto.py
-"""
+"""Repetibilidad en el PRODUCTO: la lectura varia, ¿varia el concepto resuelto y el kit?"""
 
 from __future__ import annotations
 
@@ -61,7 +53,6 @@ def main() -> int:
         zz = np.load(CACHE, allow_pickle=False)
         vec = dict(zip(zz["textos"].tolist(), zz["vectores"], strict=True))
     faltan = [t for t in textos if t not in vec]
-    # vectores ya calculados del corpus etiquetado
     zr = np.load(DATOS / "vectores_renglones.npz", allow_pickle=False)
     previos = dict(zip(zr["textos"].tolist(), zr["vectores"], strict=True))
     for t in list(faltan):
@@ -96,8 +87,7 @@ def main() -> int:
     for d in ent["documentos"]:
         corr = [c for c in d["corridas"] if c["aceptada"]]
         n = len(corr)
-        # agrupar renglones entre corridas: ancla = primera corrida; el resto se empareja voraz por Jaccard >= 0.5
-        grupos = []  # cada grupo: {run: (desc, cant)}
+        grupos = []
         ya = []
         for k, c in enumerate(corr):
             its = [(i["descripcion"], i["cantidad"], norma(i["descripcion"])) for i in c["items"]]
@@ -131,7 +121,6 @@ def main() -> int:
             if todas and len(resultados) == 1:
                 estables += 1
                 continue
-            # inestable: ausente en alguna corrida o resultado distinto
             if len(resultados) == 1:
                 solo_ausencia += 1
             else:
@@ -145,7 +134,6 @@ def main() -> int:
                 detalle_cambios.append({"ejemplo": next(iter(g["r"].values()))[0], "corridas_presente": len(g["r"]),
                                         "resultados": sorted({(nombre.get(r[0], "sin concepto"), r[2]) for r in res.values()})})
         total = len(grupos)
-        # conjunto de conceptos que entran solos (auto) por corrida
         conj = []
         for c in corr:
             s = set()
@@ -164,7 +152,6 @@ def main() -> int:
         en_revision_alguna = {c for c in variables if any(c in r for _, r in conj)}
         vs_primera = [{"aparecen": len(a - auto[0]), "desaparecen": len(auto[0] - a)} for a in auto[1:]]
         pares_j = [len(auto[i] & auto[j]) / len(auto[i] | auto[j]) for i in range(n) for j in range(i + 1, n)]
-        # estados de renglon por corrida
         est_run = []
         for c in corr:
             cnt = {"auto": 0, "revision": 0, "sin_match": 0}
@@ -207,7 +194,6 @@ def main() -> int:
         "conceptos_que_aparecen_o_desaparecen": T("b_conceptos_que_aparecen_o_desaparecen"),
         "conceptos_union": T("b_conceptos_union"),
     }
-    # (d) ruta rapida: lista oficial con version vigente revisada (consulta de solo lectura a la base de desarrollo)
     import subprocess
 
     try:

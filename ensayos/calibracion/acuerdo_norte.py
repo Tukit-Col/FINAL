@@ -1,11 +1,5 @@
 """Medicion del sistema en el colegio nuevo (Agustiniano Norte) sobre la muestra ciega de 200 renglones.
-
-Oro = A si A == B; en los desacuerdos, `adjudicado` de muestra_holdout/adjudicacion_llm.csv (consejo LLM).
-Sistema = holdout_norte_v2.csv (ruta real con vectores, tau 0,75); se une por (grado, texto leido).
-Compara con acuerdo_ruta_real.json (7 colegios) y con holdout_norte.csv (sin vectores).
-Importa acuerdo.py y acuerdo_ruta_real.py sin modificarlos.
-Uso: uv run python ensayos/calibracion/acuerdo_norte.py
-"""
+Uso: uv run python ensayos/calibracion/acuerdo_norte.py"""
 from __future__ import annotations
 
 import collections
@@ -25,7 +19,6 @@ CAL = ac.k.SALIDA
 M = CAL / "muestra_holdout"
 NINGUNO = "NINGUNO"
 
-# Veredicto del consejo (tercer juez LLM) para los 8 desacuerdos A != B.
 CONSEJO = {
     "N001": ("NINGUNO", "El cable UTP es de red y C138 es cable electrico para circuitos; los 5 asesores coinciden."),
     "N048": ("NINGUNO", "El porta bateria con broche es un soporte/conector, no la pila (C103) ni un modulo relay (C142); no se inventan codigos (dividido: 2 NINGUNO, 1 C142, 2 C103)."),
@@ -38,14 +31,11 @@ CONSEJO = {
 }
 DIVIDIDOS = {i: "consejo dividido" for i in ("N048", "N072", "N086", "N123", "N131", "N133", "N164")}
 
-# Revision manual contra el PDF (pdftotext -layout) de los renglones donde el sistema falla.
-# Con efecto probable en el error: el texto leido difiere del PDF de forma que cambia el significado.
 LECTURA_CAUSAL = {
     "N078": "PDF: '1 block de hojas blancas tamano carta'; la lectura dejo 'hojas blancas' (faltan 'block' y 'tamano carta'). Con el texto leido el oro (C032) tambien es dudoso; con el texto correcto seria un block (C003, lo que el sistema propuso como AMBIGUO).",
     "N058": "PDF: 'acrilicos en frasco plastico (amarillo, azul, rojo, negro, blanco)'; la lectura dejo 'frasco plastico blanco' (el parentesis de colores se fundio en un solo color).",
     "N151": "PDF: encabezado 'Educacion Etica y en Valores Humanos' en su linea y 'Un cuaderno cuadriculado de 50 hojas.' debajo; la lectura pego la materia al renglon (sobran palabras) y el puntaje cayo a 0,11.",
 }
-# Defectos de lectura presentes pero que no explican el error (el renglon falla igual con texto limpio).
 LECTURA_SIN_EFECTO = {
     "N016": "agrego 'by' entre titulo y autor (no esta en el PDF); el error es de resolucion (libro con titulo).",
     "N178": "agrego 'by' entre titulo y autor; el error es de resolucion (libro con titulo).",
@@ -93,7 +83,6 @@ def main() -> int:
     A, B = ac.leer(M / "anotador_A_llm.csv"), ac.leer(M / "anotador_B_llm.csv")
     desac = [i for i in ids if A[i] != B[i]]
     assert sorted(desac) == sorted(CONSEJO), (desac, sorted(CONSEJO))
-    # 1) adjudicacion
     with (M / "adjudicacion_llm.csv").open("w", encoding="utf-8", newline="") as fh:
         w = csv.writer(fh)
         w.writerow(["id", "texto_original", "concepto_A", "concepto_B", "adjudicado"])
@@ -152,7 +141,6 @@ def main() -> int:
     cambio = [i for i in ids if sis[i] != sis0[i] or acepta[ids.index(i)] != acepta0[ids.index(i)]]
     res["comparacion"]["renglones_que_cambian_con_vectores"] = len(cambio)
 
-    # 4) errores: lectura vs resolucion
     errores = []
     for k_, i in enumerate(ids):
         if ok[k_]:
@@ -189,10 +177,8 @@ def main() -> int:
     res["lectura"] = {"con_efecto_en_el_error": LECTURA_CAUSAL, "sin_efecto": LECTURA_SIN_EFECTO,
                       "revision": "Los 200 textos se cotejaron con el vocabulario del PDF (pdftotext) y los 52 errores uno a uno; solo la presencia de palabras ajenas o letras perdidas se detecta de forma automatica, asi que los errores de lectura en renglones acertados (palabras que faltan) no estan contados: la tasa de lectura es una cota inferior.",
                       "defectos_automaticos_en_la_muestra": ["N016", "N034", "N040(apostrofo)", "N111", "N178", "N180(apostrofo)"]}
-    # ajuste: si se quitan los errores de lectura causales
     quita = np.array([i not in LECTURA_CAUSAL for i in ids])
     res["sensibilidad_sin_errores_de_lectura_causales"] = bloque(ok, acepta, quita)
-    # sensibilidad: sin renglones discutibles del oro
     disc = {e["id"] for e in errores if e["criterio_discutible"]}
     res["sensibilidad_sin_errores_discutibles"] = {"nota": "excluye los renglones con error y criterio discutible (cota optimista)", **bloque(ok, acepta, np.array([i not in disc for i in ids]))}
     (CAL / "acuerdo_norte.json").write_text(json.dumps(res, ensure_ascii=False, indent=1, default=lambda o: o.item() if hasattr(o, "item") else dict(o)), encoding="utf-8")

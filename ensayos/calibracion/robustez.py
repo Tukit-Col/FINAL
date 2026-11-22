@@ -1,20 +1,5 @@
 """Prueba de estres: las listas de PRUEBA, perturbadas, con las constantes (nada se entrena).
-
-Para cada una de las 20 particiones por lista (las mismas de particion.py) se toman las listas de
-prueba, se perturba cada renglon (tipo x severidad, por separado, ver aumentacion.py) y se mide con
-cinco configuraciones:
-  lexico             peso de coseno 0 (rescate apagado)
-  hibrido_actual     constantes actuales (coseno 0,15 y rescate 0,86)
-  hibrido_sin_rescate  constantes actuales con la rama de rescate apagada (lo que quedara)
-  calibrado_limpio / calibrado_aumentado   constantes elegidas por la particion en entrenamiento
-                     limpio / aumentado (de calibracion_aumentada.json), rescate apagado.
-tau = 0,75 en las tres primeras; las calibradas usan SU tau (regla: menor tau con precision >= 0,95 en su entrenamiento; con 0,75 fijo no serian comparables porque su piso cambia). Metricas: exactitud, fraccion aceptada, precision de lo aceptado, fraccion a
-revision, fraccion ACEPTADA MAL (el fallo del guardrail) y de los errores cuantos caen en revision.
-
-Pregunta clave: se degrada menos el hibrido que el lexico puro? Diferencia por semilla emparejada.
-
-Uso: uv run python ensayos/calibracion/robustez.py   (requiere haber corrido aumentacion.py)
-"""
+Uso: uv run python ensayos/calibracion/robustez.py   (requiere haber corrido aumentacion.py)"""
 
 from __future__ import annotations
 
@@ -66,7 +51,6 @@ def similitud(o: str, p: str) -> float:
 
 
 def ejemplos(cx: b.Contexto, estres: dict, n: int = 30) -> dict:
-    """30 por tipo (15 leve + 15 fuerte) de renglones con concepto, mas verificaciones automaticas sobre TODOS los renglones."""
     r = random.Random(11)
     con_conc = [i for i, f in enumerate(cx.d.filas) if f["etiqueta"]]
     u_conc = sorted({cx.d.filas[i]["u"] for i in con_conc})
@@ -107,7 +91,7 @@ def main() -> int:
     for f in cal:
         cfg_sem.append({}) 
         for nom, ll in (("calibrado_limpio", "elegido_limpio"), ("calibrado_aumentado", "elegido_aumentado")):
-            v = {**f[ll], "tau": f[ll]["taus"]["0.95"]}  # cada calibracion trae SU tau (regla precision >= 0,95)
+            v = {**f[ll], "tau": f[ll]["taus"]["0.95"]}
             v.pop("taus")
             cfg_sem[-1][nom] = v
     res: dict = {}
@@ -129,7 +113,6 @@ def main() -> int:
     tabla: dict = {}
     for nombre, por_cfg in res.items():
         tabla[nombre] = {nom: {m: a.resumen([f[m] for f in filas]) for m in mets} for nom, filas in por_cfg.items()}
-    # degradacion respecto al limpio, por semilla emparejada
     limpio = res["limpio|-"]
     deg: dict = {}
     for nombre, por_cfg in res.items():
@@ -141,14 +124,12 @@ def main() -> int:
             for m in ("exactitud", "aceptada", "precision_aceptada", "aceptada_mal"):
                 v = np.array([(100 * (por_cfg[nom][i][m] - limpio[nom][i][m])) if por_cfg[nom][i][m] is not None and limpio[nom][i][m] is not None else np.nan for i in range(SEMILLAS)])
                 d[nom][m] = {"media_pp": float(np.nanmean(v)), "sd_pp": float(np.nanstd(v, ddof=1))}
-        # hibrido - lexico en la degradacion de exactitud (emparejado por semilla)
         for par, (x, y2) in {"hibrido_actual_menos_lexico": ("hibrido_actual", "lexico"), "hibrido_sin_rescate_menos_lexico": ("hibrido_sin_rescate", "lexico")}.items():
             dif = np.array([100 * ((por_cfg[x][i]["exactitud"] - limpio[x][i]["exactitud"]) - (por_cfg[y2][i]["exactitud"] - limpio[y2][i]["exactitud"])) for i in range(SEMILLAS)])
             d[par + "_degradacion_exactitud_pp"] = {"media": float(dif.mean()), "error_estandar": float(dif.std(ddof=1) / np.sqrt(SEMILLAS)), "semillas_hibrido_se_degrada_menos": int((dif > 1e-9).sum()), "semillas_igual": int((abs(dif) <= 1e-9).sum()), "semillas_hibrido_se_degrada_mas": int((dif < -1e-9).sum())}
             nivel = np.array([100 * (por_cfg[x][i]["exactitud"] - por_cfg[y2][i]["exactitud"]) for i in range(SEMILLAS)])
             d[par + "_exactitud_nivel_pp"] = {"media": float(nivel.mean()), "error_estandar": float(nivel.std(ddof=1) / np.sqrt(SEMILLAS))}
         deg[nombre] = d
-    # promedio sobre las 24 perturbaciones (12 tipos x 2 severidades) y por severidad
     def prom(clave_fn, filtro):
         vs = [clave_fn(d) for n, d in deg.items() if filtro(n)]
         return float(np.mean(vs))

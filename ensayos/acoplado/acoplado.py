@@ -1,14 +1,4 @@
-"""Presupuesto con COSTO FIJO POR TIENDA: PD exacta extendida y NSGA-II del sistema.
-
-Regla acoplada: cada tienda distinta usada en el kit suma un costo de envio F.
-    costo_total = sum(costo de linea) + F * |tiendas usadas|
-Los candidatos del catalogo no traen tienda; se asigna por regla determinista:
-    tienda(sku) = crc32(sku) % T     (T = numero de tiendas del escenario)
-Un candidato sin precio no se cobra y tampoco cuenta tienda (igual que el costo
-de produccion, que no suma lo que no tiene precio).
-
-Solo archivos nuevos: importa el optimizador y el bench sin modificarlos.
-"""
+"""Presupuesto con COSTO FIJO POR TIENDA: PD exacta extendida y NSGA-II del sistema."""
 
 from __future__ import annotations
 
@@ -43,7 +33,7 @@ from tukit_inteligencia.optimizador import (  # noqa: E402
     elegir_por_perfil,
 )
 
-F_ENVIO = 10_000  # COP por tienda distinta (orden de un flete urbano de papeleria)
+F_ENVIO = 10_000
 
 
 def tienda_de(sku: str, T: int) -> int:
@@ -55,7 +45,6 @@ class Tiempo(Exception):
 
 
 def opciones_de(dec, T):
-    """Por linea: lista de (nivel, costo, bit_tienda o 0, sku)."""
     salida = []
     for r in dec:
         fila = []
@@ -67,19 +56,9 @@ def opciones_de(dec, T):
 
 
 def pd_exacta(dec, presupuesto, T, F=F_ENVIO, limite_s=None, poda=True):
-    """Mochila de eleccion multiple con estado (suma de niveles, conjunto de tiendas).
-
-    Para cada estado se guarda el costo MINIMO de lineas (exacto: dos caminos al
-    mismo (s, tiendas) solo difieren en costo, y el futuro no depende del pasado).
-    Se descartan estados cuyo total ya excede el presupuesto (el costo solo
-    crece). Devuelve (resultado, n_estados) con resultado =
-    (fidelidad_suma, costo_total, {orden: sku}) o None si no hay factible.
-    Con poda=False no se descartan estados por presupuesto (espacio completo de
-    estados; el presupuesto solo filtra al final). Lanza Tiempo si pasa `limite_s`.
-    """
     t0 = time.perf_counter()
     ops = opciones_de(dec, T)
-    capas = []  # por capa: {(s, mask): (costo, clave_padre, idx_candidato)}
+    capas = []
     actual = {(0, 0): (0, None, -1)}
     estados = 1
     cuenta = 0
@@ -108,7 +87,6 @@ def pd_exacta(dec, presupuesto, T, F=F_ENVIO, limite_s=None, poda=True):
         return None, estados
     mejor = max(factibles, key=lambda kv: (kv[0][0], -(kv[1][0] + F * kv[0][1].bit_count())))
     (s, m), (cost, _, _) = mejor
-    # reconstruccion
     elec = []
     clave = (s, m)
     for i in range(len(ops) - 1, -1, -1):
@@ -121,7 +99,6 @@ def pd_exacta(dec, presupuesto, T, F=F_ENVIO, limite_s=None, poda=True):
 
 
 def enumeracion(dec, presupuesto, T, F=F_ENVIO):
-    """Fuerza bruta: mismo criterio (max suma de niveles, luego menor costo total)."""
     ops = opciones_de(dec, T)
     mejor = None
     for combo in itertools.product(*[range(len(f)) for f in ops]):
@@ -140,7 +117,6 @@ def enumeracion(dec, presupuesto, T, F=F_ENVIO):
 
 
 def total_de(dec, asignacion, T, F=F_ENVIO):
-    """Costo total y suma de niveles de una asignacion {orden: sku}."""
     costo = mask = s = 0
     for r in dec:
         sku = asignacion[str(r.orden)]
@@ -153,12 +129,6 @@ def total_de(dec, asignacion, T, F=F_ENVIO):
 
 
 def nsga_acoplado(dec, presupuesto, T, F=F_ENVIO, semilla=0):
-    """NSGA-II de produccion (`_frente_nsga`) con la regla solo en la evaluacion.
-
-    Mismos operadores, poblacion, generaciones, siembra y semilla; el objetivo de
-    costo suma F * tiendas distintas. Devuelve (mejor_punto_que_cabe, evaluaciones)
-    con punto = (fidelidad, costo_total, {orden: sku}) o None.
-    """
     opciones = [_admisibles(r) for r in dec]
     n = len(dec)
     tamanos = [len(o) for o in opciones]

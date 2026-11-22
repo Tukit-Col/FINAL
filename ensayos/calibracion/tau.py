@@ -1,25 +1,6 @@
 """Experimento E: umbral tau del emparejamiento (TUKIT_TAU, 0,75 por omision).
-
-Pregunta: dado el `parecido` que el resolver asigna a un renglon, a partir de que
-valor conviene aceptar el emparejamiento sin revision humana.
-
-Fuente de las decisiones humanas. La tabla `transicion_resolucion` de la base
-`tukit_inteligencia` solo guarda transiciones automaticas (ver `contar_tabla`),
-asi que no sirve de etiqueta. La unica decision humana disponible es el concepto
-de `datos/curaduria/listas_revisadas.csv` (4 anotadores con una pauta común; acuerdo entre ellos no calculado), que se une con los
-renglones del benchmark (`bench_laya/instancias.json.gz`, emparejamiento solo
-lexico) por colegio, grado y texto del renglon. Un renglon cuenta como acierto
-cuando el concepto del resolver es el que dejo el revisor.
-
-Validacion cruzada AGRUPADA por lista (colegio, grado): 5 pliegues; en cada uno
-se elige tau con los otros 4 como el menor valor cuya precision de aceptacion sea
-al menos OBJETIVO_PRECISION, y se mide en el pliegue retenido. Se reporta tambien
-el AUC de `parecido` como puntaje de acierto y la precision y el cobertura en
-tau = 0,75.
-
 Uso: uv run python ensayos/calibracion/tau.py
-Salida: ensayos/calibracion/salidas/tau.json
-"""
+Salida: ensayos/calibracion/salidas/tau.json"""
 
 from __future__ import annotations
 
@@ -39,7 +20,6 @@ ITEMS = n.RAIZ / "datos" / "listas" / "items_lista.csv"
 
 
 def contar_tabla() -> dict:
-    """Cuenta las decisiones de la tabla de transiciones con `psql`, si la base esta arriba."""
     import subprocess
 
     entorno = {**os.environ, "PGGSSENCMODE": "disable", "PGPASSWORD": "tukit"}
@@ -121,7 +101,6 @@ def metricas(parecido: np.ndarray, y: np.ndarray, tau: float) -> dict:
 
 
 def matriz_confusion(parecido: np.ndarray, y: np.ndarray, tau: float) -> dict:
-    """Aceptar sin revision (parecido >= tau) frente a acierto del resolver segun el revisor."""
     acepta = parecido >= tau
     tp, fp = int((acepta & y).sum()), int((acepta & ~y).sum())
     fn, tn = int((~acepta & y).sum()), int((~acepta & ~y).sum())
@@ -132,7 +111,6 @@ def matriz_confusion(parecido: np.ndarray, y: np.ndarray, tau: float) -> dict:
 
 
 def curva_roc(parecido: np.ndarray, y: np.ndarray) -> list[dict]:
-    """Un punto por cada valor distinto de parecido (umbral), de mayor a menor, mas los extremos."""
     pos, neg = int(y.sum()), int((~y).sum())
     puntos = [{"umbral": None, "fpr": 0.0, "tpr": 0.0}]
     for t in sorted(np.unique(parecido), reverse=True):
@@ -142,7 +120,6 @@ def curva_roc(parecido: np.ndarray, y: np.ndarray) -> list[dict]:
 
 
 def ic_bootstrap(parecido: np.ndarray, y: np.ndarray, tau: float, repeticiones: int = 2000) -> dict:
-    """IC 95 % por percentiles, remuestreando renglones; el AUC con el mismo remuestreo."""
     rng = np.random.default_rng(n.SEMILLA_BASE)
     acum: dict[str, list[float]] = {"precision": [], "recall": [], "f1": [], "auc": []}
     for _ in range(repeticiones):

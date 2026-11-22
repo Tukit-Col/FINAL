@@ -1,7 +1,12 @@
 """Exporta (SOLO SELECT) los renglones de versiones vigentes revisadas, con origen de la revision.
+Salida: datos/renglones_etiquetados_v2.csv. Excluye versiones vigentes sin revision (listas de demostracion 'sugerencia_padre').
 Salida: datos/renglones_etiquetados_v2.csv. Excluye versiones vigentes sin revision (listas de demostracion 'sugerencia_padre')."""
-import csv, io, os, subprocess
+import csv
+import io
+import os
+import subprocess
 from pathlib import Path
+
 E = {**os.environ, "PGGSSENCMODE": "disable", "PGPASSWORD": "tukit"}
 def q(base, sql):
     assert sql.lstrip().lower().startswith("select")

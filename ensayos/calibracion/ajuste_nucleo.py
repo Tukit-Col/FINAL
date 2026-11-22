@@ -1,13 +1,4 @@
-"""Piezas del ensayo de ajuste de la instruccion de lectura (ver ajuste_instruccion.py).
-
-Lo que NO hace: no toca el codigo de produccion ni su instruccion. Importa de
-produccion el render (`paginas.renderizar`, 150 DPI), el esquema JSON y la URL
-de `gemini.py`, y arma su propia llamada para poder (a) anteponer ejemplos a la
-instruccion y (b) leer `usageMetadata` y llevar la cuenta del gasto.
-
-Los pesos del modelo no cambian: lo unico que varia entre rondas es el texto
-que se le da en el contexto (instruccion y ejemplos).
-"""
+"""Piezas del ensayo de ajuste de la instruccion de lectura (ver ajuste_instruccion.py)."""
 
 from __future__ import annotations
 
@@ -26,7 +17,7 @@ from difflib import SequenceMatcher
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
-CACHE = RAIZ / ".cache" / "ajuste_instruccion"  # .cache/ esta en .gitignore
+CACHE = RAIZ / ".cache" / "ajuste_instruccion"
 PDFS = CACHE / "pdfs"
 RESPUESTAS = CACHE / "respuestas"
 LIBRO_GASTO = CACHE / "gasto.jsonl"
@@ -35,12 +26,8 @@ SALIDA = RAIZ / "ensayos" / "calibracion" / "salidas"
 CGS_DIR = RAIZ.parent / "_archivo" / "2026-11-05" / "borradores_arquitectura" / "Arquitectura" / "Listas de Útiles"
 
 MODELO = "gemini-3.5-flash-lite"
-# Precio supuesto (el mismo declarado en ensayos/nl2c/salidas): USD por millon de tokens.
 USD_IN, USD_OUT = 0.10, 0.40
 
-# --------------------------------------------------------------------------- metrica
-# Copia literal de 06_comparar_enfoques.calcular_prf1 (commit de2c887). Se copia
-# porque el original importa pandas/tabulate a nivel de modulo; la funcion no cambia.
 UMBRAL_FUZZY = 0.75
 
 
@@ -116,7 +103,6 @@ def calcular_prf1(items_pred: list[dict], items_gold: list[dict]) -> dict:
 
 
 def agregar(metricas: list[dict]) -> dict:
-    """Micro y macro como en 06_comparar_enfoques.evaluar_enfoque."""
     tp = sum(m["tp"] for m in metricas)
     fp = sum(m["fp"] for m in metricas)
     fn = sum(m["fn"] for m in metricas)
@@ -130,7 +116,6 @@ def agregar(metricas: list[dict]) -> dict:
 
 
 def bootstrap(metricas: list[dict], b: int = 2000, semilla: int = 7) -> dict:
-    """IC95 percentil, remuestreando LISTAS con reemplazo."""
     import random
     rnd = random.Random(semilla)
     vals: dict[str, list[float]] = {"P": [], "R": [], "F1_micro": [], "F1_macro": []}
@@ -146,22 +131,11 @@ def bootstrap(metricas: list[dict], b: int = 2000, semilla: int = 7) -> dict:
     return out
 
 
-# --------------------------------------------------------------------------- errores
 def _ratio(a: str, b: str) -> float:
     return SequenceMatcher(None, normalizar(a), normalizar(b)).ratio()
 
 
 def tipos_de_error(pred: list[dict], gold: list[dict], m: dict) -> dict:
-    """Clasifica cada FP y FN que deja calcular_prf1 (heuristica declarada).
-
-    - fila_partida: un renglon gold sin pareja contiene a 2+ predichos sin pareja.
-    - renglones_unidos: un predicho sin pareja contiene a 2+ gold sin pareja.
-    - duplicado: el predicho repite el texto de otro predicho ya emparejado.
-    - texto_alterado: FP y FN que se parecen (0,5 <= ratio < 0,75): leyo el renglon pero distinto.
-    - extra_no_pedido: FP sin parecido con ningun gold (encabezado, nota, instruccion leida como item).
-    - omitido: FN sin parecido con ningun predicho.
-    - cantidad_distinta: en un par emparejado, la cantidad no coincide (no entra al F1).
-    """
     ip_ok = {x["ip"] for x in m["matches"]}
     ig_ok = {x["ig"] for x in m["matches"]}
     fps = [i for i in range(len(pred)) if i not in ip_ok]
@@ -173,14 +147,14 @@ def tipos_de_error(pred: list[dict], gold: list[dict], m: dict) -> dict:
     ejemplos: dict[str, list] = {k: [] for k in cuenta}
     np_ = {i: normalizar(pred[i]["descripcion"]) for i in fps}
     ng_ = {j: normalizar(gold[j]["descripcion"]) for j in fns}
-    for j in fns:  # fila partida
+    for j in fns:
         partes = [i for i in fps if i not in usados_p and len(np_[i]) >= 3 and np_[i] in ng_[j]]
         if len(partes) >= 2:
             cuenta["fila_partida"] += 1
             usados_g.add(j)
             usados_p.update(partes)
             ejemplos["fila_partida"].append((gold[j]["descripcion"], [pred[i]["descripcion"] for i in partes]))
-    for i in fps:  # renglones unidos
+    for i in fps:
         if i in usados_p:
             continue
         partes = [j for j in fns if j not in usados_g and len(ng_[j]) >= 3 and ng_[j] in np_[i]]
@@ -197,7 +171,7 @@ def tipos_de_error(pred: list[dict], gold: list[dict], m: dict) -> dict:
             cuenta["duplicado"] += 1
             usados_p.add(i)
             ejemplos["duplicado"].append(pred[i]["descripcion"])
-    for i in fps:  # texto alterado (pareo voraz)
+    for i in fps:
         if i in usados_p:
             continue
         mejor, mj = 0.0, -1
@@ -230,7 +204,6 @@ def tipos_de_error(pred: list[dict], gold: list[dict], m: dict) -> dict:
     return {"cuenta": cuenta, "ejemplos": ejemplos}
 
 
-# --------------------------------------------------------------------------- datos
 _PG = {**os.environ, "PGGSSENCMODE": "disable", "PGPASSWORD": "tukit"}
 
 
@@ -243,7 +216,6 @@ def _select(base: str, sql: str) -> list[list[str]]:
 
 
 def exportar() -> None:
-    """SOLO SELECT: el gold de lectura (renglones de la version vigente revisada) y el PDF de cada lista."""
     import io
     col = {i: n for i, n in _select("tukit_identidad", "select id, nombre from colegio")}
     filas = _select("tukit_catalogo", """select v.id, l.colegio_id, l.grado, l.anio_lectivo, v.numero,
@@ -284,7 +256,6 @@ def cargar_listas() -> dict[str, dict]:
     return listas
 
 
-# --------------------------------------------------------------------------- llamada + cache + gasto
 _LOCK = threading.Lock()
 _RENDER = threading.Lock()
 TOPE_USD = float(os.environ.get("GEMINI_BUDGET_USD", "5")) * 0.8
@@ -315,7 +286,7 @@ def costo(uso: dict) -> float:
 
 
 def _pedir(instruccion: str, png: bytes, numero: int) -> dict:
-    from tukit_inteligencia import gemini  # produccion, solo lectura
+    from tukit_inteligencia import gemini
     clave = os.environ.get("GEMINI_API_KEY", "").strip()
     if not clave:
         raise RuntimeError("falta GEMINI_API_KEY")
@@ -330,12 +301,12 @@ def _pedir(instruccion: str, png: bytes, numero: int) -> dict:
                                     data=json.dumps(cuerpo).encode(),
                                     headers={"Content-Type": "application/json"}, method="POST")
     ultimo_error = None
-    for intento in range(3):  # solo transporte, como en produccion (429/5xx/timeout)
+    for intento in range(3):
         try:
             with urllib.request.urlopen(pedido, timeout=60) as resp:
                 return json.loads(resp.read().decode())
         except urllib.error.HTTPError as exc:
-            ultimo_error = f"HTTP {exc.code}"  # sin el cuerpo: podria repetir la URL
+            ultimo_error = f"HTTP {exc.code}"
             if exc.code not in (429, 500, 502, 503, 504):
                 break
         except (urllib.error.URLError, TimeoutError) as exc:
@@ -345,15 +316,13 @@ def _pedir(instruccion: str, png: bytes, numero: int) -> dict:
 
 
 def leer_documento(pdf: Path, version: str, instruccion: str, max_paginas: int | None = None) -> dict:
-    """Lee un PDF pagina por pagina con `instruccion`. Cache en disco por
-    (sha256 del archivo, version de la instruccion, modelo, pagina): nunca se llama dos veces."""
-    from tukit_inteligencia.paginas import renderizar  # produccion, solo lectura
+    from tukit_inteligencia.paginas import renderizar
     contenido = pdf.read_bytes()
     huella = hashlib.sha256(contenido).hexdigest()
     hi = hashlib.sha256(instruccion.encode()).hexdigest()[:10]
     carpeta = RESPUESTAS / MODELO / f"{version}-{hi}" / huella[:24]
     carpeta.mkdir(parents=True, exist_ok=True)
-    with _RENDER:  # pypdfium2 no es seguro entre hilos (segfault con 4 hilos)
+    with _RENDER:
         paginas = renderizar(contenido)
     if max_paginas:
         paginas = paginas[:max_paginas]
@@ -383,6 +352,6 @@ def leer_documento(pdf: Path, version: str, instruccion: str, max_paginas: int |
                 if str(it.get("descripcion", "")).strip():
                     items.append({"descripcion": it["descripcion"], "cantidad": it.get("cantidad")})
         except (KeyError, IndexError, ValueError, TypeError):
-            pass  # una pagina sin JSON valido cuenta como pagina sin items (FN), no se reintenta
+            pass
     return {"items": items, "paginas": len(paginas), "usd_nuevo": usd, "llamadas_nuevas": llamadas,
             "huella": huella}

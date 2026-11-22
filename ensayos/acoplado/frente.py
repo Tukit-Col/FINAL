@@ -1,20 +1,4 @@
-"""Experimento FRENTE: una corrida de NSGA-II (frente + 4 kits) contra la PD.
-
-uv run python ensayos/acoplado/frente.py [--procesos 4] [--limite N]
-
-Por lista (174 reales del bench, un hijo), con el pedido de personaje del
-escenario Fan y el tope del escenario de presupuesto:
-  NSGA-II  : UNA llamada a `optimizar_frente` (produccion; enumera si el espacio
-             <= 4096) + proyeccion de los 4 kits (Ahorrador, Premium, Fan, A tu
-             Medida con tope). Semillas 0, 1, 2.
-  PD x4    : los 4 optimos escalares del bench (3 por linea + la mochila exacta).
-  PD barrido: K presupuestos entre el kit mas barato y el mas caro de los
-             extremos; una mochila (maxima fidelidad) por presupuesto, +3 extremos.
-  PD 4-D   : programacion dinamica con estado (suma de niveles, n con precio,
-             n con personaje) -> costo minimo. Da el frente exacto de los 4
-             ejes y sirve de verdad para el hipervolumen.
-Solo importa codigo existente; no modifica nada.
-"""
+"""Experimento FRENTE: una corrida de NSGA-II (frente + 4 kits) contra la PD."""
 
 from __future__ import annotations
 
@@ -61,7 +45,6 @@ PESOS = {"precio": 1.0, "marca_exigida": 1.0, "calidad": 1.0, "personaje": 1.0}
 EJES = ("costo", "fidelidad", "disponibilidad", "personaje")
 
 
-# ----------------------------------------------------------------- utilidades
 def vec(o: dict) -> tuple:
     return (o["costo"], o["fidelidad"], o["disponibilidad"], o["personaje"])
 
@@ -71,13 +54,11 @@ def _domina(a: tuple, b: tuple) -> bool:
 
 
 def no_dominados(vectores) -> list[tuple]:
-    """Vectores distintos y no dominados (costo menor, el resto mayor)."""
     unicos = sorted(set(vectores))
     return [v for v in unicos if not any(_domina(o, v) for o in unicos)]
 
 
 def hipervolumen(frente: list[tuple], ref_info: dict) -> float:
-    """HV 4-D sobre ejes normalizados con el rango del frente exacto (pymoo HV, minimizar)."""
     from pymoo.indicators.hv import HV
 
     if not frente:
@@ -87,13 +68,11 @@ def hipervolumen(frente: list[tuple], ref_info: dict) -> float:
     pts = np.array(
         [[(v[0] - c0) / span, 1 - v[1], 1 - v[2], 1 - v[3]] for v in frente], dtype=float
     )
-    pts = np.clip(pts, 0.0, 1.0)  # lo peor que mide el frente exacto
+    pts = np.clip(pts, 0.0, 1.0)
     return float(HV(ref_point=np.full(4, 1.1))(pts))
 
 
-# ----------------------------------------------------------------- PD 4-D exacta
 def pd_frente_4d(dec, prefs):
-    """Frente exacto de los 4 ejes. Estado (suma de niveles, n con precio, n con personaje)."""
     pedidos = {r.orden: {normalizar_personaje(p) for p in prefs.get("personaje_por_hijo", {}).get(r.hijo, [])} for r in dec}
     ops = []
     for r in dec:
@@ -117,7 +96,6 @@ def pd_frente_4d(dec, prefs):
                     nuevo[k] = (c2, (s, d, p), j)
         capas.append(nuevo)
         actual = {k: v[0] for k, v in nuevo.items()}
-    # no dominados en enteros (el costo tambien es entero)
     estados = sorted(actual.items(), key=lambda kv: (kv[1], -kv[0][0]))
     nd: list = []
     for (s, d, p), cost in estados:
@@ -136,7 +114,6 @@ def pd_frente_4d(dec, prefs):
     return salida
 
 
-# ----------------------------------------------------------------- una lista
 def trabajo(args):
     inst, escenarios_inst = args
     renglones = renglones_de(inst)
@@ -153,7 +130,6 @@ def trabajo(args):
         "personaje_pedido": pers, "tope": tope,
     }
 
-    # --- NSGA-II: una corrida = frente + 4 kits
     ns = []
     for semilla in SEMILLAS:
         t = time.perf_counter()
@@ -167,7 +143,6 @@ def trabajo(args):
             "kits": {k: (None if v is None else (v.costo, v.fidelidad, v.disponibilidad, v.personaje)) for k, v in kits.items()},
         })
 
-    # --- PD: 4 optimos escalares
     t = time.perf_counter()
     asig = {
         "Ahorrador": optimo_ahorrador(dec),
@@ -179,12 +154,11 @@ def trabajo(args):
     objs = {k: (vec(objetivos(dec, a, prefs)) if a else None) for k, a in asig.items()}
     extremos = [v for k, v in objs.items() if k != "A tu Medida" and v]
 
-    # --- PD barrido de presupuestos
     c_lo = objs["Ahorrador"][0]
     c_hi = max(objs["Premium"][0], objs["Fan"][0] if objs["Fan"] else 0, c_lo + 1)
     barridos = {}
     ks = {f"b{k}": k for k in BARRIDOS}
-    ks["bK"] = max(2, len(ns[0]["vectores"]))  # tantos presupuestos como puntos del frente de NSGA-II
+    ks["bK"] = max(2, len(ns[0]["vectores"]))
     ks["bK"] = min(ks["bK"], 400)
     for nombre, k in ks.items():
         t = time.perf_counter()
@@ -193,17 +167,14 @@ def trabajo(args):
             a = optimo_presupuesto(dec, int(round(b)))
             if a:
                 pts.append(vec(objetivos(dec, a, prefs)))
-        # el costo de evaluar objetivos no es parte de la PD: se descuenta
         seg_total = time.perf_counter() - t
         barridos[nombre] = {"k": k, "s_total": seg_total, "vectores": pts}
-    # tiempo puro de la PD (sin reevaluar objetivos): repetir solo las mochilas
     for nombre, k in ks.items():
         t = time.perf_counter()
         for b in np.linspace(c_lo, c_hi, k):
             optimo_presupuesto(dec, int(round(b)))
         barridos[nombre]["s"] = time.perf_counter() - t
 
-    # --- PD 4-D exacta
     t = time.perf_counter()
     asigs4 = pd_frente_4d(dec, prefs)
     fila["pd4d_s"] = time.perf_counter() - t
@@ -231,7 +202,6 @@ def trabajo(args):
     for nombre, b in barridos.items():
         fila[f"pd_{nombre}"] = {"k": b["k"], "s": b["s"], **metricas(b["vectores"]),
                                 **{"con_extremos": metricas(b["vectores"] + extremos)}}
-    # kits: ¿NSGA-II entrega el mismo costo/fidelidad que el optimo exacto?
     fila["kits_nsga_s0"] = ns[0]["kits"]
     fila["kits_pd"] = objs
     fila["frente_nsga_s0"] = ns[0]["vectores"]

@@ -1,24 +1,5 @@
 """Los kits canonicos de un colegio, armados desde `datos/` sin base de datos.
-
-No es producto: es la vara para medir la curaduria. Corre la misma ruta
-rapida que el catalogo (`armar_items`, el filtro por atributos de cada
-renglon) sobre lo que `cargador` cargaria, y elige el producto de cada perfil
-como lo proyecta el optimizador cuando cada linea tiene un solo renglon:
-
-- Ahorrador: el de menor costo de linea (empaque incluido).
-- Premium: el de mejor nivel y, dentro de el, el de menor costo de linea.
-
-Los empates se rompen como los rompe el optimizador (ver `_clave_ahorrador`).
-
-Despues junta las herramientas que un mismo hijo pide en varias materias, como
-`juntar_herramientas`. No reproduce lo que no cambia la eleccion (personaje
-pedido por el acudiente, hermanos, disponibilidad por tienda).
-
-Uso:
-
-    python ensayos/kits_offline.py                      # resumen del Agustiniano
-    python ensayos/kits_offline.py --csv salida.csv     # ademas, renglon por renglon
-"""
+Uso:"""
 
 from __future__ import annotations
 
@@ -62,7 +43,6 @@ GRADOS = (
     "Decimo",
     "Once",
 )
-# La notacion de la auditoria: `J#3`, `7#45`.
 SIGLA = {g: s for g, s in zip(GRADOS, ("J", "T", *map(str, range(1, 12))), strict=True)}
 
 
@@ -115,7 +95,6 @@ class Catalogo:
 
 
 def cargar_catalogo(directorio: Path = _RAIZ / "datos" / "catalogo") -> Catalogo:
-    """Lo que `cargador` meteria en la base, en la forma en que la ruta rapida lo lee."""
     armado = Cargador(directorio).armar()
     conceptos = {c["id"]: c for c in armado["concepto"]}
     precio_oferta: dict[Any, int] = {}
@@ -166,7 +145,6 @@ def cargar_catalogo(directorio: Path = _RAIZ / "datos" / "catalogo") -> Catalogo
 
 
 def renglones_de(colegio_id: str, ruta: Path = _RAIZ / "datos" / "curaduria" / "listas_revisadas.csv"):
-    """Los renglones curados de cada grado del colegio, como los lee la ruta rapida."""
     por_grado: dict[str, list[SimpleNamespace]] = {}
     with ruta.open(encoding="utf-8", newline="") as fh:
         for i, f in enumerate(csv.DictReader(fh)):
@@ -199,24 +177,6 @@ def _costo_linea(candidato: dict[str, Any], cantidad: int) -> int:
     return (precio or 0) * unidades
 
 
-# Como desempata el optimizador, linea por linea. Sus cuatro objetivos se suman
-# por linea, asi que la proyeccion de `_proyectar` se descompone:
-#
-# 1. `_surtibles`: primero la mayor disponibilidad, o sea un candidato con
-#    precio si la linea tiene alguno.
-# 2. El eje del perfil: el Ahorrador minimiza el costo y luego maximiza la
-#    fidelidad (`-s.fidelidad`); el Premium maximiza la fidelidad y luego
-#    minimiza el costo.
-# 3. Lo que queda empatado lo decide la dominancia de `_no_dominadas`: a igual
-#    costo y nivel, el que trae personaje domina (sin personaje pedido cuenta
-#    cualquiera). En los canonicos casi nunca pesa, porque la ruta rapida solo
-#    deja productos con personaje cuando son los unicos que cumplen.
-# 4. Con el vector de objetivos identico, `_no_dominadas` se queda con la
-#    primera solucion enumerada, que lleva el primer candidato en el orden de la
-#    ruta rapida (nivel, precio, sku): de ahi el indice.
-#
-# Con NSGA-II (espacio de busqueda > `LIMITE_ENUMERACION`) el frente puede no
-# traer el punto exacto; esto replica el frente exacto.
 def _clave_ahorrador(
     candidato: dict[str, Any], indice: int, cantidad: int
 ) -> tuple[bool, int, int, bool, int]:
@@ -269,7 +229,6 @@ def armar_grado(grado: str, filas: list[SimpleNamespace], catalogo: Catalogo) ->
         tipo = item.get("tipo_item") or "util"
         modo = item.get("modo_adquisicion") or "mercado_abierto"
         candidatos = item["candidatos"]
-        # La misma puerta que la ruta rapida de `trabajos.py`.
         surtible = (
             item.get("concepto_codigo") is not None
             and tipo in BUSCA_EN_CATALOGO
@@ -307,7 +266,6 @@ def armar_grado(grado: str, filas: list[SimpleNamespace], catalogo: Catalogo) ->
 
 
 def _juntar(lineas: list[Linea], perfil: str) -> None:
-    """`juntar_herramientas`: el mismo producto de un concepto uno-por-estudiante se compra una vez."""
     grupos: dict[str, list[Linea]] = {}
     for linea in lineas:
         eleccion = getattr(linea, perfil)

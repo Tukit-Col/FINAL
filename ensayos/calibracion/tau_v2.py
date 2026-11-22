@@ -1,15 +1,4 @@
-"""Calibracion de tau con el conjunto grande (renglones_etiquetados_v2.csv), por la RUTA REAL.
-
-Reutiliza ruta_real.py (importado): consulta.emparejar + estado_desde_emparejamiento sobre el catalogo vivo
-(solo SELECT) y los vectores en cache. Sin adoptar cambios. Salidas:
-  ensayos/calibracion/salidas/tau_v2.json, ensayos/calibracion/salidas/tabla_tau_v2.tex
-
-Definiciones. Un renglon es "aceptado" a tau si la ruta real lo resuelve sin revision: emparejamiento
-reconocido con opciones y parecido >= tau (equivale a RESUELTO_AUTO). Acierto: concepto propuesto == etiqueta
-(etiqueta vacia == "sin concepto"). Precision = aciertos / aceptados. Regla de eleccion (la de tau.py):
-el menor parecido observado cuya precision de aceptacion en entrenamiento sea >= 0,95.
-Etiquetas del sistema: la mayoria son salida del propio sistema aceptada por el revisor (ver origen_revision).
-"""
+"""Calibracion de tau con el conjunto grande (renglones_etiquetados_v2.csv), por la RUTA REAL."""
 from __future__ import annotations
 
 import asyncio
@@ -73,7 +62,6 @@ def cifras(d, tau):
 
 
 def bootstrap(d, clave, taus, rng):
-    """IC95 % por percentiles remuestreando conglomerados (listas o colegios). Devuelve por tau."""
     cl = d.listas if clave == "lista" else d.colegios
     ids = sorted(set(cl))
     na = np.array([[int((acepta(d, t) & (cl == c)).sum()) for t in taus] for c in ids], float)
@@ -158,7 +146,7 @@ def main():
     rd = lambda n: {r["id"]: r["concepto_codigo"] for r in csv.DictReader((M_ / n).open(encoding="utf-8"))}  # noqa: E731
     A, B = rd("anotador_A_llm.csv"), rd("anotador_B_llm.csv")
     adj = {r["id"]: r["adjudicado"] for r in csv.DictReader(ORO.open(encoding="utf-8"))}
-    oro = {i: (A[i] if A[i] == B[i] else adj[i]) for i in A}  # mismo criterio que acuerdo_ruta_real.py
+    oro = {i: (A[i] if A[i] == B[i] else adj[i]) for i in A}
     ou = [{"id": i, "adjudicado": oro[i]} for i in sorted(oro)]
     mu = {r["id"]: r for r in csv.DictReader((RR.MUESTRA_CIEGA / "muestra.csv").open(encoding="utf-8"))}
     em = emparejar_todo([r["texto_original"] for r in et] + [r["texto_original"] for r in mu.values()])
@@ -179,7 +167,6 @@ def main():
     out["loso_objetivo_098"] = loso(D, 0.98)
     out["particion_70_15_15"] = particion(D)
     out["particion_70_15_15_objetivo_098"] = {k: v for k, v in particion(D, 0.98).items() if k != "filas"}
-    # sensibilidades
     corr = np.array([r["concepto_corregido_por_persona"] == "1" for r in et])
     sin_c = np.array([r["concepto_codigo"] != "" for r in et])
     out["sensibilidad"] = {}
@@ -187,28 +174,23 @@ def main():
         s = D.sub(m)
         out["sensibilidad"][nom] = [cifras(s, t) for t in PUNTOS]
     out["por_colegio_en_075"] = {c: cifras(D.sub(D.colegios == c), 0.75) for c in sorted(set(D.colegios))}
-    # muestra ciega
     ids = [r["id"] for r in ou]
     M = Datos([mu[i]["texto_original"] for i in ids], [r["adjudicado"].replace("NINGUNO", "") for r in ou],
               [mu[i]["colegio"] + "|" + mu[i]["grado"] for i in ids], [mu[i]["colegio"] for i in ids], em)
-    # sanidad contra ruta_real_muestra.csv a 0,75
     rm = {r["id"]: r for r in csv.DictReader((SALIDA / "ruta_real_muestra.csv").open(encoding="utf-8"))}
     dif = sum((acepta(M, 0.75)[k]) != (rm[i]["aceptado"] == "si") for k, i in enumerate(ids))
     out["muestra_ciega_oro_llm"] = {"n": M.n, "listas": len(set(M.listas)), "colegios": len(set(M.colegios)),
         "textos_de_la_muestra_presentes_en_v2": int(sum(mu[i]["texto_original"] in {r["texto_original"] for r in et} for i in ids)),
         "discrepancias_aceptado_vs_ruta_real_muestra.csv_en_075": int(dif), "curva": curva(M, rng)}
     out["muestra_ciega_oro_llm"]["puntos_clave"] = [c for c in out["muestra_ciega_oro_llm"]["curva"] if round(c["tau"], 3) in PUNTOS]
-    # etiquetas del sistema restringidas a los textos de la muestra (mismo universo)
     ts = {mu[i]["texto_original"] for i in ids}
     mm = np.array([r["texto_original"] in ts for r in et])
     out["etiquetas_sistema_en_textos_de_la_muestra"] = [cifras(D.sub(mm), t) for t in PUNTOS]
-    # similitud de curvas
     a = [c["precision"] for c in out["curva_sistema"]]
     b = [c["precision"] for c in out["muestra_ciega_oro_llm"]["curva"]]
     out["comparacion_curvas"] = {"diferencia_precision_media_abs": float(np.nanmean([abs(x - y) for x, y in zip(a, b, strict=True) if x is not None and y is not None])),
         "diferencia_fraccion_media_abs": float(np.mean([abs(x["fraccion_aceptada"] - y["fraccion_aceptada"]) for x, y in zip(out["curva_sistema"], out["muestra_ciega_oro_llm"]["curva"], strict=True)])),
         "precision_sistema_menos_oro_por_tau": {f"{c['tau']:.3f}": (None if c["precision"] is None or y["precision"] is None else c["precision"] - y["precision"]) for c, y in zip(out["curva_sistema"], out["muestra_ciega_oro_llm"]["curva"], strict=True)}}
-    # vieja
     v = json.load((SALIDA / "tau.json").open())
     out["calibracion_vieja_405"] = {"pares": v["pares"], "listas": v["listas"], "colegios": 3, "aciertos": v["aciertos"],
         "auc": v["auc_parecido"], "puntos": [c for c in v["curva"] if c["tau"] in (0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9)],

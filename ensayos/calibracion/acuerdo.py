@@ -1,25 +1,5 @@
 """Acuerdo entre anotadores y exactitud del sistema contra un oro independiente.
-
-Lee `muestra_ciega/anotador_A.csv` y `anotador_B.csv` (id, concepto_codigo, comentario) y la
-salida del sistema sobre esos mismos ids: la clasificacion de `clasificacion.py` con las
-constantes actuales (`ACTUAL`) y tau = 0,75. Calcula:
-
-  * kappa de Cohen entre A y B (IC 95 % por bootstrap sobre renglones) y % de acuerdo.
-  * pares de desacuerdo mas frecuentes (A -> B).
-  * oro = A si A == B; en los desacuerdos, la columna `adjudicado` que llena una tercera persona
-    en `muestra_ciega/adjudicacion.csv` (id, texto_original, concepto_A, concepto_B, adjudicado).
-    La primera corrida escribe ese archivo; se llena y se corre otra vez.
-  * exactitud del sistema, precision de lo aceptado en tau y fraccion aceptada contra el oro,
-    con IC 95 %, y las mismas cifras contra las etiquetas del propio sistema (circulares) sobre
-    los mismos ids, con la diferencia y su IC (bootstrap pareado).
-
-Los IC son bootstrap percentil de 2.000 remuestras por renglon. Como los renglones de una misma
-lista se parecen, tambien se da el IC remuestreando por lista (colegio, grado), mas honesto y mas ancho.
-El codigo `NINGUNO` (o casilla vacia en el oro) equivale a "sin concepto" y se compara con la salida
-`sin correspondencia` del sistema (puntaje bajo el corte).
-
-Uso: uv run python ensayos/calibracion/acuerdo.py [--dir muestra_ciega] [--salida acuerdo.json]
-"""
+Uso: uv run python ensayos/calibracion/acuerdo.py [--dir muestra_ciega] [--salida acuerdo.json]"""
 
 from __future__ import annotations
 
@@ -59,7 +39,6 @@ def kappa(a: list[str], b: list[str]) -> float:
 
 
 def ic(f, n: int, rng, grupos: np.ndarray | None = None) -> list[float | None]:
-    """IC 95 % percentil de f(indices). Con `grupos`, remuestrea grupos completos."""
     v = []
     if grupos is None:
         for _ in range(REMUESTRAS):
@@ -82,7 +61,6 @@ def metricas_sistema(pred_ok: np.ndarray, acepta: np.ndarray, ix: np.ndarray) ->
 
 
 def salida_sistema(filas: list[dict]) -> dict[str, dict]:
-    """Por renglon de la muestra: concepto del sistema (codigo o NINGUNO), puntaje, aceptado y etiqueta circular."""
     d = k.cargar()
     r = k.construir_rasgos(d)
     idx, s = k.puntuar(r, k.ACTUAL)
@@ -126,7 +104,6 @@ def correr(dir_muestra: Path, salida: Path, adjudicacion: Path | None = None) ->
         },
     }
     sis = salida_sistema(filas)
-    # adjudicacion
     ruta_adj = adjudicacion or dir_muestra / "adjudicacion.csv"
     adj = {}
     if ruta_adj.exists():

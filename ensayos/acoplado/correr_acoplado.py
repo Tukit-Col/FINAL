@@ -1,8 +1,4 @@
-"""Barrido T x lista: PD exacta vs NSGA-II con costo fijo por tienda.
-
-uv run python ensayos/acoplado/correr_acoplado.py [--procesos 6] [--limite N] [--memoria-cada K]
-Escribe resultados.json (filas por lista y T + resumen por T).
-"""
+"""Barrido T x lista: PD exacta vs NSGA-II con costo fijo por tienda."""
 
 from __future__ import annotations
 
@@ -43,9 +39,8 @@ def trabajo(args):
     dec = decidibles(renglones_de(inst))
     n = len(dec)
     from comun import optimo_ahorrador
-    # Presupuesto del bench + el envio que el kit mas barato ya paga: siempre factible.
     s0, tot0 = total_de(dec, optimo_ahorrador(dec), T)
-    from acoplado import costo_linea, _admisibles
+    from acoplado import _admisibles, costo_linea
     base0 = sum(costo_linea(r, next(c for c in _admisibles(r) if c.sku == optimo_ahorrador(dec)[str(r.orden)])) for r in dec)
     presupuesto = presupuesto + (tot0 - base0)
     fila = {"instancia": inst["id"], "T": T, "lineas": n, "presupuesto": presupuesto}

@@ -1,19 +1,5 @@
 """Curva de aprendizaje: ¿mejora el sistema con cada lista revisada?
-
-Simulacion en memoria (sin tocar la base) del lazo "corregir el concepto de un renglon agrega su
-texto como sinonimo del concepto correcto". Para cada orden de listas: por cada lista nueva se mide,
-ANTES de aprender de ella, la fraccion de sus renglones resuelta de forma automatica (puntaje >= tau)
-y correcta; despues el catalogo en memoria aprende de las correcciones de esa lista. Se promedian
-20 ordenes aleatorios. Se mide tambien el mismo recorrido SIN aprender (control: separa aprendizaje
-de azar de que listas tocan primero) y aprendiendo de todo renglon aprobado (cota alta).
-
-Dos catalogos de partida (ver aprendizaje.py): "actual" (el de hoy menos 21 sinonimos aprendidos;
-optimista, trae sinonimos sembrados) y "frio" (solo nombres de concepto).
-Ordenes: "listas" (permutacion aleatoria de las 80 listas) y "colegios" (colegios completos en
-orden aleatorio, listas al azar dentro de cada uno: como llegan en la vida real).
-
-Uso: uv run python ensayos/calibracion/curva_aprendizaje.py
-"""
+Uso: uv run python ensayos/calibracion/curva_aprendizaje.py"""
 
 from __future__ import annotations
 
@@ -70,7 +56,7 @@ def recorrer(sim: ap.Simulador, orden: list[str], frio: bool, modo: str) -> dict
 def resumen(series: list[dict]) -> dict:
     out = {}
     for m in METRICAS:
-        a = np.array([s[m] for s in series], dtype=float)  # (ordenes, listas)
+        a = np.array([s[m] for s in series], dtype=float)
         out[m] = {
             "media_por_posicion": np.nanmean(a, 0).tolist(),
             "p05": np.nanpercentile(a, 5, 0).tolist(),

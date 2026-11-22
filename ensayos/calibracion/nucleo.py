@@ -1,10 +1,4 @@
-"""Piezas compartidas de los ensayos de calibracion del optimizador.
-
-Todo se apoya en las funciones del optimizador de produccion para que "costo",
-"fidelidad", "disponibilidad" y "personaje" signifiquen lo mismo que en el
-pipeline. Las listas salen de `ensayos/bench_laya/instancias.json.gz` (174 listas
-reales de 17 colegios, con una foto fija del catalogo).
-"""
+"""Piezas compartidas de los ensayos de calibracion del optimizador."""
 
 from __future__ import annotations
 
@@ -82,12 +76,6 @@ def espacio_de(opciones: list[list]) -> int:
 
 
 def subproblema(renglones: list[Renglon], bits: int, rng: random.Random) -> tuple[list[Renglon], list[list]] | None:
-    """Un subconjunto de lineas decidibles cuyo espacio queda entre 2^bits y 2^(bits+1).
-
-    Se barajan las lineas con la semilla dada y se agregan hasta pasar 2^bits. Si la
-    lista no alcanza ese tamano devuelve None. Las lineas que se quedan son reales
-    (con sus candidatos y precios), solo se descarta el resto de la lista.
-    """
     dec = decidibles(renglones)
     dec = [r for r in dec if len(_admisibles(r)) > 1]
     rng.shuffle(dec)
@@ -107,24 +95,15 @@ def subproblema(renglones: list[Renglon], bits: int, rng: random.Random) -> tupl
     return elegidas, opciones_de(elegidas)
 
 
-# ------------------------------------------------------- frente exacto de referencia
-
-
 def frente_exacto_por_podas(
     dec: list[Renglon], opciones: list[list], preferencias: dict[str, Any]
 ) -> list[SolucionFrente]:
-    """El frente exacto sin enumerar todo el espacio.
-
-    Los cuatro objetivos son sumas por linea (la fidelidad y los otros dos son
-    promedios de terminos por linea), asi que un parcial dominado nunca puede
-    completarse en una solucion no dominada: se poda tras cada linea. Da el MISMO
-    frente que la enumeracion (se verifica en `umbral.py`) y permite tener la
-    referencia en espacios donde enumerar no cabe en la memoria.
-    """
-    from tukit_inteligencia.optimizador import Candidato, unidades_a_comprar  # noqa: F401
-
-    # Un parcial es (costo, suma_fid_niveles, con_precio, con_personaje, indices).
-    from tukit_inteligencia.optimizador import ORDEN_NIVEL, _personajes_de
+    from tukit_inteligencia.optimizador import (  # noqa: F401
+        ORDEN_NIVEL,
+        Candidato,
+        _personajes_de,
+        unidades_a_comprar,
+    )
 
     tope_nivel = max(1, len(ORDEN_NIVEL) - 1)
     parciales: list[tuple[int, float, int, int, tuple[int, ...]]] = [(0, 0.0, 0, 0, ())]
@@ -152,7 +131,6 @@ def frente_exacto_por_podas(
 
 
 def _podar(puntos: list[tuple[int, float, int, int, tuple[int, ...]]]) -> list[tuple[int, float, int, int, tuple[int, ...]]]:
-    """Quita los puntos dominados (costo se minimiza, el resto se maximiza)."""
     unicos: dict[tuple[int, float, int, int], tuple[int, ...]] = {}
     for costo, fid, disp, pers, idx in puntos:
         unicos.setdefault((costo, round(fid, 9), disp, pers), idx)
@@ -162,23 +140,17 @@ def _podar(puntos: list[tuple[int, float, int, int, tuple[int, ...]]]) -> list[t
     for i in range(len(claves)):
         if not vivos[i]:
             continue
-        # Con el orden por costo, solo pueden dominar a i los anteriores.
         dom = np.all(matriz[:i] <= matriz[i], axis=1) & np.any(matriz[:i] < matriz[i], axis=1) & vivos[:i]
         if dom.any():
             vivos[i] = False
             continue
-        # i elimina a los posteriores que domine.
         posteriores = matriz[i + 1 :]
         domina = np.all(matriz[i] <= posteriores, axis=1) & np.any(matriz[i] < posteriores, axis=1)
         vivos[i + 1 :] &= ~domina
     return [(k[0], k[1], k[2], k[3], unicos[k]) for k, v in zip(claves, vivos, strict=True) if v]
 
 
-# ------------------------------------------------------------------ hipervolumen
-
-
 def limites_costo(dec: list[Renglon], opciones: list[list]) -> tuple[int, int]:
-    """Costo minimo y maximo posibles del kit (suma de extremos por linea)."""
     from tukit_inteligencia.optimizador import unidades_a_comprar
 
     def c(r: Renglon, cand) -> int:
@@ -193,12 +165,6 @@ REFERENCIA = 1.1
 
 
 def hipervolumen(frente: list[SolucionFrente], lo: int, hi: int) -> float:
-    """Hipervolumen de 4 ejes en espacio normalizado, referencia (1,1; 1,1; 1,1; 1,1).
-
-    Cada eje se lleva a [0, 1] con 0 como lo mejor: costo con (costo - lo) / (hi - lo)
-    y los demas con 1 - valor. El punto de referencia es 1,1 en los cuatro ejes, o
-    sea un 10 % peor que el peor valor posible de cada eje.
-    """
     from pymoo.indicators.hv import HV
 
     if not frente:

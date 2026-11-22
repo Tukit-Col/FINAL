@@ -1,16 +1,5 @@
 """El competidor de produccion: NSGA-II (o enumeracion exacta si el espacio es chico).
-
-Replica `armar_los_tres` paso a paso para poder guardar, ademas de los tres kits,
-el frente completo y el kit recomendado bajo presupuesto. Corre 5 semillas por
-escenario, en paralelo por proceso.
-
-Salida: `nsga.json` con, por (instancia, escenario, semilla):
-- `asignacion`: lo que el producto entrega para ese escenario (el kit del perfil,
-  o el recomendado por `recomendar` en el de presupuesto).
-- `asignacion_frente` (solo presupuesto): el mejor punto del frente que cabe.
-- `frente`: los objetivos de cada punto del frente.
-- `segundos`: tiempo de pared del armado.
-"""
+Salida: `nsga.json` con, por (instancia, escenario, semilla):"""
 
 from __future__ import annotations
 

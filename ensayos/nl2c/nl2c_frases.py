@@ -1,37 +1,9 @@
-"""Frases de prueba del asistente NL2C con su etiqueta de oro.
-
-Las etiquetas se escribieron ANTES de correr el modelo (el commit que agrega
-este archivo es anterior al que agrega el corredor y los resultados).
-
-De donde sale cada frase (campo `fuente`):
-- `encuesta:texto`: texto libre de la encuesta a acudientes del Agustiniano
-  (Resultados_encuesta.xlsx, 60 respuestas validas; columnas 18 y 24), copiado tal
-  cual o con cambios minimos de persona verbal.
-- `encuesta:cerrada`: una respuesta cerrada de la encuesta (P14 gasto anual,
-  P21 prioridades, P22 sobreprecio) dicha como la diria un acudiente.
-- `construida`: frase escrita por el equipo con la forma de lo que pide el
-  formulario de /empezar (personaje, tope, estilo). La encuesta no trae nombres
-  de personajes, de modo que todos los personajes son de esta clase.
-
-Reglas de oro (las mismas para todas las frases):
-- `estilo`: "gastar poco / barato / lo mas barato" es `economico`; "equilibrado /
-  punto medio / sin pasarme" es `punto_medio`; "lo mejor / aunque cueste mas /
-  calidad primero" es `estirarse`; sin pista, `punto_medio` (el valor por omision).
-- `peso_mayor`: la dimension que el acudiente nombra primero. Sin pista, la que
-  el formulario da por omision a ese estilo (precio para economico y punto medio,
-  calidad para estirarse). Si dos dimensiones empatan en lo que dijo, se aceptan las dos.
-- `presupuesto`: el tope por hijo en pesos si lo dice; en un rango, su extremo superior.
-- `sobreprecio`: el porcentaje solo si lo dice; si no, el modelo no debe fijarlo.
-- `personajes`: los del catalogo surtido que nombra; uno que no esta en el catalogo no cuenta.
-- `accion`: `fijar` si hay algo que convertir en restricciones; `sin_accion` si
-  pide algo que el kit no controla. Una tupla acepta varias.
-"""
+"""Frases de prueba del asistente NL2C con su etiqueta de oro."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-# Los personajes con las cuatro anclas en datos/catalogo (conteo de productos activos).
 CATALOGO_PERSONAJES = ["disney", "stitch", "minnie", "spiderman", "bluey", "cars", "frozen", "paw patrol"]
 
 

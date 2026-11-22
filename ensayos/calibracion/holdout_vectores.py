@@ -1,10 +1,4 @@
-"""Vectoriza los textos unicos de holdout_norte.csv que faltan en cache y resuelve de nuevo (v2).
-
-Embedder del sistema (tukit_catalogo.embeddings.embeder_gemini, gemini-embedding-001, 1024 dim, lotes de 100).
-Guarda SOLO en datos/vectores_holdout.npz; lee vectores_renglones.npz sin modificarlo.
-Resolucion con transaccion de solo lectura (RR.cargar_indice). Tope: 16 llamadas HTTP.
-    uv run python ensayos/calibracion/holdout_vectores.py
-"""
+"""Vectoriza los textos unicos de holdout_norte.csv que faltan en cache y resuelve de nuevo (v2)."""
 
 from __future__ import annotations
 
@@ -56,7 +50,6 @@ def main():
         urllib.request.urlopen = _contando  # type: ignore[assignment]
         EM.urllib.request.urlopen = _contando
         nuevos = {}
-        # un colegio a la vez para que ninguna llamada mezcle ni exceda el tope
         for i in range(0, len(faltan), 100):
             lote = faltan[i:i + 100]
             for t, v in zip(lote, EM.embeder_gemini(lote), strict=True):

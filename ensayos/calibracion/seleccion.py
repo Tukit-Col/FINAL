@@ -1,20 +1,12 @@
-"""Seleccion de constantes sobre un subconjunto de renglones (entrenamiento) y medida en otro.
-
-Espacio de busqueda: 3^5 = 243 combinaciones de las 5 constantes de puntaje x 5 cortes = 1.215
-(ver barrido.ESPACIO / CORTES). Criterio: exactitud del concepto en el subconjunto de
-entrenamiento; en empate se prefiere la combinacion con menos constantes distintas del valor
-actual (un desempate conservador, declarado). tau se fija despues con la regla "menor tau cuya
-precision de lo aceptado llegue al objetivo" sobre el mismo subconjunto.
-"""
+"""Seleccion de constantes sobre un subconjunto de renglones (entrenamiento) y medida en otro."""
 
 from __future__ import annotations
 
 import itertools
 
-import numpy as np
-
 import barrido as b
 import clasificacion as k
+import numpy as np
 
 OBJETIVOS_TAU = (0.95, 0.98)
 

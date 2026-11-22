@@ -1,19 +1,5 @@
 """Aumentacion de datos para CALIBRAR constantes y para PRUEBAS DE ESTRES (no entrena ningun modelo).
-
-Gemini ya viene entrenado; TUKIT no lo reentrena. Aqui "aumentar" es fabricar variantes sucias de
-renglones reales que conservan la etiqueta (el concepto aprobado), para dos usos distintos:
-  1. calibrar las constantes con ~6 veces mas casos (renglon limpio + 5 variantes), y
-  2. medir cuanto se degrada el sistema cuando la lista llega sucia (robustez.py).
-No se usa para afirmar generalizacion a colegios nuevos: eso lo mide generalizacion.py con datos
-reales. Las variantes son transformaciones de textos reales, no evidencia independiente.
-
-Contenido: perturbaciones deterministas (semilla por texto), cache en disco de los vectores de las
-variantes (embeder real del sistema), contextos alineados con los renglones reales, pila de
-entrenamiento aumentado sin fuga (por lista y por texto) y la calibracion aumentada
-(salida: calibracion_aumentada.json y .pdf).
-
-Uso: uv run python ensayos/calibracion/aumentacion.py
-"""
+Uso: uv run python ensayos/calibracion/aumentacion.py"""
 
 from __future__ import annotations
 
@@ -44,7 +30,7 @@ N_VARIANTES = 5
 LEVE, FUERTE = "leve", "fuerte"
 RUTA_CACHE = k.DATOS / "vectores_perturbados.npz"
 RESCATE_APAGADO = 1.01
-ACTUAL_SR = {**k.ACTUAL, "res_cos": RESCATE_APAGADO}  # las constantes actuales con la rama de rescate apagada
+ACTUAL_SR = {**k.ACTUAL, "res_cos": RESCATE_APAGADO}
 LEXICO = {**k.ACTUAL, "w_cos": 0.0, "res_cos": RESCATE_APAGADO}
 
 PALABRA = re.compile(r"[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+")
@@ -78,7 +64,6 @@ def _palabras(t: str, minimo: int = 4) -> list[re.Match]:
 
 
 def _reemplazar(t: str, cambios: dict[int, tuple[int, str]]) -> str:
-    """cambios: inicio -> (fin, nuevo). Aplica de derecha a izquierda."""
     for ini in sorted(cambios, reverse=True):
         fin, nuevo = cambios[ini]
         t = t[:ini] + nuevo + t[fin:]
@@ -260,7 +245,6 @@ FUNCIONES = {
 
 
 def perturbar(texto: str, tipo: str, sev: str, semilla: str = "") -> str:
-    """Una perturbacion determinista de `texto`. `mixta` compone 3 tipos distintos con la misma severidad."""
     r = _rng(SEMILLA_PERT, tipo, sev, semilla, texto)
     if tipo == "mixta":
         t = texto
@@ -271,7 +255,6 @@ def perturbar(texto: str, tipo: str, sev: str, semilla: str = "") -> str:
 
 
 def variante_aumentada(texto: str, j: int) -> str:
-    """Variante j (0..4) para el ENTRENAMIENTO aumentado: 1 a 3 tipos al azar, severidad leve (70 %) o fuerte."""
     r = _rng(SEMILLA_PERT, "aug", j, texto)
     sev = LEVE if r.random() < 0.7 else FUERTE
     t = texto
@@ -287,10 +270,6 @@ def conjuntos_de_estres(textos: list[str]) -> dict[tuple[str, str], list[str]]:
 def conjuntos_aumentados(textos: list[str]) -> list[list[str]]:
     return [[variante_aumentada(t, j) for t in textos] for j in range(N_VARIANTES)]
 
-
-# ---------------------------------------------------------------------------
-# Vectores de las variantes (embeder real, cache en disco)
-# ---------------------------------------------------------------------------
 
 LLAMADAS = {"solicitudes": 0, "textos": 0, "reintentos": 0, "desde_cache": 0}
 
@@ -308,7 +287,6 @@ def _guardar_cache(cache: dict[str, np.ndarray]) -> None:
 
 
 def vectorizar_nuevos(textos: set[str], hilos: int = 4) -> dict[str, np.ndarray]:
-    """Vectores float16 (renormalizados al leer) de los textos; llama al embeder del sistema solo por los que faltan."""
     cache = _cargar_cache()
     faltan = sorted(t for t in textos if t not in cache)
     LLAMADAS["desde_cache"] = len(textos) - len(faltan)
@@ -351,7 +329,6 @@ def _unit(v: np.ndarray) -> np.ndarray:
 
 
 def contexto_con_textos(cx: b.Contexto, textos: list[str], cache: dict[str, np.ndarray] | None) -> b.Contexto:
-    """Contexto alineado con `cx` (mismas filas, mismas etiquetas) cuyos textos unicos son `textos` (la variante)."""
     lex = k.lexico_de(cx.d.conceptos)
     vec = None
     if cx.d.vectores is not None and cache is not None:
@@ -364,13 +341,7 @@ def contexto_con_textos(cx: b.Contexto, textos: list[str], cache: dict[str, np.n
     return c2
 
 
-# ---------------------------------------------------------------------------
-# Particion + pila aumentada sin fuga
-# ---------------------------------------------------------------------------
-
-
 class Pila:
-    """Filas apiladas: [limpio (3.037)] + [variante 1..5 (3.037 c/u)]. Mismas filas que `cx`, texto distinto."""
 
     def __init__(self, cx: b.Contexto, cxs: list[b.Contexto]):
         self.cx, self.cxs = cx, [cx, *cxs]
@@ -379,7 +350,7 @@ class Pila:
         self.lista = np.tile(cx.lista, len(self.cxs))
         self.origen = np.repeat(np.arange(len(self.cxs)), self.n)
         self.textos = [t for c in self.cxs for t in (c.d.textos[i] for i in c.u)]
-        self.base = np.tile(cx.u, len(self.cxs))  # indice del texto base (el real)
+        self.base = np.tile(cx.u, len(self.cxs))
         self._cache: dict[tuple, tuple[np.ndarray, np.ndarray]] = {}
 
     def puntuar(self, cfg: dict) -> tuple[np.ndarray, np.ndarray]:
@@ -395,9 +366,6 @@ class Pila:
 
 
 def mascaras(pila: Pila, parte: dict[str, list[str]], textos_prohibidos: set[str]) -> dict:
-    """Mascaras sobre la pila. El entrenamiento aumentado = limpio de las listas de entrenamiento + variantes
-    de los renglones de entrenamiento cuyo texto base NO aparece en validacion/prueba y cuya cadena de
-    variante tampoco coincide con ningun texto (limpio o perturbado) de validacion/prueba."""
     cx = pila.cx
     en = {p: np.isin(pila.lista, ls) for p, ls in parte.items()}
     limpias = pila.origen == 0
@@ -417,7 +385,6 @@ def mascaras(pila: Pila, parte: dict[str, list[str]], textos_prohibidos: set[str
 
 
 def comprobar_fuga(pila: Pila, parte: dict[str, list[str]], m: dict, cadenas_vp: set[str]) -> dict:
-    """Comprobaciones explicitas (por lista y por texto base) de una particion."""
     cx = pila.cx
     tr_aum = m["train_aum"]
     listas_tr = {l for l in pila.lista[tr_aum]}
@@ -439,7 +406,6 @@ def comprobar_fuga(pila: Pila, parte: dict[str, list[str]], m: dict, cadenas_vp:
 
 
 def cadenas_prohibidas(cx: b.Contexto, parte: dict[str, list[str]], estres: dict[tuple[str, str], list[str]]) -> set[str]:
-    """Todo texto de validacion/prueba: limpio y cada perturbacion de estres de esos mismos renglones."""
     idx = np.unique(cx.u[np.isin(cx.lista, parte["validacion"] + parte["prueba"])])
     s = {cx.d.textos[i] for i in idx}
     for lst in estres.values():
@@ -458,10 +424,6 @@ def construir_pila(cx: b.Contexto, con_vectores: bool = True):
     cxs = [contexto_con_textos(cx, lst, cache) for lst in aum]
     return Pila(cx, cxs), estres, aum, cache
 
-
-# ---------------------------------------------------------------------------
-# Calibracion aumentada
-# ---------------------------------------------------------------------------
 
 GRILLA = {
     "piso": [0.5, 0.55, 0.6, 0.65, 0.7],
@@ -483,7 +445,6 @@ def _dist_actual(cfg: dict) -> int:
 
 
 class Espacio:
-    """Espacio conjunto (piso x w_jac x w_cos x corte = 750) sobre la pila, con rescate apagado."""
 
     def __init__(self, pila: Pila):
         import itertools
@@ -524,7 +485,6 @@ def barrido_unico_mascara(pila: Pila, mask: np.ndarray, clave: str) -> list[dict
 
 
 def optimo(filas: list[dict], clave: str) -> dict:
-    """Valor que maximiza la exactitud (en empate, el mas cercano al actual); `meseta` = valores a <= 0,5 pp del maximo."""
     if clave == "tau":
         return {}
     ex = np.array([f["exactitud"] for f in filas])
@@ -571,7 +531,6 @@ def calibrar(cx: b.Contexto, pila: Pila, estres: dict) -> dict:
         for parte_n in ("val", "prueba"):
             fila[parte_n] = {n: pila.medir({**c, "tau": t}, m[parte_n]) for n, (c, t) in variantes.items()}
         fila["train_aum_medidas"] = {n: pila.medir({**c, "tau": t}, m["train_aum"]) for n, (c, t) in variantes.items()}
-        # barridos de una constante, sobre entrenamiento limpio y aumentado de esta semilla
         fila["unico"] = {}
         for clave in REJ_UNICA:
             fl, fa = barrido_unico_mascara(pila, m["train_limpio"], clave), barrido_unico_mascara(pila, m["train_aum"], clave)
@@ -592,7 +551,6 @@ def calibrar(cx: b.Contexto, pila: Pila, estres: dict) -> dict:
 def agregar(cal: dict, cx: b.Contexto, pila: Pila) -> dict:
     ps = cal["por_semilla"]
     out: dict = {}
-    # pruebas: media y sd entre semillas
     out["prueba"] = {n: {m: resumen([f["prueba"][n][m] for f in ps]) for m in ("exactitud", "aceptada", "precision_aceptada", "revision_humana")} for n in ps[0]["prueba"]}
     out["validacion"] = {n: {m: resumen([f["val"][n][m] for f in ps]) for m in ("exactitud", "aceptada", "precision_aceptada")} for n in ps[0]["val"]}
 
@@ -611,7 +569,6 @@ def agregar(cal: dict, cx: b.Contexto, pila: Pila) -> dict:
     out["diferencias_en_prueba_aceptada"] = {n: par(a, b2, "aceptada") for n, (a, b2) in {"aumentado_menos_limpio": ("aumentado_tau_0.75", "limpio_tau_0.75"), "aumentado_menos_actual_sr": ("aumentado_tau_0.75", "actual_sr_tau_0.75")}.items()}
     out["tau_regla_0.95_prueba"] = {n: {m: resumen([f["prueba"][n][m] for f in ps]) for m in ("exactitud", "aceptada", "precision_aceptada")} for n in ("limpio_tau_regla_0.95", "aumentado_tau_regla_0.95")}
     out["tau_regla_en_entrenamiento"] = {v: resumen([f[f"elegido_{v}"]["taus"]["0.95"] for f in ps]) for v in ("limpio", "aumentado")}
-    # combinaciones elegidas
     import collections
 
     def firma(c: dict) -> str:
@@ -622,7 +579,6 @@ def agregar(cal: dict, cx: b.Contexto, pila: Pila) -> dict:
         out[f"combinaciones_elegidas_{v}"] = [{"combinacion": json.loads(c), "veces": n} for c, n in cnt.most_common(6)]
         out[f"semillas_en_que_elegido_{v}_es_el_actual"] = int(sum(firma(f[f"elegido_{v}"]) == firma(ACTUAL_SR) for f in ps))
     out["semillas_en_que_limpio_y_aumentado_eligen_lo_mismo"] = int(sum(firma(f["elegido_limpio"]) == firma(f["elegido_aumentado"]) for f in ps))
-    # constantes una a una: optimos por semilla
     unico = {}
     for clave in ("piso", "w_jac", "w_cos", "corte"):
         vl = np.array([f["unico"][clave]["limpio"]["valor"] for f in ps])
@@ -644,7 +600,6 @@ def agregar(cal: dict, cx: b.Contexto, pila: Pila) -> dict:
         }
     unico["tau"] = {"nota": "tau se evalua con la regla del menor tau con precision >= 0,95 (ver tau_regla_en_entrenamiento) y con curvas de aceptada/precision"}
     out["constantes_una_a_una"] = unico
-    # curvas agrupadas (descriptivas): todo el material, limpio vs aumentado (no se usan para elegir)
     todo_l = pila.origen == 0
     todo_a = np.ones(len(pila.y), bool)
     curvas = {}

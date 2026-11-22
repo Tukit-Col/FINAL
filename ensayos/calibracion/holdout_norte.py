@@ -1,10 +1,4 @@
-"""Colegio nuevo (Agustiniano Norte + Tagaste por grado) por la ruta real, sin etiquetas ni escrituras.
-
-Lectura: percibir + renderizar(150 ppp) + pedir_pagina (esquema estricto), igual que repetibilidad.py.
-Resolucion: ruta_real (emparejar con catalogo vivo, solo SELECT; estado con tau=0.75).
-Tope duro de llamadas HTTP al modelo (lectura + vectores): 60.
-    uv run python ensayos/calibracion/holdout_norte.py
-"""
+"""Colegio nuevo (Agustiniano Norte + Tagaste por grado) por la ruta real, sin etiquetas ni escrituras."""
 
 from __future__ import annotations
 
@@ -77,7 +71,6 @@ def main():
 
     tn = [t for d in ok if d["colegio"].endswith("Norte") for t in d["items"]]
     tt = [t for d in ok if not d["colegio"].endswith("Norte") for t in d["items"]]
-    # Tope de 60 llamadas ya agotado (lectura 52 + vectores): resolucion SIN vectores nuevos, solo cache en disco.
     clave = os.environ.pop("GEMINI_API_KEY")
     vn, nuevos = RR.vectores(tn)
     vt, _ = RR.vectores(tt)

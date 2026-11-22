@@ -1,17 +1,5 @@
 """Particion 70/15/15 por LISTA (colegio, grado), sin fuga, repetida con 20 semillas.
-
-Por que por lista y no por renglon: las listas de un mismo colegio comparten redaccion; un corte
-aleatorio por renglon dejaria en prueba renglones casi identicos a los de entrenamiento e
-inflaria la medida. Aun asi, un corte por lista deja listas hermanas (mismo colegio) a ambos
-lados: mide "una lista nueva de un colegio ya visto". "Un colegio nuevo" se mide en
-generalizacion.py (dejar un colegio fuera).
-
-Protocolo por semilla: 70 % de las listas = entrenamiento (se barre el espacio y se rankea);
-15 % = validacion (elige entre los 5 mejores del entrenamiento); 15 % = prueba (se mide UNA vez,
-al final, con la combinacion ya elegida y con las constantes actuales como referencia).
-
-Uso: uv run python ensayos/calibracion/particion.py
-"""
+Uso: uv run python ensayos/calibracion/particion.py"""
 
 from __future__ import annotations
 
@@ -23,9 +11,9 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent))
+import barrido as b  # noqa: E402
 import clasificacion as k  # noqa: E402
 import seleccion as sel  # noqa: E402
-import barrido as b  # noqa: E402
 
 SEMILLA_BASE = 20261101
 SEMILLAS = 20
@@ -65,7 +53,6 @@ def main() -> int:
             for c in colegios:
                 cuentas_colegio[p][c].append(int((mask[p] & (cx.colegio == c)).sum()))
         act = k.ACTUAL
-        # La prueba se mide una sola vez, con todo ya decidido.
         pr = mask["prueba"]
         fila["prueba"] = {
             "actual_tau_0.75": esp.medir(act, pr, act["tau"]),

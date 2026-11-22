@@ -1,29 +1,4 @@
-"""Ajuste iterativo de la instruccion de lectura con ejemplos en el contexto.
-
-Que se mide. La etapa de lectura (gemini-3.5-flash-lite, temperatura 0, el mismo
-esquema JSON y el mismo render a 150 DPI que produccion) con tres versiones del
-texto que se le da al modelo:
-
-- v0: la instruccion de produccion tal cual (`gemini._PROMPT`), sin ejemplos.
-- v1: v0 + k ejemplos cortos (fragmento de entrada -> renglones JSON esperados),
-  elegidos SOLO de los errores de v0 sobre los colegios de entrenamiento.
-- v2: v1 refinada SOLO con los errores de v1 sobre los colegios de entrenamiento.
-
-Los pesos del modelo no cambian. No es entrenamiento: es ajuste de la instruccion.
-
-Particion por colegio (sin fuga): los ejemplos salen de colegios de entrenamiento y
-la evaluacion es sobre listas de OTROS colegios. Los errores del conjunto de
-evaluacion nunca se imprimen ni se usan para ajustar: solo se agregan en cifras.
-
-Uso (desde la raiz del repo, con el venv del monorepo):
-    .venv/bin/python -I ensayos/calibracion/ajuste_instruccion.py exportar
-    .venv/bin/python -I ensayos/calibracion/ajuste_instruccion.py estimar v0
-    .venv/bin/python -I ensayos/calibracion/ajuste_instruccion.py ronda v0 --conjunto entrenamiento --max 2
-    .venv/bin/python -I ensayos/calibracion/ajuste_instruccion.py ronda v0 --conjunto todos
-    .venv/bin/python -I ensayos/calibracion/ajuste_instruccion.py errores v0      # solo entrenamiento
-    .venv/bin/python -I ensayos/calibracion/ajuste_instruccion.py cgs v2
-    .venv/bin/python -I ensayos/calibracion/ajuste_instruccion.py informe
-"""
+"""Ajuste iterativo de la instruccion de lectura con ejemplos en el contexto."""
 
 from __future__ import annotations
 
@@ -48,25 +23,12 @@ from tukit_inteligencia import gemini  # noqa: E402  (solo lectura: la instrucci
 
 RESULTADOS = nu.CACHE / "resultados"
 
-# --------------------------------------------------------------------------- particion
-# Fijada ANTES de la primera llamada. Entrenamiento = el unico colegio cuyas listas
-# tienen renglones editados por una persona (Agustiniano Ciudad Salitre, versiones 5 y 6:
-# es la unica fuente de errores reales para elegir ejemplos) + los dos colegios mas
-# pequenos. Evaluacion = los otros cuatro colegios.
 ENTRENAMIENTO = ("COLEGIO AGUSTINIANO CIUDAD SALITRE", "COLEGIO MADRE MATILDE", "JARDIN INFANTIL OSITO DE MIEL")
 EVALUACION = ("GIMNASIO NUEVO MODELIA", "COLEGIO PARROQUIAL SAN PEDRO CLAVER",
               "UNIDAD EDUCATIVA PRADOS DE ALAMEDA", "UNIDAD EDUCATIVA BAHIA SOLANO")
 
-# --------------------------------------------------------------------------- instrucciones
 V0 = gemini._PROMPT
 
-# v1: k=4 ejemplos tomados de colegios de ENTRENAMIENTO (Madre Matilde, Osito de Miel,
-# Agustiniano Ciudad Salitre), uno por tipo de error dominante de v0 en ese conjunto:
-#  E1 texto_alterado/descripcion recortada: el modelo quita "Cualquier editorial.", "/ EDITORIAL ..."
-#     o el parentesis final ("(la entrega el colegio)").
-#  E2 kit con contenido: pierde el prefijo del kit en cada parte ("Kit de aseo personal: ...").
-#  E3 renglones_unidos: deja "regla 30 cm compás, transportador" en un solo item.
-#  E4 colores: al repartir colores recorta la descripcion ("pintura académica amarillo").
 EJEMPLOS_V1: list[tuple[str, str]] = [
     (
         "· Diccionario Escolar pequeño. Cualquier editorial.\n"
@@ -95,14 +57,6 @@ EJEMPLOS_V1: list[tuple[str, str]] = [
         ' {"descripcion": "pintura académica con olor de 120g, rojo", "cantidad": 1}]',
     ),
 ]
-# v2: diagnostico de v1 SOLO en entrenamiento (114 texto_alterado, 181 extra_no_pedido):
-#  - E2 (kit con prefijo) se generalizo mal: el modelo antepuso el contenedor o la seccion a
-#    cada parte ("Cartuchera con: esferos", "artes: Tijeras", "tecnología: 3 leds"). Se retira.
-#  - Con mas ejemplos leyo como items notas, enlaces y prendas de uniforme ("Link de pago",
-#    "Todo debidamente marcado", "Tenis de cuero totalmente blancos"). Se agrega un
-#    contraejemplo con encabezado de seccion, nota y contenido de cartuchera sin prefijo.
-#  - E4 (colores) se retira: la regla de colores ya esta en la instruccion de produccion.
-# k=3: E1 y E3 de v1 + el contraejemplo C1 (de Agustiniano Ciudad Salitre, entrenamiento).
 EJEMPLOS_V2: list[tuple[str, str]] = [
     EJEMPLOS_V1[0],
     EJEMPLOS_V1[2],
@@ -138,7 +92,6 @@ def _con_ejemplos(base: str, ejemplos: list[tuple[str, str]], reglas: str = "") 
 
 
 def instrucciones() -> dict[str, tuple[str, int]]:
-    """version -> (texto, k ejemplos)."""
     return {
         "v0": (V0, 0),
         "v1": (_con_ejemplos(V0, EJEMPLOS_V1), len(EJEMPLOS_V1)),
@@ -146,7 +99,6 @@ def instrucciones() -> dict[str, tuple[str, int]]:
     }
 
 
-# --------------------------------------------------------------------------- conjuntos
 def conjunto(nombre: str) -> list[dict]:
     listas = sorted(nu.cargar_listas().values(), key=lambda d: (d["colegio"], d["grado"]))
     if nombre == "entrenamiento":
@@ -193,7 +145,6 @@ def ronda(version: str, nombre: str, maximo: int | None) -> None:
 
 
 def errores(version: str, por_tipo: int) -> None:
-    """Diagnostico SOLO sobre el conjunto de entrenamiento."""
     datos = json.loads((RESULTADOS / f"{version}.json").read_text())
     ids = {d["id"] for d in conjunto("entrenamiento")}
     tot: dict[str, int] = {}
@@ -215,17 +166,12 @@ def errores(version: str, por_tipo: int) -> None:
 def estimar(version: str) -> None:
     texto, _ = instrucciones()[version]
     pags = sum(_paginas(d["pdf"]) for d in conjunto("todos"))
-    # Medido en el benchmark de2c887: 0,0017 USD por documento de <=5 paginas, ~0,0004 por pagina.
-    # Aqui: ~1.300 tokens de imagen + instruccion + ~900 de salida por pagina.
     t_in = 1300 + len(texto) / 3.5
     usd = pags * (t_in * nu.USD_IN + 900 * nu.USD_OUT) / 1e6
     print(f"{version}: {pags} paginas, ~{t_in:.0f} tokens de entrada/pagina, estimado {usd:.3f} USD "
           f"para las 80 listas; gasto acumulado {nu.gasto_total():.4f} USD (tope {nu.TOPE_USD:.2f})")
 
 
-# --------------------------------------------------------------------------- CGS-10
-# Solo comparacion, nunca ajuste. De los 10 PDF del CGS-10 quedan 6 en _archivo; el
-# benchmark leyo con Gemini las 5 primeras paginas (pdf_a_imagenes_base64(max_paginas=5)).
 def _cgs() -> list[dict]:
     rev = "de2c887"
     g = json.loads(gzip.decompress(subprocess.run(
@@ -242,7 +188,6 @@ def _cgs() -> list[dict]:
 
 
 def _cgs_referencia(ids: set[str]) -> dict:
-    """F1 de las predicciones guardadas del benchmark (Gemini) sobre los mismos documentos."""
     rev = "de2c887"
     r = json.loads(gzip.decompress(subprocess.run(
         ["git", "-C", str(nu.RAIZ), "show", f"{rev}:01-percepcion/datos/resultados_benchmark_10.json.gz"],
@@ -275,9 +220,7 @@ def cgs(version: str) -> None:
     print(f"gasto {nu.gasto_total() - antes:.4f} USD; acumulado {nu.gasto_total():.4f}")
 
 
-# --------------------------------------------------------------------------- informe
 def _delta_pareado(a: list[dict], b: list[dict], reps: int = 2000) -> dict:
-    """Diferencia F1 micro (b - a) sobre las mismas listas, IC95 bootstrap por lista pareado."""
     import random
     rnd = random.Random(11)
     d0 = nu.agregar(b)["F1_micro"] - nu.agregar(a)["F1_micro"]
@@ -366,7 +309,6 @@ def informe(elegida: str) -> None:
     }
     (nu.SALIDA / "gemini_rondas.json").write_text(json.dumps(out, ensure_ascii=False, indent=1))
 
-    # figura
     plt.rcParams.update({"font.family": "serif", "font.size": 9, "axes.spines.top": False,
                          "axes.spines.right": False, "pdf.fonttype": 42, "axes.grid": True,
                          "grid.color": "#E3E3E3", "axes.axisbelow": True})

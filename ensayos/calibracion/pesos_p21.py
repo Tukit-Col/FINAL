@@ -1,24 +1,14 @@
 """Experimento C1: pesos de los cuatro criterios a partir de la pregunta P21.
-
-Cada encuestado ordena los cuatro criterios de mayor a menor importancia. Al
-primero se le dan 4 puntos, al segundo 3, al tercero 2 y al cuarto 1 (puntaje por
-posicion, Borda). El peso de un criterio es su promedio de puntos dividido entre
-10 (la suma de puntos de un encuestado), de modo que los cuatro pesos suman 1.
-
-El intervalo del 95 % sale de un bootstrap percentil: 10.000 remuestreos con
-reemplazo de los 60 encuestados, con semilla fija.
-
 Uso: uv run python ensayos/calibracion/pesos_p21.py
-Salida: ensayos/calibracion/salidas/pesos_p21.json
-"""
+Salida: ensayos/calibracion/salidas/pesos_p21.json"""
 
 from __future__ import annotations
 
 import csv
 from pathlib import Path
 
-import numpy as np
 import nucleo as n
+import numpy as np
 
 CRITERIOS = ("precio", "marca_exigida", "calidad", "personaje")
 DATOS = Path(__file__).resolve().parent / "datos" / "p21_rankings.csv"
@@ -26,7 +16,6 @@ REMUESTREOS = 10_000
 
 
 def cargar() -> np.ndarray:
-    """Matriz (encuestados x criterios) con los puntos 4..1 de cada criterio."""
     with DATOS.open(encoding="utf-8") as f:
         filas = list(csv.DictReader(f))
     puntos = np.zeros((len(filas), len(CRITERIOS)))
