@@ -136,9 +136,23 @@ async def test_un_evento_que_siempre_falla_termina_en_descartados(topologia, son
         return Resultado.REINTENTAR
 
     consumidor = Consumidor(cola=cola, manejar=manejar, max_intentos=3)
+    # El consumidor publica en descartados y DESPUES confirma el mensaje. Ver la
+    # copia en descartados no basta: si se cancela antes del ack, el broker
+    # devuelve el original a la cola. Se espera a que `procesar` termine.
+    procesado = asyncio.Event()
+    procesar = consumidor.procesar
+
+    async def procesar_y_avisar(mensaje):
+        decision = await procesar(mensaje)
+        if len(intentos) >= 3:
+            procesado.set()
+        return decision
+
+    consumidor.procesar = procesar_y_avisar
     escucha = asyncio.create_task(escuchar(URL, consumidor, topologia=topologia, prefetch=1))
     try:
         await _publicar(topologia, _evento(9))
+        await asyncio.wait_for(procesado.wait(), timeout=10)
         await _esperar(lambda: _hay(sonda, cola.descartados))
     finally:
         escucha.cancel()
