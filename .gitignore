@@ -47,3 +47,17 @@ next-env.d.ts
 
 # Cache de geocodificacion (Nominatim) del admin.
 apps/admin/.cache/
+
+# Cobertura y residuos de editor/SO que no son del proyecto.
+.coverage
+.coverage.*
+htmlcov/
+coverage/
+test-results/
+*.bak
+*.orig
+*.swp
+Thumbs.db
+
+# Configuracion local de Claude Code (la skill de .claude/skills si se versiona).
+.claude/settings.local.json
