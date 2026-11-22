@@ -61,6 +61,13 @@ async def _usuario_de_sesion(authorization: str | None) -> uuid.UUID:
     return uuid.UUID(str(sesion["usuario_id"]))
 
 
+async def _autor_de_la_decision(authorization: str | None, declarado: uuid.UUID | None) -> uuid.UUID | None:
+    """Firma quien tiene la sesion; el `actor` del cuerpo solo vale sin sesion (consola sin token)."""
+    if token_bearer(authorization):
+        return await _usuario_de_sesion(authorization)
+    return declarado
+
+
 async def _exigir_dueno_del_trabajo(trabajo_id: uuid.UUID, authorization: str | None) -> None:
     try:
         propietario = await trabajos.dueno(api.app.state.motor, trabajo_id)
@@ -1193,7 +1200,12 @@ async def eliminar_trabajo(trabajo_id: uuid.UUID) -> None:
     tags=["admin"],
     summary="AD-04: una persona da por bueno el emparejamiento",
 )
-async def validar_linea(trabajo_id: uuid.UUID, item_id: uuid.UUID, decision: DecisionLinea) -> dict[str, Any]:
+async def validar_linea(
+    trabajo_id: uuid.UUID,
+    item_id: uuid.UUID,
+    decision: DecisionLinea,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
     """Sin `sku` confirma el producto que la linea tiene en el kit.
 
     El catalogo va inyectado porque el producto validado puede no ser
@@ -1207,7 +1219,7 @@ async def validar_linea(trabajo_id: uuid.UUID, item_id: uuid.UUID, decision: Dec
             item_id,
             estado=EstadoResolucion.RESUELTO_AUTO.value,
             sku=decision.sku,
-            actor=decision.actor,
+            actor=await _autor_de_la_decision(authorization, decision.actor),
             motivo=decision.motivo,
             catalogo=api._catalogo(),
         )
@@ -1297,7 +1309,8 @@ async def aplicar_canonico(cuerpo: AplicarCanonico, solicitud: Request) -> dict[
             estado=422,
         )
     desde_token = await api._usuario_de_la_peticion(solicitud)
-    usuario_id = uuid.UUID(desde_token) if desde_token else cuerpo.usuario_id
+    # Sin sesion no hay a nombre de quien crear el pedido: el `usuario_id` del cuerpo no vale (H-C-06).
+    usuario_id = uuid.UUID(desde_token) if desde_token else None
     try:
         return await trabajos.aplicar_canonico(
             api.app.state.motor,
@@ -1324,7 +1337,10 @@ async def aplicar_canonico(cuerpo: AplicarCanonico, solicitud: Request) -> dict[
     summary="AD-04: una persona declara que el catalogo no lo tiene",
 )
 async def sin_coincidencia(
-    trabajo_id: uuid.UUID, item_id: uuid.UUID, decision: DecisionLinea
+    trabajo_id: uuid.UUID,
+    item_id: uuid.UUID,
+    decision: DecisionLinea,
+    authorization: Annotated[str | None, Header()] = None,
 ) -> dict[str, Any]:
     """Marca `HUECO_CATALOGO` y no `SIN_MATCH`, y la diferencia importa.
 
@@ -1341,7 +1357,7 @@ async def sin_coincidencia(
             trabajo_id,
             item_id,
             estado=EstadoResolucion.HUECO_CATALOGO.value,
-            actor=decision.actor,
+            actor=await _autor_de_la_decision(authorization, decision.actor),
             motivo=decision.motivo,
         )
     except trabajos.TrabajoNoExiste as error:
@@ -1360,14 +1376,18 @@ async def sin_coincidencia(
     tags=["admin"],
     summary="AD-06: aprobar publica al acudiente, devolver reabre sin avisar",
 )
-async def revisar(trabajo_id: uuid.UUID, decision: DecisionRevision) -> dict[str, Any]:
+async def revisar(
+    trabajo_id: uuid.UUID,
+    decision: DecisionRevision,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
     try:
         resultado = await trabajos.revisar(
             api.app.state.motor,
             trabajo_id,
             decision=decision.decision,
             nota=decision.nota,
-            actor=decision.actor,
+            actor=await _autor_de_la_decision(authorization, decision.actor),
         )
     except trabajos.TrabajoNoExiste as error:
         raise ErrorDominio(
@@ -1404,7 +1424,11 @@ async def revisar(trabajo_id: uuid.UUID, decision: DecisionRevision) -> dict[str
     tags=["admin"],
     summary="Fija un preview como los kits canonicos de su grado (sin avisar a nadie)",
 )
-async def fijar_canonico(trabajo_id: uuid.UUID, cuerpo: FijarCanonico) -> dict[str, Any]:
+async def fijar_canonico(
+    trabajo_id: uuid.UUID,
+    cuerpo: FijarCanonico,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
     """La contraparte de "publicar" para un trabajo sin acudiente.
 
     El admin previsualizo los kits de una lista, quiza los ajusto, y aprueba:
@@ -1415,7 +1439,10 @@ async def fijar_canonico(trabajo_id: uuid.UUID, cuerpo: FijarCanonico) -> dict[s
     """
     try:
         return await trabajos.fijar_como_canonico(
-            api.app.state.motor, trabajo_id, nota=cuerpo.nota, actor=cuerpo.actor
+            api.app.state.motor,
+            trabajo_id,
+            nota=cuerpo.nota,
+            actor=await _autor_de_la_decision(authorization, cuerpo.actor),
         )
     except trabajos.TrabajoNoExiste as error:
         raise ErrorDominio(
