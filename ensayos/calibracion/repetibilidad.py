@@ -1,17 +1,4 @@
-"""Repetibilidad de la lectura: la misma lista, leida N veces, ¿da lo mismo?
-
-Usa el sistema tal cual: `percibir` + `renderizar` (150 ppp) + `pedir_pagina`
-(gemini-3.5-flash-lite, esquema JSON, temperatura 0). No se modifica nada.
-Sin GEMINI_API_KEY no hace nada: lo documenta y termina.
-
-    uv run python ensayos/calibracion/repetibilidad.py [--corridas 5]
-
-Mide, por documento:
-  - corridas identicas: lecturas con exactamente el mismo JSON (grados, items, cantidades, orden);
-  - renglones distintos: items que aparecen, desaparecen o cambian de cantidad respecto de la
-    primera corrida (o, en el conjunto de las corridas, la union menos la interseccion);
-  - F1 contra el oro (Corpus_ItemLista.csv) por corrida y su variacion.
-"""
+"""Repetibilidad de la lectura: la misma lista, leida N veces, ¿da lo mismo?"""
 
 from __future__ import annotations
 
@@ -32,7 +19,6 @@ ARCHIVO = RAIZ.parent / "_archivo/2026-11-05/borradores_arquitectura/Arquitectur
 ORO = RAIZ / "datos/listas/oe1/Corpus_ItemLista.csv"
 SALIDA = RAIZ / "ensayos/calibracion/salidas/repetibilidad.json"
 
-# (archivo, codigo de colegio del oro, grado del oro)
 DOCUMENTOS = [
     ("CACS_SEPTIMO", "2.13", "Septimo"),
     ("CACS_TERCERO", "2.13", "Tercero"),
@@ -55,7 +41,6 @@ def jaccard(a: frozenset[str], b: frozenset[str]) -> float:
 
 
 def f1_contra(items: list[str], oro: list[str], umbral: float = 0.5) -> dict:
-    """Emparejamiento voraz uno a uno por Jaccard de palabras >= umbral."""
     a = [norma(x) for x in items]
     g = [norma(x) for x in oro]
     pares = sorted(
@@ -83,7 +68,6 @@ def diferencias(base: list[dict], otra: list[dict]) -> dict:
     co = Counter(clave_item(i) for i in otra)
     solo_base = cb - co
     solo_otra = co - cb
-    # un cambio de cantidad: misma descripcion en ambos lados con otra cantidad
     desc_b = Counter(k[0] for k in solo_base.elements())
     desc_o = Counter(k[0] for k in solo_otra.elements())
     cambian = sum((desc_b & desc_o).values())
@@ -116,7 +100,6 @@ def main() -> int:
     from tukit_inteligencia.paginas import renderizar
     from tukit_inteligencia.percepcion import percibir
 
-    # Cuenta de llamadas HTTP reales (incluye el reintento de transporte); no cambia el comportamiento.
     contador = {"http": 0}
     real = urllib.request.urlopen
 
@@ -166,10 +149,8 @@ def main() -> int:
         ok = [c for c in corridas if c["aceptada"]]
         huellas = [json.dumps({"g": c["grados"], "i": c["items"]}, sort_keys=True, ensure_ascii=False) for c in ok]
         mas_comun = Counter(huellas).most_common(1)[0][1] if huellas else 0
-        # F1 contra el oro (si el oro existe)
         f1s = [f1_contra([i["descripcion"] for i in c["items"]], oro)["f1"] for c in ok] if oro else []
         dif = [diferencias(ok[0]["items"], c["items"]) for c in ok[1:]]
-        # union menos interseccion de renglones entre todas las corridas
         conj = [set(clave_item(i) for i in c["items"]) for c in ok]
         inestables = len(set.union(*conj) - set.intersection(*conj)) if conj else 0
         resultado["documentos"].append(

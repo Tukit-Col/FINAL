@@ -1,14 +1,4 @@
-"""Foto del catalogo -> instancias fijas del benchmark Laya vs NSGA-II.
-
-Cada instancia es una lista oficial (colegio, grado) de `datos/listas/items_lista.csv`
-pasada por la MISMA normalizacion y el MISMO emparejamiento que usa el pipeline
-(`trabajos._normalizar`, `consulta.emparejar`, `trabajos._candidato`). El resultado se
-congela en un JSON: todos los competidores deciden sobre exactamente los mismos
-renglones y candidatos, aunque el catalogo cambie despues.
-
-Uso (desde la raiz del worktree, con el .venv del proyecto):
-    python ensayos/bench_laya/generar_instancias.py --salida ensayos/bench_laya/instancias.json.gz
-"""
+"""Foto del catalogo -> instancias fijas del benchmark Laya vs NSGA-II."""
 
 from __future__ import annotations
 
@@ -151,7 +141,6 @@ def main(argv: list[str] | None = None) -> int:
     }
     texto = json.dumps(salida, ensure_ascii=False, default=str)
     if args.salida.endswith(".gz"):
-        # mtime=0: la misma foto da el mismo archivo, byte a byte.
         with gzip.GzipFile(args.salida, "wb", mtime=0) as f:
             f.write(texto.encode("utf-8"))
     else:

@@ -1,26 +1,10 @@
-"""Simulacion en memoria del lazo "corregir ensena" (commits 8b26c12 y 43d1da8), sin tocar la base.
-
-En el sistema, cambiar el concepto de un renglon en la revision agrega `sinonimo_de_renglon(texto)`
-como sinonimo del concepto correcto y lo quita del que se equivoco (`aprender_sinonimo`). Aqui:
-las columnas de candidatos ya estan precalculadas (clasificacion.construir_rasgos) y aprender es
-ACTIVAR la columna (concepto aprobado, sinonimo); asi un paso de simulacion es un puntaje sobre las
-columnas activas, con la misma formula de `clasificar`.
-
-Dos catalogos de partida:
-  - "actual": el catalogo de hoy menos los 21 sinonimos que el sistema ya aprendio de correcciones
-    (correccion_lista.aprendido). OJO: conserva ~1.160 sinonimos sembrados antes, posiblemente de
-    estas mismas listas; es optimista.
-  - "frio": solo el nombre de cada concepto. Es el piso: lo que el sistema sabria sin sinonimos.
-Lo que se ensena: solo los renglones cuya salida difiere del concepto aprobado (lo que el revisor
-corrige), o, como cota alta, todo renglon aprobado con concepto.
-"""
+"""Simulacion en memoria del lazo "corregir ensena" (commits 8b26c12 y 43d1da8), sin tocar la base."""
 
 from __future__ import annotations
 
-import numpy as np
-
 import barrido as b
 import clasificacion as k
+import numpy as np
 
 
 class Simulador:
@@ -51,7 +35,6 @@ class Simulador:
         return (self.base_frio if frio else self.base_actual).copy()
 
     def evaluar(self, activa: np.ndarray, filas: np.ndarray, cfg: dict | None = None):
-        """(concepto, puntaje) por renglon de `filas`, con las columnas activas."""
         cfg = cfg or k.ACTUAL
         cols = np.where(activa)[0]
         us = self.cx.u[filas]
@@ -60,7 +43,6 @@ class Simulador:
         return p[inv], s[inv]
 
     def ensenar(self, activa: np.ndarray, filas: np.ndarray, pred_c: np.ndarray, todo: bool = False) -> int:
-        """Aplica el lazo a `filas` (ya medidas). Devuelve cuantos sinonimos nuevos se activaron."""
         nuevos = 0
         for f, pc in zip(filas, pred_c, strict=True):
             y = int(self.cx.y[f])

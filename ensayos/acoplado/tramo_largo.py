@@ -1,8 +1,4 @@
-"""Tramo largo: NSGA-II (semillas 0,1,2) y PD (limite 20 s) en las 5 listas mas largas, T en {12..64}.
-
-uv run python ensayos/acoplado/tramo_largo.py [--procesos 5] [--semillas 0 1 2]
-Escribe tramo_largo.json. No modifica los scripts existentes.
-"""
+"""Tramo largo: NSGA-II (semillas 0,1,2) y PD (limite 20 s) en las 5 listas mas largas, T en {12..64}."""
 import argparse
 import json
 import statistics as st

@@ -1,7 +1,4 @@
-"""Extension (fuera del barrido pedido): PD sobre las 5 listas con mas lineas, T mayores, limite 20 s.
-
-uv run python ensayos/acoplado/extension_t.py   (agrega la clave "extension" a resultados.json)
-"""
+"""Extension (fuera del barrido pedido): PD sobre las 5 listas con mas lineas, T mayores, limite 20 s."""
 import json
 import time
 

@@ -1,20 +1,6 @@
 """Experimento C2: estabilidad del kit recomendado ante cambios en los pesos.
-
-Para cada lista de los colegios de PRUEBA (los mismos de `calibrar_nsga.py`) se
-calcula el frente con la configuracion de produccion y el punto que elige
-`elegir_recomendado_maut` con los pesos de la P21. Luego se generan 1.000 pesos
-perturbados con una Dirichlet de parametros kappa * w (media w, desviacion
-estandar sqrt(w_i (1 - w_i) / (kappa + 1)) por componente) y se cuenta en que
-fraccion de los casos el punto elegido es el mismo. Ademas se sortea cada peso
-uniforme dentro de su IC 95 % de la P21 (`pesos_p21.json`) y se renormaliza: es
-la perturbacion "dentro del intervalo" que la encuesta no puede descartar.
-
-Se reporta, por kappa y por sobreprecio declarado, el promedio sobre listas de esa
-fraccion con un intervalo bootstrap del 95 % (remuestreo de listas).
-
 Uso: uv run python ensayos/calibracion/sensibilidad.py
-Salida: ensayos/calibracion/salidas/sensibilidad.json
-"""
+Salida: ensayos/calibracion/salidas/sensibilidad.json"""
 
 from __future__ import annotations
 

@@ -1,22 +1,5 @@
 """Adopcion del piso 0,5 (hoy 0,6): que cifras cambian en la memoria.
-
-Solo calcula; no modifica el sistema ni la memoria. Escribe
-ensayos/calibracion/salidas/adopcion_piso.json.
-
-Regla de tau (fijada ANTES de ver el resultado): "tau nuevo = el menor tau de la rejilla fina
-(paso 0,005) con precision de lo aceptado >= 0,97 sobre los 405 pares con piso 0,5".
-Se informa aparte, sin elegirlo, el tau que mantiene la misma fraccion aceptada que hoy.
-
-Los 405 pares salen del resolver lexico del benchmark (bench_laya/instancias.json.gz, catalogo
-de 135 conceptos del 4-oct) cruzado con la curaduria (tau.py). Para recalcularlos con otro piso
-se re-ejecuta el resolver (clasificacion.py: misma formula que `clasificar`) sobre el texto
-normalizado de cada renglon, con el catalogo ACTUAL (146 conceptos). Como el catalogo cambio,
-no todos los pares se reproducen: tratamiento A (principal) recalcula los pares que a piso 0,6
-reproducen el valor guardado y deja fijos el resto; B recalcula todos los buscados con el
-catalogo actual. A en piso 0,6 reproduce las cifras de la memoria por construccion.
-
-Uso: uv run python ensayos/calibracion/adopcion_piso.py
-"""
+Uso: uv run python ensayos/calibracion/adopcion_piso.py"""
 
 from __future__ import annotations
 
@@ -41,7 +24,6 @@ REJILLA = [round(i * 0.005, 3) for i in range(0, 201)]
 
 
 def pares_con_renglon():
-    """Como tau.pares_etiquetados pero conservando (colegio, grado, texto) y el renglon."""
     revisadas = list(csv.DictReader(T.CURADURIA.open(encoding="utf-8")))
     items = list(csv.DictReader(T.ITEMS.open(encoding="utf-8")))
     cdt = collections.defaultdict(set)
@@ -81,7 +63,6 @@ def resolver_bench(pisos: list[float]):
 
 
 def conjunto_de_pares(base, d, ind, res, piso: float, tratamiento: str):
-    """Lista de pares {lista, parecido, acierto} con el resolver a `piso`."""
     idx6, s6 = res[0.6]
     idx, s = res[piso]
     pares, estado = [], collections.Counter()
@@ -115,7 +96,6 @@ def regla_tau(p, y, objetivo=OBJ):
 
 
 def tau_misma_fraccion(p, y, aceptados_ref):
-    """Mayor tau de la rejilla con aceptados >= aceptados_ref (misma fraccion aceptada que hoy)."""
     c = [t for t in REJILLA if int((p >= t).sum()) >= aceptados_ref]
     return max(c) if c else None
 
@@ -206,7 +186,6 @@ def main() -> int:
             bloque["piso_0_5_tau_misma_fraccion"] = cifras(c5, t_mf)
         sal[f"tratamiento_{trat}"] = bloque
 
-    # Recorrido de los 3.037 renglones (con vectores de cache)
     dd = k.cargar(con_vectores=True)
     rs = k.construir_rasgos(dd)
     y = k.etiquetas(dd)
@@ -220,7 +199,6 @@ def main() -> int:
         "piso_0_5_tau_misma_fraccion_405": (recorrido(dd, rs, y, 0.5, sal["tratamiento_A"]["alternativa_misma_fraccion_aceptada_que_hoy"]["tau"])
                                           if sal["tratamiento_A"]["alternativa_misma_fraccion_aceptada_que_hoy"]["tau"] is not None else None),
     }
-    # Indicativo: reparto de los textos unicos del benchmark (2.176) segun puntaje, catalogo actual.
     t_nuevo = sal["tratamiento_A"]["tau_nuevo_regla_0_97"]
     tx = sorted({r["texto"] for i in n.instancias() for r in i["renglones"]})
     ind_bench = {}

@@ -12,12 +12,11 @@ sys.path.insert(0, str(Path(__file__).parent))
 import aumentacion as a  # noqa: E402
 import barrido as b  # noqa: E402
 import clasificacion as k  # noqa: E402
-from robustez import similitud  # noqa: E402
 from particion import SEMILLA_BASE, partir  # noqa: E402
+from robustez import similitud  # noqa: E402
 
 pytestmark = pytest.mark.skipif(not (k.DATOS / "renglones_etiquetados.csv").exists(), reason="faltan los datos exportados")
 
-# Perturbaciones que, por construccion, no cambian la palabra que decide el concepto (la cabeza).
 CONSERVADORAS = ["tipeo", "tildes", "mayusculas", "plural", "ocr", "espacios", "sufijo", "marca"]
 
 
@@ -27,7 +26,6 @@ def cx() -> b.Contexto:
 
 
 def _conjunto_fijo(cx: b.Contexto, n: int = 40) -> list[int]:
-    """Los primeros n renglones con concepto que el sistema lexico clasifica bien y con puntaje >= 0,75 (fijo y reproducible)."""
     p, s = cx.puntuar(a.LEXICO)
     ok = [i for i, f in enumerate(cx.d.filas) if f["etiqueta"] and p[f["u"]] == cx.y[i] and s[f["u"]] >= 0.75]
     vistos, out = set(), []
@@ -56,13 +54,11 @@ def test_leves_conservan_legibilidad_y_numeros(cx: b.Contexto) -> None:
             assert p.strip(), (tp, o)
             if tp not in ("prefijo", "sufijo", "ocr", "marca", "orden"):
                 assert sorted(c for c in o if c.isdigit()) == sorted(c for c in p if c.isdigit()), (tp, o, p)
-            if tp not in ("prefijo", "sufijo", "marca"):  # estos agregan palabras: la similitud no aplica
+            if tp not in ("prefijo", "sufijo", "marca"):
                 assert similitud(o, p) >= 0.5, (tp, o, p)
 
 
 def test_etiqueta_se_conserva_en_conjunto_fijo(cx: b.Contexto) -> None:
-    """En 40 renglones bien clasificados, cada perturbacion leve conservadora deja el MISMO concepto en >= 85 % de los casos
-    (el sistema lexico, con su corrector de tipeos; no hay vectores)."""
     fijo = _conjunto_fijo(cx)
     for tp in CONSERVADORAS:
         textos = [cx.d.textos[cx.d.filas[i]["u"]] for i in fijo]
@@ -89,6 +85,5 @@ def test_sin_fuga_por_lista_ni_por_texto(cx: b.Contexto) -> None:
         assert c["listas_compartidas_entre_particiones"] == 0
         assert c["variantes_de_entrenamiento_con_texto_base_de_val_o_prueba"] == 0
         assert c["cadenas_de_variantes_de_entrenamiento_iguales_a_algun_texto_de_val_o_prueba"] == 0
-        # validacion y prueba son siempre filas limpias (origen 0)
         assert (pila.origen[m["val"]] == 0).all() and (pila.origen[m["prueba"]] == 0).all()
         assert not (m["train_aum"] & (m["val"] | m["prueba"])).any()

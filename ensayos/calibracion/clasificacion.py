@@ -1,19 +1,4 @@
-"""Nucleo del barrido: la clasificacion de `descubrir.clasificar` con constantes parametrizables.
-
-La funcion real (`tukit_catalogo.descubrir.clasificar`) tiene las constantes cableadas y recorre
-todos los candidatos de todos los conceptos en Python puro. Para barrer miles de combinaciones
-se separa en dos pasos que, juntos, dan EXACTAMENTE lo mismo:
-
-  1. Rasgos (no dependen de las constantes): para cada renglon y cada candidato (nombre o
-     sinonimo de un concepto) se calcula con las funciones reales del modulo si el candidato
-     acierta la cabeza, si la nombra, su parecido (Jaccard) y, por concepto, el coseno contra
-     el centro de sus productos (`promedio` de producto_canonico.embedding).
-  2. Puntaje (depende de las constantes): la misma formula de `clasificar`, vectorizada, y el
-     mismo desempate (primer maximo estricto, en el orden del catalogo).
-
-`validar` compara este camino con `clasificar` y `emparejar` reales sobre todos los renglones.
-No se modifica ningun archivo del sistema: se importa tal cual.
-"""
+"""Nucleo del barrido: la clasificacion de `descubrir.clasificar` con constantes parametrizables."""
 
 from __future__ import annotations
 
@@ -38,30 +23,29 @@ from tukit_catalogo import clasificacion as D  # noqa: E402
 from tukit_catalogo.routers.admin import sinonimo_de_renglon  # noqa: E402
 from tukit_catalogo.transcripcion import corregir, lexico_de  # noqa: E402
 
-# Valores de produccion hoy (descubrir.py y UMBRAL de emparejar/consulta, TAU de inteligencia).
 ACTUAL = {
-    "piso": 0.6,  # piso si la frase empieza por la cabeza
-    "w_jac": 0.4,  # peso del Jaccard
-    "w_cos": D._APORTE_COSENO,  # 0.15
-    "res_cos": getattr(D, "_RESCATE_COSENO", 1.01),  # 1.01 = sin rescate (el clasificador de produccion ya no lo trae)
+    "piso": 0.6,
+    "w_jac": 0.4,
+    "w_cos": D._APORTE_COSENO,
+    "res_cos": getattr(D, "_RESCATE_COSENO", 1.01),
     "res_piso": getattr(D, "_PISO_RESCATE", 0.55),
-    "corte": 0.5,  # `parecido < 0.5` -> sin_match
+    "corte": 0.5,
     "tau": 0.75,
 }
-PENDIENTE_RESCATE = 0.4  # fija en la formula del rescate (no es una de las 7 constantes)
+PENDIENTE_RESCATE = 0.4
 CLAVES_PUNTAJE = ("piso", "w_jac", "w_cos", "res_cos", "res_piso")
 
 
 @dataclass
 class Datos:
-    filas: list[dict]  # colegio, grado, texto, etiqueta (codigo o None), lista, u (indice de texto unico)
-    textos: list[str]  # textos unicos (crudos)
-    conceptos: list[dict]  # catalogo en el orden de la base
+    filas: list[dict]
+    textos: list[str]
+    conceptos: list[dict]
     codigos: list[str]
-    vectores: np.ndarray | None  # (U, 1024) o None
-    cent: np.ndarray | None  # (C, 1024), fila de ceros si el concepto no tiene centroide
-    tiene_cent: np.ndarray  # (C,) bool
-    corr: list[str] = field(default_factory=list)  # texto corregido por unico
+    vectores: np.ndarray | None
+    cent: np.ndarray | None
+    tiene_cent: np.ndarray
+    corr: list[str] = field(default_factory=list)
 
 
 def cargar_filas() -> list[dict]:
@@ -80,7 +64,6 @@ def cargar_filas() -> list[dict]:
 
 
 def vectorizar(textos: list[str]) -> np.ndarray | None:
-    """Vectores de Gemini (el mismo embeder del sistema) de los renglones CRUDOS, con cache en disco."""
     ruta = DATOS / "vectores_renglones.npz"
     if ruta.exists():
         z = np.load(ruta, allow_pickle=False)
@@ -132,24 +115,18 @@ def cargar(con_vectores: bool = True) -> Datos:
     return d
 
 
-# ---------------------------------------------------------------------------
-# Rasgos
-# ---------------------------------------------------------------------------
-
-
 @dataclass
 class Rasgos:
-    jac: np.ndarray  # (U, K)
-    caso: np.ndarray  # (U, K) int8: 1 cabeza, 2 nombra la cabeza, 0 ninguna
-    cos: np.ndarray  # (U, K) coseno del concepto de la columna (recortado en 0)
-    col_concepto: np.ndarray  # (K,) indice del concepto
+    jac: np.ndarray
+    caso: np.ndarray
+    cos: np.ndarray
+    col_concepto: np.ndarray
     col_texto: list[str]
-    col_tipo: list[str]  # nombre | base | pool
-    orden: np.ndarray  # (K,) posicion para el desempate: (concepto, insercion)
+    col_tipo: list[str]
+    orden: np.ndarray
 
 
 def construir_rasgos(d: Datos, pool: list[tuple[int, str]] | None = None) -> Rasgos:
-    """Rasgos de cada renglon contra cada candidato del catalogo y del `pool` de sinonimos por aprender."""
     cols: list[tuple[int, str, str]] = []
     vistos: set[tuple[int, str]] = set()
     for i, c in enumerate(d.conceptos):
@@ -192,25 +169,18 @@ def construir_rasgos(d: Datos, pool: list[tuple[int, str]] | None = None) -> Ras
                 elif any(misma(nuc, w) for w in pal):
                     caso[u, k] = 2
     if d.vectores is not None:
-        cosc = np.maximum(0.0, d.vectores @ d.cent.T)  # vectores unitarios
+        cosc = np.maximum(0.0, d.vectores @ d.cent.T)
         cosc[:, ~d.tiene_cent] = 0.0
     else:
         cosc = np.zeros((U, len(d.conceptos)))
     col_c = np.array([c for c, _, _ in cols])
-    orden = np.lexsort((np.arange(K), col_c))  # por concepto, luego insercion
+    orden = np.lexsort((np.arange(K), col_c))
     r = Rasgos(jac, caso, cosc[:, col_c], col_c, [t for _, t, _ in cols], [k for _, _, k in cols], np.argsort(orden))
-    # reordenar columnas para que el argmax respete (concepto, insercion)
     p = orden
     return Rasgos(r.jac[:, p], r.caso[:, p], r.cos[:, p], r.col_concepto[p], [r.col_texto[i] for i in p], [r.col_tipo[i] for i in p], np.arange(K))
 
 
-# ---------------------------------------------------------------------------
-# Puntaje (la formula de `clasificar`)
-# ---------------------------------------------------------------------------
-
-
 def puntuar(r: Rasgos, cfg: dict, activas: np.ndarray | None = None, filas: np.ndarray | None = None):
-    """(concepto_idx, puntaje) por renglon unico; concepto_idx = -1 si ningun candidato puntua > 0."""
     sl = slice(None) if filas is None else filas
     jac, caso, cos = r.jac[sl], r.caso[sl], r.cos[sl]
     cc = r.col_concepto
@@ -233,13 +203,7 @@ def puntuar(r: Rasgos, cfg: dict, activas: np.ndarray | None = None, filas: np.n
     return idx, np.where(s > 0.0, s, 0.0)
 
 
-# ---------------------------------------------------------------------------
-# Metricas
-# ---------------------------------------------------------------------------
-
-
 def metricas(pred: np.ndarray, s: np.ndarray, y: np.ndarray, corte: float, tau: float) -> dict:
-    """pred/y: indice de concepto (-1 = ninguno). Correcto: coincide (sin_match == sin etiqueta tambien)."""
     pred_c = np.where(s >= corte, pred, -1)
     ok = pred_c == y
     acepta = (s >= tau) & (pred_c >= 0)
@@ -262,7 +226,6 @@ def etiquetas(d: Datos) -> np.ndarray:
 
 
 def validar(d: Datos, r: Rasgos, muestra_emparejar: int = 400) -> dict:
-    """Con las constantes actuales, el camino vectorizado = `clasificar` y `emparejar` reales."""
     from tukit_catalogo.consulta import emparejar
 
     concs = []
@@ -281,7 +244,6 @@ def validar(d: Datos, r: Rasgos, muestra_emparejar: int = 400) -> dict:
         if real != int(idx[u]):
             dif += 1
         dif_s = max(dif_s, abs(sc - float(s[u])))
-    # emparejar real (corrige + clasifica + corte 0.5) sobre una muestra con orden fijo
     rng = np.random.default_rng(0)
     n_emp = min(muestra_emparejar, len(d.textos))
     dif_emp = 0

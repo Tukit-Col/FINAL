@@ -1,16 +1,4 @@
-"""Instancias -> escenarios de papa, cada uno con su optimo exacto.
-
-Escenarios (todos con un solo hijo):
-- `ahorrador`: sin preferencias; el objetivo es el kit mas barato.
-- `premium`: sin preferencias; el objetivo es la mejor marca posible.
-- `fan`: el papa pide el personaje mas frecuente en la lista; el objetivo es el
-  kit con mas lineas de ese personaje, al menor costo.
-- `presupuesto`: tope a mitad de camino entre el kit mas barato y el Premium
-  exactos; el objetivo es la mayor fidelidad que quepa.
-
-Una lista sin compromiso real para un escenario (sin lineas decidibles, o con el
-optimo igual a todos los extremos) se omite de ese escenario y se cuenta.
-"""
+"""Instancias -> escenarios de papa, cada uno con su optimo exacto."""
 
 from __future__ import annotations
 

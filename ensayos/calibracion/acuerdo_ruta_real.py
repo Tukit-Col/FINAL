@@ -1,9 +1,5 @@
 """Acuerdo y exactitud contra la salida de la RUTA REAL (ruta_real_muestra.csv), oro con consejo LLM.
-
-Oro = A si A == B; en los desacuerdos, `adjudicado` de muestra_ciega/adjudicacion_llm.csv.
-Importa kappa, ic, norm, leer y metricas_sistema de acuerdo.py (sin modificarlo).
-Uso: uv run python ensayos/calibracion/acuerdo_ruta_real.py
-"""
+Uso: uv run python ensayos/calibracion/acuerdo_ruta_real.py"""
 from __future__ import annotations
 
 import collections
@@ -19,7 +15,6 @@ import acuerdo as ac  # noqa: E402
 
 CAL = ac.k.SALIDA
 M = ac.MUESTRA
-# Adjudicaciones que el propio consejo marco como divididas o de confianza baja.
 DIVIDIDOS = {
     "M064": "dividido en el borde con NINGUNO",
     "M171": "dividido en el borde con NINGUNO",
@@ -74,7 +69,6 @@ def main() -> int:
     ok = np.array([sis[i] == oro[i] for i in ids])
     acepta = np.array([R[i]["aceptado"].strip().lower() == "si" for i in ids])
     res["sistema_ruta_real"] = {"tau": 0.75, "global": bloque(ok, acepta, None, listas, rng)}
-    # sensibilidad: sin los renglones adjudicados por el consejo
     solo = np.flatnonzero(acu)
     res["sistema_ruta_real"]["solo_renglones_con_acuerdo_A_B"] = bloque(ok[solo], acepta[solo], None, listas[solo], rng)
 
@@ -83,7 +77,6 @@ def main() -> int:
     col = np.array([fm[i]["colegio"] for i in ids])
     res["por_colegio"] = {c: bloque(ok[col == c], acepta[col == c], None, listas[col == c], rng) for c in sorted(set(col))}
 
-    # errores
     err = collections.defaultdict(list)
     for i in ids:
         if sis[i] != oro[i]:

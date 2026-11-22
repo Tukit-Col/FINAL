@@ -19,7 +19,6 @@ def resumen(d=None):
         pdc = [f for f in fs if f["pd_costo"]["estado"] == "ok"]
         pdp = [f for f in fs if f["pd_pres"]["estado"] == "ok"]
         ns_ah = [f for f in fs for f in [f] if True]
-        # perdida del Ahorrador (media de semillas) frente a la PD (si cerro) o frente a NSGA-cons
         def med(f, clave, lado):
             return m([x[clave] for x in f[lado] if x[clave] is not None])
         perd_base_vs_pd = [(med(f, "ah_costo", "base") - f["pd_costo"]["costo"]) for f in pdc]

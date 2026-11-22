@@ -1,8 +1,4 @@
-"""Barrido de hogares (2 a 8 hijos): PD con consolidacion vs NSGA-II vs linea base.
-
-uv run python ensayos/acoplado/correr_hermanos.py [--procesos 6] [--limite N]
-Escribe hermanos.json.
-"""
+"""Barrido de hogares (2 a 8 hijos): PD con consolidacion vs NSGA-II vs linea base."""
 
 from __future__ import annotations
 
@@ -17,7 +13,7 @@ from concurrent.futures import ProcessPoolExecutor
 LIMITE_PD_S = 20.0
 TOPE_CAPA = 2_000_000
 SEMILLAS = (0, 1, 2)
-TAMANOS_SINT = {2: 4, 3: 4, 4: 4, 5: 3, 6: 3, 7: 3, 8: 3}  # 24 hogares
+TAMANOS_SINT = {2: 4, 3: 4, 4: 4, 5: 3, 6: 3, 7: 3, 8: 3}
 SEMILLA_HOGARES = 20261113
 
 
@@ -35,7 +31,7 @@ def hogares(instancias):
     for k in range(2, 9):
         for m in range(2):
             col = grandes[(k * 2 + m) % len(grandes)]
-            ids = rng.sample(por_col[col], k)  # grados distintos del mismo colegio
+            ids = rng.sample(por_col[col], k)
             out.append({"id": f"col-{k}-{m}", "tipo": "mismo_colegio", "colegio": col, "hijos": k, "indices": ids})
     return out
 
@@ -60,7 +56,7 @@ def trabajo(args):
     h = Hogar(armar_hogar([ins[i] for i in desc["indices"]]))
     A0 = h.costo(h.heuristica("ahorrador"))
     P0 = h.costo(h.heuristica("premium"))
-    B = (A0 + P0) // 2  # mitad de camino, como `_tope_de_a_tu_medida`
+    B = (A0 + P0) // 2
     fila = dict(desc, lineas=h.n, compartidos=h.K, A0=A0, P0=P0, presupuesto=B, cota_inf=round(h.cota_inferior_ahorrador()))
     rng = random.Random(1)
     mal = 0

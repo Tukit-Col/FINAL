@@ -1,18 +1,7 @@
 """Metrica principal: el mejor punto del frente que cabe (asignacion_frente), que es el kit
 proyectado de la memoria. El kit que hoy entrega `recomendar` (uno de los tres heuristicos) se
 reporta aparte como `kit_recomendado`.
-
-Audita las listas de presupuesto donde NSGA-II (con siembra) no iguala el optimo exacto.
-
-Reutiliza `_trabajo` de bench_laya/correr_nsga.py (misma funcion de produccion) sobre
-las listas reales, solo el escenario de presupuesto, semillas 0, 1 y 2. Tambien lee las
-corridas guardadas en nsga.json.gz para ver si coinciden con la re-corrida actual.
-Igualar = el kit entregado cabe en el presupuesto y su fidelidad >= la del optimo exacto
-(mismo criterio que `optimo_ok` de evaluar.py). Se reporta ademas si la asignacion es
-identica sku a sku y el costo adicional.
-
-Uso: uv run python ensayos/calibracion/auditar_presupuesto.py [--procesos 6]
-"""
+Uso: uv run python ensayos/calibracion/auditar_presupuesto.py [--procesos 6]"""
 from __future__ import annotations
 
 import argparse
@@ -108,7 +97,6 @@ def main() -> int:
     resumen["no_coinciden_con_guardado"] = sorted(
         {d["instancia"] + f"/s{s}" for d in detalle for s in SEMILLAS if d["semillas"][str(s)]["coincide_con_guardado"] is False}
     )
-    # perfil de las que fallan vs las demas
     fallan = [d for d in detalle if d["instancia"] in todas]
     resto = [d for d in detalle if d["instancia"] not in todas]
     med = lambda xs: sorted(xs)[len(xs) // 2] if xs else None

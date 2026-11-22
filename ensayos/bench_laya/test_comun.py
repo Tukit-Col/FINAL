@@ -1,8 +1,4 @@
-"""El techo del benchmark tiene que ser de verdad el techo.
-
-Cada optimo exacto de `comun.py` se compara contra fuerza bruta sobre listas
-chicas generadas al azar, usando la funcion de objetivos de produccion.
-"""
+"""El techo del benchmark tiene que ser de verdad el techo."""
 
 from __future__ import annotations
 

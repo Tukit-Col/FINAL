@@ -1,30 +1,5 @@
 """Comparar constantes al MISMO punto de operacion (curva riesgo-cobertura).
-
-Por que. Un valor "optimo" del barrido (piso 0,5, peso del coseno 0,05, ...) da 0,1 a 0,3 puntos
-mas de exactitud, pero la exactitud mezcla dos cosas: clasificar mejor y aceptar menos renglones
-(con piso 0,5 lo aceptado en tau = 0,75 baja de 85,6 % a 73,6 %). Para separarlas se compara
-cada configuracion con la actual en la misma cobertura: se barre tau, y para cada fraccion
-aceptada se mira la precision de lo aceptado.
-
-Metodo.
-  * Curva: renglones ordenados por puntaje; aceptado = puntaje >= tau y concepto distinto de
-    "sin correspondencia" (puntaje >= corte). Cobertura = aceptados / todos los renglones.
-    Los puntajes empatan en bloques (pocos valores distintos): dentro de un bloque la precision
-    se interpola linealmente (el valor esperado si el desempate fuera al azar). Esto permite
-    leer la precision en una cobertura exacta, y es el mismo trato para todas las configuraciones.
-  * Puntos: cobertura actual (2.599 / 3.037 = 85,6 %), 75, 80 y 88 % (el 90 % no se alcanza: el tope es 89,8 %).
-  * AURC: riesgo medio (1 - precision de lo aceptado) promediado sobre la cobertura de 0 a 88 %
-    (y de 50 a 88 %). Menor es mejor.
-  * Intervalo: bootstrap por LISTA (colegio, grado), 2.000 remuestreos; la diferencia
-    candidato - actual se calcula dentro de cada remuestreo (pareada).
-  * Parte 2: particion por lista 70/15/15 con las 20 semillas de particion.py; el optimo se
-    elige en entrenamiento (y validacion) y se mide en prueba al mismo punto de operacion.
-
-El rescate semantico ya no existe (res_cos = 1,01): el espacio de busqueda son piso, peso del
-Jaccard, peso del coseno y corte.
-
-Uso: uv run python ensayos/calibracion/punto_operacion.py
-"""
+Uso: uv run python ensayos/calibracion/punto_operacion.py"""
 
 from __future__ import annotations
 
@@ -43,8 +18,8 @@ import particion as pa  # noqa: E402
 
 REMUESTREOS = 2000
 SEMILLA_BOOT = 20261101
-NIVELES = {"actual": None, "75": 0.75, "80": 0.80, "88": 0.88}  # "actual" se fija abajo
-TOPE_AURC = 0.88  # el 90 % no se alcanza: con corte 0,5 el tope de lo aceptable es 89,8 %
+NIVELES = {"actual": None, "75": 0.75, "80": 0.80, "88": 0.88}
+TOPE_AURC = 0.88
 ESPACIO = {
     "piso": [0.5, 0.55, 0.6, 0.65, 0.7],
     "w_jac": [0.3, 0.35, 0.4, 0.45, 0.5],
@@ -54,23 +29,14 @@ ESPACIO = {
 CLAVES = ("piso", "w_jac", "w_cos", "corte")
 
 
-# ---------------------------------------------------------------------------
-# Curva riesgo-cobertura con pesos (los pesos permiten el bootstrap por listas)
-# ---------------------------------------------------------------------------
-
-
 class Grupos:
-    """Bloques de puntaje empatado de una configuracion, en orden descendente.
-
-    Solo entran los renglones aceptables (concepto != sin correspondencia, puntaje >= corte).
-    """
 
     def __init__(self, p: np.ndarray, s: np.ndarray, y: np.ndarray, corte: float):
         pc = np.where(s >= corte, p, -1)
         self.elegible = pc >= 0
         self.ok = (pc == y)[self.elegible]
         sv = np.round(s[self.elegible], 9)
-        self.valores, inv = np.unique(-sv, return_inverse=True)  # orden descendente de puntaje
+        self.valores, inv = np.unique(-sv, return_inverse=True)
         self.valores = -self.valores
         self.g = inv
         self.G = len(self.valores)
@@ -85,7 +51,6 @@ def _acum(wg: np.ndarray, cg: np.ndarray):
 
 
 def precision_en(wg, cg, wtot: float, cobertura: np.ndarray) -> np.ndarray:
-    """Precision de lo aceptado cuando se acepta `cobertura` * wtot (interpolada dentro del bloque)."""
     W, C = _acum(wg, cg)
     x = np.asarray(cobertura) * wtot
     j = np.clip(np.searchsorted(W, x, side="left") - 1, 0, len(wg) - 1)
@@ -96,22 +61,19 @@ def precision_en(wg, cg, wtot: float, cobertura: np.ndarray) -> np.ndarray:
 
 
 def _integral_riesgo(W, C, r, x: float) -> float:
-    """Integral de 0 a x del riesgo (1 - precision) respecto de la cobertura (en unidades de peso)."""
     tot = 0.0
     for j in range(len(r)):
         a, bb = W[j], min(W[j + 1], x)
         if a >= x:
             break
-        if bb <= a:  # bloque sin peso en este remuestreo
+        if bb <= a:
             continue
-        A = C[j] - r[j] * W[j]  # c(x) = A + r x  dentro del bloque
-        # riesgo = 1 - c/x = 1 - A/x - r ; integral = (1 - r)(bb - a) - A ln(bb/a)  (A = 0 si a = 0)
+        A = C[j] - r[j] * W[j]
         tot += (1 - r[j]) * (bb - a) - (A * np.log(bb / a) if a > 0 else 0.0)
     return tot
 
 
 def aurc(wg, cg, wtot: float, lo: float, hi: float) -> float:
-    """Riesgo medio sobre la cobertura (lo, hi]; nan si la configuracion no llega a hi."""
     W, C = _acum(wg, cg)
     if hi * wtot > W[-1] + 1e-9:
         return float("nan")
@@ -120,7 +82,6 @@ def aurc(wg, cg, wtot: float, lo: float, hi: float) -> float:
 
 
 def tau_para(grp: Grupos, wg, wtot: float, cobertura: float) -> tuple[float, float]:
-    """Menor tau cuya cobertura sea >= la pedida, y la cobertura que da."""
     cum = np.cumsum(wg) / wtot
     j = int(np.searchsorted(cum, cobertura - 1e-12))
     j = min(j, len(cum) - 1)
@@ -140,13 +101,9 @@ def resumen_config(grp: Grupos, w: np.ndarray, niveles: dict[str, float]) -> dic
 
 
 def vector_metricas(grp: Grupos, w: np.ndarray, niveles: np.ndarray) -> np.ndarray:
-    """[precision en cada nivel..., aurc_0_88, aurc_50_88] para un remuestreo."""
     wg, cg = grp.sumas(w)
     wt = float(w.sum())
     return np.concatenate([precision_en(wg, cg, wt, niveles), [aurc(wg, cg, wt, 0.0, TOPE_AURC), aurc(wg, cg, wt, 0.5, TOPE_AURC)]])
-
-
-# ---------------------------------------------------------------------------
 
 
 def cfgs_nombradas() -> dict[str, dict]:
@@ -187,7 +144,6 @@ def parte1(cx: b.Contexto, combos: list[dict]) -> tuple[dict, dict]:
     cob_act = float(ac0.sum() / n)
     niveles = {"actual": cob_act, "75": 0.75, "80": 0.80, "88": 0.88}
 
-    # --- barrido completo sobre todos los datos: posicion del actual y mejores conjuntas
     t0 = time.time()
     ex, au, pre = [], [], []
     for c in combos:
@@ -227,9 +183,7 @@ def parte1(cx: b.Contexto, combos: list[dict]) -> tuple[dict, dict]:
         "combinaciones_con_aurc_menor_que_el_actual": int((au < au[i_act] - 1e-12).sum()),
     }
 
-    # --- candidatos
     cands = {**cfgs_nombradas(), **conj}
-    # quitar duplicados exactos de configuracion conservando el primer nombre
     vistos: dict[tuple, str] = {}
     alias: dict[str, str] = {}
     unicas: dict[str, dict] = {}
@@ -250,7 +204,6 @@ def parte1(cx: b.Contexto, combos: list[dict]) -> tuple[dict, dict]:
     for nom, c in unicas.items():
         wg, cg = grp[nom].sumas(w1)
         r = resumen_config(grp[nom], w1, niveles)
-        # metricas en tau = 0,75 para vincular con el barrido
         m75 = k.metricas(*cx.puntuar(c), cx.y, c["corte"], 0.75)
         tau85, cob85 = tau_para(grp[nom], wg, float(n), cob_act)
         punt[nom] = {
@@ -262,7 +215,6 @@ def parte1(cx: b.Contexto, combos: list[dict]) -> tuple[dict, dict]:
             **r,
         }
 
-    # --- bootstrap por listas (pareado)
     listas = np.unique(cx.lista)
     idx_l = {l: np.where(cx.lista == l)[0] for l in listas}
     por_l = np.array([[len(idx_l[l])] for l in listas]).ravel()
@@ -295,7 +247,7 @@ def parte1(cx: b.Contexto, combos: list[dict]) -> tuple[dict, dict]:
             continue
         fila = {}
         for j, et in enumerate(etiquetas):
-            sgn = -1.0 if et.startswith("aurc") else 1.0  # positivo = el candidato es mejor
+            sgn = -1.0 if et.startswith("aurc") else 1.0
             d = sgn * (boot[nom][:, j] - boot["actual"][:, j]) * 100
             pt = sgn * (punt[nom]["precision"][et] - punt["actual"]["precision"][et]) * 100 if not et.startswith("aurc") else sgn * (punt[nom][et] - punt["actual"][et]) * 100
             lo, hi = ic(d)
@@ -334,7 +286,6 @@ def parte1(cx: b.Contexto, combos: list[dict]) -> tuple[dict, dict]:
 
 
 def parte2(cx: b.Contexto, combos: list[dict]) -> dict:
-    """Particion por lista y 20 semillas: elegir en entrenamiento+validacion, medir en prueba."""
     n = len(cx.y)
     p0, s0 = cx.puntuar(k.ACTUAL)
     pc0 = np.where(s0 >= k.ACTUAL["corte"], p0, -1)
@@ -377,7 +328,6 @@ def parte2(cx: b.Contexto, combos: list[dict]) -> dict:
         sem = pa.SEMILLA_BASE + i
         parte = pa.partir(listas, sem)
         m = {q: np.isin(cx.lista, ls) for q, ls in parte.items()}
-        # cobertura del punto actual en ESTA prueba (lo que acepta hoy el sistema en tau = 0,75)
         fila = {"semilla": sem, "renglones_prueba": int(m["prueba"].sum()), "listas_prueba": len(parte["prueba"])}
         pr = m["prueba"]
         base = medir(i_act, pr)
@@ -437,7 +387,6 @@ def conclusion(p1: dict, p2: dict) -> dict:
 
 
 def dibujar(sal: dict) -> None:
-    """PDF con las curvas: precision vs cobertura, diferencia con el actual (con IC) y las 20 semillas."""
     import matplotlib
 
     matplotlib.use("Agg")

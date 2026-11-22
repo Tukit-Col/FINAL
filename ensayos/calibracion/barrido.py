@@ -1,26 +1,5 @@
 """Barrido de las constantes de decision de la resolucion hibrida (descubrir.clasificar).
-
-Que es. Una constante de diseno ("0,6 piso si la frase empieza por la cabeza") se defiende
-mejor con una medida que con un argumento: se prueba una rejilla de valores, una constante a la
-vez con las demas fijas en su valor actual, y se mide en los renglones etiquetados. Despues una
-rejilla conjunta pequena. La clasificacion es la real (ver clasificacion.py: reproduce
-`clasificar` y `emparejar` sin diferencias sobre los 1.542 textos distintos).
-
-Las 7 constantes: piso 0,6; peso Jaccard 0,4; peso coseno 0,15; coseno minimo del rescate 0,86;
-piso del rescate 0,55; corte de sin correspondencia 0,5; tau 0,75.
-
-Metricas. `exactitud`: el concepto del sistema (o "sin concepto" bajo el corte) coincide con el
-aprobado. `aceptada`: fraccion con puntaje >= tau (pasa sin revision). `precision_aceptada`: de
-esas, cuantas son correctas. `auto_correcta`: aceptada y correcta, sobre todos los renglones.
-
-Objetivos. Constantes de puntaje y corte: maximizar la exactitud. tau: el menor valor con
-precision_aceptada >= 0,95 (la misma regla de tau.py), que maximiza lo aceptado a esa precision.
-
-Etiquetas: el concepto que dejo la persona al revisar la salida del propio sistema (sesgo de
-confirmacion posible; la revision de 6 colegios nuevos fue ligera). Es lo unico disponible.
-
-Uso: uv run python ensayos/calibracion/barrido.py
-"""
+Uso: uv run python ensayos/calibracion/barrido.py"""
 
 from __future__ import annotations
 
@@ -42,7 +21,7 @@ REJILLAS = {
     "piso": [round(x, 3) for x in np.arange(0.30, 0.9001, 0.05)],
     "w_jac": [round(x, 3) for x in np.arange(0.0, 0.8001, 0.05)],
     "w_cos": [round(x, 3) for x in np.arange(0.0, 0.5001, 0.05)],
-    "res_cos": [round(x, 3) for x in np.arange(0.70, 0.9801, 0.02)] + [1.01],  # 1.01 = rescate apagado
+    "res_cos": [round(x, 3) for x in np.arange(0.70, 0.9801, 0.02)] + [1.01],
     "res_piso": [round(x, 3) for x in np.arange(0.40, 0.8001, 0.05)],
     "corte": [round(x, 3) for x in np.arange(0.30, 0.8001, 0.05)],
     "tau": [round(x, 3) for x in np.arange(0.50, 1.0001, 0.025)],
@@ -56,7 +35,6 @@ NOMBRES = {
     "corte": "corte de sin correspondencia (0,5)",
     "tau": "tau de aceptacion automatica (0,75)",
 }
-# Espacio de seleccion para la particion y la generalizacion (243 puntajes x 5 cortes = 1.215).
 ESPACIO = {
     "piso": [0.5, 0.6, 0.7],
     "w_jac": [0.3, 0.4, 0.5],
@@ -68,7 +46,6 @@ CORTES = [0.4, 0.45, 0.5, 0.55, 0.6]
 
 
 class Contexto:
-    """Rasgos + arreglos por renglon para evaluar configuraciones rapido."""
 
     def __init__(self, con_vectores: bool = True):
         self.d = k.cargar(con_vectores)
@@ -80,7 +57,6 @@ class Contexto:
         self._cache: dict[tuple, tuple[np.ndarray, np.ndarray]] = {}
 
     def puntuar(self, cfg: dict) -> tuple[np.ndarray, np.ndarray]:
-        """(concepto, puntaje) por RENGLON (no por texto unico)."""
         clave = tuple(round(cfg[c], 6) for c in k.CLAVES_PUNTAJE)
         if clave not in self._cache:
             idx, s = k.puntuar(self.r, cfg)
@@ -94,7 +70,6 @@ class Contexto:
 
 
 def regla_tau(s: np.ndarray, pred_c: np.ndarray, y: np.ndarray, corte: float, objetivo: float = OBJETIVO_PRECISION) -> float:
-    """El menor tau con precision de lo aceptado >= objetivo (0,95 como tau.py); 1,0 si ninguno."""
     ok = pred_c == y
     for t in np.unique(s[s >= corte]):
         ac = (s >= t) & (pred_c >= 0)
@@ -104,7 +79,6 @@ def regla_tau(s: np.ndarray, pred_c: np.ndarray, y: np.ndarray, corte: float, ob
 
 
 def meseta(valores: list[float], medida: list[float], tolerancia: float) -> list[float]:
-    """Rango contiguo alrededor del mejor valor cuya medida esta a `tolerancia` del maximo."""
     mejor = int(np.argmax(medida))
     tope = max(medida)
     a = b = mejor
@@ -133,7 +107,6 @@ def barrido_unico(cx: Contexto) -> dict:
             "valores": filas,
         }
         if clave == "tau":
-            # regla: menor tau con precision >= 0,95
             p, s = cx.puntuar(ACTUAL)
             pc = np.where(s >= ACTUAL["corte"], p, -1)
             t_regla = regla_tau(s, pc, cx.y, ACTUAL["corte"])
@@ -183,7 +156,6 @@ def barrido_unico(cx: Contexto) -> dict:
 
 
 def ic_diferencia_por_lista(cx: Contexto, cfg_a: dict, cfg_b: dict, repeticiones: int = 1000) -> dict:
-    """IC 95 % (bootstrap por LISTA) de exactitud(a) - exactitud(b), en puntos porcentuales."""
     pa, sa = cx.puntuar(cfg_a)
     pb, sb = cx.puntuar(cfg_b)
     oka = np.where(sa >= cfg_a["corte"], pa, -1) == cx.y
@@ -200,7 +172,6 @@ def ic_diferencia_por_lista(cx: Contexto, cfg_a: dict, cfg_b: dict, repeticiones
 
 
 def barrido_conjunto(cx: Contexto) -> dict:
-    """Rejilla conjunta: lexicas (piso, w_jac, corte, tau) y las hibridas (w_cos, res_cos, res_piso)."""
     t0 = time.time()
     lex = list(
         itertools.product([0.5, 0.55, 0.6, 0.65, 0.7], [0.2, 0.3, 0.4, 0.5, 0.6], [0.4, 0.45, 0.5, 0.55, 0.6], [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9])
@@ -231,7 +202,6 @@ def barrido_conjunto(cx: Contexto) -> dict:
             "ejemplos_del_maximo": mejores[:5],
         }
 
-    # auto_correcta con precision >= 0,95 (efecto de tau y corte)
     ok = [f for f in filas if f["precision_aceptada"] is not None and f["precision_aceptada"] >= OBJETIVO_PRECISION]
     mej = max(ok, key=lambda f: f["auto_correcta"]) if ok else None
     act = next(f for f in filas if all(abs(f[c] - ACTUAL[c]) < 1e-9 for c in ("piso", "w_jac", "corte", "tau")))
@@ -245,13 +215,11 @@ def barrido_conjunto(cx: Contexto) -> dict:
 
 
 def solo_lexico(cx: Contexto) -> dict:
-    """Referencia: sin el canal semantico (w_cos = 0, rescate apagado)."""
     cfg = {**ACTUAL, "w_cos": 0.0, "res_cos": 1.01}
     return {"lexico_puro": cx.medir(cfg), "hibrido_actual": cx.medir(ACTUAL)}
 
 
 def diagnostico_rescate(cx: Contexto) -> dict:
-    """Cuantos renglones mueve el rescate semantico y cuantos tenian algo que rescatar."""
     p0, s0 = cx.puntuar({**ACTUAL, "res_cos": 1.01})
     out: dict = {}
     for res in (0.70, 0.76, 0.80, 0.86):

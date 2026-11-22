@@ -1,18 +1,5 @@
 """Un colegio nuevo: dejar un colegio fuera (leave-one-school-out) entre los 7.
-
-Dos preguntas distintas, no mezcladas:
-  1. Constantes. Se eligen con los otros 6 colegios (espacio y criterio de seleccion.py) y se miden
-     en el colegio retenido, contra las constantes actuales. El catalogo es el de hoy, que ya trae
-     sinonimos sembrados antes (posible fuga hacia el colegio retenido; es optimista).
-  2. Catalogo frio + aprendizaje. Sin fuga: el catalogo parte solo de nombres de concepto y aprende,
-     con el lazo de correccion, de los otros 6 colegios (orden aleatorio, 5 ordenes); luego se mide
-     el colegio retenido con las constantes actuales. Es la medida limpia de "llega un colegio nuevo".
-
-Metricas por colegio retenido: concepto correcto, fraccion aceptada sin revision, precision de lo
-aceptado, fraccion a revision humana. Cifras de colegios con pocos renglones: poco fiables.
-
-Uso: uv run python ensayos/calibracion/generalizacion.py
-"""
+Uso: uv run python ensayos/calibracion/generalizacion.py"""
 
 from __future__ import annotations
 
@@ -56,7 +43,6 @@ def main() -> int:
         eleg = esp.elegir(tr)
         cfg = eleg["cfg"]
         p_a, s_a = cx.puntuar(act)
-        # 1) constantes con el catalogo actual
         fila = {
             "colegio": col,
             "renglones": int(pr.sum()),
@@ -72,7 +58,6 @@ def main() -> int:
             "actual_tau_regla_0.98": esp.medir(act, pr, eleg["taus"]["0.98"]),
             "ic95_exactitud_actual_por_listas": ic_listas(cx, pr, p_a, s_a, act["corte"]),
         }
-        # 2) catalogo frio + aprendizaje con los otros 6 colegios
         listas_tr = sorted(set(cx.lista[tr]))
         res = []
         sin_aprender = None

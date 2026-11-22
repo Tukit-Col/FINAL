@@ -1,13 +1,4 @@
-"""Exporta de la base local (SOLO SELECT) los renglones de las versiones vigentes y revisadas.
-
-Salidas en ensayos/calibracion/datos/:
-  renglones_etiquetados.csv  colegio, grado, anio, orden, texto_original, concepto_codigo (etiqueta)
-  catalogo_conceptos.json    conceptos activos con sinonimos (y cuales fueron aprendidos de una correccion)
-  centroides.npz             centro normalizado de los embeddings de producto de cada concepto
-
-No lleva datos de personas: son listas de utiles y el catalogo. Los nombres de colegio son
-instituciones. Uso: uv run python ensayos/calibracion/exportar_etiquetas.py
-"""
+"""Exporta de la base local (SOLO SELECT) los renglones de las versiones vigentes y revisadas."""
 
 from __future__ import annotations
 
