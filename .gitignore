@@ -61,3 +61,6 @@ Thumbs.db
 
 # Configuracion local de Claude Code (la skill de .claude/skills si se versiona).
 .claude/settings.local.json
+
+# Configuracion local de herramientas.
+.claude/
