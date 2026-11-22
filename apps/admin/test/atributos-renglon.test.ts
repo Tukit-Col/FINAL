@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { serializarAtributos } from "../../../libs/ts/tukit-contrato/src/catalogo.ts";
 import {
   NO_EXIGIR,
+  candidatosDe,
   exigidoDe,
   filasDeExigencia,
   mismosAtributos,
@@ -91,4 +92,15 @@ test("sugiere los valores que declaran los productos del concepto", () => {
     { codigo: "C999", atributos_discriminantes: ["color"], productos: [{ atributos: {} }] },
   ]);
   assert.deepEqual(valores, { C003: { tipo: ["cartulina", "dibujo"], hojas: ["20", "100"] } });
+});
+
+test("las candidatas de un ítem son las suyas por id o, sin id, por el texto de origen", () => {
+  const item = { id: "i1", texto_original: "Lápiz HB" };
+  const propuestas = [
+    { item_id: "i1", texto_origen: "otro" },
+    { item_id: "i2", texto_origen: "Lápiz HB" },
+    { item_id: null, texto_origen: "Lápiz HB" },
+    { item_id: null, texto_origen: "Borrador" },
+  ];
+  assert.deepEqual(candidatosDe(item, propuestas), [propuestas[0], propuestas[2]]);
 });

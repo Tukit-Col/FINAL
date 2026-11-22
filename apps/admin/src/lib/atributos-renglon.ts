@@ -85,3 +85,22 @@ export function valoresDeProductos(
   }
   return salida;
 }
+
+export function resumenExigido(filas: FilaExigencia[]): string | null {
+  const partes = filas
+    .filter((f) => !f.ajena)
+    .map((f) => {
+      const exigido = exigidoDe(f);
+      return exigido === null ? `${f.clave}: no se exige` : `${f.clave} = ${exigido}`;
+    });
+  return partes.length ? partes.join(" · ") : null;
+}
+
+export function candidatosDe<
+  I extends { id: string; texto_original: string },
+  P extends { item_id?: string | null; texto_origen?: string | null },
+>(item: I, propuestas: readonly P[]): P[] {
+  return propuestas.filter((p) =>
+    p.item_id != null ? p.item_id === item.id : p.texto_origen === item.texto_original,
+  );
+}
