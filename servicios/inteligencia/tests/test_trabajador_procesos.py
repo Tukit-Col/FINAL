@@ -29,7 +29,8 @@ from typing import Any
 import pytest
 from conftest import CatalogoFalso
 from sqlalchemy import select, update
-from test_fastroute import COLEGIO, _catalogo_verificado
+from _ayudas_inteligencia import catalogo_verificado as _catalogo_verificado
+from conftest import COLEGIO
 from tukit_comun import bd
 from tukit_inteligencia import trabajador, trabajos
 from tukit_inteligencia.modelos import EstadoTrabajo

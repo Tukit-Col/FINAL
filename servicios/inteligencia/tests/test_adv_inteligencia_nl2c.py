@@ -40,7 +40,9 @@ import pytest
 from sqlalchemy import select
 
 # Reutiliza el montaje de rutas de test_nl2c (identidad falsa, trabajo sembrado, kit de tres renglones).
-from test_nl2c import OTRO, PADRE, H, _kit, cliente, sembrar  # noqa: F401  (cliente es una fixture)
+from _ayudas_nl2c import H, OTRO, PADRE, sembrar
+from _ayudas_nl2c import kit_de_tres as _kit
+from test_nl2c_rutas import cliente  # noqa: F401  (cliente es una fixture)
 from tukit_inteligencia import (  # noqa: F401  (api antes que routers)
     api,
     gemini,

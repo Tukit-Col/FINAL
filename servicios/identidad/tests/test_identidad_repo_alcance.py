@@ -60,7 +60,7 @@ from tukit_identidad.modelos import (
 )
 from tukit_identidad.repositorios.identidad import RepoIdentidad
 
-from tests.conftest import (
+from tests._ayudas_identidad import (
     asignar,
     crear_colegio_con_sede,
     crear_matricula,

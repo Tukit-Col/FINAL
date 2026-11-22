@@ -38,7 +38,7 @@ import pytest
 import pytest_asyncio
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from test_checkout import PRODUCTO, CatalogoFalso
+from _ayudas_comercio import PRODUCTO, CatalogoFalso
 from tukit_comercio import api
 from tukit_comercio.api import app
 from tukit_comercio.modelos import Base, EstadoPago, EstadoPedido

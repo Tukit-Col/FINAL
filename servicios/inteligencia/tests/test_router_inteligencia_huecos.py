@@ -38,7 +38,9 @@ import httpx
 import pytest
 from conftest import CatalogoFalso, opcion, reconocido, renglon
 from sqlalchemy import select
-from test_trabajos import _canonico, _catalogo, _crear_y_procesar
+from _ayudas_inteligencia import catalogo_simple as _catalogo
+from _ayudas_inteligencia import crear_y_procesar as _crear_y_procesar
+from _ayudas_inteligencia import sembrar_canonico as _canonico
 from tukit_comun.http import ErrorDominio
 from tukit_inteligencia import api, trabajos
 from tukit_inteligencia.api import app

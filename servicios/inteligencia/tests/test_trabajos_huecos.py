@@ -29,9 +29,11 @@ from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 
 import pytest
-from conftest import CatalogoFalso, opcion, reconocido, renglon
+from conftest import COLEGIO, CatalogoFalso, opcion, reconocido, renglon
 from sqlalchemy import select
-from test_trabajos import COLEGIO, _canonico, _catalogo, _crear_y_procesar
+from _ayudas_inteligencia import catalogo_simple as _catalogo
+from _ayudas_inteligencia import crear_y_procesar as _crear_y_procesar
+from _ayudas_inteligencia import sembrar_canonico as _canonico
 from tukit_inteligencia import trabajos
 from tukit_inteligencia.modelos import EstadoResolucion, EstadoTrabajo
 from tukit_inteligencia.remoto import RemotoCaido

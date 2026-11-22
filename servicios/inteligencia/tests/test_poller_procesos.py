@@ -31,8 +31,11 @@ import pytest
 from sqlalchemy import MetaData, insert, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncEngine
-from test_fastroute import COLEGIO, _catalogo_verificado
-from test_poller import BANDEJA_CATALOGO, _carga, _sembrar_bandeja
+from _ayudas_inteligencia import catalogo_verificado as _catalogo_verificado
+from conftest import COLEGIO
+from _ayudas_inteligencia import BANDEJA_CATALOGO
+from _ayudas_inteligencia import carga_lista_verificada as _carga
+from _ayudas_inteligencia import sembrar_bandeja as _sembrar_bandeja
 from tukit_comun.bandeja import bandeja_reflejada
 from tukit_inteligencia import poller as modulo_poller
 from tukit_inteligencia import trabajos

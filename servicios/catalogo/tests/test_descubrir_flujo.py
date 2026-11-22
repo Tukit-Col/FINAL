@@ -37,10 +37,10 @@ from sqlalchemy import create_engine, event, func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Session
 from tukit_catalogo import descubrir
+from tukit_catalogo.clasificacion import _parecido
 from tukit_catalogo.cargador import AGENTE_FIRECRAWL, _uuid_estable
 from tukit_catalogo.descubrir import (
     PuertaCerrada,
-    _parecido,
     _plano,
     abrir_revision,
     buscar_candidatos,

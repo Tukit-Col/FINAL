@@ -36,11 +36,11 @@ from tukit_catalogo.embeddings import MODELO_FALSO, embeder_falso
 from tukit_catalogo.enriquecer import (
     Empaque,
     _guardar_embeddings,
-    _unidad_corta,
     extraer_atributos,
     extraer_empaque,
     imagen_desde_ficha,
 )
+from tukit_catalogo.extraccion import _unidad_corta
 from tukit_catalogo.modelos import Base, Concepto, OfertaTienda, ProductoCanonico, Tienda
 from tukit_catalogo.tiendas import Oferta
 from tukit_comun.bd import MotorServicio
