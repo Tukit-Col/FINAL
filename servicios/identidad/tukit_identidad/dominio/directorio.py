@@ -158,6 +158,14 @@ def ficha_directorio_por_dane(dane: str) -> dict[str, Any] | None:
 
 
 def _main() -> None:
+    """Uso: python -m tukit_identidad.dominio.directorio <fuente.txt> <destino.json>
+
+    Parsea el volcado DUEB y escribe el JSON de busqueda que sirven las apps
+    (`libs/ts/tukit-contrato/datos/directorio-colegios.json`). Si el destino ya
+    existe, conserva el `imageURL` curado de cada DANE. Es una herramienta de
+    datos, no parte del servicio: se corre cuando el directorio fuente cambia,
+    no en cada arranque.
+    """
     import json
     import sys
     from pathlib import Path
