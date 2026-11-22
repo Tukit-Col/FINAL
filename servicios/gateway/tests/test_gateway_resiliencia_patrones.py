@@ -68,11 +68,7 @@ class TestElTopeDelCuerpo:
         assert respuesta.status_code == 200
         assert hashlib.sha256(recibido).hexdigest() == hashlib.sha256(cuerpo).hexdigest()
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="H-C-07: la puerta lee el cuerpo entero (`await peticion.body()`) y lo reenvia sin "
-        "tope; un cuerpo por encima de 10 MB no recibe 413",
-    )
+    # H-C-07 (413 en la puerta): corregido en fix/hallazgos-qa, sale XPASS(strict) y se quita el xfail.
     async def test_un_cuerpo_de_mas_de_diez_mb_recibe_413_sin_tocar_el_destino(
         self, monkeypatch, record_property
     ):
@@ -155,11 +151,7 @@ class TestUnDestinoColgadoNoFrenaAOtro:
 
 @pytest.mark.nfr("NFR-DIS-05")
 class TestLaPuertaCortaUnDestinoCaido:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="H-A-33: la puerta no tiene disyuntor; tras cinco fallos seguidos sigue tocando el "
-        "destino caido en cada peticion",
-    )
+    # H-A-33 (disyuntor): corregido en fix/hallazgos-qa, sale XPASS(strict) y se quita el xfail.
     async def test_tras_cinco_fallos_las_siguientes_no_tocan_el_destino(self, monkeypatch, record_property):
         def caido(peticion: httpx.Request) -> httpx.Response:
             raise httpx.ConnectError("conexion rechazada", request=peticion)

@@ -144,11 +144,7 @@ async def _segundos_hasta_abrir(reloj: Reloj, record_property, *, colgado: bool)
 
 
 class TestElCircuitoDeCatalogoSeAbreATiempo:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="H-A-55: con Catalogo colgado, el disyuntor de `resolver` tarda 150,8 s en abrir "
-        "(timeout de 30 s por tres intentos), frente a los 30 s de ESC-R2",
-    )
+    # H-A-55 (comercio): corregido en fix/hallazgos-qa, sale XPASS(strict) y se quita el xfail.
     async def test_con_catalogo_colgado_abre_en_treinta_segundos_o_menos(self, reloj, record_property):
         segundos = await _segundos_hasta_abrir(reloj, record_property, colgado=True)
         assert segundos <= TOPE_ESC_R2, f"el circuito se abrio a los {segundos:.1f} s"

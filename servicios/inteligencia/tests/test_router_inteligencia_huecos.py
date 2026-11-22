@@ -1161,13 +1161,7 @@ class TestControlDeAcceso:
 
         assert respuesta.status_code == 200
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "H-C-06: la decision de revision guarda como autor el `actor` del cuerpo y no el de la sesion "
-            "(routers/inteligencia.py:161,171,945,1048,1067; trabajos.py:1428,1437,1544)"
-        ),
-    )
+    # H-C-06 (autor de la decision): corregido en fix/hallazgos-qa, sale XPASS(strict) y se quita el xfail.
     @pytest.mark.parametrize("decision", ["revision", "validar", "sin_coincidencia"])
     async def test_el_autor_de_una_decision_es_el_de_la_sesion_y_no_el_que_dice_el_cuerpo(
         self, entorno, decision
@@ -1200,14 +1194,7 @@ class TestControlDeAcceso:
                 )
         assert firmante == OPERADOR_ID
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "H-C-06: aplicar-canonico acepta `usuario_id` del cuerpo SIN sesion (routers/inteligencia.py:"
-            "1004-1005): un anonimo emite un pedido_solicitado a nombre de cualquier usuario "
-            "(trabajos.py:1855,1882)"
-        ),
-    )
+    # H-C-06 (aplicar-canonico): corregido en fix/hallazgos-qa, sale XPASS(strict) y se quita el xfail.
     async def test_un_anonimo_no_crea_un_pedido_a_nombre_de_otro_usuario(self, entorno):
         await _publicado(entorno)
 
@@ -1269,14 +1256,7 @@ class TestControlDeAcceso:
 class TestTopeDeArchivo:
     """El contrato promete 10 MB (CONTRATO_API.md:171-175) y hoy solo lo valida el navegador."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "H-C-07: el backend no impone el tope de 10 MB del contrato: /v1/listas/subir lee y percibe "
-            "el cuerpo entero (routers/inteligencia.py:550); solo lo valida el navegador "
-            "(contrato.ts:461,471)"
-        ),
-    )
+    # H-C-07 (tope de 10 MB): corregido en fix/hallazgos-qa, sale XPASS(strict) y se quita el xfail.
     async def test_una_subida_de_mas_de_10_mb_se_rechaza_sin_percibirla(self, entorno):
         grande = b"%PDF-" + b"0" * TOPE_ARCHIVO
 
@@ -1285,14 +1265,7 @@ class TestTopeDeArchivo:
         assert respuesta.status_code in (413, 422)
         assert entorno.lecturas == [] and entorno.catalogo.importadas == []
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "H-C-07: el backend no impone el tope de 10 MB del contrato: /v1/admin/onboarding lee y percibe "
-            "el cuerpo entero (routers/inteligencia.py:723); solo lo valida el navegador "
-            "(contrato.ts:461,471)"
-        ),
-    )
+    # H-C-07 (tope de 10 MB): corregido en fix/hallazgos-qa, sale XPASS(strict) y se quita el xfail.
     async def test_un_onboarding_de_mas_de_10_mb_se_rechaza_sin_percibirlo(self, entorno):
         grande = b"%PDF-" + b"0" * TOPE_ARCHIVO
 

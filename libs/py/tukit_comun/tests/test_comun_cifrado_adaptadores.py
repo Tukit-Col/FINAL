@@ -199,13 +199,7 @@ class TestLaEleccionPorEntorno:
 
         assert guardado.startswith(PREFIJO_EN_CLARO)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "H-A-03: sin TUKIT_LLAVE_CIFRADO el cifrador cae a EN CLARO en silencio, "
-            "aunque el contrato dice que lo avisa"
-        ),
-    )
+    # H-A-03 (aviso): corregido en fix/hallazgos-qa, sale XPASS(strict) y se quita el xfail.
     def test_sin_llave_avisa_que_se_guarda_en_claro(self, monkeypatch, capsys):
         """`cifrador_desde_entorno` promete "en claro si no, y en ese caso se
         avisa" y CONTRATO_API.md:1196 dice que sin llave "el adaptador guarda en

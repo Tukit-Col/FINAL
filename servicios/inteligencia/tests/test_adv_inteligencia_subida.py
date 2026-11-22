@@ -497,11 +497,7 @@ class TestADV05DatosPersonales:
         record_property("logs_con_nombre", apariciones)
         assert apariciones == 0
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="H-C-15: lo que el modelo transcribe de la pagina entra sin depurar a los items de la "
-        "version; el nombre del estudiante queda como un renglon pendiente",
-    )
+    # H-C-15 (items): corregido en fix/hallazgos-qa, sale XPASS(strict) y se quita el xfail.
     async def test_el_nombre_no_llega_a_los_items_que_se_guardan(self, cliente, catalogo, record_property):
         respuesta = await cliente.post("/v1/listas/subir", **_subida(_png("ADV-05-p1")))
 

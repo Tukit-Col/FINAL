@@ -158,14 +158,7 @@ class TestCicloDeVida:
         assert viva.status_code == 200
         assert viva.json()["estado"] == "vivo"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "H-C-06: sin TUKIT_LLAVE_SESION el arranque no avisa que firma con la llave publica de "
-            "desarrollo; el docstring promete 'SE AVISA en cada arranque' (sesiones.py:21-23, :40-41) "
-            "pero api.py:27-29 no la consulta y el aviso solo sale al firmar/leer el primer token"
-        ),
-    )
+    # H-C-06 (llave de sesion): corregido en fix/hallazgos-qa, sale XPASS(strict) y se quita el xfail.
     async def test_arrancar_sin_llave_de_sesion_avisa_en_el_arranque_no_al_primer_token(
         self,
         base_sqlite: Path,
