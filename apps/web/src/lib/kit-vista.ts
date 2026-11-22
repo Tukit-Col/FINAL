@@ -1,4 +1,4 @@
-import { clasificar, esInformativaOExterna } from "@tukit/contrato/linea";
+import { clasificar, esInformativaOExterna, esLibro, esUniforme, type ClaseLinea } from "@tukit/contrato/linea";
 import type { Consolidacion, LineaKit } from "@tukit/contrato";
 
 export interface HijoDelTrabajo {
@@ -309,4 +309,37 @@ export function fotoDeConsolidacion(
     lineas.find((l) => l.producto_elegido?.nombre === c.producto) ??
     null;
   return { imagen_url: linea?.producto_elegido?.imagen_url ?? null, linea };
+}
+
+export const ABSTENCIONES: readonly ClaseLinea[] = ["hueco", "sin_match", "pendiente_revision"];
+
+export interface GrupoFueraDelCarrito {
+  clave: "libros" | "colegio" | "uniformes" | "cuenta" | "casa";
+  titulo: string;
+  lineas: LineaKit[];
+}
+
+export function gruposFueraDelCarrito(lineas: readonly LineaKit[]): GrupoFueraDelCarrito[] {
+  const libros: LineaKit[] = [];
+  const uniformes: LineaKit[] = [];
+  const colegio: LineaKit[] = [];
+  const casa: LineaKit[] = [];
+  const cuenta: LineaKit[] = [];
+  for (const l of lineas) {
+    const clase = clasificar(l);
+    if (clase === "comprable" || ABSTENCIONES.includes(clase)) continue;
+    if (esLibro(l)) libros.push(l);
+    else if (esUniforme(l) || clase === "fuera_de_alcance") uniformes.push(l);
+    else if (clase === "no_comprar") casa.push(l);
+    else if (clase === "por_su_cuenta") cuenta.push(l);
+    else colegio.push(l);
+  }
+  const grupos: GrupoFueraDelCarrito[] = [
+    { clave: "libros", titulo: "Libros", lineas: libros },
+    { clave: "colegio", titulo: "Los pide o los vende el colegio", lineas: colegio },
+    { clave: "uniformes", titulo: "Uniformes", lineas: uniformes },
+    { clave: "cuenta", titulo: "Consíguelos por tu cuenta", lineas: cuenta },
+    { clave: "casa", titulo: "Usa el que ya tienes en casa", lineas: casa },
+  ];
+  return grupos.filter((g) => g.lineas.length > 0);
 }
