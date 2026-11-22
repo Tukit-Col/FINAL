@@ -29,7 +29,8 @@ from ..optimizador import (
     Renglon,
     armar_los_tres,
 )
-from ..parseo import BUSCA_EN_CATALOGO, Demanda, mensaje_para_papa
+from ..optimizador.tipos import TIPOS_NO_COMPRABLES
+from ..parseo import BUSCA_EN_CATALOGO, Demanda, mensaje_para_papa, parsear_renglon
 from ..remoto import ClienteCatalogo, ClienteIdentidad, RemotoCaido
 from ..repositorios.trabajos import RepoTrabajos, TrabajoNoExiste
 from .anclas import anclas_por_hijo
@@ -322,6 +323,12 @@ async def _procesar_verificado(
                 candidatos = tuple(_candidato(c) for c in (item.get("candidatos") or ()))
                 tipo = item.get("tipo_item") or "util"
                 modo = item.get("modo_adquisicion") or "mercado_abierto"
+                if tipo in BUSCA_EN_CATALOGO:
+                    # La ruta rapida tambien parsea el renglon: una licencia, un uniforme o el "disponible
+                    # en casa" no se compran aunque el concepto del catalogo los reconozca como util.
+                    demanda = parsear_renglon(item["texto_original"])
+                    if demanda.tipo_item in TIPOS_NO_COMPRABLES:
+                        tipo, modo, candidatos = demanda.tipo_item, demanda.modo_adquisicion, ()
                 surtible = (
                     item.get("concepto_codigo") is not None
                     and tipo in BUSCA_EN_CATALOGO
