@@ -3,7 +3,7 @@
 Las decisiones que no tocan la base ni la red: traducir el vocabulario del
 catalogo a un `EstadoResolucion` del contrato, normalizar un renglon crudo a una
 demanda con lo que la lista ya sabia, y anclar los conceptos del personaje
-pedido al tope del kit. `trabajos.py` las orquesta dentro de sus transacciones;
+pedido al tope del kit. `trabajos/` las orquesta dentro de sus transacciones;
 aqui son funciones sin efectos, probables con `assert`.
 
 Importan solo de `modelos`, `optimizador` y `parseo` —ninguno arrastra
@@ -16,11 +16,10 @@ import logging
 from dataclasses import replace
 from typing import Any
 
-from ..modelos import EstadoResolucion
+from ..modelos import EstadoResolucion, PerfilKit
 from ..optimizador import (
     NOTA_CONSOLIDADA,
     Candidato,
-    PerfilKit,
     _objetivos,
     anclar_personaje,
     candidato_permitido,
