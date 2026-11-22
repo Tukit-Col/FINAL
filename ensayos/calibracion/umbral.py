@@ -17,7 +17,7 @@ semillas del hipervolumen corren en paralelo porque el hipervolumen no depende
 del tiempo.
 
 Uso: uv run python ensayos/calibracion/umbral.py [--rapido]
-Salida: docs/informes/calibracion/umbral.json
+Salida: ensayos/calibracion/salidas/umbral.json
 """
 
 from __future__ import annotations

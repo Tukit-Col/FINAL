@@ -31,11 +31,11 @@ PDFS = CACHE / "pdfs"
 RESPUESTAS = CACHE / "respuestas"
 LIBRO_GASTO = CACHE / "gasto.jsonl"
 GOLD_CSV = RAIZ / "ensayos" / "calibracion" / "datos" / "lectura_gold_80.csv"
-SALIDA = RAIZ / "docs" / "informes" / "calibracion"
+SALIDA = RAIZ / "ensayos" / "calibracion" / "salidas"
 CGS_DIR = RAIZ.parent / "_archivo" / "2026-11-05" / "borradores_arquitectura" / "Arquitectura" / "Listas de Útiles"
 
 MODELO = "gemini-3.5-flash-lite"
-# Precio supuesto (el mismo declarado en docs/informes/nl2c): USD por millon de tokens.
+# Precio supuesto (el mismo declarado en ensayos/nl2c/salidas): USD por millon de tokens.
 USD_IN, USD_OUT = 0.10, 0.40
 
 # --------------------------------------------------------------------------- metrica

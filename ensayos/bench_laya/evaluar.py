@@ -1,6 +1,6 @@
 """Mide a todos los competidores con la misma vara.
 
-Escribe en `docs/informes/benchmark-laya/` el detalle por lista
+Escribe en `ensayos/bench_laya/salidas/` el detalle por lista
 (`resultados.json.gz`) y las metricas agregadas que cita el informe
 (`resumen.json`).
 

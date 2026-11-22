@@ -1,7 +1,7 @@
 """Curaduría de huecos de catálogo sobre las listas escolares del corpus.
 
 No es producto: lee página a página (varios grados permitidos), parsea,
-empareja y consolida faltantes. Escribe reporte md+json en docs/informes/.
+empareja y consolida faltantes. Escribe reporte md+json en ensayos/salidas/.
 """
 
 from __future__ import annotations
@@ -41,8 +41,8 @@ from tukit_inteligencia.percepcion import (  # noqa: E402
 # Lo que Gemini ya leyo, para no volver a pedirlo (`TUKIT_CACHE_ENSAYOS`).
 DIR_PERCEPCION = carpeta_cache() / "percepcion"
 OSITO_CACHE = carpeta_cache() / "ositodemiel-fase1.json"
-OUT_MD = _RAIZ / "docs" / "informes" / "reporte-huecos-catalogo.md"
-OUT_JSON = _RAIZ / "docs" / "informes" / "reporte-huecos-catalogo.json"
+OUT_MD = _RAIZ / "ensayos" / "salidas" / "reporte-huecos-catalogo.md"
+OUT_JSON = _RAIZ / "ensayos" / "salidas" / "reporte-huecos-catalogo.json"
 MAX_PDF_PARALELO = 2
 
 

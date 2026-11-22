@@ -1,4 +1,4 @@
-// Tipos de la API de Tukit, derivados de `docs/arquitectura/CONTRATO_API.md` v1.0.
+// Tipos de la API de Tukit, derivados de `CONTRATO_API.md` v1.0.
 //
 // El contrato es de otro equipo y este fichero NO lo interpreta: lo transcribe.
 // Donde el documento deja un hueco (una forma que muestra un ejemplo pero no

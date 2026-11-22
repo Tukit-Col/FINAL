@@ -26,8 +26,8 @@ from tukit_catalogo import clasificacion as D  # noqa: E402
 from tukit_catalogo.transcripcion import corregir, lexico_de  # noqa: E402
 
 DATOS = Path(__file__).resolve().parent / "datos"
-ENTRADA = RAIZ / "docs/informes/calibracion/repetibilidad.json"
-SALIDA = RAIZ / "docs/informes/calibracion/repetibilidad_producto.json"
+ENTRADA = RAIZ / "ensayos/calibracion/salidas/repetibilidad.json"
+SALIDA = RAIZ / "ensayos/calibracion/salidas/repetibilidad_producto.json"
 CACHE = DATOS / "vectores_repetibilidad.npz"
 TAU, CORTE = 0.75, 0.5
 

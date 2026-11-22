@@ -13,7 +13,7 @@ Espacio de los 4 objetivos normalizado a [0, 1] con 0 como lo mejor (ver
   que siempre se muestran.
 
 Uso: uv run python ensayos/calibracion/hipervolumen_prueba.py
-Salida: docs/informes/calibracion/hipervolumen_prueba.json
+Salida: ensayos/calibracion/salidas/hipervolumen_prueba.json
 """
 
 from __future__ import annotations

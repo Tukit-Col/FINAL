@@ -1,6 +1,6 @@
 // Superficie de LECTURA del catalogo. ASUMIDA, no transcrita.
 //
-// A la hora de escribir esto, `docs/arquitectura/CONTRATO_API.md` estaba en 1.0 y
+// A la hora de escribir esto, `CONTRATO_API.md` estaba en 1.0 y
 // no traia la seccion de catalogo: el equipo de backend la iba a agregar como
 // 1.1. Todo este fichero es una inferencia a partir de dos fuentes que si
 // existen y que el backend tampoco puede contradecir sin migrar la base:

@@ -28,7 +28,8 @@ import numpy as np
 
 RAIZ = Path(__file__).resolve().parents[2]
 DATOS = Path(__file__).resolve().parent / "datos"
-SALIDA = RAIZ / "docs" / "informes" / "calibracion"
+MUESTRA_CIEGA = DATOS / "muestra_ciega"
+SALIDA = RAIZ / "ensayos" / "calibracion" / "salidas"
 for ruta in (str(RAIZ / "servicios" / "catalogo"), str(RAIZ / "libs" / "py" / "tukit_comun")):
     if ruta not in sys.path:
         sys.path.insert(0, ruta)

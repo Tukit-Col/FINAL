@@ -18,7 +18,7 @@ el AUC de `parecido` como puntaje de acierto y la precision y el cobertura en
 tau = 0,75.
 
 Uso: uv run python ensayos/calibracion/tau.py
-Salida: docs/informes/calibracion/tau.json
+Salida: ensayos/calibracion/salidas/tau.json
 """
 
 from __future__ import annotations

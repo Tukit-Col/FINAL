@@ -26,7 +26,7 @@ el espacio normalizado de `nucleo.hipervolumen`.
 
 Uso: uv run python ensayos/calibracion/calibrar_nsga.py [--rapido]
      [--procesos 8] [--pliegues 5] [--semillas-cv 3] [--semillas-prueba 10]
-Salida: docs/informes/calibracion/calibracion_nsga.json
+Salida: ensayos/calibracion/salidas/calibracion_nsga.json
 """
 
 from __future__ import annotations

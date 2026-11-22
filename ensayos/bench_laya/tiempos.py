@@ -6,7 +6,7 @@ Lado Laya    (.venv-laya):          python tiempos.py laya [--cpu]
 Toma 30 listas fijas (cada sexta por id), un proceso, y mide el tiempo de pared
 de armar los kits de un papa sin preferencias (NSGA-II: los tres kits de una
 corrida; Laya: cada modalidad, escenario ahorrador). Escribe `tiempos_<lado>.json`
-en `docs/informes/benchmark-laya/`.
+en `ensayos/bench_laya/salidas/`.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from pathlib import Path
 
 CARPETA = Path(__file__).resolve().parent
 # Los tiempos son resultados del informe: van junto a el, no junto al codigo.
-SALIDA = CARPETA.parents[1] / "docs" / "informes" / "benchmark-laya"
+SALIDA = CARPETA.parents[1] / "ensayos" / "bench_laya" / "salidas"
 
 
 def _muestra():

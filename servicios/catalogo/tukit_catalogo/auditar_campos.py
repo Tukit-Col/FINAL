@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 DATOS = Path(__file__).resolve().parents[3] / "datos" / "catalogo"
-INFORME = Path(__file__).resolve().parents[3] / "docs" / "informes" / "auditoria-campos-catalogo.md"
+INFORME = Path(__file__).resolve().parents[3] / "ensayos" / "salidas" / "auditoria-campos-catalogo.md"
 
 # Un hueco en cualquiera de estos cambia el kit, no solo como se ve; por eso
 # fallan --estricto. Por que cada uno:

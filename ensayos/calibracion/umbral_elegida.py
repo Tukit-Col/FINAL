@@ -7,7 +7,7 @@ factores (a, b) elegidos. La enumeracion exacta no se repite: su tiempo no
 depende de (a, b).
 
 Uso: uv run python ensayos/calibracion/umbral_elegida.py
-Salida: docs/informes/calibracion/umbral_elegida.json
+Salida: ensayos/calibracion/salidas/umbral_elegida.json
 """
 
 from __future__ import annotations

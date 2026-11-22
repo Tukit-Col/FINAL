@@ -30,7 +30,7 @@ RAIZ = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(RAIZ / "servicios" / "inteligencia"))
 ARCHIVO = RAIZ.parent / "_archivo/2026-11-05/borradores_arquitectura/Arquitectura/UTILES_COLEGIO_GRADO"
 ORO = RAIZ / "datos/listas/oe1/Corpus_ItemLista.csv"
-SALIDA = RAIZ / "docs/informes/calibracion/repetibilidad.json"
+SALIDA = RAIZ / "ensayos/calibracion/salidas/repetibilidad.json"
 
 # (archivo, codigo de colegio del oro, grado del oro)
 DOCUMENTOS = [

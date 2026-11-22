@@ -271,7 +271,7 @@ bd-datos:  ## Revisa los datos curados sin escribir nada
 
 bd-auditar:  ## Cuenta los campos vacios del catalogo (ARGS=--estricto falla si hay)
 	@cd servicios/catalogo && PYTHONPATH=".:../../libs/py/tukit_comun" \
-		../../$(PY) -m tukit_catalogo.auditar_campos --datos ../../datos/catalogo --informe ../../docs/informes/auditoria-campos-catalogo.md $(ARGS)
+		../../$(PY) -m tukit_catalogo.auditar_campos --datos ../../datos/catalogo --informe ../../ensayos/salidas/auditoria-campos-catalogo.md $(ARGS)
 
 bd-enriquecer:  ## Saca empaque, atributos y personaje del nombre; --imagenes va a la red
 	@cd servicios/catalogo && PYTHONPATH=".:../../libs/py/tukit_comun" \

@@ -344,7 +344,7 @@ app = crear_app(
     titulo="Tukit Gateway",
     descripcion=(
         "Unica URL base del backend. Rutea por prefijo hacia catalogo, identidad e "
-        "inteligencia. Contrato: docs/arquitectura/CONTRATO_API.md seccion 12.1."
+        "inteligencia. Contrato: CONTRATO_API.md seccion 12.1."
     ),
     al_arrancar=_arrancar,
     al_apagar=_apagar,

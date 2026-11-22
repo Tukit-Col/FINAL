@@ -64,3 +64,6 @@ Thumbs.db
 
 # Configuracion local de herramientas.
 .claude/
+
+# Salidas de las corridas de ensayos: se regeneran, no se versionan.
+ensayos/**/salidas/
