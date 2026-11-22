@@ -46,7 +46,6 @@ CORTES = [0.4, 0.45, 0.5, 0.55, 0.6]
 
 
 class Contexto:
-
     def __init__(self, con_vectores: bool = True):
         self.d = k.cargar(con_vectores)
         self.r = k.construir_rasgos(self.d)
@@ -69,7 +68,9 @@ class Contexto:
         return k.metricas(p[m], s[m], self.y[m], cfg["corte"], cfg["tau"])
 
 
-def regla_tau(s: np.ndarray, pred_c: np.ndarray, y: np.ndarray, corte: float, objetivo: float = OBJETIVO_PRECISION) -> float:
+def regla_tau(
+    s: np.ndarray, pred_c: np.ndarray, y: np.ndarray, corte: float, objetivo: float = OBJETIVO_PRECISION
+) -> float:
     ok = pred_c == y
     for t in np.unique(s[s >= corte]):
         ac = (s >= t) & (pred_c >= 0)
@@ -117,17 +118,23 @@ def barrido_unico(cx: Contexto) -> dict:
                     "objetivo": f"menor tau con precision_aceptada >= {OBJETIVO_PRECISION}",
                     "tau_regla": t_regla,
                     "tau_minimo_por_precision_objetivo": {
-                        str(o): regla_tau(s, pc, cx.y, ACTUAL["corte"], o) for o in (0.95, 0.96, 0.97, 0.98, 0.99)
+                        str(o): regla_tau(s, pc, cx.y, ACTUAL["corte"], o)
+                        for o in (0.95, 0.96, 0.97, 0.98, 0.99)
                     },
                     "metricas_en_tau_regla": m_regla,
                     "metricas_en_tau_actual": m_act,
                     "tau_actual_cumple_objetivo": bool(
-                        m_act["precision_aceptada"] is not None and m_act["precision_aceptada"] >= OBJETIVO_PRECISION
+                        m_act["precision_aceptada"] is not None
+                        and m_act["precision_aceptada"] >= OBJETIVO_PRECISION
                     ),
                     "diferencia_aceptada_pp": 100 * (m_regla["aceptada"] - m_act["aceptada"]),
-                    "diferencia_precision_pp": 100 * (m_regla["precision_aceptada"] - m_act["precision_aceptada"]),
+                    "diferencia_precision_pp": 100
+                    * (m_regla["precision_aceptada"] - m_act["precision_aceptada"]),
                     "meseta_aceptada_a_precision_ge_0.95": [
-                        f["valor"] for f in filas if f["precision_aceptada"] is not None and f["precision_aceptada"] >= OBJETIVO_PRECISION
+                        f["valor"]
+                        for f in filas
+                        if f["precision_aceptada"] is not None
+                        and f["precision_aceptada"] >= OBJETIVO_PRECISION
                     ][:1]
                     + [filas[-1]["valor"]],
                 }
@@ -143,7 +150,9 @@ def barrido_unico(cx: Contexto) -> dict:
                     "diferencia_optimo_menos_actual_pp": 100 * (ex[mejor] - ex[i_act]),
                     "puesto_del_actual": rango,
                     "actual_es_el_mejor": bool(ex[i_act] >= ex[mejor] - 1e-12),
-                    "valores_empatados_con_el_mejor": [v for v, e in zip(valores, ex, strict=True) if e >= ex[mejor] - 1e-12],
+                    "valores_empatados_con_el_mejor": [
+                        v for v, e in zip(valores, ex, strict=True) if e >= ex[mejor] - 1e-12
+                    ],
                     "meseta_dentro_de_0.1pp": meseta(valores, ex, 0.001),
                     "meseta_dentro_de_0.5pp": meseta(valores, ex, 0.005),
                     "actual_dentro_de_meseta_0.5pp": bool(
@@ -168,19 +177,29 @@ def ic_diferencia_por_lista(cx: Contexto, cfg_a: dict, cfg_b: dict, repeticiones
         sel = rng.choice(listas, len(listas))
         ii = np.concatenate([por[l] for l in sel])
         difs.append(100 * (oka[ii].mean() - okb[ii].mean()))
-    return {"media_pp": float(np.mean(difs)), "ic95_pp": [float(np.percentile(difs, 2.5)), float(np.percentile(difs, 97.5))]}
+    return {
+        "media_pp": float(np.mean(difs)),
+        "ic95_pp": [float(np.percentile(difs, 2.5)), float(np.percentile(difs, 97.5))],
+    }
 
 
 def barrido_conjunto(cx: Contexto) -> dict:
     t0 = time.time()
     lex = list(
-        itertools.product([0.5, 0.55, 0.6, 0.65, 0.7], [0.2, 0.3, 0.4, 0.5, 0.6], [0.4, 0.45, 0.5, 0.55, 0.6], [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9])
+        itertools.product(
+            [0.5, 0.55, 0.6, 0.65, 0.7],
+            [0.2, 0.3, 0.4, 0.5, 0.6],
+            [0.4, 0.45, 0.5, 0.55, 0.6],
+            [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9],
+        )
     )
     filas = []
     for piso, wj, corte, tau in lex:
         cfg = {**ACTUAL, "piso": piso, "w_jac": wj, "corte": corte, "tau": tau}
         filas.append({"piso": piso, "w_jac": wj, "corte": corte, "tau": tau, **cx.medir(cfg)})
-    hib = list(itertools.product([0.0, 0.1, 0.15, 0.2, 0.3], [0.80, 0.84, 0.86, 0.90, 0.94], [0.5, 0.55, 0.6, 0.7]))
+    hib = list(
+        itertools.product([0.0, 0.1, 0.15, 0.2, 0.3], [0.80, 0.84, 0.86, 0.90, 0.94], [0.5, 0.55, 0.6, 0.7])
+    )
     filas_h = []
     for wc, rc, rp in hib:
         cfg = {**ACTUAL, "w_cos": wc, "res_cos": rc, "res_piso": rp}
@@ -202,12 +221,26 @@ def barrido_conjunto(cx: Contexto) -> dict:
             "ejemplos_del_maximo": mejores[:5],
         }
 
-    ok = [f for f in filas if f["precision_aceptada"] is not None and f["precision_aceptada"] >= OBJETIVO_PRECISION]
+    ok = [
+        f
+        for f in filas
+        if f["precision_aceptada"] is not None and f["precision_aceptada"] >= OBJETIVO_PRECISION
+    ]
     mej = max(ok, key=lambda f: f["auto_correcta"]) if ok else None
-    act = next(f for f in filas if all(abs(f[c] - ACTUAL[c]) < 1e-9 for c in ("piso", "w_jac", "corte", "tau")))
+    act = next(
+        f for f in filas if all(abs(f[c] - ACTUAL[c]) < 1e-9 for c in ("piso", "w_jac", "corte", "tau"))
+    )
     return {
-        "lexica": {"constantes": ["piso", "w_jac", "corte", "tau"], **resumen(filas, ("piso", "w_jac", "corte", "tau")), "filas": filas},
-        "hibrida": {"constantes": ["w_cos", "res_cos", "res_piso"], **resumen(filas_h, ("w_cos", "res_cos", "res_piso")), "filas": filas_h},
+        "lexica": {
+            "constantes": ["piso", "w_jac", "corte", "tau"],
+            **resumen(filas, ("piso", "w_jac", "corte", "tau")),
+            "filas": filas,
+        },
+        "hibrida": {
+            "constantes": ["w_cos", "res_cos", "res_piso"],
+            **resumen(filas_h, ("w_cos", "res_cos", "res_piso")),
+            "filas": filas_h,
+        },
         "lexica_mejor_auto_correcta_con_precision_ge_0.95": mej,
         "lexica_actual": act,
         "segundos": time.time() - t0,
@@ -240,7 +273,9 @@ def diagnostico_rescate(cx: Contexto) -> dict:
         c = cc[:, cols[0]]
         m = c > mejor_cos
         mejor_cos[m], mejor_concepto[m] = c[m], i
-    out["de_esos_cuyo_concepto_mas_cercano_por_coseno_es_el_aprobado"] = int((mejor_concepto[cx.u][sin] == cx.y[sin]).sum())
+    out["de_esos_cuyo_concepto_mas_cercano_por_coseno_es_el_aprobado"] = int(
+        (mejor_concepto[cx.u][sin] == cx.y[sin]).sum()
+    )
     return out
 
 
@@ -251,13 +286,23 @@ def figura(sal: dict) -> Path:
     import matplotlib.pyplot as plt
 
     AZUL, NARANJA, GRIS = "#1F4E86", "#A8500F", "#4D4D4D"
-    plt.rcParams.update({"font.family": "serif", "font.size": 8, "axes.spines.top": False, "axes.spines.right": False})
+    plt.rcParams.update(
+        {"font.family": "serif", "font.size": 8, "axes.spines.top": False, "axes.spines.right": False}
+    )
     fig, ejes = plt.subplots(2, 4, figsize=(6.3 * 1.25, 3.9))
     for ax, clave in zip(ejes.flat, REJILLAS, strict=False):
         inf = sal["unico"][clave]
         v = [f["valor"] for f in inf["valores"]]
         if clave == "tau":
-            ax.plot(v, [100 * f["precision_aceptada"] if f["precision_aceptada"] is not None else np.nan for f in inf["valores"]], color=AZUL, label="precision")
+            ax.plot(
+                v,
+                [
+                    100 * f["precision_aceptada"] if f["precision_aceptada"] is not None else np.nan
+                    for f in inf["valores"]
+                ],
+                color=AZUL,
+                label="precision",
+            )
             ax.plot(v, [100 * f["aceptada"] for f in inf["valores"]], color=NARANJA, label="aceptada")
             ax.axhline(95, color=GRIS, lw=0.6, ls=":")
             ax.legend(frameon=False, fontsize=6.5)
@@ -269,7 +314,13 @@ def figura(sal: dict) -> Path:
         ax.set_xlabel("valor")
         ax.set_ylabel("%")
     ejes.flat[-1].axis("off")
-    ejes.flat[-1].text(0, 0.6, "linea punteada: valor actual\nexactitud del concepto\n(3.037 renglones)", fontsize=7, va="top")
+    ejes.flat[-1].text(
+        0,
+        0.6,
+        "linea punteada: valor actual\nexactitud del concepto\n(3.037 renglones)",
+        fontsize=7,
+        va="top",
+    )
     fig.tight_layout()
     ruta = k.SALIDA / "barrido.pdf"
     fig.savefig(ruta)
@@ -315,9 +366,20 @@ def main() -> int:
     print("combinaciones", sal["combinaciones_totales"], "->", ruta)
     for c, inf in sal["unico"].items():
         if c == "tau":
-            print(c, inf["tau_regla"], inf["metricas_en_tau_actual"]["precision_aceptada"], inf["diferencia_aceptada_pp"])
+            print(
+                c,
+                inf["tau_regla"],
+                inf["metricas_en_tau_actual"]["precision_aceptada"],
+                inf["diferencia_aceptada_pp"],
+            )
         else:
-            print(c, inf["valor_optimo"], round(inf["diferencia_optimo_menos_actual_pp"], 3), inf["puesto_del_actual"], inf["meseta_dentro_de_0.5pp"])
+            print(
+                c,
+                inf["valor_optimo"],
+                round(inf["diferencia_optimo_menos_actual_pp"], 3),
+                inf["puesto_del_actual"],
+                inf["meseta_dentro_de_0.5pp"],
+            )
     return 0
 
 

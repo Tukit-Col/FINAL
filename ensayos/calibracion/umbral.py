@@ -99,9 +99,9 @@ def main() -> int:
         fila["t_poda_s"] = time.perf_counter() - t0
         fila["frente_poda"] = len(t_poda_ref)
         if fila["exacto"] is not None and S <= 2**16:
-            igual = {(s.costo, s.fidelidad, s.disponibilidad, s.personaje) for s in _frente_exacto(dec, ops, {})} == {
-                (s.costo, s.fidelidad, s.disponibilidad, s.personaje) for s in t_poda_ref
-            }
+            igual = {
+                (s.costo, s.fidelidad, s.disponibilidad, s.personaje) for s in _frente_exacto(dec, ops, {})
+            } == {(s.costo, s.fidelidad, s.disponibilidad, s.personaje) for s in t_poda_ref}
             fila["poda_igual_a_enumeracion"] = igual
         tiempos = []
         for sem in SEMILLAS_TIEMPO:
@@ -112,7 +112,13 @@ def main() -> int:
         lo, hi = n.limites_costo(dec, ops)
         fila["hv_exacto"] = n.hipervolumen(t_poda_ref, lo, hi)
         filas.append(fila)
-        print(b, S, fila["exacto"] and round(fila["exacto"]["t_total"], 3), round(sum(tiempos) / 3, 3), flush=True)
+        print(
+            b,
+            S,
+            fila["exacto"] and round(fila["exacto"]["t_total"], 3),
+            round(sum(tiempos) / 3, 3),
+            flush=True,
+        )
 
     trabajos = [(d, s) for d in descs for s in semillas_hv]
     with ProcessPoolExecutor(max_workers=args.procesos) as ex:
@@ -126,7 +132,12 @@ def main() -> int:
 
     n.guardar(
         "umbral.json" if not args.rapido else "umbral_rapido.json",
-        {"hardware": n.hardware(), "semillas_hv": list(semillas_hv), "referencia_hv": n.REFERENCIA, "filas": filas},
+        {
+            "hardware": n.hardware(),
+            "semillas_hv": list(semillas_hv),
+            "referencia_hv": n.REFERENCIA,
+            "filas": filas,
+        },
     )
     return 0
 

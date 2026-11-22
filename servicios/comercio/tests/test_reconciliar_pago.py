@@ -10,11 +10,7 @@ from tukit_comercio.pasarela import PasarelaCaida
 async def _pendiente(cliente: httpx.AsyncClient) -> tuple[str, str]:
     orden = (await cliente.post("/v1/ordenes", json=nueva_orden())).json()
     pedido_id = orden["pedido_id"]
-    pago = (
-        await cliente.post(
-            f"/v1/ordenes/{pedido_id}/pago", json=SOLICITUD_PAGO
-        )
-    ).json()
+    pago = (await cliente.post(f"/v1/ordenes/{pedido_id}/pago", json=SOLICITUD_PAGO)).json()
     return pedido_id, pago["referencia_wompi"]
 
 

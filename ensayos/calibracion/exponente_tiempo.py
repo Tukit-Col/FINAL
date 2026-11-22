@@ -3,6 +3,7 @@ numero de lineas n, recalculado desde las corridas crudas de benchmarks/06-optim
 origin/benchmarks, commit 8d917ae). Solo lectura. Salida: ensayos/calibracion/salidas/exponente_tiempo.json.
 Uso: python3 -I ensayos/calibracion/exponente_tiempo.py
 Uso: python3 -I ensayos/calibracion/exponente_tiempo.py"""
+
 import gzip
 import io
 import json
@@ -41,7 +42,10 @@ def main():
     sem = leer("corridas_semillas.json.gz")["filas"]
     mem = leer("corridas_memoria.json.gz")["filas"]
     hog = json.loads(leer_crudo("resumen.json"))["hogares"]["filas"]
-    res = {"fuente": f"{RAMA}:{BASE}", "metodo": "pendiente del ajuste log-log de los puntos (n = lineas decidibles); conjunto = listas reales (mediana de semillas por lista) + hogares sinteticos"}
+    res = {
+        "fuente": f"{RAMA}:{BASE}",
+        "metodo": "pendiente del ajuste log-log de los puntos (n = lineas decidibles); conjunto = listas reales (mediana de semillas por lista) + hogares sinteticos",
+    }
     inst = {}
     for r in sem:
         s = (r["corridas"].get("nsga2") or {}).get("segundos")
@@ -49,13 +53,21 @@ def main():
             inst.setdefault((r["instancia"], r["n"]), []).append(s)
     t = [(n, st.median(v)) for (_, n), v in inst.items()]
     th = [(h["n"], h["nsga2"]["segundos"]) for h in hog]
-    res["tiempo_nsga2"] = {"solo_listas_reales": {"puntos": len(t), "exponente": round(pendiente(*zip(*t)), 2)},
-                           "listas_y_hogares": {"puntos": len(t + th), "exponente": round(pendiente(*zip(*(t + th))), 2)}}
+    res["tiempo_nsga2"] = {
+        "solo_listas_reales": {"puntos": len(t), "exponente": round(pendiente(*zip(*t)), 2)},
+        "listas_y_hogares": {"puntos": len(t + th), "exponente": round(pendiente(*zip(*(t + th))), 2)},
+    }
     for alg in ("nsga2", "dp"):
-        m = [(r["n"], r["corridas"][alg]["pico_bytes"]) for r in mem if (r["corridas"].get(alg) or {}).get("pico_bytes")]
+        m = [
+            (r["n"], r["corridas"][alg]["pico_bytes"])
+            for r in mem
+            if (r["corridas"].get(alg) or {}).get("pico_bytes")
+        ]
         mh = [(h["n"], h[alg]["mib"] * 1048576) for h in hog if h[alg].get("mib")]
-        res[f"memoria_{alg}"] = {"solo_listas_reales": {"puntos": len(m), "exponente": round(pendiente(*zip(*m)), 2)},
-                                 "listas_y_hogares": {"puntos": len(m + mh), "exponente": round(pendiente(*zip(*(m + mh))), 2)}}
+        res[f"memoria_{alg}"] = {
+            "solo_listas_reales": {"puntos": len(m), "exponente": round(pendiente(*zip(*m)), 2)},
+            "listas_y_hogares": {"puntos": len(m + mh), "exponente": round(pendiente(*zip(*(m + mh))), 2)},
+        }
     OUT.write_text(json.dumps(res, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(res, ensure_ascii=False))
 

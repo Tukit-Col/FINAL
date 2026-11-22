@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent))
 import acuerdo as ac  # noqa: E402
@@ -21,6 +22,12 @@ def test_kappa_coincide_con_el_calculo_hecho_a_mano() -> None:
     assert abs(ac.kappa(a, b) - 0.5) < 1e-12
 
 
+# Los centroides salen de `exportar_etiquetas.py` (embeddings de Gemini) y no se
+# versionan, asi que en un checkout limpio, como el de CI, no existen.
+@pytest.mark.skipif(
+    not (k.DATOS / "centroides.npz").exists(),
+    reason="falta datos/centroides.npz: generarlo con exportar_etiquetas.py",
+)
 def test_flujo_con_anotadores_sinteticos(tmp_path: Path) -> None:
     shutil.copy(ac.MUESTRA / "muestra.csv", tmp_path / "muestra.csv")
     filas = list(csv.DictReader((tmp_path / "muestra.csv").open(encoding="utf-8")))
@@ -46,7 +53,9 @@ def test_flujo_con_anotadores_sinteticos(tmp_path: Path) -> None:
         w = csv.writer(fh)
         w.writerow(["id", "texto_original", "concepto_A", "concepto_B", "adjudicado"])
         for x in filas_adj:
-            w.writerow([x["id"], x["texto_original"], x["concepto_A"], x["concepto_B"], sis[x["id"]]["circular"]])
+            w.writerow(
+                [x["id"], x["texto_original"], x["concepto_A"], x["concepto_B"], sis[x["id"]]["circular"]]
+            )
     r = ac.correr(tmp_path, salida)
     assert r["oro"]["sin_oro_pendientes"] == 0 and r["oro"]["con_oro"] == len(filas)
     assert 0.8 < r["acuerdo_A_B"]["porcentaje"] < 0.97
@@ -54,6 +63,12 @@ def test_flujo_con_anotadores_sinteticos(tmp_path: Path) -> None:
     assert lo <= r["acuerdo_A_B"]["kappa_cohen"] <= hi and r["acuerdo_A_B"]["kappa_cohen"] > 0.8
     s = r["sistema"]
     assert s["inflacion_por_circularidad"]["exactitud"]["circular_menos_oro"] < 0.05
-    assert abs(s["contra_oro_independiente"]["exactitud"]["valor"] - s["contra_etiquetas_del_sistema_circulares"]["exactitud"]["valor"]) < 0.05
+    assert (
+        abs(
+            s["contra_oro_independiente"]["exactitud"]["valor"]
+            - s["contra_etiquetas_del_sistema_circulares"]["exactitud"]["valor"]
+        )
+        < 0.05
+    )
     assert json.loads(salida.read_text(encoding="utf-8"))["n"] == len(filas)
     assert not (k.MUESTRA_CIEGA / "adjudicacion.csv").exists()

@@ -70,7 +70,10 @@ def resumen(series: list[dict]) -> dict:
                 "media_primeras_10_listas": float(primeras.mean()),
                 "media_ultimas_10_listas": float(ultimas.mean()),
                 "ganancia_ultimas_menos_primeras_pp": float(100 * (ultimas - primeras).mean()),
-                "ganancia_rango_entre_ordenes_pp": [float(100 * (ultimas - primeras).min()), float(100 * (ultimas - primeras).max())],
+                "ganancia_rango_entre_ordenes_pp": [
+                    float(100 * (ultimas - primeras).min()),
+                    float(100 * (ultimas - primeras).max()),
+                ],
                 "pendiente_pp_por_lista": float(100 * np.mean(pend)),
                 "media_global": float(np.nanmean(a)),
             }
@@ -101,8 +104,17 @@ def main() -> int:
                 nombre = f"{tipo}|{'frio' if frio else 'actual'}|{modo}"
                 sal["escenarios"][nombre] = resumen(series)
                 r = sal["escenarios"][nombre]["auto_correcta"]
-                print(nombre, round(100 * r["media_primeras_10_listas"], 1), round(100 * r["media_ultimas_10_listas"], 1), round(r["ganancia_ultimas_menos_primeras_pp"], 2), round(r["pendiente_pp_por_lista"], 3), flush=True)
-    (k.SALIDA / "curva_aprendizaje.json").write_text(json.dumps(sal, ensure_ascii=False, indent=1, default=float), encoding="utf-8")
+                print(
+                    nombre,
+                    round(100 * r["media_primeras_10_listas"], 1),
+                    round(100 * r["media_ultimas_10_listas"], 1),
+                    round(r["ganancia_ultimas_menos_primeras_pp"], 2),
+                    round(r["pendiente_pp_por_lista"], 3),
+                    flush=True,
+                )
+    (k.SALIDA / "curva_aprendizaje.json").write_text(
+        json.dumps(sal, ensure_ascii=False, indent=1, default=float), encoding="utf-8"
+    )
     figura(sal)
     print("segundos", round(time.time() - t0))
     return 0
@@ -115,11 +127,20 @@ def figura(sal: dict) -> None:
     import matplotlib.pyplot as plt
 
     AZUL, NARANJA, GRIS = "#1F4E86", "#A8500F", "#4D4D4D"
-    plt.rcParams.update({"font.family": "serif", "font.size": 8, "axes.spines.top": False, "axes.spines.right": False})
+    plt.rcParams.update(
+        {"font.family": "serif", "font.size": 8, "axes.spines.top": False, "axes.spines.right": False}
+    )
     fig, ejes = plt.subplots(1, 2, figsize=(6.3 * 1.2, 2.8), sharey=False)
-    for ax, (frio, titulo) in zip(ejes, ((False, "catalogo actual (sin 21 aprendidos)"), (True, "catalogo frio (solo nombres)")), strict=True):
+    for ax, (frio, titulo) in zip(
+        ejes,
+        ((False, "catalogo actual (sin 21 aprendidos)"), (True, "catalogo frio (solo nombres)")),
+        strict=True,
+    ):
         pref = f"listas|{'frio' if frio else 'actual'}|"
-        for modo, color, est, et in (("correcciones", AZUL, "-", "aprende de correcciones"), ("sin_aprender", GRIS, "--", "sin aprender")):
+        for modo, color, est, et in (
+            ("correcciones", AZUL, "-", "aprende de correcciones"),
+            ("sin_aprender", GRIS, "--", "sin aprender"),
+        ):
             r = sal["escenarios"][pref + modo]["auto_correcta"]
             y = 100 * np.array(r["media_por_posicion"])
             x = np.arange(len(y))
@@ -127,7 +148,15 @@ def figura(sal: dict) -> None:
             ys = np.convolve(np.pad(y, (w // 2, w // 2), mode="edge"), np.ones(w) / w, mode="valid")
             ax.plot(x, ys, color=color, ls=est, lw=1.3, label=et)
             if modo == "correcciones":
-                ax.fill_between(x, 100 * np.array(r["p05"]), 100 * np.array(r["p95"]), color=color, alpha=0.12, lw=0, label="p5-p95 de las listas")
+                ax.fill_between(
+                    x,
+                    100 * np.array(r["p05"]),
+                    100 * np.array(r["p95"]),
+                    color=color,
+                    alpha=0.12,
+                    lw=0,
+                    label="p5-p95 de las listas",
+                )
         ax.set_title(titulo, fontsize=8)
         ax.set_xlabel("listas ya vistas")
         ax.set_ylabel("resuelto automatico y correcto (%)")

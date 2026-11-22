@@ -164,7 +164,11 @@ def test_despacho_sin_transportadora_pide_repartidor():
 
 def test_preparar_despacho_por_transportadora_no_guarda_repartidor():
     avance = preparar_avance(
-        "despachado", transportadora=" Servientrega ", guia="G1", repartidor_nombre="Luis", repartidor_celular="3"
+        "despachado",
+        transportadora=" Servientrega ",
+        guia="G1",
+        repartidor_nombre="Luis",
+        repartidor_celular="3",
     )
     assert (avance.transportadora, avance.guia) == ("Servientrega", "G1")
     assert avance.repartidor_nombre is None

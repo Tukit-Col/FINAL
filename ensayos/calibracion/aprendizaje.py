@@ -20,13 +20,17 @@ class Simulador:
             self.col_de.setdefault((int(self.r.col_concepto[c]), self.r.col_texto[c]), c)
         import json
 
-        aprend = json.load((k.DATOS / "catalogo_conceptos.json").open(encoding="utf-8"))["sinonimos_aprendidos"]
+        aprend = json.load((k.DATOS / "catalogo_conceptos.json").open(encoding="utf-8"))[
+            "sinonimos_aprendidos"
+        ]
         self.aprendidos_actuales = {
-            self.col_de[(ind[a["concepto"]], a["sinonimo"])] for a in aprend if (ind.get(a["concepto"]), a["sinonimo"]) in self.col_de
+            self.col_de[(ind[a["concepto"]], a["sinonimo"])]
+            for a in aprend
+            if (ind.get(a["concepto"]), a["sinonimo"]) in self.col_de
         }
         self.n_aprendidos = len(aprend)
         tipo = np.array(self.r.col_tipo)
-        self.base_actual = (tipo != "pool")
+        self.base_actual = tipo != "pool"
         for c in self.aprendidos_actuales:
             self.base_actual[c] = False
         self.base_frio = tipo == "nombre"

@@ -104,8 +104,12 @@ def test_todos_los_correos_llevan_enlace_y_pie_legal(monkeypatch):
 
     monkeypatch.setenv("TUKIT_PUBLIC_URL", "https://tukit.example")
     for plantilla in _PLANTILLAS:
-        cuerpo = html_de(plantilla, {"pedido": "AB12", "turno": "7", "enlace": "https://tukit.example/kits/x"})
-        assert cuerpo and f'href="{destino_de(plantilla, {"enlace": "https://tukit.example/kits/x"})}"' in cuerpo
+        cuerpo = html_de(
+            plantilla, {"pedido": "AB12", "turno": "7", "enlace": "https://tukit.example/kits/x"}
+        )
+        assert (
+            cuerpo and f'href="{destino_de(plantilla, {"enlace": "https://tukit.example/kits/x"})}"' in cuerpo
+        )
         assert "BAJA" in cuerpo and "Ley 1581" in cuerpo and "/legal/privacidad" in cuerpo
     assert "BAJA" in pie_texto() and "Ley 1581" in pie_texto()
 
@@ -144,7 +148,10 @@ def test_barra_de_fases_marca_la_fase_de_cada_aviso():
 def test_pagado_muestra_el_total_y_enlaza_a_la_linea_de_tiempo(monkeypatch):
     monkeypatch.setenv("TUKIT_PUBLIC_URL", "https://tukit.example")
     pid = "11112222-0000-4000-8000-000000000000"
-    cuerpo = html_de("pedido_pagado", {"pedido": "11112222", "total": 609343, "enlace": f"https://tukit.example/pedidos/{pid}"})
+    cuerpo = html_de(
+        "pedido_pagado",
+        {"pedido": "11112222", "total": 609343, "enlace": f"https://tukit.example/pedidos/{pid}"},
+    )
     assert "$609.343" in cuerpo and f'href="https://tukit.example/pedidos/{pid}"' in cuerpo
 
 

@@ -51,6 +51,9 @@ dev = [
 # de correr media hora de pruebas de dominio.
 testpaths = ["arquitectura", "libs", "servicios", "ensayos"]
 asyncio_mode = "auto"
+# Explicito: sin esto pytest-asyncio emite una DeprecationWarning al arrancar y
+# `filterwarnings` de abajo la vuelve error, tumbando la suite entera.
+asyncio_default_fixture_loop_scope = "function"
 # Cada servicio es un paquete raiz propio. Esto es lo que permite correr toda
 # la suite desde aqui sin instalar nada, y a la vez mantiene los paquetes
 # separados: `tukit_identidad` no queda dentro de `tukit_catalogo`.
@@ -116,3 +119,12 @@ extend-immutable-calls = ["fastapi.Depends"]
 # version envuelta en seis lineas por diccionario esconde la tabla detras del
 # formato. Solo se perdona el ancho.
 "servicios/identidad/tukit_identidad/sembrar_acceso.py" = ["E501"]
+
+# Los scripts de calibracion y del ensayo acoplado son de una sola corrida: ya
+# produjeron las cifras que la tesis cita y no se importan desde ningun
+# servicio. Reescribirlos para el linter (un `zip(strict=True)`, borrar una
+# variable "sin usar") puede cambiar lo que calculan sin que nada se ponga
+# rojo, asi que se perdona el estilo y no se tocan. Las pruebas fuera de esas
+# dos carpetas siguen con todas las reglas.
+"ensayos/calibracion/*.py" = ["E501", "E741", "E731", "UP031", "F841", "B905", "B023", "B007", "SIM102", "SIM105", "SIM108"]
+"ensayos/acoplado/*.py" = ["E501", "E741", "E731", "UP031", "F841", "B905", "B023", "B007", "SIM102", "SIM105", "SIM108"]

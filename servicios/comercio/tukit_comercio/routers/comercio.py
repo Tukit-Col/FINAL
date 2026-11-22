@@ -63,7 +63,6 @@ async def _sesion_valida(request: Request, authorization: str | None) -> dict[st
 
 @dataclass(frozen=True)
 class Actor:
-
     usuario_id: uuid.UUID
     correo: str | None
 
@@ -151,9 +150,7 @@ async def _con_seguimiento(repo: RepoPedidos, pedido: dict[str, Any], ahora: dat
         historial=[{**h, "creado_en": _fecha(h["creado_en"])} for h in historial],
         entregado_en=entregado_en,
     )
-    estado = evaluar_retracto(
-        pedido["estado"], entregado_en, ahora, ya_solicitado=devolucion is not None
-    )
+    estado = evaluar_retracto(pedido["estado"], entregado_en, ahora, ya_solicitado=devolucion is not None)
     envio_publico = {k: v for k, v in envio.items() if k != "repartidor_celular"} or None
     return {
         **pedido,
@@ -230,7 +227,6 @@ def _a_datetime(iso: str | None) -> datetime | None:
 
 
 class LineaOrden(BaseModel):
-
     producto_canonico_id: str | None = None
     sku: str = Field(min_length=1, max_length=64)
     nombre: str = Field(min_length=1, max_length=256)
@@ -240,7 +236,6 @@ class LineaOrden(BaseModel):
 
 
 class DireccionEntrega(BaseModel):
-
     destinatario: str = Field(min_length=1, max_length=256)
     direccion: str = Field(min_length=1, max_length=512)
     ciudad: str = Field(min_length=1, max_length=128)
@@ -260,7 +255,6 @@ class DireccionEntrega(BaseModel):
 
 
 class SolicitudOrden(BaseModel):
-
     usuario_id: str
     trabajo_id: str | None = None
     hijos: int = Field(default=0, ge=0)
@@ -270,19 +264,16 @@ class SolicitudOrden(BaseModel):
 
 
 class SolicitudPago(BaseModel):
-
     correo_cliente: str = Field(min_length=5, max_length=320)
     metodo: str = Field(default=MetodoPago.PSE.value, max_length=16)
     url_redireccion: str | None = None
 
 
 class SolicitudRetracto(BaseModel):
-
     motivo: str = Field(default="", max_length=512)
 
 
 class SolicitudAvance(BaseModel):
-
     destino: str = Field(min_length=1, max_length=24)
     repartidor_nombre: str | None = Field(default=None, max_length=128)
     repartidor_celular: str | None = Field(default=None, max_length=32)
@@ -739,19 +730,36 @@ async def vista_previa_del_acudiente(
         pagos, historial, envio = await repo.vistas_para_linea_de_tiempo(fila.id)
     ahora = _ahora(request)
     actual = linea_de_tiempo(
-        estado=fila.estado, creado_en=fila.creado_en, pagos=pagos, historial=historial, envio=envio, ahora=ahora
+        estado=fila.estado,
+        creado_en=fila.creado_en,
+        pagos=pagos,
+        historial=historial,
+        envio=envio,
+        ahora=ahora,
     )
     legal = es_avance_de_logistica(fila.estado, destino)
     despues = None
     if legal:
         hipotetico = [
             *historial,
-            AvanceVisto(estado_desde=fila.estado, estado_hacia=destino, tipo_incidencia=None, creado_en=ahora),
+            AvanceVisto(
+                estado_desde=fila.estado, estado_hacia=destino, tipo_incidencia=None, creado_en=ahora
+            ),
         ]
         despues = linea_de_tiempo(
-            estado=destino, creado_en=fila.creado_en, pagos=pagos, historial=hipotetico, envio=envio, ahora=ahora
+            estado=destino,
+            creado_en=fila.creado_en,
+            pagos=pagos,
+            historial=hipotetico,
+            envio=envio,
+            ahora=ahora,
         )
-    return {"ahora": actual, "despues": despues, "aviso": tipo_aviso(destino) if legal else None, "legal": legal}
+    return {
+        "ahora": actual,
+        "despues": despues,
+        "aviso": tipo_aviso(destino) if legal else None,
+        "legal": legal,
+    }
 
 
 @router.get("/v1/comercio/mis-pedidos/{pedido_id}", summary="Uno de MIS pedidos, sin datos del reparto")
@@ -828,12 +836,17 @@ async def retractar_mi_pedido(
         pedido = await _pedido_o_404(repo, pedido_id)
         if pedido.usuario_id != usuario_id:
             raise ErrorDominio(
-                "pedido_ajeno", "Este pedido no es de tu cuenta, así que no puedes pedir su retracto.", estado=403
+                "pedido_ajeno",
+                "Este pedido no es de tu cuenta, así que no puedes pedir su retracto.",
+                estado=403,
             )
         envio = (await repo.pedido_completo(pedido)).get("envio") or {}
         previa = await repo.devolucion_de(pedido_id)
         estado = evaluar_retracto(
-            pedido.estado, _fecha(envio.get("entregado_en")), _ahora(request), ya_solicitado=previa is not None
+            pedido.estado,
+            _fecha(envio.get("entregado_en")),
+            _ahora(request),
+            ya_solicitado=previa is not None,
         )
         if not estado.puede:
             raise ErrorDominio(
@@ -868,9 +881,13 @@ async def retractar_mi_pedido(
 _MENSAJE_RETRACTO = {
     "ya_solicitado": "Ya pediste el retracto de este pedido. Te escribiremos con los pasos.",
     "plazo_vencido": "El plazo de 5 días hábiles desde la entrega ya terminó.",
-    "sin_pagar": "Este pedido no se pagó, así que no hay nada que devolver. Puedes cancelarlo desde Mis pedidos.",
+    "sin_pagar": (
+        "Este pedido no se pagó, así que no hay nada que devolver. Puedes cancelarlo desde Mis pedidos."
+    ),
     "cancelado": "Este pedido ya está cancelado.",
-    "sin_fecha_de_entrega": "No tenemos la fecha de entrega de este pedido. Escríbenos desde Mis casos y lo resolvemos.",
+    "sin_fecha_de_entrega": (
+        "No tenemos la fecha de entrega de este pedido. Escríbenos desde Mis casos y lo resolvemos."
+    ),
     "estado_no_permite": "Este pedido no admite retracto en su estado actual.",
 }
 
@@ -912,7 +929,9 @@ async def retractar_orden(
 _MENSAJE_AVANCE = {
     "destino_invalido": "El estado destino no es uno de los del pedido.",
     "transicion_invalida": "No se puede pasar el pedido a ese estado desde el actual.",
-    "despacho_incompleto": "Para despachar hacen falta el nombre y el celular del repartidor, o una transportadora con su guia.",
+    "despacho_incompleto": (
+        "Para despachar hacen falta el nombre y el celular del repartidor, o una transportadora con su guia."
+    ),
     "despacho_sin_guia": "Con transportadora, el numero de guia es obligatorio.",
     "incidencia_sin_tipo": "Una incidencia necesita su tipo.",
     "tipo_incidencia_invalido": "Ese tipo de incidencia no existe.",
@@ -1038,7 +1057,9 @@ async def avanzar_en_lote(
             "lote_invalido", f"El lote lleva de 1 a {MAX_LOTE} pedidos.", estado=422, campo="pedido_ids"
         )
     if len(set(solicitud.pedido_ids)) != len(solicitud.pedido_ids):
-        raise ErrorDominio("ids_repetidos", "Hay pedidos repetidos en el lote.", estado=422, campo="pedido_ids")
+        raise ErrorDominio(
+            "ids_repetidos", "Hay pedidos repetidos en el lote.", estado=422, campo="pedido_ids"
+        )
 
     avanzados: list[str] = []
     fallidos: list[dict[str, str]] = []

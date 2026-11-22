@@ -160,8 +160,12 @@ def nsga_acoplado(dec, presupuesto, T, F=F_ENVIO, semilla=0):
     class _P(Problem):
         def __init__(self):
             super().__init__(
-                n_var=n, n_obj=4, n_constr=0,
-                xl=_np.zeros(n, dtype=int), xu=_np.array([t - 1 for t in tamanos], dtype=int), vtype=int,
+                n_var=n,
+                n_obj=4,
+                n_constr=0,
+                xl=_np.zeros(n, dtype=int),
+                xu=_np.array([t - 1 for t in tamanos], dtype=int),
+                vtype=int,
             )
 
         def _evaluate(self, X, out, *a, **k):
@@ -187,5 +191,9 @@ def nsga_acoplado(dec, presupuesto, T, F=F_ENVIO, semilla=0):
     for idx in cand:
         c, f, _, _ = evaluar(idx)
         if c <= presupuesto and (mejor is None or (f, -c) > (mejor[0], -mejor[1])):
-            mejor = (f, c, {str(r.orden): opciones[i][j].sku for i, (r, j) in enumerate(zip(dec, idx, strict=True))})
+            mejor = (
+                f,
+                c,
+                {str(r.orden): opciones[i][j].sku for i, (r, j) in enumerate(zip(dec, idx, strict=True))},
+            )
     return mejor, n_eval

@@ -33,15 +33,20 @@ def _memoria(fn):
 
 def trabajo(args):
     inst, presupuesto, T, con_memoria = args
-    from acoplado import F_ENVIO, Tiempo, nsga_acoplado, pd_exacta, total_de
+    from acoplado import Tiempo, nsga_acoplado, pd_exacta, total_de
     from comun import decidibles, renglones_de
 
     dec = decidibles(renglones_de(inst))
     n = len(dec)
     from comun import optimo_ahorrador
+
     s0, tot0 = total_de(dec, optimo_ahorrador(dec), T)
     from acoplado import _admisibles, costo_linea
-    base0 = sum(costo_linea(r, next(c for c in _admisibles(r) if c.sku == optimo_ahorrador(dec)[str(r.orden)])) for r in dec)
+
+    base0 = sum(
+        costo_linea(r, next(c for c in _admisibles(r) if c.sku == optimo_ahorrador(dec)[str(r.orden)]))
+        for r in dec
+    )
     presupuesto = presupuesto + (tot0 - base0)
     fila = {"instancia": inst["id"], "T": T, "lineas": n, "presupuesto": presupuesto}
 
@@ -141,15 +146,15 @@ def main():
     args = ap.parse_args()
 
     inst = {i["id"]: i for i in cargar_json("instancias.json.gz")["instancias"]}
-    pres = {e["instancia"]: e["presupuesto"] for e in cargar_json("escenarios.json")["escenarios"] if e["escenario"] == "presupuesto"}
+    pres = {
+        e["instancia"]: e["presupuesto"]
+        for e in cargar_json("escenarios.json")["escenarios"]
+        if e["escenario"] == "presupuesto"
+    }
     ids = sorted(pres)
     if args.limite:
         ids = ids[:: max(1, len(ids) // args.limite)][: args.limite]
-    tareas = [
-        (inst[i], pres[i], T, k % args.memoria_cada == 0)
-        for k, i in enumerate(ids)
-        for T in TIENDAS
-    ]
+    tareas = [(inst[i], pres[i], T, k % args.memoria_cada == 0) for k, i in enumerate(ids) for T in TIENDAS]
     t0 = time.perf_counter()
     with ProcessPoolExecutor(max_workers=args.procesos) as ex:
         filas = []
@@ -158,11 +163,18 @@ def main():
             if n % 50 == 0:
                 print(f"{n}/{len(tareas)} {time.perf_counter() - t0:.0f}s", flush=True)
     datos = {
-        "config": {"F_envio_cop": F_ENVIO, "tiendas": list(TIENDAS), "limite_pd_s": LIMITE_PD_S,
-                   "semilla_nsga": SEMILLA, "listas": len(ids), "procesos": args.procesos,
-                   "presupuesto": "presupuesto del escenario del bench + envio del kit ahorrador (siempre factible)",
-                   "tienda": "crc32(sku) % T", "memoria_cada": args.memoria_cada,
-                   "segundos_totales": round(time.perf_counter() - t0, 1)},
+        "config": {
+            "F_envio_cop": F_ENVIO,
+            "tiendas": list(TIENDAS),
+            "limite_pd_s": LIMITE_PD_S,
+            "semilla_nsga": SEMILLA,
+            "listas": len(ids),
+            "procesos": args.procesos,
+            "presupuesto": "presupuesto del escenario del bench + envio del kit ahorrador (siempre factible)",
+            "tienda": "crc32(sku) % T",
+            "memoria_cada": args.memoria_cada,
+            "segundos_totales": round(time.perf_counter() - t0, 1),
+        },
         "resumen": resumen(filas),
         "filas": filas,
     }

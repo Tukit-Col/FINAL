@@ -15,7 +15,12 @@ import clasificacion as k  # noqa: E402
 from particion import SEMILLA_BASE, partir  # noqa: E402
 from robustez import similitud  # noqa: E402
 
-pytestmark = pytest.mark.skipif(not (k.DATOS / "renglones_etiquetados.csv").exists(), reason="faltan los datos exportados")
+# `centroides.npz` sale de `exportar_etiquetas.py` (embeddings de Gemini) y no se
+# versiona: en un checkout limpio, como el de CI, no existe.
+pytestmark = pytest.mark.skipif(
+    not (k.DATOS / "renglones_etiquetados.csv").exists() or not (k.DATOS / "centroides.npz").exists(),
+    reason="faltan los datos exportados",
+)
 
 CONSERVADORAS = ["tipeo", "tildes", "mayusculas", "plural", "ocr", "espacios", "sufijo", "marca"]
 
@@ -40,7 +45,9 @@ def _conjunto_fijo(cx: b.Contexto, n: int = 40) -> list[int]:
 def test_perturbar_y_variante_aumentada_repiten_su_resultado_con_los_mismos_datos() -> None:
     for tp in a.TIPOS_TODOS:
         for sv in (a.LEVE, a.FUERTE):
-            assert a.perturbar("Cuaderno cuadriculado de 100 hojas", tp, sv) == a.perturbar("Cuaderno cuadriculado de 100 hojas", tp, sv)
+            assert a.perturbar("Cuaderno cuadriculado de 100 hojas", tp, sv) == a.perturbar(
+                "Cuaderno cuadriculado de 100 hojas", tp, sv
+            )
     assert a.variante_aumentada("lápiz negro", 2) == a.variante_aumentada("lápiz negro", 2)
 
 

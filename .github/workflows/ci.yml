@@ -26,7 +26,7 @@ jobs:
           enable-cache: true
       - run: uv python install 3.12
       - run: uv venv --python 3.12
-      - run: uv pip install pytest pytest-asyncio
+      - run: uv pip install pytest pytest-asyncio==1.4.0
       - name: Verificar fronteras
         run: .venv/bin/pytest arquitectura/ -v
 
@@ -39,7 +39,7 @@ jobs:
         with:
           enable-cache: true
       - run: uv venv --python 3.12
-      - run: uv pip install ruff
+      - run: uv pip install ruff==0.16.8
       - run: .venv/bin/ruff check .
       - run: .venv/bin/ruff format --check .
 
@@ -97,7 +97,7 @@ jobs:
             # dominio corren contra SQLite en memoria, y sin el driver async
             # el fallo sale en la fixture y no en el caso, asi que no se
             # parece en nada a lo que de verdad se rompio.
-            uv pip install pytest pytest-asyncio \
+            uv pip install pytest pytest-asyncio==1.4.0 \
               sqlalchemy pydantic pgvector aiosqlite \
               fastapi httpx alembic greenlet \
               numpy pymoo tenacity
@@ -123,7 +123,7 @@ jobs:
       - run: uv python install 3.12
       - run: uv venv --python 3.12
       - run: |
-          uv pip install pytest pytest-asyncio \
+          uv pip install pytest pytest-asyncio==1.4.0 \
             sqlalchemy pydantic pgvector aiosqlite \
             fastapi httpx alembic greenlet \
             numpy pymoo
@@ -256,7 +256,7 @@ jobs:
       # Las de `pruebas` mas `aio-pika`. Se recogen todas las pruebas para
       # elegir las marcadas, y recoger una prueba importa su modulo.
       - run: |
-          uv pip install pytest pytest-asyncio \
+          uv pip install pytest pytest-asyncio==1.4.0 \
             sqlalchemy pydantic pgvector aiosqlite \
             fastapi httpx alembic greenlet \
             numpy pymoo tenacity aio-pika
@@ -308,7 +308,7 @@ jobs:
       # alli, se recogen todas las pruebas para elegir las marcadas, y algunas de
       # `libs` importan `aiormq`, que llega con `aio-pika`.
       - run: |
-          uv pip install pytest pytest-asyncio \
+          uv pip install pytest pytest-asyncio==1.4.0 \
             sqlalchemy pydantic pgvector aiosqlite \
             fastapi httpx alembic greenlet \
             numpy pymoo tenacity aio-pika "redis>=8.1.0"

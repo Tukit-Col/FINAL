@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import uuid
+from datetime import timedelta
 
 import pytest
 from conftest import (
@@ -72,8 +73,13 @@ class TestTresCapas:
     def test_un_precio_cerrado_no_bloquea_al_siguiente(self, sesion):
         concepto = crear_concepto(sesion)
         oferta = crear_oferta(sesion, crear_producto(sesion, concepto), crear_tienda(sesion))
+        # Un segundo atras: en Windows dos `ahora()` seguidos pueden dar el mismo
+        # instante (reloj de ~15 ms) y `vigente_hasta > vigente_desde` fallaria.
         viejo = PrecioOferta(
-            oferta_id=oferta.id, valor_centavos=400_000, fuente="scraper", vigente_desde=ahora()
+            oferta_id=oferta.id,
+            valor_centavos=400_000,
+            fuente="scraper",
+            vigente_desde=ahora() - timedelta(seconds=1),
         )
         sesion.add(viejo)
         sesion.flush()
