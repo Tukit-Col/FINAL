@@ -1,52 +1,12 @@
-"""Front de administracion del catalogo: el gemelo interactivo de `vista`.
+"""Front de administracion del catalogo, interactivo, sobre la biblioteca estandar.
 
-`vista` saca un HTML para MIRAR el catalogo; esto lo saca para TRABAJARLO. Es
-la pantalla donde una persona deja el catalogo listo antes de que un papa vea
-nada: ve cada concepto con sus productos, sus fotos y sus etiquetas, y sobre
-eso agrega libros, agrega utiles (apoyandose en las tiendas), corrige el
-empaque, y descarta lo que no vendemos. Cuando termina, vuelca a los CSV para
-que el corpus versionado reproduzca ese estado.
-
-Por que un servidor y no otro HTML estatico: `vista` no puede escribir, y el
-trabajo aqui es escribir. Por que la biblioteca estandar y no un framework: el
-resto del catalogo no tiene dependencias de web a proposito (`vista` es un
-archivo que se abre y ya), y una pantalla de curaduria que corre una persona en
-su maquina no justifica arrastrar FastAPI, un build de front y un servidor de
-aplicaciones al monorepo. `http.server` alcanza de sobra.
-
-Que reusa, sin reimplementar nada del dominio:
-
-  - La lectura sale de la misma consulta que `vista`, extendida con los ids que
-    hacen falta para editar (producto, concepto).
-  - El alta de un util se apoya en `tiendas.buscar` con el mismo quinto filtro
-    (`_coincide`) que el resto del catalogo, y el alta se materializa encolando
-    una propuesta (`_encolar`) y aprobandola (`resolver`), el MISMO camino por
-    el que entra lo que se revisa de una lista. Aqui no hay puerta
-    (`abrir_revision`) porque esto es CURADURIA proactiva, igual que
-    `completar`: se llena el catalogo ANTES de que exista un papa que pregunte,
-    no durante. La puerta protege el flujo del acudiente, no este.
-  - El volcado a CSV es `volcar`, tal cual.
-
-Por que vive en `catalogo` y no en `apps/admin/` (coherencia con el lock):
-
-  ARQUITECTURA.md (ADR 0008 y ADR 0012) fija que la UI de personal interno es
-  la app `admin`, y que al disolverse MS-BFFAdmin la administracion se resuelve
-  con "consultas locales de `catalogo`". Esto es precisamente eso: curaduria
-  LOCAL del dominio de catalogo, gemelo de `vista` (que tambien renderiza HTML
-  desde el servicio y nadie lo considera fuera de lugar). No cruza ninguna
-  frontera --solo importa `.` y `tukit_comun`, verificado por las pruebas de
-  fronteras-- asi que el dominio queda donde manda el lock. El dia que la
-  administracion crezca a varias pantallas multi-rol (proveedor, editorial,
-  operador), la composicion "baja al cliente" en `apps/admin/`; esas pantallas
-  llamaran a estas MISMAS funciones de dominio (`_leer`, `agregar_util`,
-  `agregar_libro`, `volcar`), que se quedan aqui. Esto es el precursor de esa
-  app, no un servicio de UI paralelo.
-
-Uso:
-
-    python -m tukit_catalogo.admin            # sirve en localhost:8000
-    python -m tukit_catalogo.admin --abrir     # y abre el navegador
-    python -m tukit_catalogo.admin --puerto 9000
+Decisiones:
+- Usa `http.server` y no un framework: el resto del catalogo no tiene dependencias de web y una
+  pantalla de curaduria que corre una persona en su maquina no justifica FastAPI ni un build de
+  front.
+- No reimplementa el dominio: el alta de un util pasa por `tiendas.buscar`, `_encolar` y `resolver`,
+  el mismo camino por el que entra lo que se revisa de una lista.
+- Al terminar vuelca a los CSV para que el corpus versionado reproduzca el estado.
 """
 
 from __future__ import annotations
@@ -64,36 +24,18 @@ from urllib.parse import urlparse
 
 from . import tiendas
 from .descubrir import _encolar, resolver
-from .dominio.propuesta import (  # re-exportados: la vista http.server y su test los usan por nombre
+from .dominio.propuesta import (
     _ean_valido,  # noqa: F401
     construir_propuesta_libro,
     construir_propuesta_util,
 )
 from .modelos import Nivel, TipoItem
-
-# ponytail: `volcar` es CLI batch de un solo llamador HTTP (el boton "volcar" de
-# la consola); se invoca entero, no tiene SQL que un request reuse pieza a pieza
-# -> a repositorios solo si un endpoint necesitara sus consultas por separado.
 from .volcar import _principal as volcar_principal
 
-# Las tres tiendas que el catalogo ya usa, en el orden en que `completar` y
-# `crear_util` las consultan. El alta asistida busca en las tres a la vez.
 SLUGS_TIENDA = ("exito", "panamericana", "grancentral")
 
 
-# ---------------------------------------------------------------------------
-# Lectura: el mismo modelo que `vista`, con los ids que la edicion necesita.
-# ---------------------------------------------------------------------------
-
-
 async def _leer() -> tuple[list[dict[str, Any]], dict[str, int]]:
-    """Trae los conceptos con sus productos, para pintar y para editar.
-
-    Es la consulta de `vista._leer` con dos anadidos que la edicion necesita y
-    la vista no: el id del concepto (para colgarle un alta) y el id del producto
-    con su empaque (para corregirlo). El precio sigue siendo el mas barato entre
-    tiendas, por la misma razon que en `vista`: es la cifra honesta.
-    """
     from sqlalchemy import text
     from tukit_comun.bd import crear_motor
 
@@ -149,10 +91,6 @@ async def _leer() -> tuple[list[dict[str, Any]], dict[str, int]]:
                 "tipo_item": f.tipo_item,
                 "demanda": f.frecuencia_demanda,
                 "sinonimos": list(f.sinonimos or ()),
-                # Las claves que el concepto declara: son las casillas que el
-                # diálogo de editar pinta para llenar los `atributos` de cada
-                # producto (color, tamaño, hojas...). Discriminantes primero
-                # porque son las que de verdad separan un producto de otro.
                 "atributos_clave": list(f.atributos_discriminantes or ())
                 + list(f.atributos_descriptivos or ()),
                 "productos": [],
@@ -195,15 +133,6 @@ async def _leer() -> tuple[list[dict[str, Any]], dict[str, int]]:
 
 
 async def _leer_cola() -> list[dict[str, Any]]:
-    """Las propuestas pendientes, agrupadas por concepto para revisarlas.
-
-    Es la cola que llena `completar` (curaduria adelantada) y `descubrir`
-    (revision de una lista): candidatos que una persona todavia no ha mirado.
-    Se agrupan por concepto porque asi se decide --"para *lentejuelas* tengo
-    estos tres, cual va en cada nivel"--, y cada fila trae lo que la tarjeta
-    necesita para elegir sin salir a la tienda: nombre, precio, foto, marca,
-    tienda, nivel sugerido y el enlace por si hay que verificar la ficha.
-    """
     from sqlalchemy import text
     from tukit_comun.bd import crear_motor
 
@@ -268,13 +197,7 @@ async def _leer_cola() -> list[dict[str, Any]]:
     return [grupos[k] for k in orden]
 
 
-# ---------------------------------------------------------------------------
-# Escritura: se apoya en los mismos seams que el resto del catalogo.
-# ---------------------------------------------------------------------------
-
-
 async def _fijar_columna_producto(producto_id: str, **columnas: Any) -> int:
-    """UPDATE de una o varias columnas de un producto por id. Devuelve filas."""
     from sqlalchemy import update
     from tukit_comun.bd import crear_motor
 
@@ -303,20 +226,6 @@ async def _editar_producto(
     concepto_id: str | None = None,
     atributos: dict[str, str] | None = None,
 ) -> tuple[bool, str]:
-    """Edita un producto suelto en una transacción.
-
-    Nombre, nivel, foto, marca, concepto y atributos viven en
-    `producto_canonico`; el precio vive en `precio_oferta`, colgado de las
-    ofertas del producto. Curar a mano un duplicado es corregir esas cosas
-    juntas: si el precio se escribe pero la fila del producto falla, no queremos
-    un precio huérfano.
-
-    Reasignar el concepto es solo cambiar la llave foránea `concepto_id`: no
-    toca `sku_interno` (sigue único) ni borra las ofertas. Es lo que arregla
-    "veo resmas en el concepto hojas": se mueve el producto a su concepto real.
-    Los `atributos` (color, tamaño, hojas...) llegan como un diccionario ya
-    armado desde las casillas que el concepto declara; se sobrescribe entero.
-    """
     from sqlalchemy import text, update
     from tukit_comun.bd import crear_motor
 
@@ -328,13 +237,13 @@ async def _editar_producto(
         columnas["nombre"] = nombre
     if nivel:
         columnas["nivel"] = nivel
-    if imagen_url is not None:  # cadena vacía = borrar la foto a propósito
+    if imagen_url is not None:
         columnas["imagen_url"] = imagen_url or None
-    if marca is not None:  # cadena vacía = borrar la marca a propósito
+    if marca is not None:
         columnas["marca"] = marca or None
     if concepto_id:
         columnas["concepto_id"] = uuid.UUID(concepto_id)
-    if atributos is not None:  # {} = vaciar los atributos a propósito
+    if atributos is not None:
         columnas["atributos"] = atributos
 
     motor = crear_motor("catalogo")
@@ -378,25 +287,6 @@ async def _editar_producto(
 
 
 async def _borrar_producto(producto_id: str) -> tuple[bool, str]:
-    """Borra un producto del catálogo EN DURO, con sus ofertas y precios.
-
-    Un duplicado o una basura (el morral universitario en un concepto de niños)
-    se quita del todo, no se desactiva. La razón es el corpus: `volcar` exporta
-    TODA `producto_canonico` a CSV sin mirar la columna de actividad -incluso la
-    escribe-, así que un producto desactivado seguiría ensuciando el CSV curado
-    que es la fuente de verdad reproducible. Para que el CSV quede limpio, el
-    producto tiene que desaparecer de la base. Se borra en una sola transacción
-    de las cuatro tablas -precio, oferta, propuesta, producto- para no dejar
-    huérfanos.
-
-    La propuesta se borra ANTES que el producto a propósito. Un producto que
-    nació de aprobar una propuesta deja esa fila en `propuesta_producto`
-    apuntándolo; la llave foránea la pondría en NULL al borrar el producto, pero
-    un CHECK (`propuesta_aprobada_tiene_producto`) prohíbe una propuesta
-    aprobada sin producto, así que ese SET NULL falla. La propuesta ya cumplió
-    su papel -materializó el producto-, y si el producto se va, su rastro en la
-    cola también.
-    """
     from sqlalchemy import text
     from tukit_comun.bd import crear_motor
 
@@ -411,8 +301,6 @@ async def _borrar_producto(producto_id: str) -> tuple[bool, str]:
             ).first()
             if not existe:
                 return False, "No encontré ese producto."
-            # Los precios cuelgan de las ofertas y las ofertas del producto: se
-            # borra de abajo hacia arriba para respetar las llaves foráneas.
             await conexion.execute(
                 text("""
                     DELETE FROM precio_oferta
@@ -440,7 +328,6 @@ async def _borrar_producto(producto_id: str) -> tuple[bool, str]:
 
 
 async def _fijar_tipo_concepto(concepto_id: str, tipo_item: str) -> int:
-    """Marca el tipo de un concepto (por ejemplo `no_comprar`). Devuelve filas."""
     from sqlalchemy import update
     from tukit_comun.bd import crear_motor
 
@@ -459,14 +346,6 @@ async def _fijar_tipo_concepto(concepto_id: str, tipo_item: str) -> int:
 
 
 async def _no_surtir_concepto(concepto_id: str) -> tuple[bool, str]:
-    """Cierra un concepto: lo marca 'no_comprar' y descarta sus pendientes.
-
-    Las dos cosas van juntas y en una transacción: si el concepto no se surte
-    (uniformes, cosas que el colegio vende), sus candidatos en cola dejan de
-    tener sentido y no deben reaparecer la próxima vez que se abra la cola. Es
-    la versión de conjunto del `no_surtir` de `resolver`, que actúa sobre UNA
-    propuesta; aquí el gesto es sobre el concepto entero.
-    """
     from sqlalchemy import update
     from tukit_comun.bd import crear_motor
 
@@ -498,7 +377,6 @@ async def _no_surtir_concepto(concepto_id: str) -> tuple[bool, str]:
 
 
 async def _concepto_por_id(concepto_id: str) -> tuple[uuid.UUID, str] | None:
-    """(id, nombre_canonico) de un concepto, o None si no existe."""
     from sqlalchemy import select
     from tukit_comun.bd import crear_motor
 
@@ -538,13 +416,6 @@ async def _tienda_por_slug(slug: str) -> uuid.UUID | None:
 
 
 def buscar_candidatos(consulta: str) -> list[tuple[str, tiendas.Oferta]]:
-    """Las tres tiendas con el quinto filtro puesto, de mas barato a mas caro.
-
-    Es el mismo cuerpo que `crear_util` usa para armar su lista de candidatos,
-    sin la puerta: la curaduria proactiva no exige una lista sin revisar. Cada
-    candidato lleva su slug para poder encolarlo despues contra la tienda
-    correcta.
-    """
     candidatos: list[tuple[str, tiendas.Oferta]] = []
     for slug in SLUGS_TIENDA:
         for oferta in tiendas.buscar(slug, consulta):
@@ -558,16 +429,6 @@ def buscar_candidatos(consulta: str) -> list[tuple[str, tiendas.Oferta]]:
 
 
 async def agregar_util(concepto_id: str, slug: str, oferta: tiendas.Oferta, nivel: str) -> tuple[bool, str]:
-    """Encola el candidato elegido y lo aprueba: queda como producto del catalogo.
-
-    Dos pasos deliberados y reusados tal cual del flujo de revision: primero
-    `_encolar` mete la propuesta (con `version_lista_id=None`, porque esto es
-    curaduria, no la revision de una lista concreta), y despues `resolver` la
-    aprueba, que es donde `resolver` le saca empaque y atributos del nombre y
-    nace el producto con su oferta y su precio. No se reimplementa ese insert:
-    se llama al mismo que aprueba lo que llega de una lista, para que el alta a
-    mano y la aprobada en revision sean el mismo producto con el mismo puntaje.
-    """
     tienda_id = await _tienda_por_slug(slug)
     if tienda_id is None:
         return False, f"No conozco la tienda '{slug}'."
@@ -583,9 +444,6 @@ async def agregar_util(concepto_id: str, slug: str, oferta: tiendas.Oferta, nive
     pid = propuesta["id"]
     encoladas = await _encolar([propuesta])
     if not encoladas:
-        # La llave natural (tienda, referencia) ya estaba: puede que sea un
-        # producto que ya tenemos, o una propuesta pendiente. Se intenta
-        # aprobar de todos modos, que es idempotente.
         pass
     codigo = await resolver(str(pid)[:8], aprobar=True, nivel=nivel, motivo=None)
     if codigo != 0:
@@ -594,13 +452,6 @@ async def agregar_util(concepto_id: str, slug: str, oferta: tiendas.Oferta, nive
 
 
 async def aprobar_propuesta(id_corto: str, nivel: str) -> tuple[bool, str]:
-    """Aprueba una propuesta de la cola: nace el producto, su oferta y su precio.
-
-    No reimplementa el alta: llama a `resolver` --aprobar, el MISMO camino por
-    el que se aprueba lo que llega de una lista de colegio. La persona puede
-    corregir el nivel sugerido antes de aprobar (el candidato barato que la
-    consulta puso en 'confiable' quiza es en realidad el 'economico').
-    """
     codigo = await resolver(id_corto, aprobar=True, nivel=nivel, motivo=None)
     if codigo != 0:
         return False, "No se pudo aprobar. Puede que ya esté resuelta o le falte concepto."
@@ -608,13 +459,6 @@ async def aprobar_propuesta(id_corto: str, nivel: str) -> tuple[bool, str]:
 
 
 async def rechazar_propuesta(id_corto: str, motivo: str | None, no_surtir: bool) -> tuple[bool, str]:
-    """Rechaza una propuesta. Con `no_surtir`, marca el concepto 'no_comprar'.
-
-    Mismo `resolver` con `aprobar=False`. El rechazo corriente descarta ESTE
-    candidato y deja el concepto abierto; `no_surtir` cierra el concepto entero
-    (uniformes, cosas que no vendemos), que es la señal que el flujo del papá
-    lee para mandarlo aparte en vez de sumarlo al kit.
-    """
     codigo = await resolver(id_corto, aprobar=False, nivel=None, motivo=motivo, no_surtir=no_surtir)
     if codigo != 0:
         return False, "No se pudo rechazar. Puede que ya esté resuelta."
@@ -624,13 +468,6 @@ async def rechazar_propuesta(id_corto: str, motivo: str | None, no_surtir: bool)
 async def agregar_libro(
     concepto_id: str, isbn: str, titulo: str, precio_cop: int, slug: str, nivel: str
 ) -> tuple[bool, str]:
-    """Alta de un libro por ISBN, aprobada en el acto. Mismo camino que el util.
-
-    Un libro no se busca (lo identifica el ISBN de una edicion, no un titulo),
-    asi que aqui no hay tienda que consultar: la persona escribe ISBN, titulo y
-    precio. Igual pasa por encolar + aprobar para que sea el mismo producto que
-    nace de una revision.
-    """
     from .cargador import isbn13_valido, normalizar_isbn
 
     isbn = normalizar_isbn(isbn) or ""
@@ -655,10 +492,6 @@ async def agregar_libro(
         return False, "El libro se encolo pero no se pudo aprobar."
     return True, f"Libro agregado a {nombre_concepto}: {titulo[:60]}."
 
-
-# ---------------------------------------------------------------------------
-# La pagina: HTML + un poco de JS para las acciones (fetch a los POST).
-# ---------------------------------------------------------------------------
 
 ESTILOS = """
 :root { --tinta:#16181d; --suave:#6b7280; --linea:#e5e7eb; --fondo:#fbfbfc;
@@ -1041,11 +874,7 @@ def _tarjeta(p: dict[str, Any], concepto: dict[str, Any] | None = None) -> str:
     nombre = e(p["nombre"])
     enlace = f'<a href="{e(p["url"])}" target="_blank" rel="noopener">{nombre}</a>' if p["url"] else nombre
     empaque_val = p["unidades_por_empaque"] or 1
-    precio_pesos = (p["precio"] or 0) // 100  # el dialogo de editar trabaja en pesos
-    # El diálogo de editar se llena desde estos data-attributes. `pconcepto` dice
-    # en qué concepto está hoy (para preseleccionar el <select> de mover), y
-    # `pclaves`/`pattrs` viajan como JSON para pintar una casilla por atributo
-    # que el concepto declara, ya precargada con lo que el producto tiene.
+    precio_pesos = (p["precio"] or 0) // 100
     concepto_id = e(concepto["id"]) if concepto else ""
     claves = json.dumps(concepto["atributos_clave"] if concepto else [], ensure_ascii=False)
     return f"""<div class="prod"
@@ -1127,7 +956,6 @@ def _opciones_nivel(por_omision: str = "confiable") -> str:
 
 
 def _nav(activo: str, por_revisar: int) -> str:
-    """Las dos vistas del admin: el catálogo y la cola de revisión."""
     cola = f'Cola de revisión<span class="badge">{por_revisar}</span>' if por_revisar else "Cola de revisión"
     return f"""<nav class="nav">
       <a href="/"{' class="activo"' if activo == "catalogo" else ""}>Catálogo</a>
@@ -1136,12 +964,6 @@ def _nav(activo: str, por_revisar: int) -> str:
 
 
 def _opciones_concepto(conceptos: list[dict[str, Any]]) -> str:
-    """Las opciones del <select> para mover un producto a otro concepto.
-
-    Ordenadas por código para que la lista sea buscable con el teclado, y con el
-    código a la vista (C031 · resma) porque hay nombres que se parecen -hojas vs
-    resma, marcador vs resaltador- y el código desambigua.
-    """
     e = html.escape
     ordenados = sorted(conceptos, key=lambda c: c["codigo"])
     return "".join(
@@ -1245,10 +1067,6 @@ def _fila_cola(p: dict[str, Any]) -> str:
     nombre = e(p["nombre"])
     enlace = f'<a href="{e(p["url"])}" target="_blank" rel="noopener">{nombre}</a>' if p["url"] else nombre
     marca = f" · {e(p['marca'])}" if p["marca"] else ""
-    # El "sugerido" es lo que pidio el colegio; para un libro es el titulo con
-    # el que hay que casar la edicion, asi que va completo y destacado, no
-    # recortado a 40 caracteres como una nota al pie. El ISBN, cuando lo hay,
-    # es el dato que confirma que es LA edicion: se muestra aparte y monoespaciado.
     sugerido = e(p["texto_origen"] or "")
     ped = f'<div class="ped">pidieron: <b>{sugerido}</b></div>' if sugerido else ""
     isbn = e(p.get("ean") or "")
@@ -1321,13 +1139,8 @@ def construir_cola(grupos: list[dict[str, Any]], por_revisar: int) -> str:
 </body></html>"""
 
 
-# ---------------------------------------------------------------------------
-# Servidor
-# ---------------------------------------------------------------------------
-
-
 class _Manejador(BaseHTTPRequestHandler):
-    def log_message(self, *_a: Any) -> None:  # silencio, no ensuciar la consola
+    def log_message(self, *_a: Any) -> None:
         pass
 
     def _responder(self, codigo: int, cuerpo: bytes, tipo: str = "application/json") -> None:
@@ -1384,8 +1197,6 @@ class _Manejador(BaseHTTPRequestHandler):
         except Exception as error:  # noqa: BLE001 - un error de curaduria no debe tumbar el servidor
             self._json(500, {"ok": False, "mensaje": f"error: {error}"})
 
-    # -- handlers --
-
     def _util_buscar(self, cuerpo: dict[str, Any]) -> None:
         consulta = (cuerpo.get("consulta") or "").strip()
         if not consulta:
@@ -1417,9 +1228,6 @@ class _Manejador(BaseHTTPRequestHandler):
         sku = cuerpo.get("sku") or ""
         nivel = cuerpo.get("nivel") or "confiable"
         concepto_id = cuerpo.get("concepto_id") or ""
-        # Se vuelve a buscar y se toma la oferta por sku: no confiamos en que el
-        # cliente arme la Oferta, solo en que elija cual de las que la tienda
-        # devolvio. Asi el precio y la ficha salen de la tienda, no del navegador.
         elegida = next((o for s, o in buscar_candidatos(consulta) if s == slug and o.sku == sku), None)
         if elegida is None:
             self._json(422, {"ok": False, "mensaje": "Ese candidato ya no está disponible; busca de nuevo."})
@@ -1463,15 +1271,13 @@ class _Manejador(BaseHTTPRequestHandler):
         precio = cuerpo.get("precio")
         if precio is not None:
             try:
-                precio = int(precio) * 100  # el navegador manda pesos; la base guarda centavos
+                precio = int(precio) * 100
             except (TypeError, ValueError):
                 self._json(400, {"ok": False, "mensaje": "El precio debe ser un entero en pesos."})
                 return
             if precio <= 0:
                 self._json(400, {"ok": False, "mensaje": "El precio debe ser positivo."})
                 return
-        # marca y atributos van tal cual (cadena vacía / {} son borrados a
-        # propósito); concepto_id solo si viene, para no reasignar sin querer.
         atributos = cuerpo.get("atributos")
         if atributos is not None and not isinstance(atributos, dict):
             self._json(400, {"ok": False, "mensaje": "Los atributos deben ser un objeto."})
@@ -1528,9 +1334,6 @@ class _Manejador(BaseHTTPRequestHandler):
         self._json(200 if ok else 422, {"ok": ok, "mensaje": mensaje})
 
     def _cola_rechazar(self, cuerpo: dict[str, Any]) -> None:
-        # Dos caminos: descartar un candidato suelto (id de propuesta) o cerrar
-        # el concepto entero (no_surtir). El segundo descarta de paso todas las
-        # propuestas pendientes de ese concepto, para que la cola no las repita.
         no_surtir = bool(cuerpo.get("no_surtir"))
         if no_surtir:
             concepto_id = (cuerpo.get("concepto_id") or "").strip()

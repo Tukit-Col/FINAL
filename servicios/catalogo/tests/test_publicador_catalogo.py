@@ -1,11 +1,3 @@
-"""El publicador de la bandeja de Catalogo (ADR 0046).
-
-El nucleo se prueba en `tukit_comun`. Aqui se fija que lee la bandeja de verdad
-de Catalogo, la que comparten `colegio_verificado` y las listas: cada evento
-sale con su origen y su tipo, en orden, y queda marcado. Y que sin
-`RABBITMQ_URL` no arranca.
-"""
-
 from __future__ import annotations
 
 import uuid

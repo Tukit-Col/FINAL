@@ -1,11 +1,3 @@
-"""Editar, curar, agregar y quitar renglones de una version sin revisar.
-
-Lo que protegen, mas alla de que las rutas respondan: que una version YA
-REVISADA no se pueda editar (la puerta que `descubrir` cuida en el CLI vale
-igual por HTTP).
-"""
-
-# El fixture `cliente` llega de `_ayudas_api_admin` y los tests lo reciben por nombre.
 # ruff: noqa: F811
 
 from __future__ import annotations
@@ -50,8 +42,6 @@ class TestEditarUnRenglon:
         assert respuesta.json()["error"] == "lista_ya_revisada"
 
     async def test_quitar_un_concepto_sin_marcar_revision_se_rechaza(self, cliente):
-        # El CHECK del modelo: un renglon sin concepto SIEMPRE requiere revision.
-        # La API lo dice como error de dominio antes de que la base lo grite.
         vid = cliente.ids["abierta"]
         revision = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()
         item_id = revision["items"][0]["item_id"]
@@ -61,7 +51,6 @@ class TestEditarUnRenglon:
         )
         assert respuesta.status_code == 422
         assert respuesta.json()["error"] == "renglon_sin_concepto_va_a_revision"
-        # Y el renglon queda como estaba: con su concepto.
         despues = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()["items"][0]
         assert despues["concepto"] == revision["items"][0]["concepto"]
 
@@ -79,12 +68,6 @@ async def _cuaderno_filtra_por(cliente, discriminantes: list[str]) -> None:
 
 
 class TestCurarLosAtributosDeUnRenglon:
-    """Curar lo que se exige desde la pantalla de revision, no desde el CSV.
-
-    La revision muestra lo leido del texto y lo curado por separado (con la
-    misma regla de la ruta rapida), y el PATCH guarda la curaduria solo con
-    claves que el concepto de verdad filtra.
-    """
 
     async def test_la_revision_separa_lo_leido_de_lo_curado(self, cliente):
         await _cuaderno_filtra_por(cliente, ["rayado", "hojas"])
@@ -95,14 +78,10 @@ class TestCurarLosAtributosDeUnRenglon:
         assert cuaderno["atributos"] == {}
         assert cuaderno["atributos_exigidos"] == {"rayado": "cuadriculado"}
         assert cuaderno["atributos_deducidos"] == []
-        # Sin concepto no hay nada que exigir ni que curar.
         assert sin_concepto["atributos_discriminantes"] == []
         assert sin_concepto["atributos_exigidos"] == {}
 
     async def test_el_mas_de_uno_deducido_se_marca_como_deducido(self, cliente):
-        # `chaquiras` en plural con cantidad uno: el texto no dice cuantas, la
-        # ruta rapida exige "mas de uno". El revisor tiene que saber que eso no
-        # lo escribio el colegio.
         async with app.state.motor.sesion() as db:
             conexion = await db.connection()
             tabla = Base.metadata.tables["concepto"]
@@ -135,7 +114,6 @@ class TestCurarLosAtributosDeUnRenglon:
 
         cuaderno = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()["items"][0]
         assert cuaderno["atributos"] == {"rayado": "*", "hojas": 100}
-        # Lo leido no cambia: es el texto. Lo exigido si.
         assert cuaderno["atributos_leidos"] == {"rayado": "cuadriculado"}
         assert cuaderno["atributos_exigidos"] == {"hojas": 100}
 
@@ -151,7 +129,6 @@ class TestCurarLosAtributosDeUnRenglon:
         assert cuaderno["atributos_exigidos"] == {"rayado": "cuadriculado"}
 
     async def test_una_clave_que_el_concepto_no_filtra_se_rechaza(self, cliente):
-        # La ruta rapida la ignoraria en silencio: el revisor creeria haberla curado.
         await _cuaderno_filtra_por(cliente, ["rayado"])
         vid = cliente.ids["abierta"]
         item_id = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()["items"][0]["item_id"]
@@ -163,7 +140,6 @@ class TestCurarLosAtributosDeUnRenglon:
         assert "color" in respuesta.json()["mensaje"]
 
     async def test_lo_que_el_renglon_ya_traia_no_se_rechaza_si_no_se_toco(self, cliente):
-        # Curado antes para otro concepto: devolver el mapa entero no debe fallar.
         await _cuaderno_filtra_por(cliente, ["rayado"])
         vid = cliente.ids["abierta"]
         item_id = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()["items"][0]["item_id"]
@@ -181,7 +157,6 @@ class TestCurarLosAtributosDeUnRenglon:
         assert respuesta.status_code == 200
         cuaderno = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()["items"][0]
         assert cuaderno["atributos"] == {"color": "rojo", "rayado": "*"}
-        # Pero cambiarle el valor si es curar algo que no filtra.
         respuesta = await cliente.patch(
             f"/v1/admin/listas/{vid}/items/{item_id}", json={"atributos": {"color": "azul"}}
         )
@@ -199,7 +174,6 @@ class TestCurarLosAtributosDeUnRenglon:
             assert respuesta.json()["error"] == "atributos_invalido"
 
     async def test_lo_exigido_de_la_revision_es_lo_que_usa_la_ruta_rapida(self, cliente):
-        # La misma regla, no una copia: sobre una version revisada coinciden.
         await _con_cuadernos_extra(cliente, discriminantes=["rayado", "hojas"])
         vid = await _version_revisada_con(
             cliente, "cuaderno ferrocarril de 100 hojas", atributos={"rayado": "rayado", "hojas": "*"}

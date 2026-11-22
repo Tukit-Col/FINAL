@@ -1,5 +1,3 @@
-"""Utilidades de prueba del servicio de Catalogo."""
-
 from __future__ import annotations
 
 import uuid
@@ -25,12 +23,6 @@ CURADOR = uuid.UUID("00000000-0000-0000-0000-0000000000c1")
 
 @pytest.fixture(autouse=True)
 def _sin_redis(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """Las pruebas corren sin Redis aunque quien las lance tenga `REDIS_URL`.
-
-    Con la variable, el vector de un renglon se guardaria en Redis (ADR 0047) y
-    una prueba dejaria de llamar a su embeder. Las que prueban la cache ponen su
-    doble con `usar_cliente`.
-    """
     monkeypatch.delenv("REDIS_URL", raising=False)
     usar_cliente(None)
     yield
@@ -41,8 +33,6 @@ def _sin_redis(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 def sesion() -> Session:
     motor = create_engine("sqlite://")
 
-    # SQLite no verifica llaves foraneas ni restricciones CHECK de tabla a
-    # menos que se le pida. Sin esto las pruebas pasarian sin probar nada.
     @event.listens_for(motor, "connect")
     def _activar_fk(conexion, _registro):  # noqa: ANN001
         conexion.execute("PRAGMA foreign_keys=ON")

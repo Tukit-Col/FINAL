@@ -1,10 +1,3 @@
-"""Lo que la auditoria de huecos del Agustiniano (2026-10-11) encontro mal elegido.
-
-Cada prueba nombra el renglon de la auditoria que la motivo (`grado#orden`,
-ver `docs/informes/auditoria-huecos-agustiniano/v2-d4ea7cb.md`). Los textos son los
-de la lista oficial, copiados tal cual, con sus erratas.
-"""
-
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -30,10 +23,8 @@ def _p(sku: str, atributos: dict, nivel: str = "confiable", precio: int = 1000, 
 
 
 class TestComoSeComparaCadaAtributo:
-    """Respuesta a 5.1: exacto lo que cambia que cosa es, flexible lo que se mide."""
 
     def test_las_hojas_valen_si_son_al_menos_las_pedidas(self):
-        # 1#15: ferrocarril cosido de 80 hojas; el unico ferrocarril es de 100.
         assert _cumple(_p("a", {"hojas": 100}), {"hojas": 80})
         assert not _cumple(_p("a", {"hojas": 50}), {"hojas": 80})
 
@@ -45,31 +36,25 @@ class TestComoSeComparaCadaAtributo:
         assert not _cumple(_p("a", {"materias": "multiple"}), {"materias": 3})
 
     def test_la_longitud_admite_un_poco_mas_y_casi_nada_menos(self):
-        # 4#32: escuadra de 20 cm; la de 45 grados del catalogo es de 26 cm.
         assert _cumple(_p("a", {"longitud": "26 cm"}), {"longitud": "20 cm"})
         assert _cumple(_p("a", {"longitud": "300 mm"}), {"longitud": "30 cm"})
         assert not _cumple(_p("a", {"longitud": "20 cm"}), {"longitud": "30 cm"})
 
     def test_carta_y_a4_son_equivalentes(self):
-        # 3#44: sketch book carta; el block de bocetos es A4.
         assert _cumple(_p("a", {"tamano": "a4"}), {"tamano": "carta"})
         assert not _cumple(_p("a", {"tamano": "oficio"}), {"tamano": "carta"})
 
     def test_las_medidas_admiten_una_cuarta_parte_por_lado(self):
-        # 1#25: lienzo de 25x25; hay uno de 20 x 30 y otro de 50 x 70.
         assert _cumple(_p("a", {"tamano": "20 x 30 cm"}), {"tamano": "25 x 25 cm"})
         assert not _cumple(_p("a", {"tamano": "50 x 70 cm"}), {"tamano": "25 x 25 cm"})
 
     def test_el_borde_del_veinticinco_por_ciento_no_entra(self):
-        # Auditoria v4: un lienzo de 30 x 25 pasaba por uno de 30 x 40 (40 -> 30 es
-        # justo 25 %) y el Premium lo cobraba habiendo el de 30 x 40.
         assert not _cumple(_p("a", {"tamano": "30 x 25 cm"}), {"tamano": "30 x 40 cm"})
 
     def test_frasco_y_tarro_son_lo_mismo(self):
         assert _cumple(_p("a", {"presentacion": "tarro"}), {"presentacion": "frasco"})
 
     def test_antifluido_cumple_lo_que_pide_plastico(self):
-        # 3#52: protector para ropa (delantal plastico); el delantal es antifluido.
         assert _cumple(_p("a", {"material": "antifluido"}), {"material": "plastico"})
         assert not _cumple(_p("a", {"material": "tela"}), {"material": "antifluido"})
 
@@ -79,11 +64,9 @@ class TestComoSeComparaCadaAtributo:
         assert not _cumple(_p("a", {}), {"unidades": 2})
 
     def test_el_peso_vale_si_es_al_menos_el_pedido(self):
-        # T#67: pegante en barra de 125 g; la mayor del catalogo es de 40 g.
         assert not _cumple(_p("a", {"peso": "40 g"}), {"peso": "125 g"})
 
     def test_las_protoboards_valen_si_tienen_al_menos_los_puntos_y_no_demasiados(self):
-        # 9#63: protoboard de 830 puntos; se cobraba la de 400.
         assert _cumple(_p("a", {"puntos": 840}), {"puntos": 830})
         assert not _cumple(_p("a", {"puntos": 400}), {"puntos": 830})
         assert not _cumple(_p("a", {"puntos": 2200}), {"puntos": 400})
@@ -100,14 +83,12 @@ class TestComoSeComparaCadaAtributo:
 
 class TestLoQueElExtractorLeiaMal:
     def test_las_materias_escritas_en_letras(self):
-        # 11#21: "cuaderno tres materias" se leia como de una materia.
         assert extraer_atributos("cuaderno tres materias cuadriculado grande", ("materias",)) == {
             "materias": 3
         }
         assert extraer_atributos("Cuaderno 5 materias", ("materias",)) == {"materias": 5}
 
     def test_el_tamano_en_plural(self):
-        # 1#39 y J#40: "cuartos" y "pliegos" no se leian.
         assert extraer_atributos("cuartos de cartulina blanca", ("tamano",)) == {"tamano": "cuarto"}
         assert extraer_atributos("pliegos de papel Cartulina blanca", ("tamano",)) == {"tamano": "pliego"}
 
@@ -115,20 +96,16 @@ class TestLoQueElExtractorLeiaMal:
         assert extraer_atributos("Lienzo de 25x25cms", ("tamano",)) == {"tamano": "25 x 25 cm"}
 
     def test_el_numero_del_pincel_con_espacio(self):
-        # T#40: "pincel plano # 10".
         assert extraer_atributos("pincel plano # 10", ("grosor",)) == {"grosor": "n10"}
 
     def test_la_longitud_en_pulgadas(self):
-        # 10#59: tijeras de 8,5 pulgadas.
         assert extraer_atributos("Tijeras 8,5 pulgadas", ("longitud",)) == {"longitud": "8.5 in"}
 
     def test_lo_que_dice_el_tipo_de_block(self):
-        # 2#10 y 3#16.
         assert extraer_atributos("Block tamaño carta a rayas", ("tipo",)) == {"tipo": "rayado"}
         assert extraer_atributos("blocks de hojas blancas tamano carta", ("tipo",)) == {"tipo": "blanco"}
 
     def test_el_acabado_de_la_cartulina(self):
-        # J#38: cartulina fluorescente.
         texto = "paquetes de octavos de cartulina fluorescente colores surtidos"
         assert extraer_atributos(texto, ("acabado",)) == {"acabado": "fluorescente"}
 
@@ -163,7 +140,6 @@ class TestLoQueElExtractorLeiaMal:
         assert extraer_atributos("Lapiz Kores Jumbo x12", ("grosor",)) == {"grosor": "grueso"}
 
     def test_el_idioma_no_depende_del_orden(self):
-        # 2#11 y 2#15: el mismo diccionario escrito en los dos ordenes.
         assert extraer_atributos("Diccionario Larousse Basico Ingles - español", ("idioma",)) == {
             "idioma": "espanol-ingles"
         }
@@ -171,13 +147,11 @@ class TestLoQueElExtractorLeiaMal:
         assert extraer_atributos("Diccionario de inglés", ("idioma",)) == {"idioma": "ingles"}
 
     def test_la_docena_es_un_empaque(self):
-        # J#93: "Docena Barra Silicona Gruesa" se compraba de a una barra.
         assert extraer_empaque("Docena Barra Silicona Gruesa").unidades == 12
 
 
 class TestElEmpaqueCurado:
     def test_lo_guardado_gana_sobre_lo_leido(self):
-        # Una correccion a mano en la UI de admin no la deshace `enriquecer`.
         assert empaque_combinado(25, "hoja", Empaque(1, "unidad")) == Empaque(25, "hoja")
 
     def test_el_uno_por_omision_lo_reemplaza_lo_leido(self):
@@ -186,7 +160,6 @@ class TestElEmpaqueCurado:
 
 class TestElRenglonDeLaRutaRapida:
     def test_un_valor_curado_asterisco_quita_lo_leido(self):
-        # T#69: la receta para armar la bitacora ponia `hojas=15`.
         texto = "bitacora tamaño octavo. 15 hojas de cartulina blanca"
         productos = [_p("dibujo", {"rayado": "blanco"})]
         candidatos, impuestos, _ = _renglon_resuelto(texto, {"hojas": "*"}, productos, ("hojas", "rayado"))
@@ -194,7 +167,6 @@ class TestElRenglonDeLaRutaRapida:
         assert [c["sku"] for c in candidatos] == ["dibujo"]
 
     def test_un_kit_de_pinceles_pide_varios_y_no_el_grosor_de_cada_uno(self):
-        # 7#39: el kit de 12 pinceles se resolvia con un solo pincel delgado.
         texto = "Kit de 12 pinceles sintéticos. delgados, planos redondos y abanico"
         productos = [
             _p("suelto", {"grosor": "delgado", "forma": "redondo"}, precio=500),
@@ -205,13 +177,11 @@ class TestElRenglonDeLaRutaRapida:
         assert [c["sku"] for c in candidatos] == ["set"]
 
     def test_una_caja_sin_numero_pide_mas_de_uno(self):
-        # 3#62: "caja de plumones" se resolvia con un marcador suelto.
         productos = [_p("suelto", {}, precio=4400), _p("caja", {"unidades": 12}, precio=10900)]
         candidatos, _, _ = _renglon_resuelto("caja de plumones", {}, productos, ("punta", "unidades"))
         assert [c["sku"] for c in candidatos] == ["caja"]
 
     def test_un_plural_con_cantidad_uno_pide_mas_de_uno(self):
-        # 7#87: "marcadores", cantidad 1.
         productos = [_p("suelto", {}, precio=4400), _p("caja", {"unidades": 12}, precio=10900)]
         candidatos, _, _ = _renglon_resuelto("marcadores", {}, productos, ("punta", "unidades"), cantidad=1)
         assert [c["sku"] for c in candidatos] == ["caja"]
@@ -221,7 +191,6 @@ class TestElRenglonDeLaRutaRapida:
         assert {c["sku"] for c in candidatos} == {"suelto", "caja"}
 
     def test_si_ningun_juego_cumple_vale_la_pieza_suelta(self):
-        # 3#88: "Pinceles de punta redonda". No hay juego de pinceles redondos.
         productos = [_p("redondo", {"forma": "redondo"}), _p("planos", {"forma": "plano", "unidades": 4})]
         candidatos, impuestos, _ = _renglon_resuelto(
             "Pinceles de punta redonda", {}, productos, ("forma", "unidades"), cantidad=1
@@ -230,7 +199,6 @@ class TestElRenglonDeLaRutaRapida:
         assert "unidades" not in impuestos
 
     def test_un_juego_de_piezas_iguales_si_exige_como_es_cada_una(self):
-        # J#61: "cajas de colores x 12 triangulares gruesos".
         productos = [
             _p("delgados", {"unidades": 12, "grosor": "delgado"}, precio=6100),
             _p("gruesos", {"unidades": 12, "grosor": "grueso", "forma": "triangular"}, precio=24890),
@@ -261,7 +229,6 @@ def _fila(orden: int, texto: str, concepto: str | None, tipo: str | None = None,
 
 class TestLosRenglonesDeUnaVersion:
     def test_sin_tipo_en_el_renglon_manda_el_del_concepto(self):
-        # 3.1: la ruta rapida veia `util` en un uniforme y decia "No lo tenemos".
         reglas = {"C131": ((), False, "uniforme"), "C001": ((), False, "util")}
         items = armar_items(
             [_fila(1, "Uniforme de diario", "C131"), _fila(2, "cuaderno", "C001", tipo="no_comprar")],
@@ -271,7 +238,6 @@ class TestLosRenglonesDeUnaVersion:
         assert [i["tipo_item"] for i in items] == ["uniforme", "no_comprar"]
 
     def test_una_herramienta_pedida_en_dos_materias_sale_del_mismo_producto(self):
-        # 3#35 y 3#47: "compas" y "compas de precision". El Ahorrador compraba dos.
         reglas = {"C018": (("tipo",), True, "util")}
         productos = {
             "C018": [
@@ -296,11 +262,9 @@ class TestLosRenglonesDeUnaVersion:
 
 
 class TestLoQueEncontraronLosAgentesDeSurtido:
-    """Fallas que salieron al surtir el catalogo desde las tiendas (2026-10-12)."""
 
     def test_dos_medidas_a_los_lados_de_la_x_no_son_un_empaque(self):
         assert extraer_empaque("CARTULINA PLIEGO 70X100 BLANCO").unidades == 1
-        # Con una cifra suelta delante, la `x` si cuenta.
         assert extraer_empaque("Caja De Lapiz Kores Jumbo Hb #2 X12 Negro").unidades == 12
         assert extraer_empaque("Resaltador Mark 2 X5 Colores PELIKAN").unidades == 5
 
@@ -322,7 +286,6 @@ class TestLoQueEncontraronLosAgentesDeSurtido:
 
 
 class TestLasVariantesSoloSiSePiden:
-    """Lo que trajo el surtido del 2026-10-12: la variante barata se llevaba lo generico."""
 
     def test_una_cartulina_generica_no_recibe_la_fluorescente(self):
         productos = [
@@ -362,10 +325,6 @@ class TestLasVariantesSoloSiSePiden:
 
 
 class TestElTamanoDelCuadernoSeExigeSiAlguienLoDeclara:
-    """Auditoria v4: «cuaderno grande» recibia un Finlandek de $5.990 que no dice
-    ser grande, habiendo la version grande. Exigir el tamano a todos dejaba en
-    hueco los cosidos grandes, que ningun cuaderno declara: se exige solo si
-    alguno de los que cumplen lo declara."""
 
     def test_si_hay_uno_grande_el_que_no_dice_tamano_queda_fuera(self):
         productos = [

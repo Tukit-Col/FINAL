@@ -1,11 +1,3 @@
-"""Los guards e shapers puros de la revision de listas (dominio/listas.py).
-
-`_exigir_sin_revisar` y `_cuidar_invariantes` son las puertas del gate de
-revision: preservan las condiciones de `raise` exactas (404/409/422) que fijan
-el contrato. `_item_publico` y `_pagina_percepcion` son shapers puros. Aqui se
-prueban sin motor ni HTTP, con `assert`.
-"""
-
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -34,7 +26,6 @@ def test_exigir_sin_revisar_ya_revisada_es_409():
 
 
 def test_exigir_sin_revisar_deja_editar_una_version_abierta():
-    # La puerta solo se cierra con `revisada_en`; una abierta no alza ni devuelve nada.
     assert _exigir_sin_revisar(SimpleNamespace(revisada_en=None)) is None
 
 
@@ -55,8 +46,6 @@ def test_invariante_acepta_lo_no_surtible_que_dice_como_conseguirlo():
 
 
 def test_invariante_no_le_pide_instruccion_a_lo_que_tukit_surte():
-    # La instruccion solo se exige a lo que Tukit no surte; pedirla siempre
-    # rechazaria cada renglon de mercado abierto.
     assert _cuidar_invariantes("cid", True, "mercado_abierto", None) is None
 
 

@@ -1,17 +1,3 @@
-"""Pruebas del cargador de datos curados.
-
-El cargador es la primera pieza que mete datos de verdad en la base, y el
-riesgo no es que falle: es que **funcione a medias en silencio**. Un producto
-sin imagen se carga igual de bien que uno con imagen, y el papa se entera al
-ver un hueco gris donde deberia haber un cuaderno. Un empaque mal contado se
-carga igual de bien, y el papa se entera cuando le llegan doce lapices en vez
-de una caja.
-
-De ahi la forma de estas pruebas: casi todas son sobre las funciones PURAS de
-validacion y normalizacion, no sobre la escritura. Lo que hay que fijar no es
-que el INSERT corra, es que los datos malos se vean.
-"""
-
 from __future__ import annotations
 
 import pytest
@@ -27,21 +13,14 @@ from tukit_catalogo.cargador import (
 
 
 class TestIsbn:
-    """El ISBN es la llave con la que un libro se compara entre tiendas.
-
-    Sin el, dos fichas de la misma biblia en dos librerias son dos productos
-    distintos y no se puede decir cual esta mas barata, que es justo lo que
-    Tukit tiene que responder. Un ISBN mal transcrito es peor que ninguno:
-    fabrica un producto que no existe.
-    """
 
     @pytest.mark.parametrize(
         "isbn",
         [
-            "9788428536523",  # Biblia Latinoamerica, vista en dos tiendas
-            "9789585189232",  # Constitucion Politica, Solar
-            "9789580714729",  # Diccionario Nacho
-            "9791370400521",  # prefijo 979, tambien legitimo
+            "9788428536523",
+            "9789585189232",
+            "9789580714729",
+            "9791370400521",
         ],
     )
     def test_acepta_los_isbn_que_se_observaron_en_las_tiendas(self, isbn):
@@ -50,22 +29,18 @@ class TestIsbn:
     @pytest.mark.parametrize(
         "isbn",
         [
-            "9788428536524",  # ultimo digito cambiado: la suma ya no cuadra
-            "978842853652",  # 12 digitos
-            "97884285365233",  # 14
-            "1234567890123",  # no empieza por 978 ni 979
+            "9788428536524",
+            "978842853652",
+            "97884285365233",
+            "1234567890123",
             "",
-            "732461",  # un SKU de tienda, que es el error que de verdad paso
+            "732461",
         ],
     )
     def test_rechaza_lo_que_no_es_un_isbn13(self, isbn):
         assert not isbn13_valido(isbn)
 
     def test_el_sku_de_una_tienda_no_pasa_por_isbn(self):
-        """Caso real y no hipotetico: al raspar una pagina de categoria en vez
-        de una ficha de producto, lo que vuelve como 'ISBN' es el codigo
-        interno de la tienda. Si eso entrara al catalogo, dos libros distintos
-        podrian colisionar en la misma llave."""
         assert not isbn13_valido("732461")
 
     def test_normalizar_quita_guiones_y_espacios(self):
@@ -80,19 +55,12 @@ class TestIsbn:
 
 
 class TestPrecios:
-    """El precio se guarda en centavos y entero, nunca en coma flotante.
-
-    Un peso colombiano no tiene centavos en la practica, pero la columna es
-    `valor_centavos` y mezclar unidades es como se pierde un factor de cien
-    sin que nadie lo note hasta la factura.
-    """
 
     def test_convierte_pesos_enteros_a_centavos(self):
         assert pesos_a_centavos(34200) == 3420000
         assert pesos_a_centavos("42000") == 4200000
 
     def test_tolera_el_formato_con_puntos_de_miles(self):
-        """Las tiendas colombianas escriben 132.000 y eso no es un decimal."""
         assert pesos_a_centavos("132.000") == 13200000
         assert pesos_a_centavos("$ 105.000") == 10500000
 
@@ -103,12 +71,6 @@ class TestPrecios:
 
 
 class TestReferencias:
-    """Una oferta que apunta a un producto que no existe rompe el kit.
-
-    Estas son las que SI bloquean la carga. El resto de problemas de calidad se
-    reportan y dejan pasar, porque un catalogo incompleto sigue sirviendo; una
-    referencia roto, no.
-    """
 
     def test_no_reporta_nada_cuando_todo_cuadra(self):
         problemas = validar_referencias(
@@ -164,14 +126,6 @@ class TestProblema:
 
 
 class TestElCargadorNoDeshaceElEnriquecimiento:
-    """El upsert no puede pisar lo que el CSV no sabe.
-
-    `enriquecer` escribe empaque, portada y personaje directamente en la base.
-    El cargador actualizaba toda columna presente en la fila del CSV, asi que
-    volver a correrlo devolvia el catalogo al estado anterior: portadas en
-    nulo y empaques de vuelta en uno. Y lo hacia en silencio, informando que
-    habia escrito 330 productos, que era cierto.
-    """
 
     def test_las_columnas_enriquecidas_estan_declaradas(self):
         assert {
@@ -183,9 +137,6 @@ class TestElCargadorNoDeshaceElEnriquecimiento:
         } == COLUMNAS_ENRIQUECIDAS
 
     def test_ninguna_columna_enriquecida_entra_en_el_set_de_actualizacion(self):
-        """Se comprueba sobre el modelo real, no sobre una copia: si alguien
-        agrega una columna enriquecida nueva y olvida declararla, la prueba
-        que importa es esta."""
         from tukit_catalogo.modelos import Base
 
         producto = Base.metadata.tables["producto_canonico"]
@@ -194,18 +145,10 @@ class TestElCargadorNoDeshaceElEnriquecimiento:
 
         actualizables = {c for c in columnas_csv if c not in claves and c not in COLUMNAS_ENRIQUECIDAS}
         assert not (actualizables & COLUMNAS_ENRIQUECIDAS)
-        # Y lo que si debe seguir actualizandose desde el CSV, que es la razon
-        # de que el upsert exista.
         assert {"nombre", "nivel", "concepto_id", "activo"} <= actualizables
 
 
 class TestLosAtributosViajanEnElCsv:
-    """Lo que se corrige a mano en el editor tiene que llegar a otra base.
-
-    Antes el cargador ponia `atributos` en `{}` y la tabla periodica que una
-    persona marco `tamano=grande` volvia a decir "26 x 20 cm" en la base de
-    cualquier otro: el renglon "tabla periodica (grande)" quedaba sin producto.
-    """
 
     def test_lee_los_atributos_exportados(self):
         assert atributos_de_csv('{"tamano": "grande"}') == {"tamano": "grande"}

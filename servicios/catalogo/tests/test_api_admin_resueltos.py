@@ -1,6 +1,3 @@
-"""La ruta rapida de una version revisada: renglones resueltos con sus candidatos."""
-
-# El fixture `cliente` llega de `_ayudas_api_admin` y los tests lo reciben por nombre.
 # ruff: noqa: F811
 
 from __future__ import annotations
@@ -45,14 +42,12 @@ class TestResueltosLaRutaRapida:
         assert cuerpo["anio_lectivo"] == 2026
         assert cuerpo["colegio_id"] == str(COLEGIO)
 
-        # Orden por `orden`: primero el cuaderno resuelto, luego la agenda.
         assert [i["orden"] for i in cuerpo["items"]] == [1, 2]
         cuaderno = cuerpo["items"][0]
         assert cuaderno["concepto_codigo"] == "C001"
         assert cuaderno["concepto_nombre"] == "cuaderno"
         assert cuaderno["texto_original"] == "1 cuaderno cosido"
         assert cuaderno["cantidad"] == 1
-        # Los candidatos curados: uno por nivel, con precio.
         candidatos = cuaderno["candidatos"]
         assert {c["nivel"] for c in candidatos} == {"economico", "confiable", "premium"}
         eco = next(c for c in candidatos if c["nivel"] == "economico")
@@ -82,14 +77,11 @@ class TestResueltosLaRutaRapida:
             assert isinstance(candidato["atributos"], dict)
 
     async def test_un_concepto_sin_atributos_que_filtren_ofrece_todos_sus_productos_lisos(self, cliente):
-        # Antes salia uno por nivel (tres a lo sumo) aunque el concepto tuviera
-        # cuarenta: el kit nunca veia el resto del catalogo.
         await _con_cuadernos_extra(cliente)
         vid = cliente.ids["cerrada"]
         cuerpo = (await cliente.get(f"/v1/admin/listas/{vid}/resueltos")).json()
         skus = {c["sku"] for c in cuerpo["items"][0]["candidatos"]}
         assert {"TK-C001-ECO", "TK-C001-CON", "TK-C001-PRE", "TK-REV-RAYADO"} <= skus
-        # El de personaje no entra mientras haya lisos.
         assert "TK-REV-CARS" not in skus
 
     async def test_un_renglon_que_exige_un_atributo_solo_ofrece_los_que_lo_cumplen(self, cliente):
@@ -101,7 +93,6 @@ class TestResueltosLaRutaRapida:
         assert all(c["cumple"] for c in item["candidatos"])
 
     async def test_si_ningun_producto_cumple_no_hay_candidatos(self, cliente):
-        # Un hueco, no un sustituto: el kit recomendaba un oleo para un acrilico.
         await _con_cuadernos_extra(cliente, discriminantes=["rayado"])
         vid = await _version_revisada_con(cliente, "cuaderno ferrocarril")
         item = (await cliente.get(f"/v1/admin/listas/{vid}/resueltos")).json()["items"][0]
@@ -134,7 +125,6 @@ class TestResueltosLaRutaRapida:
         )
         items = (await cliente.get(f"/v1/admin/listas/{vid}/resueltos")).json()["items"]
         assert [i["uno_por_estudiante"] for i in items] == [True, True]
-        # Lo que se junta solo no se marca como repetido: no hay nada que revisar.
         assert [i["posible_repetido_de"] for i in items] == [None, None]
 
     async def test_un_consumible_casi_igual_a_otro_se_marca_como_posible_repetido(self, cliente):

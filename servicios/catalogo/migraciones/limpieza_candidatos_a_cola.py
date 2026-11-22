@@ -1,38 +1,3 @@
-"""Limpieza puntual: saca del catalogo lo que la maquina metio sin revisar.
-
-La version vieja de `completar` insertaba sus sugerencias directo en
-`producto_canonico` (calidad 0,4, `curado_por = AGENTE_FIRECRAWL`). El efecto
-era el que el quinto filtro no atrapa: una poinsettia figuraba como lentejuela y
-un lavaloza como esponja DENTRO del catalogo que ve el papa. La version nueva de
-`completar` las encola en `propuesta_producto` para que una persona apruebe o
-descarte; este script arregla la base viva que quedo sucia de las corridas
-viejas.
-
-Que hace, en una sola transaccion:
-
-  1. Copia cada producto de maquina (con su unica oferta y su ultimo precio) a la
-     cola `propuesta_producto` como candidato 'pendiente'.
-  2. Lo borra del catalogo. El ON DELETE CASCADE de `oferta_tienda` y
-     `precio_oferta` se lleva su oferta y su precio.
-
-No toca los libros (`TK-LIB-*`): son legitimos y se re-sintetizan en cada carga.
-
-Es idempotente por dos vias que se refuerzan: el id de cada propuesta se deriva
-del contenido (mismo `_uuid_estable` que el resto del catalogo), y el INSERT usa
-la llave natural (tienda, referencia_externa). Una segunda corrida ya no
-encuentra productos de maquina que migrar.
-
-El camino reproducible ya NO produce esto: un `bd-cargar` limpio (que no trae
-filas de maquina) mas el `bd-completar` nuevo (que encola en vez de insertar)
-nunca deja una sugerencia como producto. Por eso esto es limpieza de datos de
-una vez, no un paso del pipeline.
-
-Uso:
-
-    make bd-limpiar-candidatos            # aplica
-    make bd-limpiar-candidatos ARGS=--ensayo   # cuenta sin tocar nada
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -56,8 +21,6 @@ async def _principal(ensayo: bool) -> int:
     motor = crear_motor("catalogo")
     try:
         async with motor.engine.begin() as conexion:
-            # Cada producto de maquina con su unica oferta, su ultimo precio y el
-            # nombre del concepto (que hara de texto_origen en la cola).
             filas = list(
                 await conexion.execute(
                     select(

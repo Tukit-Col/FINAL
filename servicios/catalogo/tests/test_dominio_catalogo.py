@@ -1,11 +1,3 @@
-"""El dominio puro de lectura del catalogo: shapers, orden y validacion.
-
-Fija el contrato de las funciones que no tocan la base (ADR 0019) antes de
-moverlas de `api.py` a `dominio/catalogo.py`. Sin fixtures, sin motor: se les
-pasa un objeto plano (los `fila` de SQLAlchemy son atributos) y se mira el
-dict que sale.
-"""
-
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -25,7 +17,7 @@ from tukit_comun.http import ErrorDominio
 
 def test_pesos_divide_por_cien_y_trunca():
     assert pesos(450000) == 4500
-    assert pesos(499) == 4  # trunca, no redondea
+    assert pesos(499) == 4
 
 
 def test_pesos_none_es_desconocido_no_cero():
@@ -82,7 +74,7 @@ def test_producto_publico_expone_sku_y_precio_en_pesos():
     assert out["sku"] == "TK-C001-ECO"
     assert out["precio_desde"] == 4500
     assert out["tiendas"] == 3
-    assert out["unidades_por_empaque"] == 1  # None -> 1
+    assert out["unidades_por_empaque"] == 1
     assert out["atributos"] == {}
 
 
@@ -98,7 +90,7 @@ def test_oferta_publica_precio_en_pesos_y_disponible_tri_estado():
         tienda_nombre="Exito",
         tipo="minorista",
         url="http://x",
-        disponible=None,  # la fuente no reporta: se conserva null
+        disponible=None,
         valor_centavos=500000,
         vigente_desde=None,
         vigente_hasta=None,
@@ -132,7 +124,6 @@ def test_sobre_lleva_total_pagina_y_la_clave_pedida():
 def test_validar_edicion_acepta_campos_editables_sin_tocarlos():
     cambios = {"nombre": "x", "nivel": "premium", "atributos": {"color": "rojo"}}
     assert _validar_edicion(cambios) is None
-    # Valida, no normaliza: la ruta guarda exactamente lo que llego.
     assert cambios == {"nombre": "x", "nivel": "premium", "atributos": {"color": "rojo"}}
 
 

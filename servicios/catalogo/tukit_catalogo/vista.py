@@ -1,26 +1,3 @@
-"""Saca el catalogo a un HTML para mirarlo con ojos, no con SQL.
-
-Las metricas del cargador dicen cuantos productos tienen foto y cuantos
-conceptos llegan a tres niveles, y con eso no se puede contestar la unica
-pregunta que importa antes de abrir: si esto es una papeleria de verdad. Un
-`319/330` no distingue entre un catalogo surtido y trescientos treinta filas
-con foto que nadie compraria.
-
-Lo que si lo contesta es ver los productos uno al lado del otro, con su foto,
-su precio y su tienda, agrupados como el papa los va a pedir. Ahi se ve de
-un vistazo si el nivel economico y el premium son de verdad distintos, si la
-foto corresponde al nombre, y si lo que ofrecemos para `punzon` es un punzon.
-
-El HTML no lleva dependencias ni conexion: es un archivo que se abre y ya.
-Las imagenes salen de las tiendas, asi que con red se ven y sin red queda el
-texto, que es lo que hay que leer de todos modos.
-
-Uso:
-
-    python -m tukit_catalogo.vista            # escribe catalogo.html
-    python -m tukit_catalogo.vista --abrir
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -123,8 +100,6 @@ def _tarjeta(p: dict[str, Any]) -> str:
     )
     attrs = "".join(f"<code>{e(str(k))}: {e(str(v))}</code>" for k, v in (p["atributos"] or {}).items())
     personaje = f"<span>{e(p['personaje'])}</span>" if p["personaje"] else ""
-    # Los de puntaje bajo se marcan en la propia tarjeta. Si hay que
-    # buscarlos en una consulta aparte, nadie los mira.
     revisar = (
         '<div class="revisar">sugerido por busqueda, sin revisar</div>'
         if float(p["quality_score"] or 0) < 0.5

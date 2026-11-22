@@ -1,15 +1,3 @@
-"""correccion_lista: lo que el equipo corrige en la cola, con antes y despues
-
-Revision: 9e3c5a7b1f42
-Anterior: 7b4e2a9c1d36
-Fecha:    2026-11-13 23:00:00.000000+00:00
-
-Por que este cambio: las correcciones de la cola de revision se quedaban solo en
-la fila corregida; el sistema no tenia de donde aprender y el mismo texto volvia a
-fallar en otro colegio. Esta tabla guarda cada correccion (campo, antes, despues,
-texto, autor y fecha) y lo que el sistema aprendio con ella.
-"""
-
 from __future__ import annotations
 
 from collections.abc import Sequence
