@@ -759,9 +759,14 @@ async def _escribir_importacion(
             lista_id = lista.id
 
         numero = await repo.max_numero_version(lista_id) + 1
-        await repo.desvigar_versiones(lista_id)
+        # Una subida nace sin revisar (AD-06): no le quita la vigencia a la lista que una persona ya
+        # aprobo. La vigencia pasa al cerrar la version, no al subirla.
+        vigente_actual = await repo.version_vigente(lista_id)
+        hereda_la_vigencia = vigente_actual is None or vigente_actual.revisada_en is None
+        if hereda_la_vigencia:
+            await repo.desvigar_versiones(lista_id)
         version_id = uuid.uuid4()
-        await repo.crear_version(version_id, lista_id, numero, vigente=True)
+        await repo.crear_version(version_id, lista_id, numero, vigente=hereda_la_vigencia)
 
         conceptos = await repo.cargar_conceptos()
         for orden, renglon in enumerate(renglones, start=1):
