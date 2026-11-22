@@ -25,7 +25,7 @@ postgres = ["asyncpg>=0.29"]
 # servicio: nada del camino normal de la aplicacion pasa por ahi. Quien genera
 # o aplica migraciones instala `tukit-comun[migraciones,postgres]`; los dos
 # extras van juntos porque una migracion sin driver no se puede aplicar.
-migraciones = ["alembic>=1.13"]
+migraciones = ["alembic>=1.20.1"]
 
 # OpenTelemetry. Opcional a proposito: sin `OTEL_EXPORTER_OTLP_ENDPOINT`
 # la instrumentacion es no-op TOTAL (ni siquiera importa esto), asi que la tesis

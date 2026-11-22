@@ -5,7 +5,7 @@ description = "Pipeline de lista escolar: percepcion, parseo, resolucion y optim
 requires-python = ">=3.12"
 dependencies = [
     "pydantic>=2.0",
-    "sqlalchemy>=2.0",
+    "sqlalchemy>=2.1.9",
     "tukit-comun",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",

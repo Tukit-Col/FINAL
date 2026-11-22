@@ -19,7 +19,7 @@ tukit-comun = { workspace = true }
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=8.0",
+    "pytest>=9.2.0",
     "pytest-asyncio>=0.24",
     "aiosqlite>=0.20",
 ]
