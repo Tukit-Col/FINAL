@@ -1,0 +1,36 @@
+name: Reportar un error
+description: Algo no funciona como debería.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Si es un problema de seguridad no lo reportes aquí; sigue SECURITY.md.
+  - type: textarea
+    id: que
+    attributes:
+      label: Qué pasó
+      description: Qué esperabas y qué ocurrió en cambio.
+    validations:
+      required: true
+  - type: textarea
+    id: pasos
+    attributes:
+      label: Cómo reproducirlo
+      placeholder: |
+        1. Entrar como ...
+        2. Ir a ...
+        3. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: donde
+    attributes:
+      label: Dónde
+      options: [App web (acudiente), Admin, Backend / API, Otro]
+    validations:
+      required: true
+  - type: textarea
+    id: registros
+    attributes:
+      label: Registros o capturas
+      description: Sin datos personales ni llaves.
