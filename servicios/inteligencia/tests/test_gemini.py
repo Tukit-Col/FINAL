@@ -1,10 +1,3 @@
-"""El reintento del adaptador de Gemini: solo de transporte, y solo uno.
-
-Lo que se protege es la frontera. Un reintento que tambien repitiera una llave
-invalida o una respuesta mal formada esconderia fallos que una persona tiene
-que ver; uno que no existiera rechaza la lista entera por una pagina colgada.
-"""
-
 from __future__ import annotations
 
 import io
@@ -37,7 +30,6 @@ def _http(codigo: int) -> urllib.error.HTTPError:
 
 @pytest.fixture
 def llamadas(monkeypatch):
-    """Sustituye la red por una secuencia de resultados y cuenta las llamadas."""
     monkeypatch.setenv("GEMINI_API_KEY", "llave-de-prueba")
     monkeypatch.setattr(gemini.time, "sleep", lambda _s: None)
     registro: list[object] = []
@@ -76,7 +68,6 @@ def test_un_error_pasajero_de_gemini_se_reintenta(llamadas):
 
 
 def test_una_llave_invalida_no_se_reintenta(llamadas):
-    """Repetir un 403 no lo arregla: solo retrasa el mensaje que dice por que."""
     registro = llamadas(_http(403))
 
     with pytest.raises(PercepcionFallida, match="403"):

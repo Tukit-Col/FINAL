@@ -1,13 +1,3 @@
-"""La lectura aceptada de una lista se guarda y se reaprovecha (ADR 0047).
-
-Se cuentan las paginas que lee el lector doble: una subida del mismo archivo
-que no las lee es una lectura que salio de la cache. Se fija que el mismo
-archivo se lee una vez, que otro archivo se lee aparte, que un rechazo no se
-guarda, que un cambio de version vuelve a leer, que con Redis caido o lento se
-lee como hoy y se responde igual, y que lo guardado no trae nada de la persona
-ni del hijo.
-"""
-
 from __future__ import annotations
 
 import json
@@ -37,7 +27,6 @@ def _pagina(grados: list[str] | None = None, *, completa: bool = True) -> Pagina
 
 
 class Lector:
-    """El lector doble: cuenta las paginas que lee y devuelve `pagina`."""
 
     def __init__(self) -> None:
         self.lecturas: list[int] = []
@@ -50,7 +39,6 @@ class Lector:
 
 @pytest.fixture()
 def lector() -> Lector:
-    """El lector doble, puesto tambien como puerto de percepcion de la app."""
     lector = Lector()
     app.state.renderizar = lambda _contenido: [b"p1"]
     app.state.leer = lector
@@ -59,7 +47,6 @@ def lector() -> Lector:
 
 @pytest.fixture()
 def leer_guardada(lector):
-    """`percibir_guardada` con el lector doble: la lectura con cache de un archivo."""
 
     async def leer(contenido: bytes) -> Percepcion:
         return await cache_lecturas.percibir_guardada(contenido, lambda archivo: _sin_cache(archivo, lector))
@@ -76,9 +63,6 @@ def redis() -> RedisEnMemoria:
 
 def _sin_cache(contenido: bytes, lector: Lector) -> Percepcion:
     return percibir(contenido, renderizar=lambda _c: [b"p1"], leer=lector)
-
-
-# --- El envoltorio ---------------------------------------------------------
 
 
 async def test_el_mismo_archivo_dos_veces_se_lee_una(leer_guardada, lector, redis):
@@ -192,7 +176,6 @@ async def test_la_duracion_es_de_treinta_dias_y_se_configura(leer_guardada, lect
     monkeypatch.setenv("TUKIT_CACHE_PERCEPCION_SEGUNDOS", "3600")
     await leer_guardada(b"%PDF-b")
 
-    # Los 30 dias son el contrato de la ADR 0047, no un detalle del codigo.
     assert redis.vence_en("tukit:" + cache_lecturas.clave(b"%PDF-a")) == pytest.approx(30 * 24 * 3600, abs=5)
     assert redis.vence_en("tukit:" + cache_lecturas.clave(b"%PDF-b")) == pytest.approx(3600, abs=5)
 
@@ -214,9 +197,6 @@ async def test_un_valor_ilegible_cuenta_como_no_guardado(leer_guardada, lector, 
 
     assert lector.lecturas == [1]
     assert percepcion.aceptada
-
-
-# --- Por las dos rutas -----------------------------------------------------
 
 
 class Catalogo:

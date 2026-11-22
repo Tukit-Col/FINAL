@@ -1,17 +1,3 @@
-"""Las migraciones de Alembic de Inteligencia, contra SQLite.
-
-La suite crea las tablas con `create_all`; estas pruebas cubren el otro lado:
-que la MIGRACION, la que corre contra Postgres, haga lo que el modelo declara.
-
-`canonico_de_lista` devuelve a su lista los canonicos que eran el kit de un
-papa. Hasta que aprobar el trabajo de un acudiente dejo de fijarlo como canonico, cada
-aprobacion en la cola de revision reemplazaba el puntero del grado por el kit de
-ese papa, con sus preferencias. La migracion apunta esos grados al ultimo
-`canonico_lista` publicado de su (colegio, grado, anio); un grado sin canonico
-de lista se queda como esta, porque quitarle el puntero lo dejaria sin ruta
-rapida. Corre sobre SQLite con las tablas del modelo.
-"""
-
 from __future__ import annotations
 
 import importlib.util
@@ -98,7 +84,6 @@ def test_el_grado_vuelve_al_ultimo_canonico_de_su_lista():
             grado="Primero",
             hace_dias=3,
         )
-        # Uno en revision no cuenta: no esta publicado.
         _trabajo(
             conexion,
             origen="canonico_lista",
@@ -107,7 +92,6 @@ def test_el_grado_vuelve_al_ultimo_canonico_de_su_lista():
             grado="Primero",
             hace_dias=1,
         )
-        # Ni uno de otro grado.
         _trabajo(
             conexion,
             origen="canonico_lista",
@@ -162,7 +146,6 @@ def test_un_canonico_de_lista_no_se_toca():
             grado="Primero",
             hace_dias=5,
         )
-        # Hay uno mas nuevo, pero el puntero ya es de lista: lo decidio quien lo fijo.
         _trabajo(
             conexion,
             origen="canonico_lista",
@@ -177,17 +160,6 @@ def test_un_canonico_de_lista_no_se_toca():
             revision.upgrade()
 
         assert _puntero(conexion, COLEGIO, "Primero") == actual
-
-
-# --- importacion_lista (ADR 0040) -----------------------------------------------------------------
-
-
-# La migracion de `importacion_lista` va y vuelve en SQLite (ADR 0040).
-#
-# La suite crea las tablas con `create_all`, asi que la tabla nueva aparece sola
-# en las demas pruebas; esta cubre el otro lado: que la MIGRACION, la que corre
-# contra Postgres, cree la tabla que el modelo declara y que el downgrade la
-# quite. La tabla no tiene llaves foraneas, asi que basta una base vacia.
 
 
 _REVISION_IMPORTACION = _VERSIONES / "20261019_1200_importacion_lista.py"

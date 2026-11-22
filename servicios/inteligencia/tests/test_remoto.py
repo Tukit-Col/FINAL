@@ -1,10 +1,3 @@
-"""Los clientes HTTP hacia los otros servicios (`remoto.py`).
-
-`ClienteIdentidad.tiene_credencial` falla cerrada: un 404 de Identidad no es
-"sin clave" (abriria el kit de una cuenta con clave) sino una Identidad que no
-tiene esa ruta desplegada, y el mensaje debe decirlo.
-"""
-
 from __future__ import annotations
 
 import httpx

@@ -1,20 +1,3 @@
-"""Herramientas de linea de comandos del servicio de Inteligencia.
-
-    python -m tukit_inteligencia parsear "Diccionario: el disponible en casa"
-    python -m tukit_inteligencia percibir lista.pdf
-    python -m tukit_inteligencia esquema
-
-El emparejamiento contra la base curada no vive aqui. Catalogo es otro
-servicio y este no lo importa: el ensayo que los junta esta en
-`ensayos/fase1.py`, y en produccion va por HTTP (ver `remoto.py`).
-
-`esquema` es un subcomando y no el `python -m tukit_<servicio>` pelado que
-usan Identidad y Catalogo, porque este modulo ya tenia una interfaz de
-comandos antes de que el servicio tuviera tablas. Romperla para ganar
-uniformidad habria costado mas que la uniformidad; el ejecutor de tareas lo
-invoca con el subcomando y la diferencia queda en una linea del Makefile.
-"""
-
 from __future__ import annotations
 
 import argparse

@@ -1,16 +1,3 @@
-"""tabla kit_canonico
-
-Revision: 5c1e8b7d2a64
-Anterior: 9a4b7c2e1d05
-Fecha:    2026-09-28 19:00:00.000000+00:00
-
-Por que este cambio: el modelo `KitCanonico` (el puntero a los kits benditos de
-un colegio, grado y anio) se agrego sin su revision. `create_all` lo creaba,
-pero una base levantada con `make backend` pasa por las migraciones y se
-quedaba sin la tabla: `/v1/grados-canonicos` respondia 500 y la pantalla de
-Empezar del acudiente no cargaba. `make bd-deriva` lo marcaba como `add_table`.
-"""
-
 from __future__ import annotations
 
 from collections.abc import Sequence

@@ -1,21 +1,3 @@
-"""Validar una linea y marcarla sin coincidencia, sin 500 y sin cobrar huecos.
-
-Arreglos rescatados de la rama preview-kits (su cola y su vista previa no):
-
-- Validar una linea AMBIGUO daba 500. La ruta lenta deja `candidato_item_id`
-  nulo en todo lo que no es RESUELTO_AUTO; validar sin `sku` escribia
-  RESUELTO_AUTO sin candidato y el CHECK `resolucion_resuelta_tiene_candidato`
-  reventaba. Ahora se valida el producto que la linea tiene en el kit
-  (registrandolo como candidato si no lo era) y, sin producto, se responde 422
-  con `campo`.
-- Un `sku` que no era candidato validaba OTRO producto en silencio.
-- "Sin coincidencia" dejaba el producto y el precio en las lineas: `ordenar` lo
-  cobraba aunque el acudiente lo viera como hueco.
-- La nota de validar (`nota` en el contrato TS) se perdia.
-
-Todo corre sobre el SQLite en memoria y un catalogo en memoria (sin red).
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -34,8 +16,6 @@ CARTUCHERA = "1 cartuchera"
 
 
 def _catalogo(version_id: str, *, ambiguo: bool = True, precios: bool = True) -> CatalogoPreview:
-    """Una version sin revisar: el cuaderno se resuelve solo y la cartuchera
-    queda AMBIGUO (parecido 0.5 < tau), que es el caso del 500."""
     precio = (lambda p: p) if precios else (lambda _p: None)
     return CatalogoPreview(
         version_vigente=version_id,
@@ -64,7 +44,6 @@ def _catalogo(version_id: str, *, ambiguo: bool = True, precios: bool = True) ->
 
 
 async def _preview(motor, catalogo: CatalogoPreview, version_id: str) -> uuid.UUID:
-    """Arma el preview igual que `POST /v1/admin/onboarding/{id}/preview`."""
     respuesta = await trabajos.crear(
         motor,
         hijos=[
@@ -142,11 +121,6 @@ async def cliente(motor):
         yield http
 
 
-# ---------------------------------------------------------------------------
-# Validar sin 500
-# ---------------------------------------------------------------------------
-
-
 class TestValidarLinea:
     async def test_validar_ambiguo_sin_candidato_resuelve_con_el_producto_del_kit(self, motor, version_id):
         catalogo = _catalogo(version_id)
@@ -154,7 +128,7 @@ class TestValidarLinea:
         item_id = await _item(motor, trabajo_id, 2)
         antes, _, _ = await _resolucion(motor, item_id)
         assert antes.estado == EstadoResolucion.AMBIGUO.value
-        assert antes.candidato_item_id is None  # el origen del 500
+        assert antes.candidato_item_id is None
         esperado = await _sku_recomendado(motor, trabajo_id, item_id)
 
         respuesta = await trabajos.decidir_linea(
@@ -166,14 +140,11 @@ class TestValidarLinea:
         assert fila.estado == EstadoResolucion.RESUELTO_AUTO.value
         assert sku == esperado
         assert fila.decidido_en is not None
-        # Los kits dejan de mostrar la linea como pendiente.
         assert estados_linea == {EstadoResolucion.RESUELTO_AUTO.value}
         vista = await trabajos.ver(motor, trabajo_id, incluir_kits=True, incluir_admin=True)
         assert str(item_id) not in vista["lineas_pendientes"]
 
     async def test_un_sku_que_no_era_candidato_se_registra_y_se_valida(self, motor, version_id):
-        # El personaje del Fan o un producto fijado por kit no son candidatos del
-        # item; validarlos es legitimo y no debe tropezar con el CHECK.
         catalogo = _catalogo(version_id)
         catalogo.respuestas["otro"] = reconocido("otro", "C099", [opcion("TK-FAN-1", "confiable", 9900)])
         trabajo_id = await _preview(motor, catalogo, version_id)
@@ -207,7 +178,7 @@ class TestValidarLinea:
                 catalogo=catalogo,
             )
         fila, _, _ = await _resolucion(motor, item_id)
-        assert fila.estado == EstadoResolucion.AMBIGUO.value  # nada se escribio
+        assert fila.estado == EstadoResolucion.AMBIGUO.value
 
     async def test_marcar_sin_coincidencia_tambien_actualiza_las_lineas(self, motor, version_id):
         catalogo = _catalogo(version_id)
@@ -223,8 +194,6 @@ class TestValidarLinea:
         assert estados_linea == {EstadoResolucion.HUECO_CATALOGO.value}
 
     async def test_sin_coincidencia_quita_el_producto_y_baja_el_total(self, motor, version_id):
-        # "No lo tenemos" no se puede cobrar: `ordenar` cobra toda linea con sku
-        # y precio, asi que la linea tiene que quedar vacia en todos los kits.
         catalogo = _catalogo(version_id)
         trabajo_id = await _preview(motor, catalogo, version_id)
         item_id = await _item(motor, trabajo_id, 2)
@@ -247,7 +216,6 @@ class TestValidarLinea:
                     select(trabajos.LINEA).where(trabajos.LINEA.c.item_crudo_id == item_id)
                 )
             )
-        # Sin personaje ni `equilibrio`, el preview trae Ahorrador y Premium (ADR 0030).
         assert len(lineas) == len(antes["kits"]) == 2
         assert all(
             linea.sku is None and linea.precio_unitario_cop is None and linea.subtotal_cop is None
@@ -272,7 +240,6 @@ class TestValidarPorApi:
         assert respuesta.json()["estado"] == EstadoResolucion.RESUELTO_AUTO.value
 
     async def test_lote_valida_el_elegido_que_manda_la_consola(self, motor, cliente, version_id):
-        # "Confirmar las N elegidas" manda el sku que cada linea muestra.
         catalogo = _catalogo(version_id)
         app.state.catalogo = catalogo
         trabajo_id = await _preview(motor, catalogo, version_id)
@@ -288,8 +255,6 @@ class TestValidarPorApi:
         assert sku == elegido
 
     async def test_la_nota_de_validar_queda_en_la_transicion(self, motor, cliente, version_id):
-        # El contrato TS manda `nota`; antes el backend solo leia `motivo` y la
-        # nota del revisor se perdia sin error.
         catalogo = _catalogo(version_id)
         app.state.catalogo = catalogo
         trabajo_id = await _preview(motor, catalogo, version_id)
@@ -328,8 +293,6 @@ class TestValidarPorApi:
         assert cuerpo["mensaje"]
 
     async def test_linea_sin_producto_en_el_kit_es_422(self, motor, cliente, version_id):
-        # Sin precios no hay producto en la LINEA y la resolucion no apunta a
-        # nada: validar "el elegido" no tiene que confirmar.
         catalogo = _catalogo(version_id)
         catalogo.respuestas[CARTUCHERA]["opciones"] = []
         catalogo.respuestas[CARTUCHERA]["estado"] = "sin_match"

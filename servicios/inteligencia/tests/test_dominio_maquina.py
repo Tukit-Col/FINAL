@@ -1,16 +1,3 @@
-"""La maquina de estados del trabajo, como tabla, exhaustiva.
-
-`puede_pasar` decide si un `409` procede al revisar un trabajo ya publicado. La
-regla vive como dato (`TRANSICIONES`), no como cadena de `if`; esta prueba fija
-CADA par (estado, siguiente) de los 6 estados —36 celdas— para que ningun
-cambio a la tabla pase inadvertido: PUBLICADO solo sale a CANCELADO, el terminal
-CANCELADO (nada sale, ADR 0031), el retry FALLIDO->ENCOLADO, y el reproceso
-ESPERA_REVISION->PROCESANDO que el rechazo de una revision usa.
-
-Se prueba sobre `dominio.maquina`, que es el nombre unico por el que ADR 0019
-expone la maquina; ese modulo reexporta la fuente en `modelos`, no la duplica.
-"""
-
 from __future__ import annotations
 
 import itertools
@@ -19,8 +6,6 @@ import pytest
 from tukit_inteligencia.dominio.maquina import TRANSICIONES, puede_pasar
 from tukit_inteligencia.modelos import EstadoTrabajo
 
-# La verdad esperada, escrita a mano aparte de TRANSICIONES para que la prueba
-# sea un testigo independiente y no un eco de la tabla que valida.
 _PERMITIDAS = {
     ("encolado", "procesando"),
     ("encolado", "fallido"),
@@ -29,10 +14,8 @@ _PERMITIDAS = {
     ("procesando", "publicado"),
     ("espera_revision", "publicado"),
     ("espera_revision", "procesando"),
-    ("espera_revision", "encolado"),  # devolver reencola (ADR 0024: worker durable)
+    ("espera_revision", "encolado"),
     ("fallido", "encolado"),
-    # El acudiente cancela su solicitud desde cualquier estado quieto (ADR 0031);
-    # PROCESANDO no, porque el pipeline esta escribiendo sus kits.
     ("encolado", "cancelado"),
     ("espera_revision", "cancelado"),
     ("publicado", "cancelado"),

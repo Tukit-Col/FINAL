@@ -1,42 +1,18 @@
-"""Los tres kits, ahora sobre un frente de Pareto NSGA-II (OE4).
+"""Los tres kits sobre un frente de Pareto NSGA-II.
 
-**Que cambio y que no.** Este modulo nacio con una heuristica de seleccion por
-perfil ("una regla determinista y leible en una tarde") como andamio para que
-el ciclo completo corriera antes de que cada etapa fuera optima. Ese andamio ya
-cumplio: el contrato esta verificado y las pantallas existen. Lo que hay aqui
-ahora es el optimizador de la tesis —un NSGA-II sobre pymoo que produce un
-frente de Pareto de verdad— y los tres kits son tres proyecciones de ese frente,
-exactamente como la version anterior prometia ("Los tres puntos que devuelve son
-comparables con los que devolveria el frente: mismo vocabulario de objetivos").
-
-El reemplazo se hizo donde el docstring viejo dijo que se haria —en la seleccion
-de candidatos— y **nada mas**. Lo que sigue siendo definitivo porque no depende
-del algoritmo se conserva palabra por palabra:
-
-- La aritmetica de unidades. `unidades_a_comprar = techo(cantidad_pedida /
-  unidades_por_empaque)` es la correccion del defecto que sumaba doce cajas
-  cuando la lista pedia doce lapices, y vale igual con cualquier optimizador.
-- Que el total incluya solo lo que Tukit puede entregar. Una linea informativa
-  se muestra y no se cobra (FU-06).
-- La regla de recomendacion de la seccion 6 del contrato, que sale de la
-  encuesta y no del algoritmo. **El presupuesto es una cota que se aplica
-  DESPUES del frente, no dentro**: un frente de Pareto no debe esconder un kit
-  valido por caro, sino ofrecerlo para que la capa de recomendacion elija con
-  su explicacion (§6). Meter el presupuesto como restriccion del NSGA-II
-  recortaria el frente. En cambio, el kit `A tu Medida` toma del frente ya
-  calculado la mejor marca que cabe en el tope (`_armar_a_tu_medida`).
-
-**pymoo es dependencia dura.** No hay ruta "sin pymoo": si falta, el servicio no
-arranca (el import esta arriba, sin `try`). La version anterior degradaba a la
-heuristica cuando pymoo no estaba, pero esa degradacion silenciosa servia kits
-que no eran los del algoritmo sin avisar; fallar ruidoso en el arranque es mas
-honesto que mentir en tiempo de ejecucion.
-
-**Donde sigue viva la heuristica.** `elegir_por_perfil` NO desaparece, pero su
-papel es acotado: (1) la linea de un unico candidato admisible, donde no hay
-compromiso multiobjetivo que optimizar y el frente devolveria ese mismo unico
-punto; y (2) la referencia contra la que la prueba de hipervolumen mide el
-frente (NSGA-II no puede hacerlo peor). Nunca es el plan B de "pymoo no esta".
+Decisiones:
+- Se calcula un solo frente de Pareto y cada kit es una proyeccion suya, asi que son comparables
+  entre si. Si no hay compromiso que optimizar (ninguna linea decidible o todas con un candidato)
+  se cae a la heuristica, que da el mismo kit.
+- pymoo es dependencia dura: si falta, el servicio no arranca. Degradar en silencio serviria kits
+  que no son los del algoritmo.
+- `elegir_por_perfil` queda para la linea de un unico candidato y como referencia de la prueba de
+  hipervolumen; nunca es el plan B de una falta de pymoo.
+- Los filtros duros del acudiente (marcas excluidas, solo disponibles) se aplican a los candidatos
+  antes del frente, no como un peso. El presupuesto es una cota que se aplica despues del frente:
+  un frente recortado esconderia opciones validas.
+- `unidades_a_comprar` es techo(cantidad pedida / unidades por empaque) y el total incluye solo lo
+  que Tukit puede entregar: una linea informativa se muestra y no se cobra.
 """
 
 from __future__ import annotations

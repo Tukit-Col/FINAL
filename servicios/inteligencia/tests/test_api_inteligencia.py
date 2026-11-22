@@ -1,15 +1,3 @@
-"""La superficie HTTP del recurso `trabajo`, contra el contrato.
-
-Se prueba con `ASGITransport` y no levantando uvicorn: la app se llama en el
-mismo proceso, sin puerto y sin red. El motor se le inyecta a mano en
-`app.state` porque el arranque normal abriria una conexion a Postgres, y una
-suite que necesita un motor vivo se termina saltando.
-
-Lo que se comprueba es lo que el frontend lee del contrato: los codigos de
-estado, la forma del sobre de error y que `kits` venga vacio mientras el
-trabajo no este publicado.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -28,13 +16,6 @@ PADRE_ID = "22222222-2222-5222-8222-222222222222"
 
 @pytest.fixture()
 async def cliente(motor, monkeypatch):
-    """Cliente HTTP contra la app, con el motor de prueba y sin tarea de fondo.
-
-    `lanzar` se sustituye a proposito: el contrato dice que crear devuelve
-    202 y encola, y lo que aqui se prueba es el 202. Que el pipeline corra se
-    prueba en `test_trabajos.py`, llamando a `procesar` de frente, que es mas
-    honesto que esperar a una tarea de fondo con un `sleep`.
-    """
     app.state.motor = motor
     lanzados: list[uuid.UUID] = []
 
@@ -42,10 +23,7 @@ async def cliente(motor, monkeypatch):
         lanzados.append(trabajo_id)
 
     monkeypatch.setattr(trabajos, "lanzar", _lanzar_falso)
-    # Crear pregunta al catalogo si hay lista: nunca al de verdad.
     app.state.catalogo = _catalogo()
-    # Sin esto una prueba que crea con correo registraria el contacto en la
-    # identidad real del equipo si esta levantada, y heredaria el doble de otra.
     app.state.identidad = IdentidadDoble()
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://prueba") as http:
         http.lanzados = lanzados
@@ -55,12 +33,10 @@ async def cliente(motor, monkeypatch):
 
 
 class IdentidadDoble:
-    """Doble de Identidad: resuelve tokens y anota si se registro un contacto."""
 
     def __init__(self) -> None:
         self.usuario_por_token: dict[str, str] = {}
         self.contactos: list[str] = []
-        # Los usuarios con clave real: el resto son contactos sin credencial.
         self.con_clave: set[str] = set()
 
     async def usuario_del_token(self, token: str) -> str | None:
@@ -88,7 +64,6 @@ def _peticion(**kw):
 
 
 async def _crear_del_acudiente(cliente, motor, token: str = "tok-acud") -> uuid.UUID:
-    """Un trabajo procesado cuyo dueno es un acudiente CON clave y sesion."""
     identidad = app.state.identidad
     identidad.usuario_por_token[token] = PADRE_ID
     identidad.con_clave.add(PADRE_ID)
@@ -113,7 +88,6 @@ class TestCrearDevuelve202:
         assert cliente.lanzados == [uuid.UUID(cuerpo["trabajo_id"])]
 
     async def test_el_apodo_de_cada_hijo_se_guarda_y_el_get_lo_devuelve(self, cliente):
-        """El kit nombra a cada hermano con su apodo; los espacios se recortan."""
         creado = await cliente.post(
             "/v1/trabajos",
             json=_peticion(
@@ -128,7 +102,6 @@ class TestCrearDevuelve202:
         assert [h.get("apodo") for h in vista["hijos"]] == ["Sofía", "Lucía"]
 
     async def test_la_vista_admin_no_trae_el_apodo_y_la_del_dueno_si(self, cliente):
-        """Ley 1581: la consola interna nunca recibe el apodo de un menor."""
         creado = await cliente.post(
             "/v1/trabajos",
             json=_peticion(
@@ -167,8 +140,6 @@ class TestCrearDevuelve202:
         assert respuesta.status_code in (400, 422)
 
     async def test_dos_hijos_con_la_misma_referencia_se_rechazan(self, cliente):
-        """Es con la referencia con la que se agrupan las lineas: repetida,
-        los dos hermanos se mezclarian en la misma columna del kit."""
         respuesta = await cliente.post(
             "/v1/trabajos",
             json=_peticion(
@@ -192,8 +163,6 @@ class TestCrearDevuelve202:
         assert cuerpo["campo"] == "preferencias.pesos"
 
     async def test_el_error_de_validacion_no_devuelve_lo_que_se_envio(self, cliente):
-        """El manejador del sistema anterior le devolvia al cliente la
-        contrasena recibida. El sobre dice DONDE fallo y nada mas."""
         respuesta = await cliente.post("/v1/trabajos", json={"hijos": []})
 
         assert respuesta.status_code == 400
@@ -204,8 +173,6 @@ class TestCrearDevuelve202:
 
 
 class TestSinListaSeRechazaAlCrear:
-    """H-C-03: sin lista para ningun hijo el trabajo nacia con 202 y fallaba
-    1,7 s despues con `sin_lista_oficial`. Ahora se dice en el acto."""
 
     async def test_ningun_hijo_con_lista_es_422_y_no_encola(self, cliente):
         respuesta = await cliente.post(
@@ -248,9 +215,6 @@ class TestSinListaSeRechazaAlCrear:
 
 
 class TestLaSesionEsLaProdiedad:
-    """Un acudiente autenticado (Bearer) es dueño de su trabajo por su
-    usuario_id de sesion, sin re-registrar contacto. Es la traza que hace que
-    su kit no quede huerfano cuando /empezar deja de mandar el contacto."""
 
     async def test_crear_con_bearer_usa_el_usuario_de_sesion(self, cliente, motor):
         identidad = IdentidadDoble()
@@ -269,14 +233,12 @@ class TestLaSesionEsLaProdiedad:
 
         admin = (await cliente.get(f"/v1/admin/trabajos/{trabajo_id}")).json()
         assert admin["contacto_id"] == "22222222-2222-5222-8222-222222222222"
-        assert identidad.contactos == []  # no se re-registro contacto
+        assert identidad.contactos == []
 
     async def test_aplicar_canonico_con_bearer_usa_el_usuario_de_sesion(self, cliente):
         identidad = IdentidadDoble()
         identidad.usuario_por_token["tok-acud"] = "33333333-3333-5333-8333-333333333333"
         app.state.identidad = identidad
-        # Sin cache publicada la ruta responde 404, pero el token ya se resolvio
-        # antes de tocar la cache: basta con que no explote la resolucion.
         respuesta = await cliente.post(
             "/v1/trabajos/aplicar-canonico",
             json={"colegio_id": COLEGIO, "grado": "Cuarto", "anio_lectivo": 2026, "perfil": "Ahorrador"},
@@ -299,8 +261,6 @@ class TestLaSesionEsLaProdiedad:
 
 
 class TestMisTrabajos:
-    """El panel del acudiente: `GET /v1/trabajos` con Bearer devuelve SUS
-    solicitudes de kit —no las de otro, y un anonimo no ve ninguna."""
 
     async def test_devuelve_los_del_acudiente_con_hijos_y_preferencias(self, cliente):
         identidad = IdentidadDoble()
@@ -371,13 +331,6 @@ class TestConsultar:
         assert len(admin["kits"]) == 2
 
     async def test_el_admin_ve_los_campos_de_consola_y_el_acudiente_no(self, cliente, motor):
-        """La consola necesita `recibido_en`, `contacto_id` y
-        `lineas_pendientes` para dibujar la cabecera del trabajo; sin ellos
-        el detalle se cae (`Cannot read properties of undefined`).
-
-        La asimetria es a proposito: `contacto_id` nunca viaja en la vista
-        del acudiente, porque reintroduciria a mano la referencia que la
-        notificacion resuelve al vuelo (frontera de `identidad`)."""
         trabajo_id = await _crear_del_acudiente(cliente, motor)
 
         admin = (await cliente.get(f"/v1/admin/trabajos/{trabajo_id}")).json()
@@ -393,9 +346,6 @@ class TestConsultar:
 
 
 class TestQuienLeeUnTrabajo:
-    """H4 del control de calidad: el id del trabajo viaja en enlaces, asi que no
-    basta para leer el kit de una cuenta con clave. Un contacto sin clave (ruta
-    rapida) no puede iniciar sesion y entra por el enlace del correo."""
 
     OTRO_ID = "33333333-3333-5333-8333-333333333333"
     STAFF_ID = "55555555-5555-5555-8555-555555555555"
@@ -443,8 +393,6 @@ class TestQuienLeeUnTrabajo:
         assert respuesta.status_code == 401
 
     async def test_dueno_contacto_sin_clave_lee_por_id(self, cliente, motor):
-        """Crear con correo registra un contacto sin credencial: es el padre de la
-        ruta rapida que abre el kit desde el enlace del correo."""
         creado = (await cliente.post("/v1/trabajos", json=_peticion())).json()
         trabajo_id = uuid.UUID(creado["trabajo_id"])
         assert app.state.identidad.contactos == ["papa@ejemplo.com"]

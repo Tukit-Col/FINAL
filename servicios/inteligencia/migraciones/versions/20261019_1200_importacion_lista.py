@@ -1,16 +1,3 @@
-"""tabla importacion_lista
-
-Revision: 6a2f8c4e1d57
-Anterior: 9e3a5f7b2c41
-Fecha:    2026-10-19 12:00:00.000000+00:00
-
-Por que este cambio: con el catalogo caido, `POST /v1/listas/subir` respondia
-500 y la lista ya percibida se perdia (H-B-01). La subida deja ahora lo
-percibido en `importacion_lista` antes de llamar al catalogo; si el catalogo no
-responde, la fila queda `pendiente` y el trabajador la importa cuando vuelve,
-con una clave de idempotencia por subida y destino (ADR 0040).
-"""
-
 from __future__ import annotations
 
 from collections.abc import Sequence

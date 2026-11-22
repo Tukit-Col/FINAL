@@ -1,18 +1,3 @@
-"""La supresion del titular en Inteligencia (Ley 1581, ADR 0048).
-
-`titular_suprimido` llega por `inteligencia.supresion`. Lo que Inteligencia
-guarda del titular y se borra:
-
-- `trabajo_pipeline.preferencias_cifradas` (pesos y presupuesto del hogar,
-  derivados de la encuesta socioeconomica) y `kit.pesos_usados_cifrados`;
-- en `importacion_lista`, el archivo que subio (`documento`: PDF o foto) y lo
-  percibido de el (`carga`). Una pendiente deja de importarse: queda `fallida`
-  con su diagnostico.
-
-Se conservan el kit, sus lineas y su total, y el texto de los renglones de la
-lista (`item_crudo.texto`), que es la lista del colegio y no un dato del titular.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -93,7 +78,6 @@ async def test_borra_preferencias_y_archivo_subido_y_conserva_el_kit(motor):
         assert importacion.documento is None
         assert importacion.carga is None
         assert importacion.contacto_referencia is None
-        # Una pendiente ya no se importa: no queda archivo que mandar.
         assert importacion.estado == "fallida"
         assert importacion.error == "titular_suprimido"
 
@@ -170,5 +154,4 @@ async def test_borra_los_apodos_de_subidas_pendientes(motor):
 
     assert await Supresor(motor).manejar(_evento()) is Resultado.HECHO
     assert await apodos_subida.cuantos_de(motor, str(TITULAR)) == 0
-    # Los de otro titular no se tocan.
     assert await apodos_subida.apodos_de(motor, version_otro) == {"hijo-1": "Ana"}

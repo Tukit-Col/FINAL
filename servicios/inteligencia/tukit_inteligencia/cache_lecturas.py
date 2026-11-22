@@ -1,24 +1,15 @@
-"""La lectura aceptada de una lista, guardada en Redis (ADR 0047).
+"""La lectura aceptada de una lista, guardada en Redis.
 
-Leer una lista cuesta una llamada a Gemini por pagina, y las familias de un
-mismo colegio suben el mismo PDF. La lectura aceptada se guarda con la huella
-SHA-256 del archivo y una version de la percepcion, y la siguiente subida del
-mismo archivo la reaprovecha. Lo que viene despues (el cruce con el catalogo y
-los precios) se recalcula siempre: la reverificacion de precio (ESC-10) no
-cambia.
-
-**La version** ata la lectura a lo que la produjo: los bytes de `paginas.py` (el
-render), `gemini.py` (el prompt, el esquema y la validacion) y `percepcion.py`
-(las reglas de grados, paginas y rechazos), la version de pypdfium2 y el modelo
-efectivo. Cualquier cambio en esas piezas, aunque sea un comentario, vuelve a
-leer: se prefiere una lectura de mas a una lectura vieja.
-
-**El valor** son los `grados`, las `paginas` y los `items` de la `Percepcion`,
-que es todo lo que trae una aceptada: ni el archivo, ni la cuenta, ni el
-contacto, ni el hijo, que viven en la ruta. Los rechazos no se guardan: un
-archivo ilegible hoy puede leerse con el modelo de manana.
-
-Sin Redis, o si no responde, se lee como antes de que hubiera cache.
+Decisiones:
+- Leer una lista cuesta una llamada a Gemini por pagina y las familias de un colegio suben el mismo
+  PDF: la lectura aceptada se guarda con la huella SHA-256 del archivo y una version de la
+  percepcion. El cruce con el catalogo y los precios se recalcula siempre.
+- La version ata la lectura a lo que la produjo (render, prompt y validacion, reglas de percepcion,
+  version de pypdfium2 y modelo efectivo): cualquier cambio vuelve a leer, porque se prefiere una
+  lectura de mas a una lectura vieja.
+- Se guardan solo `grados`, `paginas` e `items`; ni el archivo, ni la cuenta, ni el contacto, ni el
+  hijo. Los rechazos no se guardan.
+- Sin Redis, o si no responde, se lee como si no hubiera cache.
 """
 
 from __future__ import annotations
@@ -37,15 +28,12 @@ from . import gemini
 from .percepcion import ItemExtraido, Percepcion
 
 USO = "percepcion"
-# 30 dias: una lista escolar vale un anio lectivo, y un mes cubre la temporada
-# de compras sin que una lectura viva para siempre.
 TTL_POR_OMISION = 30 * 24 * 3600
 _PIEZAS = ("paginas.py", "gemini.py", "percepcion.py")
 
 
 @functools.cache
 def _huella_del_codigo() -> str:
-    """El SHA-256 de las piezas que deciden como se lee y de la version de pypdfium2."""
     huella = hashlib.sha256()
     carpeta = Path(__file__).parent
     for nombre in _PIEZAS:
@@ -59,12 +47,10 @@ def _huella_del_codigo() -> str:
 
 
 def version() -> str:
-    """La version de la percepcion: el codigo que lee y el modelo con que lee."""
     return hashlib.sha256(f"{_huella_del_codigo()}:{gemini.modelo()}".encode()).hexdigest()[:16]
 
 
 def clave(contenido: bytes) -> str:
-    """La clave de la lectura de `contenido`, sin el prefijo del cliente."""
     return f"{USO}:{version()}:{hashlib.sha256(contenido).hexdigest()}"
 
 
@@ -78,7 +64,6 @@ def a_bytes(percepcion: Percepcion) -> bytes:
 
 
 def de_bytes(valor: bytes) -> Percepcion | None:
-    """La `Percepcion` aceptada guardada en `valor`, o `None` si no se puede leer."""
     try:
         datos = json.loads(valor)
         return Percepcion(
@@ -92,8 +77,6 @@ def de_bytes(valor: bytes) -> Percepcion | None:
 
 
 async def percibir_guardada(contenido: bytes, percibir: Callable[[bytes], Percepcion]) -> Percepcion:
-    """La lectura de `contenido`: la guardada si la hay, y si no la de `percibir`,
-    que se guarda si fue aceptada."""
     ttl = entero_de_entorno("TUKIT_CACHE_PERCEPCION_SEGUNDOS", TTL_POR_OMISION)
     if not contenido or ttl <= 0:
         return percibir(contenido)

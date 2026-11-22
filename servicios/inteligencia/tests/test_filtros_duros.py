@@ -1,12 +1,3 @@
-"""Los filtros duros del asistente NL2C llegan al optimizador (cierra la brecha declarada).
-
-`marcas_excluidas` y `solo_disponibles` se aplican a los candidatos ANTES del
-frente. Lo que se defiende aqui: que la marca excluida no aparece en NINGUN kit,
-que la marca que el colegio exige se respeta aunque el acudiente la haya
-excluido, y que una linea que se queda sin candidatos sale como hueco explicado
-en vez de rellenarse con lo prohibido.
-"""
-
 from __future__ import annotations
 
 import pytest
@@ -58,7 +49,6 @@ def _skus_elegidos(kits) -> set[str]:
 class TestMarcasExcluidas:
     def test_la_marca_no_sale_en_ningun_kit_ni_sus_alternativas(self):
         renglones = [_reng(1, "cuaderno", CUADERNOS), _reng(2, "lapices", LAPICES)]
-        # Sin filtro, Faber-Castell si aparece: el filtro es lo que la saca.
         assert {"F", "L1"} & _skus_elegidos(armar_los_tres(renglones))
 
         kits = armar_los_tres(renglones, {"marcas_excluidas": ["faber-castell"]})
@@ -88,7 +78,6 @@ class TestMarcasExcluidas:
     def test_la_marca_que_exige_el_colegio_se_conserva_y_se_explica(self):
         renglones = [_reng(1, "Cuaderno Norma cuadriculado", CUADERNOS)]
         r = aplicar_filtros_duros(renglones, {"marcas_excluidas": ["Norma", "Pelikan"]})
-        # Norma se queda (la pide la lista); Pelikan, que nadie exige, se va.
         assert [x.sku for x in r[0].candidatos] == ["N", "F"]
         assert "El colegio pide Norma" in (r[0].mensaje or "")
 
@@ -106,7 +95,6 @@ class TestMarcasExcluidas:
             assert colores.elegido is None and colores.subtotal_cop is None
             assert colores.estado_resolucion == "HUECO_CATALOGO"
             assert "Faber Castell" in (colores.mensaje or "")
-            # El hueco no se cobra: el total es solo lo que si hay.
             assert kit.total_cop == sum(li.subtotal_cop or 0 for li in kit.lineas)
 
     def test_sin_filtros_devuelve_los_mismos_renglones(self):
@@ -152,7 +140,6 @@ class TestSoloDisponibles:
         assert "precio vigente" in (linea.mensaje or "")
 
     def test_la_exencion_de_marca_exigida_no_salta_la_disponibilidad(self):
-        # La marca exigida no se quita, pero un producto sin oferta tampoco se ofrece.
         c = (_cand("N", "economico", None, "Norma"), _cand("N2", "confiable", 4000, "Norma"))
         r = aplicar_filtros_duros(
             [_reng(1, "Cuaderno Norma", c)], {"marcas_excluidas": ["Norma"], "solo_disponibles": True}
@@ -160,8 +147,6 @@ class TestSoloDisponibles:
         assert [x.sku for x in r[0].candidatos] == ["N2"]
 
     def test_no_dice_que_conserva_la_exigida_si_solo_quedo_otra_marca(self):
-        # La Norma exigida no tiene precio hoy: el kit llevara otra marca, y la
-        # nota "no la quitamos" seria falsa.
         c = (_cand("N", "economico", None, "Norma"), _cand("B", "confiable", 100, "Otra"))
         r = aplicar_filtros_duros(
             [_reng(1, "Cuaderno Norma 100 hojas", c)],
@@ -191,7 +176,6 @@ class TestLecturaDefensiva:
         assert len(f.marcas_excluidas[0][1]) == 40
 
 
-# --- De punta a punta: HTTP -> preferencias guardadas -> pipeline -> kits ----
 COLEGIO = "11111111-1111-5111-8111-111111111111"
 
 
@@ -207,7 +191,6 @@ def _catalogo_con_marcas():
                     opcion("F", "premium", 9000, marca="Faber-Castell"),
                 ],
             ),
-            # Solo una marca: al excluirla la linea queda como hueco explicado.
             "colores x12": reconocido(
                 "colores x12", "C004", [opcion("CF", "confiable", 24900, marca="Faber Castell")]
             ),

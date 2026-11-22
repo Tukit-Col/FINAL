@@ -1,12 +1,3 @@
-"""La entrega del checkout tal como Inteligencia la reenvia a Comercio.
-
-El navegador manda la direccion en `POST /v1/trabajos/{id}/ordenar` y aqui solo
-se valida y se pasa: la copia congelada vive en Comercio (ADR 0015). Se fija que
-los campos opcionales del checkout (localidad, indicaciones,
-departamento) lleguen, y que sin ellos el cuerpo sea el de siempre
-(un `None` de mas haria que Comercio viera otra entrega).
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -79,7 +70,6 @@ async def test_un_pin_incompleto_o_fuera_de_colombia_no_llega_a_comercio(cliente
 
 
 async def test_un_campo_desconocido_no_cruza(cliente_y_entregas):
-    # Solo cruzan `latitud`/`longitud` (ADR 0049); un `lat`/`lng` inventado no.
     cliente, entregas = cliente_y_entregas
     respuesta = await cliente.post(
         f"/v1/trabajos/{TRABAJO}/ordenar", json=_cuerpo({**ENTREGA_MINIMA, "lat": 4.65, "lng": -74.05})

@@ -1,12 +1,3 @@
-"""La lectura guardada con la app de inteligencia y un Redis de verdad (ADR 0047).
-
-Es la prueba de punta a punta de la cache de lecturas: la API que arranca
-`make arriba` no deja cambiar el lector por el doble sin tocar codigo de
-produccion, asi que se corre la app aqui, en el proceso de la prueba, contra el
-Redis de `TUKIT_PRUEBAS_REDIS_URL`. Dos subidas del mismo PDF leen una vez, y lo
-que queda en Redis es la lectura, con su vencimiento, y nada mas.
-"""
-
 from __future__ import annotations
 
 import json
@@ -89,5 +80,5 @@ async def test_dos_subidas_del_mismo_pdf_leen_una_vez_contra_redis(motor):
     (lectura,) = guardado.values()
     assert set(json.loads(lectura.valor)) == {"grados", "paginas", "items"}
     assert CORREO.encode() not in lectura.valor
-    ttl_ms = 30 * 24 * 3600 * 1000  # el contrato de la ADR 0047
+    ttl_ms = 30 * 24 * 3600 * 1000
     assert ttl_ms - 60_000 < lectura.vence_en_ms <= ttl_ms

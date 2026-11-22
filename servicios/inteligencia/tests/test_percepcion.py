@@ -1,11 +1,3 @@
-"""La percepcion lee todo o dice que no pudo. Nunca recorta callada.
-
-El tope de cinco paginas que hubo antes devolvia un kit incompleto con la
-misma forma que uno completo. Estas pruebas existen para que eso no tenga
-por donde volver: el doble de paginas se leen todas, y un archivo con dos
-grados se rechaza con los grados en la mano.
-"""
-
 from __future__ import annotations
 
 import pytest
@@ -88,15 +80,12 @@ class TestUnArchivoEsUnGrado:
         assert normalizar_grado("PRE-JARDIN") == normalizar_grado("Prejardin") == "Prejardin"
 
     def test_n_ano_es_bachillerato_y_no_primaria(self):
-        # Madre Matilde: "1er Año" a "5to Año" es bachillerato. Leerlo como Primero..Quinto
-        # tapaba las listas de primaria del mismo colegio (13-nov).
         assert normalizar_grado("1er Año") == "Septimo"
         assert normalizar_grado("2do año") == "Octavo"
         assert normalizar_grado("3er Año") == "Noveno"
         assert normalizar_grado("4to Año") == "Decimo"
         assert normalizar_grado("5to Año") == "Once"
         assert normalizar_grado("1er. Grado") == "Primero"
-        # Asi lo escribe el modelo: en palabras.
         assert normalizar_grado("Segundo Año") == "Octavo"
         assert normalizar_grado("Primer Año") == "Septimo"
         assert normalizar_grado("Segundo") == "Segundo"

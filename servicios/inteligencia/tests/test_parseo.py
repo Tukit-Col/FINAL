@@ -1,10 +1,3 @@
-"""La fase 1 decide que pidio el colegio antes de buscar un producto.
-
-Los casos son del corpus, no inventados. "Libro para colorear" es papeleria.
-"RAZ-PLUS" se paga afuera. "El disponible en casa" no se compra. Y la
-cantidad de una caja no se suma con la de los lapices que trae adentro.
-"""
-
 from __future__ import annotations
 
 from tukit_inteligencia.parseo import mensaje_para_papa, parsear_renglon
@@ -36,8 +29,6 @@ class TestLoQueNoSeCompraNoSeBusca:
         assert demanda.busca_en_catalogo is False
 
     def test_el_libro_para_colorear_es_papeleria(self):
-        # Cinco redacciones reales. Si alguna cae en `texto`, el pipeline la
-        # manda a buscar ISBN y el papa recibe un libro que no pidio.
         for renglon in (
             "Libro para colorear",
             "Libro pasatiempo",
@@ -70,8 +61,6 @@ class TestLaCantidadNoSeConfundeConElEmpaque:
         assert demanda.unidades_por_empaque is None
 
     def test_la_caja_se_anota_aparte_de_la_cantidad(self):
-        # La lista pide una caja. Que la caja traiga 12 es la presentacion,
-        # y no son 12 cajas. Ese colapso ya le sumo de mas a un papa.
         demanda = parsear_renglon("1 caja de lapices x 12")
 
         assert demanda.cantidad == 1

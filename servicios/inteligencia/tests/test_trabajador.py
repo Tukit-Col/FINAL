@@ -1,19 +1,3 @@
-"""El trabajador durable del pipeline (ADR 0024).
-
-`lanzar` ya no arranca una `asyncio.Task` efimera: solo deja el trabajo
-`encolado` (lo hace `crear`). Un trabajador drena la cola con `SELECT … FOR
-UPDATE SKIP LOCKED` —el mismo mecanismo del outbox—, mueve la fila a
-`procesando` y ejecuta `procesar`. Si el proceso muere a mitad, la fila sigue
-`procesando`/`encolado` y otro worker (o el reinicio) la retoma; no queda
-trabajo perdido, que es el gap que la ADR cierra.
-
-Se fija aqui:
-
-- Una pasada toma un trabajo `encolado`, lo procesa y lo deja publicado.
-- `SKIP LOCKED`: dos pasadas concurrentes no procesan el mismo trabajo dos veces.
-- Un trabajo que quedo `procesando` (crash a mitad) se retoma en la pasada.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -51,8 +35,6 @@ async def test_una_pasada_procesa_un_encolado(motor):
     assert n == 1
     async with motor.engine.begin() as conexion:
         estado = await conexion.scalar(select(TRABAJO.c.estado).where(TRABAJO.c.id == trabajo_id))
-    # Sin contacto/origen, `crear` da un trabajo `colegio_grado`: la ruta rapida
-    # lo deja en revision (kit canonico del grado), no publicado directo.
     assert estado == EstadoTrabajo.ESPERA_REVISION.value
 
 
@@ -61,22 +43,14 @@ async def test_sin_encolados_no_hace_nada(motor):
 
 
 async def test_el_claim_saca_el_trabajo_de_la_cola(motor):
-    # El claim mueve la fila a `procesando` en la MISMA transaccion del SELECT,
-    # asi que una segunda pasada (normal, solo mira `encolado`) ya no lo ve: es
-    # lo que en Postgres el SKIP LOCKED convierte en "dos workers no lo toman a la
-    # vez". Aqui se verifica el efecto observable (la fila sale de la cola) sin
-    # depender del SKIP LOCKED real, que SQLite no implementa.
     await encolar(motor)
     catalogo = catalogo_verificado()
 
     assert await trabajador.pasada(motor, catalogo=catalogo) == 1
-    assert await trabajador.pasada(motor, catalogo=catalogo) == 0  # ya no esta encolado
+    assert await trabajador.pasada(motor, catalogo=catalogo) == 0
 
 
 async def test_no_reclama_lo_que_otro_proceso_va_a_procesar(motor):
-    # El poller y el preview crean el trabajo y lo procesan en el acto. Si
-    # naciera `encolado`, el trabajador podria tomarlo entre el INSERT y ese
-    # `procesar`, y los dos armarian los kits a la vez.
     respuesta = await trabajos.crear(
         motor,
         hijos=[{"referencia": "h1", "colegio_id": COLEGIO, "grado": "Cuarto"}],
@@ -92,8 +66,6 @@ async def test_no_reclama_lo_que_otro_proceso_va_a_procesar(motor):
 
 
 async def test_retoma_un_procesando_colgado(motor):
-    # Simula un crash: el trabajo quedo `procesando` sin nadie ejecutandolo, y
-    # hace rato (un `procesando` reciente es de alguien que lo esta armando).
     trabajo_id = await encolar(motor)
     async with motor.engine.begin() as conexion:
         await conexion.execute(
@@ -109,16 +81,10 @@ async def test_retoma_un_procesando_colgado(motor):
     assert n == 1
     async with motor.engine.begin() as conexion:
         estado = await conexion.scalar(select(TRABAJO.c.estado).where(TRABAJO.c.id == trabajo_id))
-    # Sin contacto/origen, `crear` da un trabajo `colegio_grado`: la ruta rapida
-    # lo deja en revision (kit canonico del grado), no publicado directo.
     assert estado == EstadoTrabajo.ESPERA_REVISION.value
 
 
 async def test_no_le_roba_el_trabajo_a_quien_lo_esta_armando(motor):
-    # El poller crea el canonico ya `procesando` y lo arma en su propio
-    # proceso. Retomar colgados cada minuto lo tomaba tambien, los dos lo
-    # armaban a la vez y uno terminaba en "no se puede pasar de fallido a
-    # publicado": asi se perdio el rearmado de Octavo dos veces.
     await trabajos.crear(
         motor,
         hijos=[{"referencia": "h1", "colegio_id": COLEGIO, "grado": "Cuarto"}],
@@ -126,9 +92,6 @@ async def test_no_le_roba_el_trabajo_a_quien_lo_esta_armando(motor):
         en_proceso=True,
     )
     assert await trabajador.pasada(motor, catalogo=catalogo_verificado(), retomar_colgados=True) == 0
-
-
-# --- Con RabbitMQ: el aviso de cada trabajo llega por su cola (ADR 0046) --------------------------
 
 
 URL = "amqp://guest:guest@broker:5672/"
@@ -165,7 +128,6 @@ async def _pasar_a(motor, trabajo_id: uuid.UUID, estado: str, *, hace: timedelta
 
 
 class _Catalogo:
-    """El catalogo verificado, contando cuantas veces se armo un kit."""
 
     def __init__(self) -> None:
         self.real = catalogo_verificado()
@@ -198,11 +160,11 @@ class TestElAviso:
 
     async def test_lanzar_un_fallido_deja_otro_aviso_y_un_encolado_no(self, motor, con_broker):
         trabajo_id = await encolar(motor)
-        await trabajos.lanzar(motor, trabajo_id)  # ya encolado: el aviso es el de crear
+        await trabajos.lanzar(motor, trabajo_id)
         assert len(await _avisos(motor)) == 1
 
         await _pasar_a(motor, trabajo_id, EstadoTrabajo.FALLIDO.value)
-        await trabajos.lanzar(motor, trabajo_id)  # reintentar
+        await trabajos.lanzar(motor, trabajo_id)
 
         assert len(await _avisos(motor)) == 2
         assert await _estado(motor, trabajo_id) == EstadoTrabajo.ENCOLADO.value
@@ -244,12 +206,10 @@ class TestElTrabajadorAtiendeElAviso:
         assert await _estado(motor, trabajo_id) == EstadoTrabajo.ESPERA_REVISION.value
 
     async def test_un_aviso_perdido_lo_recoge_el_barrido(self, motor, con_broker):
-        # El aviso quedo en la bandeja y nunca llego: el publicador no corria o
-        # el mensaje se perdio. Pasado `_AVISO_PERDIDO`, el barrido toma el trabajo.
         trabajo_id = await encolar(motor)
         catalogo = catalogo_verificado()
 
-        assert await trabajador.barrer(motor, catalogo=catalogo) == 0  # reciente: es del aviso
+        assert await trabajador.barrer(motor, catalogo=catalogo) == 0
         await _pasar_a(
             motor,
             trabajo_id,
@@ -259,7 +219,6 @@ class TestElTrabajadorAtiendeElAviso:
         assert await trabajador.barrer(motor, catalogo=catalogo) == 1
         assert await _estado(motor, trabajo_id) == EstadoTrabajo.ESPERA_REVISION.value
 
-        # Si el aviso llega tarde, ya no hay nada que reclamar.
         [aviso] = await _avisos(motor)
         assert await trabajador.atender_aviso(motor, aviso, catalogo=catalogo) is Resultado.OMITIR
 
@@ -309,7 +268,7 @@ def test_con_rabbitmq_url_main_atiende_la_cola_y_barre(monkeypatch, con_broker):
     monkeypatch.setattr("tukit_comun.bd.crear_motor", lambda servicio: motor_falso)
     monkeypatch.setattr(trabajador, "consumir", consumir)
     monkeypatch.setattr(trabajador, "barrer", barrer)
-    monkeypatch.setattr(trabajador, "correr_una_vez", None)  # sin broker; no debe llamarse
+    monkeypatch.setattr(trabajador, "correr_una_vez", None)
 
     assert trabajador.main([]) == 0
 
@@ -341,14 +300,9 @@ def test_con_seguir_escucha_la_cola_y_barre_a_la_vez(monkeypatch, con_broker):
     assert motor_falso.cerrado
 
 
-# --- Los dos procesos de fondo vuelven solos tras una caida de Postgres (H-B-02, ADR 0041) --------
-
-
 class TestElTrabajadorVuelve:
     async def test_tras_una_caida_de_postgres_procesa_el_trabajo(self, motor):
         trabajo_id = await encolar(motor)
-        # El trabajador abre su motor una sola vez: el mismo engine falla tres
-        # veces y despues responde, como un pool con `pool_pre_ping` que reconecta.
         intermitente = MotorDePrueba(motor, EngineIntermitente(motor.engine, *caidas_de_postgres()))
         esperas: list[float] = []
 
@@ -402,12 +356,9 @@ def test_configura_el_log_al_arrancar(monkeypatch, modulo, titulo):
 
 @pytest.mark.parametrize("modulo", [poller, trabajador], ids=["poller", "trabajador"])
 async def test_el_bucle_duerme_con_el_asyncio_sleep_de_cuando_corre(motor, monkeypatch, modulo):
-    """Sin `dormir`, el bucle usa el `asyncio.sleep` que hay al correr, no el de
-    cuando se definio: es lo que deja a una prueba sustituir el sueno."""
     vueltas: list[int] = []
 
     async def _una_vuelta(*_a, **_kw) -> int:
-        # Si el bucle durmiera con el `asyncio.sleep` de verdad, la segunda vuelta corta.
         vueltas.append(1)
         if len(vueltas) > 1:
             raise CorteDelBucle

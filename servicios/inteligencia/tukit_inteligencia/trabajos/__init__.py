@@ -1,19 +1,13 @@
 """El recurso `trabajo`: crear, procesar por etapas, consultar y revisar.
 
-Aqui vive la maquina de estados que el contrato promete y la orquestacion de
-las cuatro etapas. Lo que hay que entender de este modulo es que **el estado
-no vive en el proceso**: cada transicion y cada etapa se escriben en la base
-antes de seguir. La consecuencia practica es que reiniciar el servicio no
-pierde los trabajos en vuelo, que `GET /v1/trabajos/{id}` puede responder
-desde otro proceso, y que reanudar no vuelve a pagar la percepcion, que es la
-etapa cara.
-
-La ejecucion de fondo es DURABLE (ADR 0024): `lanzar` solo deja el trabajo
-`encolado`, y `tukit_inteligencia.trabajador` lo drena con `SELECT … FOR UPDATE
-SKIP LOCKED` —el mismo mecanismo del outbox—, lo mueve a `procesando` y corre
-`procesar`. Una caida de proceso ya no pierde el trabajo: la fila sigue en la
-base y otro worker (o el reinicio) la retoma. `procesar` es idempotente en el
-claim (borra ITEM/KIT y reejecuta), asi que retomar no duplica.
+Decisiones:
+- El estado no vive en el proceso: cada transicion y cada etapa se escriben en la base antes de
+  seguir, asi que reiniciar no pierde trabajos, `GET /v1/trabajos/{id}` responde desde otro proceso
+  y reanudar no vuelve a pagar la percepcion, la etapa cara.
+- La ejecucion de fondo es durable: `lanzar` solo deja el trabajo `encolado` y
+  `tukit_inteligencia.trabajador` lo drena.
+- El paquete reexporta lo que consumen los routers y las pruebas; las partes estan en `base`,
+  `pipeline`, `lectura`, `solicitudes`, `revision`, `versiones`, `cambios`, `formas` y `anclas`.
 """
 
 from __future__ import annotations

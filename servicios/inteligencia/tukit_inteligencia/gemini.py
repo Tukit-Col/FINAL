@@ -1,21 +1,13 @@
-"""Adaptador de Gemini. Un puerto con una sola implementacion.
+"""Adaptador de Gemini: un puerto con una sola implementacion.
 
-La percepcion no sabe que existe este archivo. Le pasa los bytes de una
-pagina a una funcion y recibe una `PaginaLeida`. Si el dia de manana el
-modelo cambia, cambia este archivo y las reglas de grados y de truncamiento
-siguen donde estan, que es en `percepcion.py`.
-
-No hay respuesta inventada. Si la llamada no vuelve, o vuelve algo que no es
-el JSON que pedimos, se alza `PercepcionFallida` y el trabajo queda fallido y
-reintentable. Eso es lo que el contrato pide de esta dependencia.
-
-Hay UN reintento, y solo de transporte: cuando Gemini no responde a tiempo o
-devuelve un error de su lado (429, 5xx). Medido: la misma pagina que se quedo
-colgada 60 s respondio en 6 s al pedirla otra vez, y la pagina tipica tarda
-unos 5 s. Sin el reintento, una sola pagina colgada rechazaba la lista entera y
-el acudiente volvia a subirla, pagando otra vez la lectura de TODAS las
-paginas. Una respuesta que llega mal formada no se reintenta: eso no es la red,
-es el modelo, y pedirlo de nuevo esconderia el fallo.
+Decisiones:
+- La percepcion no sabe que existe este archivo: recibe una `PaginaLeida`. Si cambia el modelo,
+  cambia solo este archivo.
+- No hay respuesta inventada: si la llamada no vuelve o no devuelve el JSON pedido, se alza
+  `PercepcionFallida` y el trabajo queda fallido y reintentable.
+- Hay un solo reintento y solo de transporte (sin respuesta a tiempo, 429 o 5xx): una pagina
+  colgada rechazaba la lista entera y obligaba al acudiente a pagar de nuevo la lectura de todas.
+  Una respuesta mal formada no se reintenta: es el modelo, no la red.
 """
 
 from __future__ import annotations
@@ -33,18 +25,11 @@ from .percepcion import PaginaLeida, PercepcionFallida
 
 MODELO_POR_DEFECTO = "gemini-3.5-flash-lite"
 _URL = "https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={clave}"
-# Una pagina tipica responde en ~5 s; 40 s ya es una llamada colgada. Con el
-# reintento, el peor caso por pagina queda en ~85 s en vez de fallar a los 60.
 _TIEMPO_SEGUNDOS = 40
 _INTENTOS = 2
 _ESPERA_ENTRE_INTENTOS = 3
-# Errores HTTP que son de Gemini y pasajeros. Un 400 o un 403 (llave mala) no
-# mejoran al repetir.
 _HTTP_PASAJEROS = frozenset({429, 500, 502, 503, 504})
 
-# Se le pide el JSON dos veces, en el texto y en el esquema, porque el
-# esquema es lo que la API valida y el texto es lo que el modelo usa para
-# no partir una fila de la tabla en dos renglones.
 _PROMPT = """Lee esta pagina de una lista de utiles escolares colombiana.
 La pagina es una imagen: leela como tabla, no como texto suelto. Una fila es un item, aunque ocupe dos lineas.
 No cortes una descripcion a la mitad. Si la fila dice "Diccionario de sinonimos", eso es el item entero.
@@ -88,10 +73,6 @@ _ESQUEMA = {
 
 
 def modelo() -> str:
-    """El modelo que lee las paginas: `GEMINI_MODELO`, o el de por defecto.
-
-    Lo usa tambien la version de la cache de lecturas (ADR 0047): una lectura
-    guardada con otro modelo no se reaprovecha."""
     return os.environ.get("GEMINI_MODELO", MODELO_POR_DEFECTO).strip() or MODELO_POR_DEFECTO
 
 
@@ -105,7 +86,6 @@ def _clave_y_modelo() -> tuple[str, str]:
 
 
 def _llamar(pedido: urllib.request.Request) -> dict:
-    """La llamada HTTP, con un reintento si el fallo es de transporte."""
     for intento in range(1, _INTENTOS + 1):
         ultimo = intento == _INTENTOS
         try:
@@ -125,7 +105,6 @@ def _llamar(pedido: urllib.request.Request) -> dict:
 
 
 def pedir_pagina(png: bytes, numero: int) -> PaginaLeida:
-    """Manda una pagina y devuelve solo lo que el esquema acepta."""
     clave, modelo = _clave_y_modelo()
     cuerpo = {
         "contents": [

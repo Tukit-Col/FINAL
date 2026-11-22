@@ -1,13 +1,3 @@
-"""El armado de los kits por perfil: unidades, total honesto y consolidacion.
-
-Las pruebas de aqui fijan lo que NO depende del algoritmo de seleccion: la
-aritmetica de unidades, la regla de que lo informativo no se cobra, que cada
-perfil elige lo que dice, que un candidato sin precio no gana por barato y que
-lo que piden varios hermanos o varias materias se compra una vez. Lo que si
-depende del algoritmo (el frente NSGA-II) vive en `test_optimizador_frente.py`;
-que kits se arman y cual se recomienda, en `test_optimizador_recomendacion.py`.
-"""
-
 from __future__ import annotations
 
 import pytest
@@ -22,9 +12,6 @@ from tukit_inteligencia.optimizador import (
 
 
 class TestLaCuentaDeUnidadesNoVuelveASumarCajas:
-    """El defecto original: la lista pedia 12 lapices y el carrito sumaba 12
-    cajas de 12. Es la razon de que `cantidad_pedida`, `unidades_por_empaque`
-    y `unidades_a_comprar` sean tres numeros distintos."""
 
     @pytest.mark.parametrize(
         ("pedida", "empaque", "esperado"),
@@ -67,8 +54,6 @@ class TestCadaPerfilEligeLoQueDice:
         assert elegir_por_perfil(sin_personaje, "Fan", personajes=("bluey",)).sku == "ECO"
 
     def test_el_ahorrador_puede_llevar_un_premium_si_salio_mas_barato(self):
-        """No es un defecto. El nivel describe un producto y el perfil una
-        ponderacion sobre el kit; comparten la palabra y nada mas."""
         barato_premium = (
             candidato("CON", "confiable", 9000),
             candidato("PRE", "premium", 4000),
@@ -88,9 +73,6 @@ class TestCadaPerfilEligeLoQueDice:
         assert elegir_por_perfil((candidatos[0],), "Ahorrador").sku == "SIN"
 
     def test_ahorrador_compara_lo_que_cuesta_la_linea_y_no_el_precio_unitario(self):
-        """Doce lapices: sueltos a $1.000 cuestan $12.000; la caja de doce a
-        $9.000 sale mas barata aunque su precio unitario sea mayor. Ordenar por
-        precio unitario hacia fallar el Ahorrador en el 20 % del benchmark."""
         candidatos = (
             candidato("SUELTO", "economico", 1000),
             candidato("CAJA", "economico", 9000, unidades_por_empaque=12),
@@ -141,8 +123,6 @@ class TestLoInformativoSeMuestraYNoSeCobra:
         assert kit.total_cop == 10000
 
     def test_una_edicion_exclusiva_es_papel_comprable_y_aun_asi_informativa(self):
-        """El tipo dice que se puede comprar y el modo dice que no a Tukit.
-        Colapsar los dos ejes perderia justo este caso."""
         kits = armar_los_tres(
             [
                 renglon_optimizador(
@@ -165,10 +145,6 @@ class TestLoInformativoSeMuestraYNoSeCobra:
                 renglon_optimizador(2, "Uniforme", tipo_item="uniforme", modo_adquisicion="mercado_abierto"),
             ]
         )
-        # Una sola linea comprable y esta resuelta: resolucion_auto 1.0. Contando
-        # la informativa daria 0.5 y el kit se veria peor por vender menos. La
-        # fidelidad es el nivel de marca (confiable = 0.5 sobre el tope premium),
-        # que es un eje distinto y ya no se confunde con la resolucion.
         assert kits[0].objetivos["resolucion_auto"] == 1.0
         assert kits[0].objetivos["fidelidad"] == pytest.approx(0.5)
 
@@ -203,7 +179,6 @@ class TestLaConsolidacionEntreHermanos:
     )
 
     def test_el_mensaje_no_usa_la_referencia_interna_del_hijo(self):
-        # H-C-04: decia "Se compra junto con el de hijo-1", el id interno.
         lineas, _ = consolidar(
             armar_los_tres(
                 [
@@ -220,7 +195,6 @@ class TestLaConsolidacionEntreHermanos:
         )
 
     def test_el_mensaje_de_una_linea_del_mismo_hijo_no_lo_llama_otro(self):
-        # Dos renglones del mismo hijo con el mismo producto, mas el hermano.
         lineas, _ = consolidar(
             armar_los_tres(
                 [
@@ -258,8 +232,6 @@ class TestLaConsolidacionEntreHermanos:
         assert all(linea.unidades_a_comprar == 1 for linea in lineas)
 
     def test_sin_ahorro_no_se_toca_nada(self):
-        """Consolidar por consolidar mueve unidades entre hermanos sin
-        beneficio y vuelve la explicacion mas dificil de leer que la lista."""
         suelto = Candidato(sku="TK-UNO", nombre="Borrador", nivel="economico", precio_cop=1000)
         lineas, notas = consolidar(
             armar_los_tres(
@@ -274,9 +246,6 @@ class TestLaConsolidacionEntreHermanos:
 
 
 class TestUnaHerramientaSePideEnVariasMateriasYSeCompraUnaVez:
-    """Tijeras en artes, en tecnologia y en la cartuchera son las mismas
-    tijeras. El kit cobraba tres. Solo aplica a lo que dura todo el ano
-    (`uno_por_estudiante`); lo que se gasta (pegante, cinta) se respeta."""
 
     TIJERAS = Candidato(sku="TK-TIJ", nombre="Tijeras Eterna", nivel="economico", precio_cop=5800)
 
@@ -334,12 +303,6 @@ class TestUnaHerramientaSePideEnVariasMateriasYSeCompraUnaVez:
 
 
 class TestUnCandidatoSinPrecioNoGanaPorBarato:
-    """El costo del frente no suma lo que no tiene precio (su falta la mide la
-    disponibilidad), asi que un candidato sin precio parecia gratis: el
-    Ahorrador lo elegia y mostraba un total que no incluia esa linea, y el
-    Premium y A tu Medida lo tomaban como una marca que no costaba nada. Lo
-    que Tukit no puede surtir no gana una comparacion de precio, igual que en
-    la heuristica."""
 
     RENGLONES = [
         renglon_optimizador(
@@ -372,8 +335,6 @@ class TestUnCandidatoSinPrecioNoGanaPorBarato:
         assert all(linea.precio_unitario_cop is not None for k in medida.values() for linea in k.lineas)
 
     def test_si_solo_hay_candidato_sin_precio_la_linea_igual_sale(self):
-        """Ofrecerlo diciendo "no conocemos el precio" es mejor que dejar la
-        linea vacia: puede ser el unico que cumple lo que el colegio exige."""
         renglones = [
             renglon_optimizador(1, "Cuaderno", (candidato("A-SIN", "premium", None),)),
             renglon_optimizador(

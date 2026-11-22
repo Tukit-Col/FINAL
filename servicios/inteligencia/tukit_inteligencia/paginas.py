@@ -1,22 +1,9 @@
-"""De un PDF a una imagen por pagina.
-
-Vive aparte de la percepcion porque es un detalle de libreria: si manana
-cambia el motor de render, las reglas de grados no se enteran. Una imagen
-suelta (jpg, png, webp) ya es una pagina y no se toca.
-"""
-
 from __future__ import annotations
 
 import io
 
 
 def renderizar(contenido: bytes, *, dpi: int = 150) -> list[bytes]:
-    """Una imagen PNG por pagina, a 150 DPI, que es como se leia antes.
-
-    150 DPI alcanza para que una tabla de utiles se lea como tabla. Mas
-    resolucion sube el costo de cada llamada y no cambia lo que el modelo
-    alcanza a ver en una lista escolar.
-    """
     if not contenido.startswith(b"%PDF"):
         return [contenido]
 

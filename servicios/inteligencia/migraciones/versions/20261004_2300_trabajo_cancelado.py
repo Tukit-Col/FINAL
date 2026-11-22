@@ -1,15 +1,3 @@
-"""estado cancelado del trabajo
-
-Revision: 9e3a5f7b2c41
-Anterior: 7d4b2c9e1f36
-Fecha:    2026-10-04 23:00:00.000000+00:00
-
-Por que este cambio: el acudiente puede cancelar una solicitud (ADR 0031). El
-trabajo pasa a `cancelado`, terminal, y deja de salir en "Mis solicitudes" y en
-la cola de revision. Va con `batch_alter_table` porque SQLite no altera un CHECK
-en sitio; en Postgres es un DROP + ADD normal.
-"""
-
 from __future__ import annotations
 
 from collections.abc import Sequence
