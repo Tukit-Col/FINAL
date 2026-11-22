@@ -16,7 +16,7 @@ import argparse
 import asyncio
 import uuid
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
@@ -53,7 +53,13 @@ def _dane_de_carga(carga: dict[str, Any]) -> str | None:
 class Poller:
     motor_identidad: MotorServicio
     motor_catalogo: AsyncEngine | None
-    cifrador: Any = field(default_factory=cifrador_desde_entorno)
+    cifrador: Any = None
+
+    def _cifrador(self) -> Any:
+        # Perezoso: armarlo al construir el poller avisaria "EN CLARO" aunque nunca guarde un dato.
+        if self.cifrador is None:
+            self.cifrador = cifrador_desde_entorno()
+        return self.cifrador
 
     async def pasada(self, *, limite: int = 100) -> int:
         if self.motor_catalogo is None:
@@ -137,7 +143,7 @@ class Poller:
                     return
                 hijo = HijoMatricula(colegio_id=colegio_id, grado=grado)
                 repo = RepoIdentidad(conexion)
-                await repo.materializar_hijos(usuario_id, [hijo], datetime.now(UTC).year, self.cifrador)
+                await repo.materializar_hijos(usuario_id, [hijo], datetime.now(UTC).year, self._cifrador())
         except Exception as error:  # noqa: BLE001 - best-effort; el colegio ya quedo dado de alta
             print(f"[poller-identidad] no se pudo matricular al hijo de {colegio_id}: {error}")
 

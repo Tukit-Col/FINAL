@@ -86,4 +86,7 @@ def cifrador_desde_entorno() -> Cifrador:
             )
         except Exception as error:
             print(f"[cifrado] la llave de {VARIABLE_LLAVE} no sirve ({error}): se guarda EN CLARO.")
+    elif VARIABLE_LLAVE not in os.environ:
+        # Sin llave el sistema funciona pero no cifra: hay que decirlo, no dejar creer que cifra (H-A-03).
+        print(f"[cifrado] {VARIABLE_LLAVE} no esta puesta: los datos derivados se guardan EN CLARO.")
     return CifradorEnClaro()
