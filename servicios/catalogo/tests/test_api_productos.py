@@ -123,7 +123,7 @@ class TestListarPersonajes:
         assert por_nombre["Frozen"]["productos"] == 1
         assert set(por_nombre) == {"Frozen", "Spiderman"}
 
-    async def test_ordena_por_nombre(self, cliente):
+    async def test_los_personajes_salen_ordenados_por_nombre(self, cliente):
         cuerpo = (await cliente.get("/v1/catalogo/personajes")).json()
         nombres = [p["nombre"] for p in cuerpo["personajes"]]
         assert nombres == sorted(nombres)
@@ -256,7 +256,7 @@ class TestReclasificar:
 
 
 class TestRetirarProducto:
-    async def test_es_soft_delete(self, cliente):
+    async def test_eliminar_un_producto_responde_204_y_lo_deja_inactivo_sin_borrarlo(self, cliente):
         assert await _activo("TK-C001-SPIDER") is True
         respuesta = await cliente.delete("/v1/catalogo/productos/TK-C001-SPIDER")
         assert respuesta.status_code == 204

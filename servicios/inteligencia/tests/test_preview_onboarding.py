@@ -106,7 +106,7 @@ class TestPreviewGuardas:
         assert respuesta.status_code == 404
         assert respuesta.json()["error"] == "version_no_existe"
 
-    async def test_sin_lista_es_404(self, motor):
+    async def test_sin_version_vigente_en_el_catalogo_el_preview_responde_404(self, motor):
         catalogo = _catalogo_con_lista(version_vigente=None)
         app.state.motor = motor
         app.state.catalogo = catalogo

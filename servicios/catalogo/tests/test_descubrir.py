@@ -52,7 +52,7 @@ class TestElPluralNoDebeCambiarLaCosa:
             ("mes", "mes"),
         ],
     )
-    def test_singulariza(self, plural, singular_esperado):
+    def test_cada_plural_se_reduce_a_su_singular(self, plural, singular_esperado):
         assert singular(plural) == singular_esperado
 
     def test_lapiz_y_lapices_son_la_misma_cosa(self):
@@ -206,7 +206,7 @@ class TestLaConsultaQueSeLeMandaALaTienda:
     def test_conserva_los_adjetivos_que_discriminan(self):
         assert "colores" in consulta_desde_renglon("aserrin de colores")
 
-    def test_quita_las_medidas(self):
+    def test_la_consulta_de_un_renglon_quita_las_medidas(self):
         assert consulta_desde_renglon("vinilo de 250 gr azul") == "vinilo azul"
 
 

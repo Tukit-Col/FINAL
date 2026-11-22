@@ -139,7 +139,7 @@ async def test_confirma_una_sola_vez_aunque_el_evento_se_repita(motor):
     assert filas[0].agregado_id == SOLICITUD
 
 
-async def test_omite_lo_roto(motor):
+async def test_un_evento_sin_el_id_de_solicitud_se_omite(motor):
     roto = Evento(id=2, origen="identidad", tipo="titular_suprimido", carga={"usuario_id": str(TITULAR)})
     assert await Supresor(motor).manejar(roto) is Resultado.OMITIR
 

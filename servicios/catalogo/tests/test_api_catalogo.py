@@ -149,7 +149,7 @@ async def cliente():
 
 
 class TestElDineroSaleEnPesosEnteros:
-    def test_centavos_a_pesos(self):
+    def test_el_precio_en_centavos_se_entrega_en_pesos(self):
         assert pesos(1890000) == 18900
 
     def test_nulo_es_no_se_conoce_y_no_cero(self):

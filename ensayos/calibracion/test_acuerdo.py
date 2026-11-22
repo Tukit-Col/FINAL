@@ -15,7 +15,7 @@ import acuerdo as ac  # noqa: E402
 import clasificacion as k  # noqa: E402
 
 
-def test_kappa_a_mano() -> None:
+def test_kappa_coincide_con_el_calculo_hecho_a_mano() -> None:
     a = ["x", "x", "y", "y"]
     b = ["x", "y", "y", "y"]
     assert abs(ac.kappa(a, b) - 0.5) < 1e-12

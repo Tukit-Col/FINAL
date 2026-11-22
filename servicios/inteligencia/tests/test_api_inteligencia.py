@@ -294,7 +294,7 @@ class TestMisTrabajos:
         assert respuesta.status_code == 200
         assert respuesta.json()["trabajos"] == []
 
-    async def test_anonimo_es_401(self, cliente):
+    async def test_listar_trabajos_sin_sesion_responde_401_sesion_requerida(self, cliente):
         app.state.identidad = IdentidadDoble()
         respuesta = await cliente.get("/v1/trabajos")
         assert respuesta.status_code == 401
@@ -374,7 +374,7 @@ class TestQuienLeeUnTrabajo:
         assert respuesta.json()["error"] == "trabajo_no_existe"
         assert "kits" not in respuesta.json()
 
-    async def test_sin_sesion_es_401(self, cliente, motor):
+    async def test_ver_un_trabajo_sin_sesion_responde_401_sesion_requerida(self, cliente, motor):
         trabajo_id = await _crear_del_acudiente(cliente, motor)
         respuesta = await cliente.get(f"/v1/trabajos/{trabajo_id}")
         assert respuesta.status_code == 401

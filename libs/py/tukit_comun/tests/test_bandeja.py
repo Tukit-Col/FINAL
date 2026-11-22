@@ -70,7 +70,7 @@ async def test_reintentar_sube_intentos_y_deja_pendiente(motor):
     assert pend[0].intentos == 1
 
 
-async def test_filtra_por_tipo(motor):
+async def test_el_drenador_con_tipo_solo_toma_los_eventos_de_ese_tipo(motor):
     await _sembrar(
         motor,
         [

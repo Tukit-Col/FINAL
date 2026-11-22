@@ -200,7 +200,7 @@ class TestQuitarYCambiarHijos:
         cabecera, matricula_id = await self._cuenta_con_hijo(cliente, "id-hijo@ejemplo.com")
         assert uuid.UUID(matricula_id)
 
-    async def test_quitar_un_hijo(self, cliente):
+    async def test_quitar_un_hijo_responde_204_y_lo_saca_de_la_cuenta(self, cliente):
         cabecera, matricula_id = await self._cuenta_con_hijo(cliente, "quitar@ejemplo.com")
         respuesta = await cliente.delete(f"/v1/cuenta/matriculas/{matricula_id}", headers=cabecera)
         assert respuesta.status_code == 204

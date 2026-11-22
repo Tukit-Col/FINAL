@@ -32,7 +32,7 @@ CONFIANZA = (ipaddress.ip_network("127.0.0.1/32"), ipaddress.ip_network("::1/128
         (None, "198.51.100.7", "desconocida"),
     ],
 )
-def test_la_ip_del_cliente(conexion, reenviada, esperada):
+def test_la_ip_del_cliente_sale_de_x_forwarded_for_solo_con_proxy_de_confianza(conexion, reenviada, esperada):
     assert limite.ip_del_cliente(conexion, reenviada, CONFIANZA) == esperada
 
 

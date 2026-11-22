@@ -72,7 +72,7 @@ def test_pendiente_vigente_dice_cuando_vence():
     assert linea["pago_pendiente"] == {"vence_en": _t(24).isoformat(), "vencido": False}
 
 
-def test_pendiente_vencido():
+def test_un_pedido_pendiente_pasado_su_plazo_marca_el_pago_como_vencido():
     linea = _linea("pendiente_pago", pagos=(), envio=None, ahora=_t(25))
     assert linea["pago_pendiente"]["vencido"] is True
 
