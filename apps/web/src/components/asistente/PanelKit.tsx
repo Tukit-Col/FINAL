@@ -1,10 +1,5 @@
 "use client";
 
-// El asistente de /kits: un chat flotante en la esquina. El modelo solo
-// propone; un cambio se aplica unicamente cuando el acudiente lo confirma, y
-// por la ruta de siempre (`PUT /api/trabajos/{id}/kits/{perfil}/lineas/{item}/producto`).
-// El kit sobre el que se habla es el que el acudiente esta mirando.
-
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Minus, MessageCircle, RotateCcw, Send, X } from "lucide-react";
@@ -36,7 +31,6 @@ const AVISO_SERVICIO: Record<Exclude<Servicio, "revisando" | "activo">, string> 
   caido: "No logro conectar con el asistente ahora. Puedes ajustar el kit a mano o volver a intentarlo en un momento.",
 };
 
-
 async function avisarDecision(propuesta_id: string, decision: "aceptada" | "rechazada", tipo: "cambio" | "descarte") {
   try {
     await fetch("/api/asistente/decision", {
@@ -45,7 +39,6 @@ async function avisarDecision(propuesta_id: string, decision: "aceptada" | "rech
       body: JSON.stringify({ propuesta_id, decision, tipo }),
     });
   } catch {
-    /* la bitacora no estorba */
   }
 }
 
@@ -57,8 +50,6 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
   const [estados, setEstados] = useState<Record<string, Estado>>({});
   const [ocupado, setOcupado] = useState(false);
   const [servicio, setServicio] = useState<Servicio>("revisando");
-  // El ultimo pedido por categoria, para que "y en colores tambien" se entienda en el turno
-  // siguiente. Son dos palabras que devolvio el servidor, no lo que escribio el padre.
   const [anterior, setAnterior] = useState<PedidoAnterior | null>(null);
   const entrada = useRef<HTMLTextAreaElement>(null);
   const caja = useRef<HTMLDivElement>(null);
@@ -68,7 +59,6 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
   const ultimaTipo = turnos.at(-1)?.respuesta.tipo;
   const ultima: UltimaRespuesta =
     ultimaTipo === "propuesta" || ultimaTipo === "ayuda" || ultimaTipo === "texto" ? ultimaTipo : "ninguna";
-  // Siempre hay sugerencias: se recalculan despues de cada respuesta, sin repetir las ya tocadas.
   const sugerencias = sugerenciasDe(
     ultima,
     anterior,
@@ -80,8 +70,6 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
     if (abierto) entrada.current?.focus();
   }, [abierto]);
 
-  // Una sola consulta barata (sin modelo) al abrir: si el asistente no esta activo no se
-  // ofrecen sugerencias que no van a funcionar.
   useEffect(() => {
     if (!abierto || servicio !== "revisando") return;
     let vigente = true;
@@ -97,13 +85,8 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
     };
   }, [abierto, servicio]);
 
-  // Mientras piensa, al fondo. Cuando llega una propuesta, el chat se queda en su comienzo
-  // (el resumen y la primera tarjeta): con 4 cuadernos de una, el padre ve el lote entero
-  // y su "Aceptar todos" en vez de aterrizar en la ultima tarjeta como si fueran sueltas.
   const respuestaFinal = turnos.at(-1)?.respuesta.tipo;
   useEffect(() => {
-    // Solo se mueve la caja del chat: un scrollIntoView aqui cortaria el desplazamiento
-    // de la pagina hacia el renglon.
     const c = caja.current;
     if (!c) return;
     const turno = ultimoTurno.current;
@@ -111,8 +94,6 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
       respuestaFinal === "propuesta" && turno ? turno.offsetTop - 8 : c.scrollHeight;
   }, [turnos.length, respuestaFinal]);
 
-  // Los renglones del kit que alguna propuesta abierta quiere tocar quedan iluminados en la
-  // pagina, y al llegar una propuesta nueva la pagina va al primero de ellos.
   const porDecidir = renglonesPorDecidir(
     turnos.map((t) => (t.respuesta.tipo === "propuesta" ? t.respuesta.componentes : null)),
     estados,
@@ -140,7 +121,6 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
     return () => window.removeEventListener("keydown", alEscape);
   }, [abierto]);
 
-  // Al cerrar, un "no conecta" se vuelve a revisar la proxima vez que se abra.
   function reiniciar() {
     setTurnos([]);
     setEstados({});
@@ -149,7 +129,6 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
     entrada.current?.focus();
   }
 
-  // Minimizar conserva la conversacion; cerrar la empieza de cero la proxima vez.
   function cerrar(reinicia = false) {
     if (reinicia) {
       setTurnos([]);
@@ -161,7 +140,6 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
     setServicio((v) => (v === "caido" ? "revisando" : v));
   }
 
-  // Un fallo puntual (el modelo tardo o respondio algo ilegible): se puede reintentar.
   function noDisponible() {
     responder({
       tipo: "texto",
@@ -169,7 +147,6 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
     });
   }
 
-  // Apagado en el servidor (sin TUKIT_ASISTENTE): se dice tal cual, sin sugerir que "no puede".
   function apagado() {
     setServicio("apagado");
     responder({ tipo: "texto", texto: AVISO_SERVICIO.apagado });
@@ -233,8 +210,6 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
     }
   }
 
-  // Lo aplica el padre, no el modelo: la misma llamada que hace el renglon del kit,
-  // con su sesion; el servidor exige que el kit sea suyo. Devuelve si el servidor lo acepto.
   async function aplicarUna(clave: string, propuestaId: string, c: PropuestaAplicable): Promise<boolean> {
     const aplicacion = aplicacionDePropuesta(c);
     if (!aplicacion) return false;
@@ -266,8 +241,6 @@ export default function PanelKit({ trabajoId, perfil }: { trabajoId: string; per
     }
   }
 
-  // "Aceptar todos": una llamada PUT por propuesta, una tras otra y con la sesion del padre.
-  // Si una falla se detiene ahi y lo ya aplicado queda aplicado; no existe escritura en lote.
   async function aceptarTodos(turno: number, propuestaId: string, componentes: Componente[]) {
     setOcupado(true);
     let fallo = false;

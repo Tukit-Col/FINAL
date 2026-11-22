@@ -1,14 +1,3 @@
-// `/tickets` — la bandeja de casos y PQRS (CABLEADO vía contrato extendido).
-//
-// Consume `origenDeDatos().casos()`, la superficie de lectura de `operacion`.
-// Cuando `operacion` aún no publica casos, la lectura vuelve vacía y la pantalla
-// muestra su estado vacío. `cliente-http.ts` ya pega contra `/v1/operacion/*`.
-//
-// Server Component, mismo patrón que la Cola. Operacion solo se la da a
-// operador y admin: sin sesion o sin rol se muestra el aviso que corresponde.
-// Los filtros viven en la URL y filtran aqui, en el servidor; las tarjetas de
-// arriba son siempre las globales.
-
 import Form from "next/form";
 import Link from "next/link";
 import type { BandejaOperacion } from "@tukit/contrato";
@@ -87,8 +76,6 @@ export default async function PaginaTickets({ searchParams }: Props) {
   const yo = (await quienSoy())?.usuarioId ?? null;
   const casos = filtrarCasos(bandeja.casos, filtros, ahora, yo);
 
-  // Lo activo primero; dentro de lo activo, por prioridad y luego por vencimiento
-  // (sin vencimiento al final de su grupo). Lo resuelto y cerrado baja como historial.
   const ordenados = [...casos].sort((a, b) => {
     const activoA = casoActivo(a) ? 0 : 1;
     const activoB = casoActivo(b) ? 0 : 1;
@@ -107,8 +94,6 @@ export default async function PaginaTickets({ searchParams }: Props) {
   });
   const pagina = paginar(ordenados, filtros.pagina);
 
-  // Chips-filtro accionables. Los conteos nuevos pueden faltar si operacion aun
-  // no se reinicio: se omiten en vez de pintar 0 falsos.
   const chips = [
     {
       clave: "abiertos",
@@ -181,8 +166,6 @@ export default async function PaginaTickets({ searchParams }: Props) {
       </Chips>
 
       {bandeja.casos.length > 0 ? (
-        // El `key` remonta el formulario al cambiar los filtros (atras/adelante,
-        // "Limpiar"), para que sus `defaultValue` no queden viejos.
         <Form
           action="/tickets"
           className={styles.filtros}

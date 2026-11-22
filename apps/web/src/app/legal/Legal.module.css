@@ -14,7 +14,7 @@
 }
 
 .enlaceDoc {
-  /* 44 px de alto: antes 32 px, corto para el pulgar (WCAG 2.5.5). */
+
   display: inline-flex;
   align-items: center;
   min-height: 44px;
@@ -88,7 +88,6 @@
   color: var(--color-text-muted) !important;
 }
 
-/* Un dato que el equipo todavía no ha completado. */
 .pendiente {
   background: var(--color-aviso-bg);
   color: var(--color-aviso);
@@ -119,8 +118,6 @@
   color: var(--color-primary);
 }
 
-/* ---------------------------------------------------------------- Pie del sitio */
-
 .pie {
   margin-top: var(--espacio-8, 64px);
   padding: var(--espacio-5) var(--espacio-4);
@@ -148,7 +145,7 @@
 }
 
 .pieEnlaces a {
-  /* Blanco táctil de 44 px sin cambiar el aspecto del texto. */
+
   display: inline-flex;
   align-items: center;
   min-height: 44px;

@@ -1,17 +1,8 @@
-/* Estilos de la SPA de catálogo (P4c): buscador, tabla paginada, editor de
- * todos los campos, panel de reclasificación y baja suave. Un solo módulo
- * compartido por los componentes del slice (`GestorCatalogo`, `TablaProductos`,
- * `EditorProducto`, `PanelReclasificar`), igual que `Revision.module.css` es
- * uno para los cuatro de la revisión: son un widget partido por tamaño, no
- * piezas reutilizables sueltas. Naming BEM-like, tokens compartidos. */
-
 .spa {
   display: flex;
   flex-direction: column;
   gap: var(--espacio-4);
 }
-
-/* --------------------------------------------------------------- buscador */
 
 .buscador {
   display: flex;
@@ -35,8 +26,6 @@
   min-width: 220px;
 }
 
-/* Los menús (Desplegable) toman el ancho de lo que muestran: en una fila de
- * filtros se les da un ancho fijo para que no salten al elegir. */
 .buscadorFila > .campo:not(.campoBusqueda) {
   width: 200px;
 }
@@ -93,11 +82,6 @@
   cursor: pointer;
 }
 
-/* ------------------------------------------------ rejilla de productos
- * La vista de productos es una REJILLA DE TARJETAS (como el gestor del MS),
- * no una tabla: cada producto se lee como una ficha con foto grande, pastilla
- * de nivel, nombre, precio y metadatos. Cambia a editor al hacer click. */
-
 .tablaEnvoltura {
   display: flex;
   flex-direction: column;
@@ -128,7 +112,6 @@
   gap: var(--espacio-4);
 }
 
-/* La tarjeta es un botón real (accesible por teclado), no un div con onClick. */
 .tarjeta {
   display: flex;
   flex-direction: column;
@@ -275,8 +258,6 @@
   color: var(--color-text-muted);
 }
 
-/* ------------------------------------------------------------ paginación */
-
 .paginacion {
   display: flex;
   align-items: center;
@@ -305,8 +286,6 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--clay-shadow-sm);
 }
-
-/* -------------------------------------------------------- panel de edición */
 
 .panel {
   display: flex;
@@ -369,8 +348,6 @@
   font-weight: 600;
 }
 
-/* imagen: campo URL + vista previa en vivo */
-
 .imagenBloque {
   grid-column: 1 / -1;
   display: flex;
@@ -404,8 +381,6 @@
   text-align: center;
   padding: 4px;
 }
-
-/* atributos: editor clave-valor */
 
 .atributos {
   grid-column: 1 / -1;
@@ -452,8 +427,6 @@
   font-weight: 500;
 }
 
-/* --------------------------------------------------- panel reclasificar */
-
 .reclasificar {
   grid-column: 1 / -1;
   display: flex;
@@ -481,8 +454,6 @@
   font-size: 11.5px;
   color: var(--color-text-secondary);
 }
-
-/* ------------------------------------------------------------ acciones */
 
 .acciones {
   display: flex;
@@ -568,8 +539,6 @@
   font-size: 13px;
 }
 
-/* confirmación de baja */
-
 .confirmBaja {
   display: flex;
   flex-direction: column;
@@ -586,9 +555,6 @@
   color: var(--color-text-primary);
 }
 
-/* --------------------------------------------------------------- pestañas
- * Cambian entre las cuatro vistas de /catalogo (productos, cola, alta de útil,
- * alta de libro). Presentación mínima reusando los tokens del slice. */
 .pestanas {
   display: flex;
   gap: var(--espacio-1);
@@ -617,9 +583,6 @@
   border-bottom-color: var(--color-primary);
 }
 
-/* ------------------------------------------- alta de concepto: atributos */
-
-/* La versión embebida en el editor de un renglón del revisor de listas. */
 .conceptoCompacto {
   display: flex;
   flex-direction: column;
@@ -630,7 +593,6 @@
   background: var(--color-surface-2);
 }
 
-/* Las fichas ya elegidas, encima del menú (que es un select como el de Tipo). */
 .atributoFichas {
   display: flex;
   flex-wrap: wrap;

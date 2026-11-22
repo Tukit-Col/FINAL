@@ -1,12 +1,5 @@
 "use client";
 
-// Elegir a qué fase mover el pedido viendo antes lo que verá el acudiente.
-//
-// Solo los destinos legales de la matriz (no hay "saltar a cualquier fase": un
-// salto libre rompería el historial y los avisos). Al elegir uno se pide la
-// vista previa al servidor, que arma la línea de tiempo con la misma regla que
-// ve el padre. Confirmar usa la misma ruta que los botones directos.
-
 import { useId, useRef, useState } from "react";
 import type { EstadoPedido, VistaPreviaPedido } from "@tukit/contrato";
 import { FalloApi, vistaPrevia } from "@/lib/api-navegador";

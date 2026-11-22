@@ -1,12 +1,3 @@
-// `POST /api/listas/subir` — la subida de listas de un acudiente (§2 del
-// contrato). El navegador nunca llama al backend directo: la URL del backend
-// vive aquí, igual que en `/api/trabajos`.
-//
-// A diferencia de `crearTrabajo`, esto NO arma un kit: cada archivo se percibe
-// y se importa como una versión PENDIENTE de su (colegio, grado). El acudiente
-// espera a que un administrador la apruebe. Por eso el contacto viaja para que
-// Identidad lo registre una vez; su correo y celular no cruzan a catálogo.
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { ArchivoLista, Contacto, HijoSubida, Preferencias } from "@tukit/contrato";
 import { respuestaDeError } from "@/lib/respuesta";
@@ -43,15 +34,11 @@ export async function POST(peticion: Request): Promise<Response> {
       contacto = JSON.parse(crudoContacto) as Contacto;
     }
 
-    // Las preferencias del paso 3 (del hogar) viajan como JSON, para persistir
-    // en la tarea y armar el kit con ellas cuando se apruebe la versión.
     const crudoPreferencias = forma.get("preferencias");
     if (typeof crudoPreferencias === "string") {
       preferencias = JSON.parse(crudoPreferencias) as Preferencias;
     }
 
-    // Los archivos y sus referencias van APAREADOS POR ORDEN: `archivo` y
-    // `referencia` se emiten de a pares, un par por hijo.
     const adjuntos = forma.getAll("archivo").filter((v): v is File => v instanceof File);
     const rechazado = adjuntos.map(motivoDeRechazo).find((m) => m !== null);
     if (rechazado) {

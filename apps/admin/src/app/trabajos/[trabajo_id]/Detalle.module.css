@@ -4,7 +4,6 @@
   gap: var(--espacio-4);
 }
 
-/* La barra de arriba: volver a la cola a la izquierda, borrar a la derecha. */
 .migas {
   display: flex;
   align-items: center;
@@ -40,8 +39,6 @@
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
-
-/* ------------------------------------------------------------ encabezado */
 
 .encabezado {
   display: flex;
@@ -139,8 +136,6 @@
   font-size: 12px;
 }
 
-/* ---------------------------------------------------------------- etapas */
-
 .etapas {
   display: flex;
   gap: var(--espacio-1);
@@ -214,8 +209,6 @@
   color: var(--color-text-muted);
 }
 
-/* --------------------------------------------------------- degradaciones */
-
 .degradaciones {
   padding: var(--espacio-4);
   background: var(--color-aviso-bg);
@@ -258,7 +251,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Banner del preview de onboarding: no se publica, se enlaza al revisor. */
 .avisoPreview {
   padding: var(--espacio-4);
   background: var(--color-info-bg, var(--color-aviso-bg));

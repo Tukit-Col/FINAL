@@ -1,12 +1,5 @@
 "use client";
 
-// Tarjeta destacada: port de `spotlight-card` + `border-beam` de sf-design-stack
-// a React/CSS. Se usa en UNA sola tarjeta por vista, la de mayor urgencia: el
-// haz que recorre el borde dice "empieza por aqui" (jerarquia) y la luz que
-// sigue al puntero es feedback de que es interactiva. Sin GSAP: el haz es un
-// conic-gradient animado por @property y la luz son dos variables CSS.
-// prefers-reduced-motion y puntero tactil: sin haz giratorio ni luz.
-
 import { useRef, type ElementType, type ReactNode, type PointerEvent } from "react";
 import styles from "./Destacada.module.css";
 

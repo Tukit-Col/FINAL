@@ -1,9 +1,5 @@
 "use client";
 
-// Los productos del pedido, agrupados, con su precio unitario, subtotal y el
-// total. `visibles` corta la lista con un "Ver los N restantes": un kit trae
-// decenas de productos y la pantalla del pago no es para leerlos todos.
-
 import { useState } from "react";
 import { formatearPesos, type Pedido } from "@tukit/contrato";
 import { agruparLineas } from "@/lib/pedido-vista";

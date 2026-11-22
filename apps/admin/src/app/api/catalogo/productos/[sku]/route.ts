@@ -1,13 +1,3 @@
-// `PATCH /api/catalogo/productos/{sku}` — CRUD de campos y re-etiqueta (P4c).
-// `DELETE /api/catalogo/productos/{sku}` — baja suave (activo=False), 204.
-//
-// El PATCH escribe solo lo que cambió (`ProductoEditable`, todos opcionales) y
-// responde con el producto ya actualizado para que el formulario re-pinte sin
-// una segunda lectura. Las guardas de dominio (nivel_invalido, unidad_base_
-// invalida, empaque_invalido, quality_score_invalido, campo_no_editable) las
-// impone el backend; aquí solo se traduce el error tal cual (§11), sin devolver
-// lo que el cliente mandó.
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { ProductoEditable } from "@tukit/contrato";
 import { cuerpoJson, respuestaDeError, SIN_CONTENIDO } from "@/lib/respuesta";

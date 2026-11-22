@@ -1,13 +1,9 @@
-/* El menú de Desplegable.tsx. El campo se ve como los inputs del admin y el
- * panel se pinta SIEMPRE debajo. */
-
 .caja {
   position: relative;
   flex: 1;
   min-width: 0;
 }
 
-/* En una fila de filtros, junto a su rótulo: tan ancho como lo que muestra. */
 .enLinea {
   flex: none;
   min-width: 96px;
@@ -28,7 +24,6 @@
   cursor: pointer;
 }
 
-/* Igual a `.campo input` de CatalogoSpa: los formularios densos del catálogo. */
 .compacto {
   padding: 6px var(--espacio-2);
   background: var(--color-white);

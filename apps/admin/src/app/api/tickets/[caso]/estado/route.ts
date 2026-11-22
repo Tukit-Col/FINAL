@@ -1,8 +1,3 @@
-// `POST /api/tickets/{caso}/estado` — el operador mueve el ticket de estado.
-//
-// La matriz de transiciones la decide operacion (409 si no procede); aqui solo
-// se exige sesion y un destino.
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import { cuerpoJson, respuestaDeError } from "@/lib/respuesta";
 import { tokenDeSesion } from "@/lib/sesion";

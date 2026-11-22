@@ -1,12 +1,3 @@
-// El contrato de logistica del back-office: los cuatro metodos de comercio
-// reciben el token PRIMERO y obligatorio (comercio valida la sesion y el rol),
-// `misPedidos` identifica al acudiente solo por su token, y el detalle trae el
-// historial.
-// Doble tipado `Pick<OrigenDatos, ...>` — TS verifica que las firmas calcen sin
-// stubear todo el origen (el cliente HTTP lo cubre `npm run typecheck`).
-//
-// Runner nativo de Node sobre TypeScript. Correr: `node --test test/logistica.test.ts`.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { OrigenDatos } from "../src/origen.ts";

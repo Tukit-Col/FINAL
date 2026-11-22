@@ -1,11 +1,3 @@
-// `POST /api/catalogo/productos/{sku}/reclasificar` — mover de concepto (P4c).
-//
-// El efecto es del catálogo entero, no de un trabajo: el producto queda bajo
-// otro concepto y el backend limpia su `texto_embedding` para que se
-// recalcule. Responde con el producto ya reclasificado (forma de detalle) para
-// re-pintar. Un `concepto` vacío o inexistente lo rechaza el backend
-// (`concepto_no_existe`); aquí solo se guarda que venga la clave.
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { ReclasificarProducto } from "@tukit/contrato";
 import { cuerpoJson, respuestaDeError } from "@/lib/respuesta";

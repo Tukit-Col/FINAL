@@ -1,12 +1,5 @@
 "use client";
 
-// Una linea del kit, con todo lo que hace falta para decidirla (AD-02, AD-05,
-// AD-07).
-//
-// Es un `<details>` y no una tarjeta siempre abierta porque una lista de
-// sexto trae cincuenta y cinco renglones y el admin solo tiene que tocar los
-// pendientes: lo resuelto se deja plegado y a un clic, no escondido.
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ClaseLinea, LineaKit, PerfilKit, ProductoKit } from "@tukit/contrato";
@@ -27,21 +20,12 @@ interface Props {
   trabajoId: string;
   linea: LineaKit;
   clase: ClaseLinea;
-  // El perfil del kit al que pertenece esta linea. Cuando llega, cambiar de
-  // producto (elegir una alternativa) se guarda POR NIVEL: escribe la LINEA de
-  // ESTE kit y recalcula su subtotal, sin tocar los otros dos. Sin el, la
-  // validacion es la de siempre (por item, los tres kits) —el caso de las
-  // vistas que no son la matriz.
   perfil?: PerfilKit;
-  // Selección para acciones masivas. Solo se pasa en las secciones donde tiene
-  // sentido validar en lote (las que tienen un elegido por confirmar); si no
-  // llega, la línea no muestra casilla y se comporta como siempre.
   seleccionable?: boolean;
   seleccionada?: boolean;
   onToggleSeleccion?: (itemId: string) => void;
 }
 
-/** Sin `sku` la validacion se lee como "confirmo el que el sistema eligio". */
 const CONFIRMAR_EL_ELEGIDO = "";
 
 function precioMasBajo(producto: ProductoKit): number | null {
@@ -65,10 +49,6 @@ export default function LineaRevision({
   const alternativas = linea.alternativas ?? [];
   const hayQueElegir = elegido !== null || alternativas.length > 0;
 
-  // Lo pendiente nace abierto y lo resuelto cerrado. El cuerpo solo se pinta
-  // cuando la linea esta abierta: una lista de sexto con dos hijos son ciento
-  // diez renglones, y pintar los ciento diez paneles completos para que el
-  // admin toque tres es medio mega de HTML que nadie lee.
   const [abierta, setAbierta] = useState(pendiente);
   const [seleccion, setSeleccion] = useState<string>(CONFIRMAR_EL_ELEGIDO);
   const [nota, setNota] = useState("");
@@ -87,9 +67,6 @@ export default function LineaRevision({
     try {
       await operacion();
       setAviso(exito);
-      // El estado de la linea lo recalcula el servidor a partir de lo que
-      // acabamos de guardar: refrescar es la unica forma de que la pantalla
-      // muestre el estado de verdad y no el que creemos que quedo.
       router.refresh();
     } catch (causa) {
       setError(causa instanceof FalloApi ? causa.message : "No pudimos guardar el cambio.");
@@ -100,10 +77,6 @@ export default function LineaRevision({
 
   function alValidar(): void {
     const sku = seleccion === CONFIRMAR_EL_ELEGIDO ? undefined : seleccion;
-    // Cambiar de producto en la matriz es una decision POR KIT: escribe la
-    // LINEA de este perfil y recalcula su subtotal. Confirmar el elegido (sin
-    // sku) sigue siendo la validacion por item —marca el emparejamiento como
-    // bueno en los tres kits, no cambia ningun producto—.
     if (sku && perfil) {
       void ejecutar(
         () => fijarProductoLinea(trabajoId, perfil, linea.item_id, sku),
@@ -157,8 +130,6 @@ export default function LineaRevision({
         key={producto.sku}
         className={`${styles.producto} ${hayQueElegir && marcado ? styles.productoMarcado : ""}`}
       >
-        {/* Toda la tarjeta es la opción: el radio queda oculto pero accesible
-            (teclado y lector), y el anillo de la tarjeta dice cuál va. */}
         <label className={styles.productoCabecera}>
           {hayQueElegir && (
             <input
@@ -171,9 +142,6 @@ export default function LineaRevision({
               }
             />
           )}
-          {/* next/image exigiria declarar cada dominio en `images.remotePatterns`,
-              y las imagenes vienen de las tiendas: el dominio cambia con el
-              catalogo, no con el codigo. */}
           {producto.imagen_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={producto.imagen_url} alt="" className={styles.miniatura} />
@@ -296,8 +264,6 @@ export default function LineaRevision({
     >
       <summary className={`${styles.resumenLinea} ${seleccionable ? styles.resumenConCasilla : ""}`}>
         {seleccionable ? (
-          // La casilla no despliega la línea: es una acción aparte. Por eso
-          // corta la propagación y el `preventDefault` del click en el summary.
           <input
             type="checkbox"
             className={styles.casilla}
@@ -421,8 +387,6 @@ export default function LineaRevision({
                 {elegido ? tarjetaProducto(elegido, "elegido") : null}
                 {alternativas.map((alternativa) => tarjetaProducto(alternativa, "alternativa"))}
               </ul>
-              {/* El armado guarda dos alternativas; el carrusel completo del
-                  concepto está en el catálogo. Elegir aquí cambia solo este kit. */}
               {perfil ? (
                 <details className={styles.masOpciones}>
                   <summary>Ver más opciones del catálogo</summary>
@@ -462,7 +426,6 @@ export default function LineaRevision({
             </>
           )}
 
-          {/* ------------------------------------------------ acciones AD-02 */}
           <div className={styles.acciones}>
             {hayQueElegir ? (
               <>

@@ -1,18 +1,5 @@
 "use client";
 
-// El colegio de "Subir lista" en la cola. Reemplaza al `<select>` de los
-// colegios de Tukit: el staff tiene que poder subir la lista de CUALQUIER
-// colegio de Bogotá, aunque Tukit todavía no lo tenga. Mezcla, en este orden:
-//   1. los colegios que Tukit ya conoce (aliados o no, marcados);
-//   2. el directorio de Bogotá, con localidad, DANE y logo si lo hay;
-//   3. "No lo encuentro: usar '…' tal cual".
-// La búsqueda es la pura de `@tukit/contrato`, la misma de `/empezar`: una
-// entrada del directorio cuyo DANE ya es de un colegio de Tukit se ofrece como
-// ese colegio, para no duplicarlo al aprobar.
-//
-// Combobox ARIA: el foco se queda en el campo y las flechas mueven la opción
-// activa (`aria-activedescendant`); Enter elige y Escape cierra la lista.
-
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Pencil, Search } from "lucide-react";
 import {
@@ -29,7 +16,6 @@ import {
 import LogoColegio from "@/components/LogoColegio";
 import styles from "@/app/onboarding/Onboarding.module.css";
 
-// El directorio pesa ~300 KB: se pide al primer foco y una sola vez por carga.
 let directorioPromesa: Promise<EntradaDirectorio[]> | null = null;
 function cargarDirectorio(): Promise<EntradaDirectorio[]> {
   if (!directorioPromesa) {
@@ -64,8 +50,6 @@ export default function BuscadorColegioOnboarding({ colegios, onElegir }: Props)
   const [activa, setActiva] = useState(0);
   const [elegida, setElegida] = useState<Opcion | null>(null);
   const campoRef = useRef<HTMLInputElement>(null);
-  // "Cambiar" desaparece al pulsarlo: el foco vuelve al campo de búsqueda, que
-  // se pinta en el render siguiente, y no se pierde en el `body`.
   const enfocarRef = useRef(false);
 
   useEffect(() => {
@@ -134,7 +118,6 @@ export default function BuscadorColegioOnboarding({ colegios, onElegir }: Props)
       const paso = evento.key === "ArrowDown" ? 1 : -1;
       setActiva((indiceActivo + paso + opciones.length) % opciones.length);
     } else if (evento.key === "Enter") {
-      // Enter con la lista abierta elige; nunca envía el formulario a medias.
       if (visible) {
         evento.preventDefault();
         elegir(opciones[indiceActivo]);
@@ -228,8 +211,6 @@ export default function BuscadorColegioOnboarding({ colegios, onElegir }: Props)
               className={`${styles.opcionColegio} ${i === indiceActivo ? styles.opcionActiva : ""} ${
                 opcion.escrito ? styles.opcionEscrita : ""
               }`}
-              // `mousedown` y no `click`: el `blur` del campo cerraría la lista
-              // antes de que el clic llegue a la opción.
               onMouseDown={(e) => {
                 e.preventDefault();
                 elegir(opcion);

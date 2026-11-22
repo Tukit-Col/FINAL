@@ -1,8 +1,3 @@
-// El panel por hijo del kit: que productos, cuanto suma y que le falta a cada
-// hijo, sin hijos fantasma y con los totales cuadrando con el kit.
-//
-// Runner nativo de Node sobre TypeScript. Correr: `node --test test/kit-vista-resumen-hijo.test.ts`.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { resumenPorHijo } from "../src/lib/kit-vista.ts";
@@ -53,7 +48,7 @@ test("el total suma subtotales y el consolidado-en-cero no se duplica como produ
   };
   const r = resumenPorHijo(kit as never, MAPA([["a", "Ana"], ["b", "Luis"]]), MAPA([]), undefined);
   const b = r.find((x) => x.hijo === "b")!;
-  assert.equal(b.productos.length, 0); // su cartuchera consolidada-en-cero no se repite
+  assert.equal(b.productos.length, 0);
   assert.equal(b.total, 0);
   assert.equal(r.find((x) => x.hijo === "a")!.comparten, 1);
   assert.equal(b.comparten, 1);
@@ -92,7 +87,6 @@ test("los totales por hijo suman el total del kit, incluso con renglones en revi
   const kit = {
     lineas: [
       ln("a", { descripcion: "cuaderno", subtotal_linea: 5000 }),
-      // Ambiguo con precio: el backend lo suma al total del kit.
       ln("a", { descripcion: "regla", estado_resolucion: "AMBIGUO", subtotal_linea: 3000 }),
       ln("b", { descripcion: "lapiz", subtotal_linea: 2000 }),
       ln("b", { descripcion: "libro", informativa: true, subtotal_linea: null, producto_elegido: null }),
@@ -139,7 +133,6 @@ test("las lineas sin hijo no crean un hijo fantasma", () => {
     undefined,
   );
   assert.deepEqual(dos.map((x) => x.hijo), ["a", "b"]);
-  // Con un solo hijo real, la linea suelta es de el.
   const uno = resumenPorHijo({ lineas: [sinHijo, ln("a")], consolidaciones: [] }, MAPA([]), MAPA([]), undefined);
   assert.deepEqual(uno.map((x) => [x.hijo, x.total]), [["a", 2000]]);
 });

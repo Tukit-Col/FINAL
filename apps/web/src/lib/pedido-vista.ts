@@ -1,8 +1,3 @@
-// Lo que la pantalla de un pedido muestra y se puede probar sin React: los
-// productos agrupados y las fechas en la hora de Bogota. Las reglas del pedido
-// (en que paso va, si vencio) NO viven aqui: llegan hechas de Comercio en la
-// `linea_de_tiempo`.
-
 import type { LineaPedido } from "@tukit/contrato";
 
 export interface ProductoAgrupado {
@@ -13,9 +8,6 @@ export interface ProductoAgrupado {
   subtotal: number;
 }
 
-// Un kit repite el mismo producto por hijo: se agrupan por sku y precio para
-// que la lista diga "x 3" y no lo mismo tres veces. El precio entra en la
-// clave porque es el congelado de cada linea: dos precios no se suman en uno.
 export function agruparLineas(lineas: readonly LineaPedido[]): ProductoAgrupado[] {
   const agrupados = new Map<string, ProductoAgrupado>();
   for (const l of lineas) {
@@ -37,8 +29,6 @@ export function agruparLineas(lineas: readonly LineaPedido[]): ProductoAgrupado[
   return [...agrupados.values()];
 }
 
-// Siempre en la hora de Bogota, aunque el servidor corra en UTC: el render no
-// depende de la zona de la maquina.
 const ZONA = "America/Bogota";
 
 export function fechaHoraBogota(iso: string): string {
@@ -61,7 +51,6 @@ export function diaBogota(iso: string): string {
   });
 }
 
-// Dia, mes y hora sin el ano, para los renglones angostos de las fases.
 export function fechaCortaBogota(iso: string): string {
   return new Date(iso).toLocaleString("es-CO", {
     day: "numeric",

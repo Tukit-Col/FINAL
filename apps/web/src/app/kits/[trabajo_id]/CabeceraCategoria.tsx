@@ -16,12 +16,6 @@ import {
 import { idAnclaCategoria, type CategoriaKit } from "@/lib/kit-vista";
 import styles from "./Kits.module.css";
 
-/**
- * Cabecera de un grupo del carrito: título, conteo y "Cambiar todos".
- * Las opciones de cada renglón se piden solo al abrir el selector. El cambio
- * es un PUT por renglón (sin endpoint nuevo) y cada uno se puede deshacer con
- * su propio "Cambiar por otra opción".
- */
 export default function CabeceraCategoria({
   titulo,
   categoria,
@@ -100,8 +94,6 @@ export default function CabeceraCategoria({
         <h3 id={`${idAnclaCategoria(categoria)}-titulo`}>
           {titulo} <span className={`${styles.conteo} cifra`}>{activas.length}</span>
         </h3>
-        {/* "Cambiar todos" se retiro de la vista del padre (13-nov): el asistente ya
-            propone cambios por categoria con su resumen y "Aceptar todos". */}
         {MOSTRAR_CAMBIAR_TODOS && activas.length >= 2 && !abierto && (
           <button type="button" className={styles.botonCambiar} onClick={abrir}>
             <Layers size={14} aria-hidden="true" /> Cambiar todos

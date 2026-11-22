@@ -89,7 +89,6 @@
   opacity: 0.45;
 }
 
-/* Barras parejas: pista mas fina para que no parezca un ranking. */
 .fina .pista {
   height: 3px;
 }
@@ -99,8 +98,6 @@
   background: var(--color-danger);
 }
 
-/* Contenedor angosto: la nota baja bajo el nombre para que este no se corte
- * a tres letras. */
 @container (max-width: 440px) {
   .etiqueta {
     flex-wrap: wrap;

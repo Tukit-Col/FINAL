@@ -1,12 +1,3 @@
-// La vista kanban de `/logistica`: una columna por etapa del flujo y un carril
-// aparte para incidencia y cancelado. Server Component: recibe los pedidos ya
-// filtrados por la pagina; la agrupacion, el orden, el recorte de lo cerrado y
-// la accion de cada tarjeta salen de `lib/logistica.ts` (probados con
-// `node --test`). Solo el boton de avance es de cliente.
-//
-// Ley 1581: la tarjeta muestra codigo, colegio, articulos y total. Nunca el
-// apodo ni el nombre de un menor (el tablero de comercio tampoco los trae).
-
 import Link from "next/link";
 import type { Pedido } from "@tukit/contrato";
 import { ETIQUETA_ALERTA_PEDIDO, ETIQUETA_ESTADO_PEDIDO, formatearPesos } from "@tukit/contrato";
@@ -31,7 +22,6 @@ interface Props {
   filtros: FiltrosLogistica;
   nombresColegio: ReadonlyMap<string, string>;
   urlIngresar: string;
-  /** Un solo reloj para todo el tablero, leido por la pagina (como la Cola). */
   ahora: number;
 }
 
@@ -46,7 +36,6 @@ export default function TableroPedidos({ pedidos, filtros, nombresColegio, urlIn
         <h2 id="carril-flujo" className={styles.tituloCarril}>
           Flujo del pedido
         </h2>
-        {/* Region con foco: en movil se desplaza con el teclado (flechas). */}
         <div className={styles.columnas} role="region" aria-label="Etapas del pedido" tabIndex={0}>
           {flujo.map((columna, i) => (
             <Columna key={columna.estado} columna={columna} paso={i + 1} {...comun} />
@@ -70,7 +59,6 @@ export default function TableroPedidos({ pedidos, filtros, nombresColegio, urlIn
 
 interface PropsColumna {
   columna: ColumnaTablero;
-  /** Posicion en el flujo (1..6); el carril aparte no la lleva. */
   paso?: number;
   filtros: FiltrosLogistica;
   nombresColegio: ReadonlyMap<string, string>;
@@ -147,8 +135,6 @@ function Tarjeta({ pedido, nombresColegio, urlIngresar, ahora }: PropsTarjeta) {
           {articulos} {articulos === 1 ? "artículo" : "artículos"}
         </span>
         <span aria-hidden="true"> · </span>
-        {/* El tablero no trae la llegada a cada etapa: la antiguedad se cuenta
-            desde la entrega (si llego) o desde la creacion del pedido. */}
         <span title={entregado ? "Desde la entrega" : "Desde que se creó el pedido"}>
           {entregado ? "entregado " : "creado "}
           {haceCuanto(fechaDeEtapa(pedido), ahora)}
@@ -168,9 +154,6 @@ function Tarjeta({ pedido, nombresColegio, urlIngresar, ahora }: PropsTarjeta) {
   );
 }
 
-/** Mini recorrido de la tarjeta: seis tramos, llenos hasta la etapa actual.
- *  Orienta (donde va este pedido) sin leer la columna; es decorativo porque la
- *  columna ya nombra la etapa. Incidencia y cancelado no estan en el flujo. */
 function Recorrido({ estado }: { estado: Pedido["estado"] }) {
   const pos = COLUMNAS_FLUJO.indexOf(estado);
   if (pos < 0) return null;

@@ -1,13 +1,5 @@
 "use client";
 
-// La tarjeta de un hijo en "Perfiles de hijos", con sus dos acciones:
-// - Cambiar colegio: colegio y grado nuevos. Identidad retira la matrícula vieja
-//   y crea la nueva con el mismo apodo, todo o nada (un grado inválido no toca
-//   nada).
-// - Quitar: pide confirmación en la misma tarjeta. No borra datos: cierra el
-//   vínculo con la cuenta y retira la matrícula (ADR 0031). Las solicitudes y
-//   pedidos que ya existen siguen ahí.
-
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Trash2 } from "lucide-react";
@@ -25,10 +17,8 @@ interface Props {
   grado: string;
   colegios: Colegio[];
   grados: readonly string[];
-  /** Estado de la solicitud mas avanzada de este colegio y grado, si hay. */
   estado?: { texto: string } | null;
   claseEstado?: string;
-  /** Solo para pruebas visuales: arranca en este modo. */
   modoInicial?: "ver" | "editar" | "quitar";
 }
 
@@ -69,13 +59,11 @@ export default function TarjetaHijo({
   const botonEditarRef = useRef<HTMLButtonElement>(null);
   const botonQuitarRef = useRef<HTMLButtonElement>(null);
   const primerRender = useRef(true);
-  // Mismos aliados que ofrece /empezar: la matricula se guarda por colegio_id.
   const aliados = useMemo(
     () => colegios.filter((c) => c.es_partner ?? c.grados.length > 0),
     [colegios],
   );
 
-  // El foco acompana al panel: entra al abrirlo y vuelve al boton al cerrarlo.
   useEffect(() => {
     if (primerRender.current) {
       primerRender.current = false;
@@ -83,7 +71,6 @@ export default function TarjetaHijo({
     }
     if (modo === "ver") return;
     const raiz = panelRef.current;
-    // En "quitar" el foco cae en "No": lo destructivo no queda a un Enter.
     (modo === "quitar"
       ? raiz?.querySelector<HTMLElement>("button:last-of-type")
       : raiz?.querySelector<HTMLElement>("input, button")
@@ -101,7 +88,6 @@ export default function TarjetaHijo({
   }
 
   const sinCambios = colegioNuevo === colegioId && gradoNuevo === grado;
-  // Solo los grados con lista verificada del colegio elegido (igual que /empezar).
   const colegioElegido = aliados.find((c) => c.colegio_id === colegioNuevo);
   const ofertaGrados = gradosParaCambio(colegioElegido?.grados ?? [], grados, grado);
   const cambioDeColegio = colegioNuevo !== "" && colegioNuevo !== colegioId;
@@ -147,7 +133,6 @@ export default function TarjetaHijo({
               colegioNombre={colegioNuevo === colegioId ? colegioNombre : ""}
               onElegirAliado={(id) => {
                 setColegioNuevo(id);
-                // Nunca se conserva en silencio un grado que el colegio no verificó.
                 const c = aliados.find((x) => x.colegio_id === id);
                 setGradoNuevo(gradosParaCambio(c?.grados ?? [], grados, grado).seleccionado);
               }}

@@ -1,9 +1,3 @@
-/* Barra del back-office en clay, pero sobria: es una consola de operación, no
- * la portada del acudiente. La superficie es clay (inflada, borde de luz), la
- * pestaña activa es una pastilla azul con la sombra del primario, y el resto
- * son enlaces planos que se elevan un poco al pasar por encima. Sin rebotes
- * lentos: aquí se trabaja rápido. */
-
 .cabecera {
   position: sticky;
   top: 0;
@@ -46,10 +40,6 @@
   font-size: 13px;
 }
 
-/* --------------------------------------------------------------- nav */
-
-/* La nav y el boton de salir van juntos a la derecha; el logo se queda solo a
- * la izquierda por el `space-between` de la cabecera. */
 .derecha {
   display: flex;
   align-items: center;
@@ -91,9 +81,6 @@
   transform: none;
 }
 
-/* Celular: la consola se usa sobre todo sentada, pero un operador puede abrirla
- * en el teléfono. Las pestañas pasan a blancos de 44 px y el padding lateral
- * baja para que la barra (que ya envuelve) no gaste media pantalla. */
 @media (max-width: 720px) {
   .cabecera {
     padding: var(--espacio-2) var(--espacio-3);

@@ -1,5 +1,3 @@
-// Plan determinista de cambio en lote. Correr: `node --test test/cambio-en-lote.test.ts`.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { OpcionDeLinea } from "@tukit/contrato";

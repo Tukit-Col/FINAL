@@ -1,15 +1,6 @@
-// Formatos de pantalla propios de la consola.
-//
-// El dinero NO esta aqui: para eso existe `formatearPesos()` del contrato, y
-// tener dos formateadores de pesos es como una app termina mostrando
-// "$18.900" y la otra "COP 18900" para el mismo entero.
-
 import type { ClaseLinea } from "@tukit/contrato";
 import type { EstadoEtapa, EstadoTrabajo, ModoAdquisicion, TipoItem } from "@tukit/contrato";
 
-// Zona horaria fija y no la del proceso: el servidor de Next y el navegador
-// del admin no tienen por que estar en la misma, y una fecha que se pinta
-// distinta en el servidor y en el cliente rompe la hidratacion.
 const FECHA = new Intl.DateTimeFormat("es-CO", {
   dateStyle: "short",
   timeStyle: "short",
@@ -22,8 +13,6 @@ export function formatearFecha(iso: string): string {
   return FECHA.format(fecha);
 }
 
-// Solo el dia, para la entrega estimada: es una fecha prometida, no un instante,
-// y mostrarle una hora ("00:00") al operador seria inventar precision.
 const DIA = new Intl.DateTimeFormat("es-CO", {
   dateStyle: "medium",
   timeZone: "America/Bogota",
@@ -35,12 +24,6 @@ export function formatearDia(iso: string): string {
   return DIA.format(fecha);
 }
 
-/**
- * "hace 4 min". Se calcula contra `ahora` recibido y no contra `Date.now()`
- * para que la llamada sea explicita sobre que esto solo puede pasar en un
- * Server Component: en uno de cliente el reloj del servidor y el del
- * navegador dan textos distintos.
- */
 export function haceCuanto(iso: string, ahora: number): string {
   const fecha = new Date(iso).getTime();
   if (Number.isNaN(fecha)) return "—";
@@ -90,7 +73,6 @@ export const TITULO_MODO: Record<ModoAdquisicion, string> = {
   diferido: "lo pide el colegio después",
 };
 
-/** Las tres clases que son, literalmente, el trabajo pendiente del admin. */
 export const CLASES_PENDIENTES: readonly ClaseLinea[] = ["hueco", "sin_match", "pendiente_revision"];
 
 export function esPendiente(clase: ClaseLinea): boolean {

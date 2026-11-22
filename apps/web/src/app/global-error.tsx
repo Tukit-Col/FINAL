@@ -1,8 +1,5 @@
 "use client";
 
-// Último recurso: reemplaza el layout, así que no hay cabecera. Estilos en línea
-// porque globals.css puede no haber cargado.
-
 import Image from "next/image";
 
 export default function ErrorGlobal({ reset }: { error: Error; reset: () => void }) {

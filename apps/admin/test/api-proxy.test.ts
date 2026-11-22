@@ -1,6 +1,3 @@
-// Validacion de forma de los cuerpos de las rutas proxy de la Fase 4.
-// Correr:  node --test test/api-proxy.test.ts
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {

@@ -126,7 +126,6 @@
   font-size: 13px;
 }
 
-/* La nota interna se distingue de "Responder": fondo ámbar y rótulo propio. */
 .nota {
   max-width: none;
   padding: var(--espacio-3) var(--espacio-4);

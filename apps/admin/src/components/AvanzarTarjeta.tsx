@@ -1,15 +1,5 @@
 "use client";
 
-// El boton de avance de una tarjeta del tablero. Envia SOLO el paso natural
-// que la matriz de `lib/logistica.ts` permite desde el estado (via
-// `accionDeTarjeta`), por el mismo endpoint que el detalle (`avanzarPedido`).
-// No hay arrastrar y soltar: un boton es accesible por teclado y no deja
-// soltar un pedido en una etapa ilegal.
-//
-// Los pasos que piden datos (despachar: repartidor) no se envian desde aqui:
-// el boton lleva al formulario del detalle. Si comercio responde 409 (otro
-// operador lo movio), se refresca el tablero y el pedido aparece donde esta.
-
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -22,7 +12,6 @@ import styles from "./TableroPedidos.module.css";
 interface Props {
   pedidoId: string;
   estado: EstadoPedido;
-  /** El codigo corto, para que el nombre accesible diga QUE pedido se mueve. */
   codigo: string;
   urlIngresar?: string;
 }
@@ -53,7 +42,6 @@ export default function AvanzarTarjeta({ pedidoId, estado, codigo, urlIngresar }
     setEnviando(true);
     try {
       await avanzarPedido(pedidoId, { destino: accion.destino });
-      // La tarjeta sale animada (CSS) y luego el refresco la lleva a su columna.
       boton.current?.closest("article")?.setAttribute("data-sale", "");
       router.refresh();
     } catch (causa) {

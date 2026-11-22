@@ -1,20 +1,12 @@
-"use client";
+// El "cómo funciona" como línea de tiempo que se dibuja al hacer scroll.
+//
+// Decisiones:
+// - Es la única pieza de la portada con animación ligada al scroll y por eso es componente de cliente;
+//   el resto de la página sigue siendo Server Component.
+// - Pasa por el helper de motion del contrato: con `prefers-reduced-motion` no anima nada y el bloque
+//   se lee como una lista ordenada normal. La animación es el adorno, no el contenido.
 
-// El "cómo funciona" como una línea de tiempo que se dibuja al hacer scroll.
-//
-// Es la única pieza de la portada con animación ligada al scroll, y por eso es
-// cliente: el resto de la página sigue siendo Server Component. La línea central
-// se rellena a medida que bajas (scrub), y cada etapa se enciende cuando el
-// relleno la alcanza. Todo pasa por el mismo helper de motion del contrato, así
-// que con `prefers-reduced-motion` no anima NADA: la línea queda dibujada
-// entera, las siete etapas visibles y encendidas, y el bloque se lee como una
-// lista ordenada normal. La animación es el adorno, no el contenido.
-//
-// Las siete etapas son el flujo del negocio de punta a punta, no las cuatro que
-// mostraba el prototipo. La última —pagar y recibir en casa— estuvo marcada
-// `proximamente` mientras el gateway respondía 501 para el pago; ya hay
-// checkout (Wompi, simulado en el entorno de prueba), así que se dice tal cual
-// y la marca queda para la próxima etapa que todavía no exista.
+"use client";
 
 import { useRef, type ElementType } from "react";
 import {
@@ -99,8 +91,6 @@ export default function LineaDelTiempo() {
       const relleno = lista.querySelector<HTMLElement>(`.${styles.rielRelleno}`);
       const etapas = gsap.utils.toArray<HTMLElement>(`.${styles.etapa}`, lista);
 
-      // Con movimiento reducido: línea dibujada entera, todo visible y
-      // encendido. Ni un ScrollTrigger, para no dejar nada a medias.
       if (prefiereMenosMovimiento()) {
         if (relleno) gsap.set(relleno, { scaleY: 1 });
         etapas.forEach((el) => {
@@ -110,7 +100,6 @@ export default function LineaDelTiempo() {
         return;
       }
 
-      // El relleno de la línea se dibuja ligado al scroll (scrub): baja contigo.
       if (relleno) {
         gsap.set(relleno, { transformOrigin: "top center" });
         gsap.fromTo(
@@ -129,8 +118,6 @@ export default function LineaDelTiempo() {
         );
       }
 
-      // Cada etapa entra al aparecer, y su marca se enciende cuando el relleno
-      // la alcanza (y se apaga si vuelves a subir por encima de ella).
       etapas.forEach((el) => {
         gsap.from(el, {
           opacity: 0,

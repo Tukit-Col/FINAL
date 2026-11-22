@@ -51,8 +51,6 @@
   line-height: 1.2;
 }
 
-/* La cifra de acudientes esperando se pinta en aviso cuando no es cero: es la
- * unica del resumen que pide actuar hoy. */
 .resumen > .resumenAviso {
   background: var(--color-aviso-bg);
   box-shadow: var(--clay-shadow-sm), inset 0 0 0 1px var(--color-aviso-border);
@@ -61,8 +59,6 @@
 .resumenAviso dd {
   color: var(--color-aviso);
 }
-
-/* ---------------------------------------------------------------- bloques */
 
 .bloque {
   display: flex;
@@ -102,8 +98,6 @@
   border-color: var(--color-aviso-border);
   color: var(--color-aviso);
 }
-
-/* ------------------------------------------------- 1. acudiente esperando */
 
 .urgentes {
   display: grid;
@@ -164,8 +158,6 @@
   color: var(--color-text-primary);
 }
 
-/* ----------------------------------------------- 2. versiones por colegio */
-
 .colegio {
   background: var(--color-surface);
   border-radius: var(--radius-lg);
@@ -193,8 +185,6 @@
   color: var(--color-text-muted);
 }
 
-/* Una ficha por grado, en orden pedagogico: el grado se lee primero, los
- * renglones debajo y las acciones al pie. */
 .grados {
   list-style: none;
   margin: 0;
@@ -244,8 +234,6 @@
   font-size: 11px;
 }
 
-/* La confirmacion de borrar reemplaza al boton en el mismo lugar; en una ficha
- * angosta puede no caber al lado de "Revisar", asi que la fila envuelve. */
 .gradoAcciones {
   display: flex;
   align-items: center;
@@ -292,8 +280,6 @@
   white-space: nowrap;
 }
 
-/* ------------------------------------------ 3. previsualizaciones plegadas */
-
 .plegable {
   border: 1px dashed var(--color-border);
   border-radius: var(--radius-lg);
@@ -332,11 +318,6 @@
   padding: 0 var(--espacio-3) var(--espacio-3);
 }
 
-/* ---------------------------------------------------------------- acciones */
-
-/* El costado derecho del encabezado: el botón de subir una lista sobre el
- * resumen de cifras. Subir y verificar son el mismo trabajo, así que la acción
- * vive aquí y no en una pantalla aparte. */
 .acciones {
   display: flex;
   flex-direction: column;
@@ -387,8 +368,6 @@
   box-shadow: var(--clay-shadow);
 }
 
-/* "Revisar" y "Eliminar" en una sola linea; la confirmacion reemplaza a
-   "Eliminar" en ese mismo lugar, asi la tarjeta no cambia de alto. */
 .accionesFila {
   display: flex;
   justify-content: flex-end;
@@ -426,8 +405,6 @@
 .accionChica:active {
   transform: scale(0.96);
 }
-
-/* ------------------------------------------------------------ cola vacia */
 
 .vacia {
   display: flex;
@@ -469,8 +446,6 @@
     align-items: stretch;
   }
 }
-
-/* ------------------------------------------------ filtros y paginacion */
 
 .filtros {
   display: flex;
@@ -523,7 +498,6 @@
   text-decoration: underline;
 }
 
-/* Colegio como acordeon: la cabecera es el <summary>. */
 details.colegio > summary {
   cursor: pointer;
   list-style: none;

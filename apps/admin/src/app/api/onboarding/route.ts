@@ -1,19 +1,11 @@
-// `POST /api/onboarding` — P4, region de entrada del revisor de listas.
+// `POST /api/onboarding`: entrada del revisor de listas.
 //
-// Inteligencia recibe el PDF de un grado, lo percibe y lo vuelca en catalogo
-// como una version importada. El navegador nunca llama a inteligencia
-// directamente: la URL del backend y la bandera del origen se quedan aqui, del
-// lado del servidor, igual que en `/api/trabajos`. La percepcion de un PDF
-// tarda mas que el corte de 30 s de un `rewrite`, otra razon para el salto.
-//
-// El colegio llega como `colegio_id`, o `colegio_dane` + `colegio_nombre` (del
-// directorio de Bogota), o solo `colegio_nombre` (escrito a mano). Un DANE que
-// ya es de un colegio de Tukit se reconduce a su `colegio_id` aqui, del lado
-// del servidor (`designarColegio`).
-//
-// Es una ruta de staff: el token de la cookie httpOnly se reenvia como Bearer,
-// igual que en `/api/logistica/{pedido}/avanzar`, e inteligencia valida la
-// sesion y el rol. Sin sesion se corta aqui con 401, antes de leer el PDF.
+// Decisiones:
+// - Es una ruta de staff: el token de la cookie httpOnly se reenvía como Bearer y la URL del backend se
+//   queda del lado del servidor. La percepción de un PDF tarda más que el corte de 30 s de una `rewrite`.
+// - El colegio llega como `colegio_id`, como `colegio_dane` y `colegio_nombre` (del directorio) o solo
+//   como `colegio_nombre`. Un DANE que ya es de un colegio de Tukit se reconduce a su `colegio_id` en el
+//   servidor (`designarColegio`).
 
 import type { ColegioDesignado } from "@tukit/contrato";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
@@ -63,7 +55,6 @@ export async function POST(peticion: Request): Promise<Response> {
       );
     }
     grado = gr;
-    // Año lectivo entero; el borde vuelve a validar lo que la pantalla ya pide.
     anioLectivo = Number(anio);
     if (!Number.isInteger(anioLectivo) || anioLectivo < 2000 || anioLectivo > 2100) {
       return respuestaDeError(
@@ -81,7 +72,6 @@ export async function POST(peticion: Request): Promise<Response> {
 
   let colegio: ColegioDesignado | null;
   try {
-    // Solo hace falta la lista de colegios para reconducir un DANE.
     colegio = designarColegio(
       campos,
       campos.colegio_dane ? await origenDeDatos().colegios() : [],
@@ -104,8 +94,6 @@ export async function POST(peticion: Request): Promise<Response> {
     });
     return Response.json(version, { status: 201 });
   } catch (causa) {
-    // Un 422 `lista_de_varios_grados` sube tal cual: la pantalla tiene que
-    // decir por que se rechazo el PDF.
     return respuestaDeError(causa);
   }
 }

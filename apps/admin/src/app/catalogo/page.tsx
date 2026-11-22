@@ -1,16 +1,3 @@
-// `/catalogo` — la SPA de administración del catálogo (P4c).
-//
-// Reemplaza al antiguo gestor de huecos: en vez de listar solo los conceptos
-// sin cubrir, es un gestor completo de `producto_canonico` — búsqueda con
-// filtros, CRUD de todos los campos, gestión de imagen por URL, re-etiqueta
-// (nivel/personaje/marca/atributos) y re-clasificación (mover de concepto).
-//
-// Server Component: hace las tres LECTURAS iniciales directo contra el origen
-// (sin salto HTTP) —la primera página de productos, la lista de conceptos para
-// filtrar/reclasificar y los personajes para el autocompletado— y las pasa al
-// cliente. Toda escritura y toda búsqueda interactiva posterior van por los
-// Route Handlers de `/api/catalogo/**`.
-
 import { origenDeDatos } from "@tukit/contrato/servidor";
 import SeccionesCatalogo from "@/components/SeccionesCatalogo";
 import type { OpcionConcepto } from "@/components/PanelReclasificar";
@@ -20,8 +7,6 @@ import { vocabularioDeConceptos } from "@/lib/vocabulario-conceptos";
 export const dynamic = "force-dynamic";
 
 interface Props {
-  // `?pestana=util&concepto=C008&consulta=regla de acero`: el enlace «Agregar
-  // útil» de los avisos de una lista abre el alta con eso ya puesto.
   searchParams: Promise<{ pestana?: string; concepto?: string; consulta?: string }>;
 }
 
@@ -29,7 +14,6 @@ export default async function PaginaCatalogo({ searchParams }: Props) {
   const { pestana, concepto, consulta } = await searchParams;
   const origen = origenDeDatos();
 
-  // Las tres lecturas en paralelo: primera página, conceptos y personajes.
   const [paginaInicial, catalogo, personajes] = await Promise.all([
     origen.buscarProductos({ por_pagina: 24, pagina: 1 }),
     origen.catalogo(),
@@ -37,16 +21,10 @@ export default async function PaginaCatalogo({ searchParams }: Props) {
   ]);
 
   const conceptos: OpcionConcepto[] = catalogo.conceptos
-    // Solo los que se buscan en el catalogo (la misma puerta que `BUSCA_EN_CATALOGO`
-    // del pipeline). Uniforme, licencia, "lo entrega el colegio" o un texto con
-    // titulo nunca llevan productos: ofrecerlos aqui solo invita a colgarles uno.
-    // En la revision de listas SI aparecen, porque ahi se asignan a renglones.
     .filter((c) => c.tipo_item === "util" || c.tipo_item === "libro_libre")
     .map((c) => ({
       codigo: c.codigo,
       nombre: c.nombre_canonico,
-      // El esquema de atributos viaja hasta el editor para pre-poblar las claves
-      // que el concepto declara (el caso del cuaderno con solo `materias`).
       atributos_discriminantes: c.atributos_discriminantes,
       atributos_descriptivos: c.atributos_descriptivos,
     }))
@@ -54,8 +32,6 @@ export default async function PaginaCatalogo({ searchParams }: Props) {
 
   const nombresPersonajes = personajes.map((p) => p.nombre);
 
-  // Las tiendas registradas viajan al alta de útil/libro: el selector deja
-  // elegir una o escribir otro slug (el backend valida contra la BD).
   const tiendas = catalogo.tiendas
     .map((t) => ({ slug: t.slug, nombre: t.nombre }))
     .sort((a, b) => a.nombre.localeCompare(b.nombre));

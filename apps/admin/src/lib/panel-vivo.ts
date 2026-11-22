@@ -1,10 +1,3 @@
-// Lo que el panel agrega a las tarjetas de acción: flujo de pedidos, tickets por
-// estado, listas por verificar por colegio y actividad reciente. Todo se deriva
-// de lo que ya devuelven pedidos(), casos() y cola()/listasAdmin(): sin
-// endpoints nuevos. Puro (solo tipos del contrato) para `node --test`.
-// Ley 1581: solo conteos e ids; nunca nombre ni apodo de un menor, y del ticket
-// no se muestra el asunto (texto libre del acudiente).
-
 import type {
   Caso,
   ColaAdmin,
@@ -52,13 +45,11 @@ export interface FilaTickets {
   clave: string;
   cantidad: number;
   enlace: string;
-  /** El plazo ya venció: va en rojo. */
   critico?: boolean;
 }
 
 const ESTADOS_ACTIVOS: readonly EstadoCaso[] = ["abierto", "en_gestion", "esperando_tercero"];
 
-/** Activos por estado + los cortes de SLA. `vencen_hoy` no tiene filtro propio en /tickets. */
 export function ticketsPorEstado(
   casos: readonly Caso[],
   resumen: { urgentes: number; vencen_hoy: number; vencidos?: number },
@@ -86,30 +77,19 @@ export interface GrupoColegio {
   nombre: string;
   listas: number;
   lineas: number;
-  /** Versiones de este colegio con un acudiente esperando su kit. */
   esperando: number;
 }
 
 export interface ListasPanel {
   grupos: GrupoColegio[];
-  /** Lo que no cupo en el tope, sumado en una sola barra final. */
   otros: { colegios: number; listas: number } | null;
   total: number;
   colegios: number;
-  /** Versiones (no colegios) con acudiente esperando. */
   esperando: number;
-  /** Conteo por grado, en el orden pedagogico recibido; los desconocidos al final. */
   porGrado: { grado: string; listas: number }[];
-  /** Todas las barras visibles valen lo mismo: pintarlas finas, no como ranking. */
   uniforme: boolean;
 }
 
-/**
- * Versiones sin revisar agrupadas por colegio. Orden: primero los colegios con
- * acudiente esperando (es lo que dispara un kit), luego los mas cargados. Lo que
- * pasa del tope se suma en `otros`. `ordenGrados` es la lista canonica (se pasa
- * desde la pagina para que este modulo siga sin dependencias de runtime).
- */
 export function listasPorColegio(
   versiones: readonly VersionListaAdmin[],
   nombres: ReadonlyMap<string, string>,
@@ -190,16 +170,12 @@ export interface Actividad {
   clave: string;
   tipo: "pedido" | "ticket" | "lista";
   titulo: string;
-  /** Texto plano completo (estado · monto, o categoria · prioridad). */
   detalle: string;
   instante: string;
   enlace: string;
-  /** Lo que va en la insignia de color. */
   estado: string;
   tono: TonoEstado;
-  /** Lo secundario que no es estado: la categoria del ticket o el colegio. */
   nota?: string;
-  /** Solo pedidos: el total ya formateado, para destacarlo a la derecha. */
   monto?: string;
 }
 
@@ -219,7 +195,6 @@ function ms(iso: string): number {
   return Number.isNaN(t) ? 0 : t;
 }
 
-/** Los últimos `n` eventos mezclando pedidos, tickets y listas. */
 export function actividadReciente(e: EntradaActividad, n = 8): Actividad[] {
   const items: Actividad[] = [];
   for (const p of e.pedidos) {
@@ -270,8 +245,6 @@ export function actividadReciente(e: EntradaActividad, n = 8): Actividad[] {
   return items.sort((a, b) => ms(b.instante) - ms(a.instante)).slice(0, n);
 }
 
-// Dia calendario en Bogota (YYYY-MM-DD): el servidor puede correr en UTC y un
-// pedido de las 8 p. m. no debe caer en "mañana".
 const DIA_BOGOTA = new Intl.DateTimeFormat("en-CA", {
   timeZone: "America/Bogota",
   year: "numeric",
@@ -290,12 +263,10 @@ export function diaBogota(instante: number): string {
   return DIA_BOGOTA.format(new Date(instante));
 }
 
-/** Dias calendario entre dos claves YYYY-MM-DD (b - a). */
 function diasEntre(a: string, b: string): number {
   return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
 }
 
-/** "Hoy", "Ayer", "Hace N días" (N <= 7) o la fecha larga. */
 export function tituloDia(dia: string, hoy: string): string {
   const d = diasEntre(dia, hoy);
   if (d <= 0) return "Hoy";
@@ -311,7 +282,6 @@ export interface DiaActividad {
   items: Actividad[];
 }
 
-/** Agrupa la actividad (ya ordenada) por dia de Bogota, conservando el orden. */
 export function agruparPorDia(items: readonly Actividad[], ahora: number): DiaActividad[] {
   const hoy = diaBogota(ahora);
   const grupos: DiaActividad[] = [];
@@ -330,14 +300,11 @@ export function agruparPorDia(items: readonly Actividad[], ahora: number): DiaAc
 
 export interface ColumnaDia {
   clave: string;
-  /** "lun", "mar"…; el ultimo es "Hoy". */
   etiqueta: string;
-  /** Para lectores de pantalla: "lunes 9 de noviembre". */
   etiquetaLarga: string;
   valor: number;
 }
 
-/** Pedidos creados en cada uno de los ultimos `dias` dias (el ultimo es hoy). */
 export function pedidosPorDia(
   pedidos: readonly Pick<Pedido, "creado_en">[],
   ahora: number,

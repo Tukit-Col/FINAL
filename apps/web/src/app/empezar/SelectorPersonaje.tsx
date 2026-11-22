@@ -1,22 +1,15 @@
-"use client";
-
 // Selector de personajes para el hijo.
 //
-// No es una pantalla suelta ni un mock: es la entrada REAL de la preferencia
-// `personaje_por_hijo` del contrato. El formulario la sigue leyendo como una
-// lista de nombres separados por comas (misma forma de antes), asi que este
-// componente solo cambia COMO se elige, no QUE se guarda. El eje personaje es
-// ortogonal al nivel de calidad —por eso usa `--color-personaje` y nunca se
-// pinta como un cuarto nivel.
-//
-// El cambio de fondo (P4b): la rejilla ya no es una lista fija de "sugeridos"
-// que promete cualquier cosa. Son las franquicias que de verdad tenemos surtidas
-// completas —el filtro de las cuatro anclas lo hace el servidor y nos llega en
-// `surtidos`—, asi que tocar una es una promesa que sí cumplimos. El campo libre
-// sigue existiendo, pero como PEDIDO: se ve distinto porque no garantiza stock.
-//
-// Motion de plastilina con rebote al elegir; con `prefers-reduced-motion` no
-// anima (el helper del contrato lo resuelve) y el selector sigue funcionando.
+// Decisiones:
+// - Es la entrada real de la preferencia `personaje_por_hijo`; el formulario la sigue leyendo como una
+//   lista de nombres separados por comas, así que el componente solo cambia cómo se elige.
+// - El eje personaje es ortogonal al nivel de calidad: usa `--color-personaje` y nunca se pinta como
+//   un cuarto nivel.
+// - La rejilla muestra solo las franquicias que tenemos surtidas completas (el servidor aplica el
+//   filtro de las cuatro anclas y llegan en `surtidos`), así que tocar una es una promesa que se
+//   cumple. El campo libre es un pedido: se ve distinto porque no garantiza stock.
+
+"use client";
 
 import { useRef } from "react";
 import { Check, Sparkles } from "lucide-react";
@@ -25,22 +18,12 @@ import { iconoDe } from "./IconosPersonaje";
 import estilos from "./SelectorPersonaje.module.css";
 
 interface Props {
-  /** Valor actual: nombres separados por comas (lo que el formulario guarda). */
   valor: string;
-  /** Devuelve el nuevo string separado por comas. */
   onChange: (valor: string) => void;
-  /** Para etiquetar el hijo en la cabecera del selector. */
   etiquetaHijo: string;
-  /**
-   * Franquicias surtidas completas (pasan el filtro de las cuatro anclas). Son
-   * los nombres de catalogo, ya en minuscula. Vienen del servidor.
-   */
   surtidos: string[];
 }
 
-// El estado vive en el string del formulario. Lo parseamos a un conjunto para
-// pintar qué está activo, y lo volvemos a unir al cambiar: una sola fuente de
-// verdad, sin duplicar estado que se pueda desincronizar.
 function parsear(valor: string): string[] {
   return valor
     .split(",")
@@ -54,8 +37,6 @@ export default function SelectorPersonaje({ valor, onChange, etiquetaHijo, surti
   const elegidosLower = elegidos.map((p) => p.toLowerCase());
   const surtidosSet = new Set(surtidos.map((s) => s.toLowerCase()));
 
-  // Los que el acudiente escribió a mano y no están en la rejilla surtida: son
-  // pedidos, y se muestran aparte como chips que se pueden quitar.
   const pedidos = elegidos.filter((p) => !surtidosSet.has(p.toLowerCase()));
 
   useGSAP(
@@ -68,10 +49,6 @@ export default function SelectorPersonaje({ valor, onChange, etiquetaHijo, surti
         duration: 0.4,
         ease: "back.out(1.6)",
         stagger: { each: 0.03, from: "center" },
-        // Sin esto, la animacion de entrada deja un `transform` inline en cada
-        // ficha que pisa el estado en reposo del CSS: una ficha deseleccionada
-        // se quedaba "grande". `clearProps` devuelve el control al CSS al
-        // terminar, para que solo `.fichaActiva` decida como se ve.
         clearProps: "transform",
       });
     },
@@ -80,14 +57,8 @@ export default function SelectorPersonaje({ valor, onChange, etiquetaHijo, surti
 
   function alternar(nombre: string, nodo: Element | null) {
     const yaEsta = elegidosLower.includes(nombre.toLowerCase());
-    // Un personaje por hijo: el kit Fan se arma alrededor de UNO. Tocar otra
-    // ficha reemplaza la elección de la rejilla en vez de sumar una segunda;
-    // tocar la activa la quita. (Los `pedidos` escritos a mano son aparte.)
     const soloPedidos = elegidos.filter((p) => !surtidosSet.has(p.toLowerCase()));
     const siguiente = yaEsta ? soloPedidos : [...soloPedidos, nombre];
-    // El "hundido y vuelve" se hace en cada toque, seleccionar o soltar: antes
-    // solo corria al seleccionar, asi que la ficha quedaba encogida hasta el
-    // siguiente toque. El release siempre resuelve la escala a 1.
     squish(nodo, true);
     setTimeout(() => squish(nodo, false), 130);
     onChange(siguiente.join(", "));
@@ -160,8 +131,6 @@ export default function SelectorPersonaje({ valor, onChange, etiquetaHijo, surti
         Sin personaje
       </button>
 
-      {/* Campo libre: es un PEDIDO, no una promesa de stock. Se ve distinto y el
-          rótulo lo dice claro. Se guarda en el mismo string. */}
       <div>
         <p className={estilos.rotuloLibre}>
           ¿Le gusta otro?
@@ -189,7 +158,6 @@ export default function SelectorPersonaje({ valor, onChange, etiquetaHijo, surti
         </label>
       </div>
 
-      {/* Los pedidos escritos a mano se muestran aparte y se quitan tocándolos. */}
       {pedidos.length > 0 && (
         <div className={estilos.propios}>
           {pedidos.map((p) => (

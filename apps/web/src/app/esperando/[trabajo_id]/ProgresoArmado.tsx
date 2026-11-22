@@ -1,11 +1,5 @@
 "use client";
 
-// La pantalla de "que esta pasando" al armar el kit: cuatro pasos con nombre,
-// el actual enfatizado y la caja de Tukit al lado. Cada paso se ve al menos
-// ~1,5 s aunque el backend termine antes (cortesia con tope de ~6 s, ver
-// `lib/progreso-espera.ts`); el backend nunca espera por esta animacion.
-// "Ver ya" salta el resto en cuanto el trabajo esta terminado.
-
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Check, FastForward } from "lucide-react";
@@ -20,11 +14,8 @@ import styles from "./Armado.module.css";
 
 interface Props {
   etapas: readonly EtapaMinima[];
-  /** El backend ya no tiene nada mas que hacer (publicado o en revision). */
   terminado: boolean;
-  /** Ya vio este recorrido antes (volvio a la pagina): sin cortesia. */
   yaVisto: boolean;
-  /** Los pasos ya se vieron; la pantalla padre decide a donde ir. */
   onCompleto: () => void;
 }
 

@@ -1,6 +1,3 @@
-// `POST /api/solicitudes/listas/{tarea_id}/cancelar`: el acudiente cancela una
-// lista que subió y que aún no tiene kit. La lista no se borra (es del colegio):
-// solo deja de ser suya (ADR 0031).
 import { cookies } from "next/headers";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import { respuestaDeError } from "@/lib/respuesta";

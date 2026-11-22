@@ -1,7 +1,3 @@
-// La franja Fan del kit: junta los productos del personaje que pidio cada hijo,
-// sin repetir ni incluir descartados. Correr con
-// `node --test test/linea-personajes.test.ts`.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { personajesDelKit, personajesPorHijo, productosDelPersonaje } from "../src/linea.ts";
@@ -58,7 +54,6 @@ test("con los personajes pedidos por hijo, cada hijo solo muestra el suyo", () =
     de("S", "hijo-1", "Spider-Man"),
     de("M", "hijo-2", "Minnie"),
     de("B", "hijo-1", "Bluey"),
-    // Minnie es de hijo-2: en una linea de hijo-1 no la pidio nadie.
     de("M2", "hijo-1", "Minnie"),
   ];
   const pedidos = { "hijo-1": ["spiderman"], "hijo-2": ["minnie"] };
@@ -66,7 +61,6 @@ test("con los personajes pedidos por hijo, cada hijo solo muestra el suyo", () =
     productosDelPersonaje(lineas, pedidos).map((l) => l.producto_elegido?.sku),
     ["S", "M"],
   );
-  // Sin `pedidos` cuenta cualquier personaje.
   assert.equal(productosDelPersonaje(lineas).length, 4);
   assert.deepEqual(
     personajesPorHijo(lineas, pedidos).map((g) => [g.hijo, g.personaje, g.lineas.length]),
@@ -79,9 +73,9 @@ test("con los personajes pedidos por hijo, cada hijo solo muestra el suyo", () =
 
 test("un producto compartido entre hermanos aparece en el grupo de cada hijo", () => {
   const lineas = [
-    de("CART", "hijo-1", "Spiderman", "hijo-1-CART"), // cartuchera compartida (mismo sku)
+    de("CART", "hijo-1", "Spiderman", "hijo-1-CART"),
     de("CUAD", "hijo-1", "Spiderman", "hijo-1-CUAD"),
-    de("CART", "hijo-2", "Spiderman", "hijo-2-CART"), // el hermano consolidado: mismo sku
+    de("CART", "hijo-2", "Spiderman", "hijo-2-CART"),
   ];
   const pedidos = { "hijo-1": ["spiderman"], "hijo-2": ["spiderman"] };
   assert.deepEqual(

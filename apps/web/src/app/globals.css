@@ -2,17 +2,11 @@
 @import "@tukit/contrato/tokens.css";
 
 body {
-  /* La app del acudiente se usa de pie, con el celular en una mano. El fondo
-   * claro y el contenido centrado en una columna ancha es lo mismo que ya
-   * hacia el prototipo; lo que cambia es que ahora hay una barra de estado
-   * arriba diciendo de donde salen los datos. */
+
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
-  /* Corta cualquier desbordamiento horizontal que dejen las piezas decorativas
-   * en clay (rotadas, con sombra difusa) o los "stickers" torcidos del titular:
-   * en móvil eso aparece como scroll lateral fantasma. `clip` (no `hidden`) no
-   * crea un contenedor de scroll, así que la cabecera sticky sigue funcionando. */
+
   overflow-x: clip;
 }
 

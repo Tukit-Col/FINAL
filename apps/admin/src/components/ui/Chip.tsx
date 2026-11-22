@@ -1,6 +1,3 @@
-// Chip de filtro: un enlace con tres estados (normal, "hay algo", activo).
-// Objetivo tactil de 44 px; el estado activo se anuncia con aria-current.
-
 import Link from "next/link";
 import type { ReactNode } from "react";
 import styles from "./ui.module.css";

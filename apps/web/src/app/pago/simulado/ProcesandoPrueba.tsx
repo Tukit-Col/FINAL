@@ -4,8 +4,6 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import styles from "../Pago.module.css";
 
-// Sin pasarela real (WOMPI_MODO=falso) el pago se resuelve solo: la persona ve
-// una pantalla neutra y vuelve al resultado, sin botones que pidan decidir.
 const ESPERA_MS = 1200;
 
 export default function ProcesandoPrueba({ destino }: { destino: string }) {

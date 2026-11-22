@@ -1,11 +1,3 @@
-// `POST /api/catalogo/propuestas/libro` — encola un libro por ISBN (P4c bis).
-//
-// Manual: el personal copia ISBN/título/precio de Buscalibre (que no expone
-// búsqueda en vivo). Como el alta de útil, solo encola (`estado: "pendiente"`):
-// una persona decide el nivel al aprobar. El precio va en PESOS enteros y > 0;
-// se valida aquí además del form y del origen (tres veces a propósito, §1.4).
-// Un ISBN inválido lo rechaza el backend (`isbn_invalido`, 422).
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { AltaLibro } from "@tukit/contrato";
 import { cuerpoJson, respuestaDeError } from "@/lib/respuesta";

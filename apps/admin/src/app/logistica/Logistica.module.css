@@ -16,8 +16,6 @@
   color: var(--color-text-secondary);
 }
 
-/* --------------------------------------------------------- tarjetas */
-
 .tarjetas {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -71,8 +69,6 @@
   color: var(--color-text-muted);
 }
 
-/* ------------------------------------------------------------- tabla */
-
 .tabla {
   width: 100%;
   border-collapse: collapse;
@@ -108,12 +104,10 @@
   background: var(--color-surface-2);
 }
 
-/* En curso: lo que hay que mover, con la barra azul de "activo". */
 .filaCurso {
   box-shadow: inset 3px 0 0 var(--clay-cielo);
 }
 
-/* Incidencia: lo que hay que atender, con la barra roja. */
 .filaIncidencia {
   background: var(--color-danger-bg);
   box-shadow: inset 3px 0 0 var(--color-danger);
@@ -161,7 +155,6 @@
   color: var(--color-text-secondary);
 }
 
-/* El correo del acudiente: largo y sin espacios, se parte para no ensanchar la tabla. */
 .correo {
   max-width: 24ch;
   overflow-wrap: anywhere;
@@ -188,9 +181,6 @@
   font-weight: 700;
 }
 
-/* Estados de pedido: cada uno con su color semántico. Los "en curso" van en
- * el azul de la marca (info), lo cerrado en verde/gris, la incidencia en rojo,
- * lo pendiente de pago en ámbar. */
 .estado {
   display: inline-block;
   padding: 1px 9px;
@@ -233,8 +223,6 @@
   color: var(--color-text-muted);
 }
 
-/* ------------------------------------------------------------- vacío */
-
 .vacio {
   max-width: 70ch;
   padding: var(--espacio-6);
@@ -249,13 +237,6 @@
   font-size: 13px;
   color: var(--color-text-secondary);
 }
-
-/* ------------------------------------------- Fase 4: chips, casillas, alertas */
-
-
-
-
-
 
 .colCasilla {
   width: 36px;

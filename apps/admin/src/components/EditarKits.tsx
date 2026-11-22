@@ -1,19 +1,12 @@
 "use client";
 
-// P4 — "Editar kits" de un grado ya publicado. Los kits vigentes no se tocan:
-// se abre (o se retoma) un borrador con su copia, que es la versión siguiente,
-// y se cae en la consola de revisión para corregir los renglones de cada kit
-// —los no reconocidos van marcados—. Publicarlo allí lo vuelve el canónico.
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { abrirBorradorKits, FalloApi } from "@/lib/api-navegador";
 import styles from "@/app/colegios/Colegios.module.css";
 
 interface Props {
-  /** El canónico vigente del grado. */
   canonicoId: string;
-  /** El borrador ya abierto, si lo hay: se retoma en vez de crear otro. */
   borradorId: string | null;
 }
 

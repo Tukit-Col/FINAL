@@ -1,6 +1,3 @@
-// El 404 del detalle: casi siempre es un codigo mal pegado, y la salida util
-// es volver al tablero, que busca por el codigo corto.
-
 import Link from "next/link";
 import styles from "./Detalle.module.css";
 

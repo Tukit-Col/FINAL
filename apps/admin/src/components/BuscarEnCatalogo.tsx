@@ -1,9 +1,5 @@
 "use client";
 
-// Buscar un producto del catalogo para un renglon que se quedo sin uno (HUECO).
-// Filtra por el concepto del renglon y por texto; elegir lo pone en ESTE kit con
-// la misma ruta que cambiar de alternativa (`fijarProductoLinea`).
-
 import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import type { ProductoCatalogoDetalle } from "@tukit/contrato";
@@ -13,7 +9,6 @@ import styles from "./Revision.module.css";
 
 const PALABRAS_VACIAS = new Set(["de", "del", "la", "el", "los", "las", "para", "con", "y", "x", "un", "una"]);
 
-/** Las palabras que sirven para buscar: sin cantidades ni conectores. */
 function consultaDe(texto: string): string {
   return texto
     .toLowerCase()

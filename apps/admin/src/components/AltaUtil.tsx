@@ -1,16 +1,9 @@
-// Alta de un útil, en dos modos (P4c bis):
+// Alta de un útil, en dos modos: buscar en tienda o escribir a mano.
 //
-//  - Buscar en tienda: selector de tienda + caja de búsqueda → candidatos (foto,
-//    nombre, precio, marca) → se elige uno + concepto + nivel → `altaUtil` lo
-//    ENCOLA. El backend re-busca por `(slug, sku)` para no confiar en un precio
-//    que el navegador pudo alterar. Solo las tres tiendas con búsqueda en vivo.
-//  - Escribir a mano: para lo que la búsqueda no encuentra (o una tienda sin
-//    búsqueda en vivo). La persona escribe nombre, precio, tienda y —si lo
-//    tiene— SKU y marca; `altaUtilManual` arma la Oferta del cuerpo y la ENCOLA.
-//
-// Las dos solo ENCOLAN (caen en la cola visible): una persona decide el nivel al
-// aprobar. Leaf de cliente: habla con los Route Handlers; la URL del backend se
-// queda en el servidor. El mensaje de error es el del backend tal cual.
+// Decisiones:
+// - Buscar en tienda encola el útil con `altaUtil`; el backend vuelve a buscar por `(slug, sku)` para no
+//   confiar en un precio que el navegador pudo alterar.
+// - Escribir a mano es para lo que la búsqueda no encuentra o para una tienda sin búsqueda en vivo.
 
 "use client";
 
@@ -24,8 +17,6 @@ import type { OpcionTienda } from "./SeccionesCatalogo";
 import Desplegable from "./Desplegable";
 import styles from "./CatalogoSpa.module.css";
 
-// Los slugs que el backend acepta para búsqueda en vivo (`tiendas.buscar`):
-// Éxito y Panamericana por VTEX, Gran Central por Shopify.
 const TIENDAS_BUSCABLES: { slug: string; nombre: string }[] = [
   { slug: "exito", nombre: "Éxito" },
   { slug: "panamericana", nombre: "Panamericana" },
@@ -36,10 +27,8 @@ type Modo = "buscar" | "manual";
 
 interface Props {
   conceptos: OpcionConcepto[];
-  // Las tiendas registradas, para el modo manual (elegir o escribir un slug).
   tiendas: OpcionTienda[];
   onEncolado: () => void;
-  /** Concepto y búsqueda ya puestos, cuando se llega desde un aviso de una lista. */
   conceptoInicial?: string;
   consultaInicial?: string;
 }
@@ -53,21 +42,18 @@ export default function AltaUtil({
 }: Props) {
   const [modo, setModo] = useState<Modo>("buscar");
 
-  // Comunes a los dos modos.
   const [concepto, setConcepto] = useState(conceptoInicial ?? "");
   const [nivel, setNivel] = useState<Nivel>("confiable");
   const [error, setError] = useState<string | null>(null);
   const [exito, setExito] = useState<string | null>(null);
   const [encolando, setEncolando] = useState(false);
 
-  // Modo buscar.
   const [slug, setSlug] = useState(TIENDAS_BUSCABLES[0]!.slug);
   const [consulta, setConsulta] = useState(consultaInicial ?? "");
   const [candidatos, setCandidatos] = useState<CandidatoTienda[]>([]);
   const [buscando, setBuscando] = useState(false);
   const [elegido, setElegido] = useState<CandidatoTienda | null>(null);
 
-  // Modo manual.
   const [nombre, setNombre] = useState("");
   const [precio, setPrecio] = useState("");
   const [slugManual, setSlugManual] = useState(tiendas[0]?.slug ?? "");

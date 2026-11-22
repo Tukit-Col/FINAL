@@ -1,22 +1,13 @@
-// Columnas verticales pequeñas (port ligero de `chart-area` de sf-design-stack
-// para pocas categorias o los ultimos dias): sin GSAP, cada columna crece una
-// vez desde la base con CSS y se apaga con prefers-reduced-motion. Cada columna
-// es un item de lista con su texto completo para lectores de pantalla; si trae
-// `href` es un enlace de 44 px a su vista filtrada.
-
 import Link from "next/link";
 import { proporcion } from "@/lib/graficos";
 import styles from "./Columnas.module.css";
 
 export interface Columna {
   clave: string;
-  /** Lo que se ve bajo la columna (corto). */
   etiqueta: string;
-  /** Lo que se lee y sale en el tooltip ("Primero: 4 listas"). */
   descripcion: string;
   valor: number;
   href?: string;
-  /** La columna que importa (hoy, el grado mas cargado): color de marca. */
   realce?: boolean;
 }
 
@@ -26,7 +17,6 @@ export default function Columnas({
   alto = 56,
 }: {
   columnas: readonly Columna[];
-  /** aria-label de la lista. */
   etiqueta: string;
   alto?: number;
 }) {

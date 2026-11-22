@@ -1,12 +1,3 @@
-// `POST /api/catalogo/propuestas/{id}/aprobar` — cierra una propuesta de la
-// cola aprobándola (P4c bis).
-//
-// La persona decide el nivel AQUÍ, no al encolar (los dos pasos van separados).
-// Al aprobar, el backend hace nacer producto + oferta + precio. Un nivel
-// inválido o una propuesta que ya no se puede aprobar los rechaza el backend
-// (`nivel_invalido` / `no_se_pudo_aprobar`); aquí solo se exige que venga el
-// nivel.
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { AprobarPropuesta } from "@tukit/contrato";
 import { cuerpoJson, respuestaDeError } from "@/lib/respuesta";

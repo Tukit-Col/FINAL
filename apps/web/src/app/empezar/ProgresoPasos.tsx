@@ -2,11 +2,6 @@ import { Check } from "lucide-react";
 import MarcoForma from "@/components/MarcoForma";
 import estilos from "./ProgresoPasos.module.css";
 
-// Progreso del formulario por pasos (orientacion): cuantos pasos hay, cual toca
-// y cuales ya estan completos. Es solo presentacion: el estado lo calcula
-// FormularioEmpezar con la misma regla de siempre. Marco de `form-frame`,
-// puntos de paso tomados del patron `recap-matrix`/stepper de sf-design-stack.
-
 export interface PasoProgreso {
   clave: string;
   titulo: string;

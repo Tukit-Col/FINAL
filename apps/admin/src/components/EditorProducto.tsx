@@ -1,13 +1,3 @@
-// Editor de un producto del catálogo (P4c): CRUD de TODOS los campos
-// editables, gestión de imagen por URL con vista previa, re-etiqueta
-// (nivel/personaje/marca/atributos son el mismo PATCH) y baja suave. Embebe el
-// panel de re-clasificación (efecto distinto: re-embedding) y el borrado
-// guardado.
-//
-// Escribe a través de los Route Handlers vía `api-catalogo`; el mensaje de
-// error que muestra es el del backend (nivel_invalido, empaque_invalido,
-// quality_score_invalido, campo_no_editable…), nunca uno inventado aquí.
-
 "use client";
 
 import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
@@ -49,7 +39,7 @@ interface Props {
 }
 
 function pareceUrl(texto: string): boolean {
-  if (!texto.trim()) return true; // vacío = sin imagen, válido
+  if (!texto.trim()) return true;
   try {
     const u = new URL(texto);
     return u.protocol === "http:" || u.protocol === "https:";
@@ -77,11 +67,6 @@ export default function EditorProducto({
   const [quality, setQuality] = useState(String(producto.quality_score));
   const [esPropio, setEsPropio] = useState(producto.es_propio);
 
-  // El esquema de atributos sale del concepto del producto: se pre-pueblan
-  // TODAS las claves que declara (discriminantes + descriptivos), no solo las
-  // que el producto trae. Las que el producto tiene pero el concepto no declara
-  // caen en "libres" para no perderlas. Si el concepto no viaja (no está en la
-  // lista), se cae al comportamiento previo: solo las claves del producto.
   const conceptoDelProducto = conceptos.find((c) => c.codigo === producto.concepto.codigo);
   const gruposIniciales = useMemo(
     () =>
@@ -90,7 +75,6 @@ export default function EditorProducto({
         conceptoDelProducto?.atributos_discriminantes ?? [],
         conceptoDelProducto?.atributos_descriptivos ?? [],
       ),
-    // Solo depende del producto abierto; el padre remonta con `key={sku}`.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
@@ -106,11 +90,6 @@ export default function EditorProducto({
   const [confirmarBaja, setConfirmarBaja] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exito, setExito] = useState<string | null>(null);
-
-  // No hay efecto de reinicio: el padre monta este componente con
-  // `key={sku}`, así que cambiar de producto lo remonta entero y todos los
-  // `useState` arrancan de su valor inicial. Es el patrón recomendado sobre
-  // sincronizar estado desde un efecto.
 
   const urlValida = useMemo(() => pareceUrl(imagenUrl), [imagenUrl]);
   const empaqueNum = Number(empaque);
@@ -128,10 +107,6 @@ export default function EditorProducto({
       return;
     }
 
-    // El mapa de atributos se reemplaza entero (contrato: `atributos` reemplaza
-    // el mapa). `serializarAtributos` tipa cada valor (`"80"`→`80`,
-    // `"true"`→`true`) y descarta las filas vacías: una clave sin valor NO se
-    // afirma (consistente con la guarda `atributos_invalido` del backend).
     const mapaAtributos = serializarAtributos([...discriminantes, ...descriptivos, ...libres]);
 
     const cambios: ProductoEditable = {
@@ -190,9 +165,6 @@ export default function EditorProducto({
     }
   }
 
-  // Los grupos declarados (discriminantes/descriptivos) solo editan el VALOR:
-  // la clave la fija el concepto y no se toca. El grupo libre sí edita clave y
-  // valor y permite quitar filas, como el editor plano anterior.
   function editarValor(
     set: Dispatch<SetStateAction<ParAtributo[]>>,
     indice: number,
@@ -205,14 +177,13 @@ export default function EditorProducto({
     setLibres((prev) => prev.map((p, i) => (i === indice ? { ...p, [campo]: valor } : p)));
   }
 
-  // Un grupo declarado: cada fila muestra la clave (fija) y una caja de valor.
   function grupoDeclarado(
     titulo: string,
     nota: string,
     filas: ParAtributo[],
     set: Dispatch<SetStateAction<ParAtributo[]>>,
   ) {
-    if (filas.length === 0) return null; // no se muestra encabezado de grupo vacío
+    if (filas.length === 0) return null;
     return (
       <div className={styles.atributos}>
         <span className={styles.ayuda}>
@@ -272,7 +243,6 @@ export default function EditorProducto({
           />
         </div>
 
-        {/* Re-etiqueta: marca, nivel y personaje son el mismo PATCH. */}
         <span className={styles.subtitulo}>Re-etiquetar</span>
 
         <div className={styles.campo}>
@@ -308,7 +278,6 @@ export default function EditorProducto({
           <span className={styles.ayuda}>Vacío = desliga el producto de su franquicia.</span>
         </div>
 
-        {/* Imagen: URL + vista previa en vivo. Backend URL-only, sin subida. */}
         <span className={styles.subtitulo}>Imagen</span>
         <div className={styles.imagenBloque}>
           <div className={`${styles.campo} ${styles.imagenCampo}`}>
@@ -336,7 +305,6 @@ export default function EditorProducto({
           )}
         </div>
 
-        {/* Empaque y unidad: alimentan el precio por unidad. */}
         <span className={styles.subtitulo}>Empaque y calidad</span>
 
         <div className={styles.campo}>
@@ -398,9 +366,6 @@ export default function EditorProducto({
           </label>
         </div>
 
-        {/* Atributos: pre-poblados por el concepto (todas sus claves), en dos
-            grupos, más las claves libres que el producto ya trae. Una fila con
-            valor vacío no afirma la clave (no se guarda). */}
         <span className={styles.subtitulo}>Atributos</span>
 
         {grupoDeclarado(
@@ -416,8 +381,6 @@ export default function EditorProducto({
           setDescriptivos,
         )}
 
-        {/* Claves libres: las que el producto trae y el concepto no declara, más
-            las que se agreguen a mano. Aquí sí se edita la clave y se quitan. */}
         <div className={styles.atributos}>
           {discriminantes.length === 0 && descriptivos.length === 0 && libres.length === 0 && (
             <span className={styles.ayuda}>Sin atributos. Agregá uno abajo.</span>
@@ -461,7 +424,6 @@ export default function EditorProducto({
           </button>
         </div>
 
-        {/* Solo lectura: identidad del producto que no se edita. */}
         <dl className={styles.datosSoloLectura}>
           <div>
             <dt>SKU</dt>
@@ -481,7 +443,6 @@ export default function EditorProducto({
           </div>
         </dl>
 
-        {/* Re-clasificación: efecto distinto (re-embedding), acción aparte. */}
         <PanelReclasificar
           conceptos={conceptos}
           conceptoActual={producto.concepto.codigo}

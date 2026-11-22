@@ -1,7 +1,5 @@
 "use client";
 
-// Error de una ruta de la consola. Dentro del layout: la cabecera con el logo sigue visible.
-
 export default function ErrorDeRuta({ reset }: { error: Error; reset: () => void }) {
   return (
     <section role="alert" style={{ padding: 24 }}>

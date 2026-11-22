@@ -1,9 +1,3 @@
-// `POST /api/trabajos/{id}/revision` — AD-06, el unico cuerpo que el §7 fija.
-//
-// Aprobar publica y dispara la notificacion al acudiente; devolver reabre el
-// trabajo sin avisarle. Es la accion irreversible de la consola, asi que un
-// `decision` que no sea uno de los dos no se interpreta: se rechaza.
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { DecisionRevision } from "@tukit/contrato";
 import { cuerpoJson, respuestaDeError, SIN_CONTENIDO } from "@/lib/respuesta";
@@ -37,8 +31,6 @@ export async function POST(
     await origenDeDatos().decidirRevision(trabajo_id, cuerpo);
     return SIN_CONTENIDO();
   } catch (causa) {
-    // Un 409 `trabajo_ya_publicado` sube tal cual: la pantalla tiene que
-    // decir "ya se publico" y no "algo salio mal".
     return respuestaDeError(causa);
   }
 }

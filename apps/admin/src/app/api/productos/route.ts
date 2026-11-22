@@ -1,5 +1,3 @@
-// `POST /api/productos` — AD-07, alta manual con precio e imagen.
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { AltaProducto } from "@tukit/contrato";
 import { cuerpoJson, respuestaDeError } from "@/lib/respuesta";
@@ -21,10 +19,6 @@ export async function POST(peticion: Request): Promise<Response> {
     );
   }
 
-  // Ultima guarda del entero antes de que salga de este proceso. La pantalla
-  // ya rechaza los decimales y el origen tambien, pero este es el borde donde
-  // un cliente que no sea nuestra pantalla puede colar un flotante, y el §1.4
-  // no admite dinero que no sea entero.
   if (typeof cuerpo.precio !== "number" || !Number.isInteger(cuerpo.precio)) {
     return respuestaDeError(
       new ErrorTukit(

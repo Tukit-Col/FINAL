@@ -19,18 +19,6 @@ import styles from "./Inicio.module.css";
 
 export const dynamic = "force-dynamic";
 
-// Marco de copy (Julian Shapiro): la portada abre con el DOLOR del acudiente,
-// no con el catálogo ni con el precio. Los útiles distintos, las tiendas y los
-// productos curados son cifras del backend que a un papá no le dicen nada: no
-// van en el héroe. Lo que sí va es la promesa —te lo resolvemos de verdad— y la
-// razón por la que es creíble —una persona revisa, y lo que no hay te lo
-// decimos—. El ahorro aparece tarde y en voz baja: en la encuesta fue el dolor
-// que MENOS gente nombró, y liderar con descuentos sería contestar la pregunta
-// que casi nadie hizo.
-
-// Los dolores de la encuesta, ya sin el porcentaje: el número era ruido para
-// quien llega a comprar. Cada tarjeta es un dolor real y, debajo, lo que
-// hacemos con él —la promesa se gana objeción por objeción, no de una—.
 const DOLORES = [
   {
     Icono: PackageSearch,
@@ -52,11 +40,6 @@ const DOLORES = [
   },
 ];
 
-// Por qué es creíble: las tres cosas que hacemos distinto, cada una responde una
-// objeción que el acudiente ya trae puesta ("¿otra tienda que promete?"). La
-// primera es la propuesta de valor: la IA hace en minutos lo que a ti te toma
-// una tarde. La segunda dice que igual una persona lo revisa (la IA no manda
-// sola). La tercera es la promesa de decir la verdad sobre lo que no hay.
 const RAZONES = [
   {
     Icono: Cpu,
@@ -78,8 +61,6 @@ const RAZONES = [
   },
 ];
 
-// Las tres etapas visibles del servicio, cada una con su foto. El detalle de
-// siete pasos (quién hace qué) queda debajo, en la línea del tiempo.
 const ETAPAS_FOTO = [
   {
     n: "1",
@@ -107,7 +88,6 @@ const ETAPAS_FOTO = [
   },
 ];
 
-// Cifras que sí son nuestras y verificables: la encuesta y el diseño del servicio.
 const CIFRAS = [
   { valor: 60, sufijo: "", texto: "acudientes nos contaron su tarde de papelería" },
   { valor: 3, sufijo: "", texto: "kits por lista, tú decides" },
@@ -117,12 +97,9 @@ const CIFRAS = [
 export default async function Inicio() {
   return (
     <div className={styles.pagina}>
-      {/* Útiles esparcidos por toda la página (fondo), para que el scroll entre
-          secciones no se sienta vacío. Decorativos. */}
       <UtilesFlotantes variante="pagina" />
 
       <section className={styles.heroe}>
-        {/* Útiles en clay flotando alrededor del titular. Decorativos. */}
         <UtilesFlotantes />
 
         <Revelar className={styles.heroeTexto} modo="cascada" cadaUno={0.1}>
@@ -130,14 +107,11 @@ export default async function Inicio() {
             <Sparkles size={14} aria-hidden="true" strokeWidth={2.6} />
             Listas escolares, resueltas
           </p>
-          {/* Header con la propuesta de valor directa: el acento va bajo lo que
-              de verdad compras, que no son útiles sino la tarde de vuelta. */}
           <h1 className={styles.titular}>
             Menos filas,
             <br />
             más <em>tiempo en familia.</em>
           </h1>
-          {/* Subheader: qué es + por qué es posible (la IA), en dos frases. */}
           <p className={styles.bajada}>
             Nos dices de qué colegio y grado es la lista, o le tomas una foto, y una IA te
             arma tres kits con todo lo de tus hijos en un solo pedido. Antes de que lo veas,
@@ -155,7 +129,6 @@ export default async function Inicio() {
             </Link>
           </div>
 
-          {/* Micro-prueba bajo los CTA: baja el esfuerzo percibido antes del clic. */}
           <p className={styles.tranquilizador}>
             Armar el kit no cuesta nada · Tú eliges entre tres · Sin crear cuenta para empezar
           </p>
@@ -265,8 +238,6 @@ export default async function Inicio() {
 
       <section className={styles.cierre} aria-labelledby="titulo-cierre">
         <div className={styles.tarjetaCierre}>
-          {/* Reparto liviano de útiles en las esquinas para que la tarjeta no se
-              sienta vacía. Decorativo. */}
           <UtilesFlotantes variante="cierre" />
           <Revelar className={styles.cierreTexto} modo="una">
             <h2 id="titulo-cierre" className={styles.tituloCierre}>

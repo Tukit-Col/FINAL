@@ -1,10 +1,3 @@
-// `PUT /api/trabajos/{id}/kits/{perfil}/lineas/{item_id}/producto` — el
-// acudiente cambia un producto de su kit por el sugerido o una alternativa.
-//
-// La sesión viaja desde la cookie httpOnly (el navegador nunca ve el token):
-// si el trabajo tiene dueño, Inteligencia exige que sea la suya. Sin cookie se
-// manda igual, porque la ruta rápida admite trabajos sin cuenta.
-
 import { cookies } from "next/headers";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { PerfilKit } from "@tukit/contrato";

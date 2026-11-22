@@ -1,14 +1,3 @@
-// `/logistica` — el tablero de pedidos y entregas del back-office.
-//
-// Lee `origenDeDatos().pedidos(token)`: comercio solo se lo da a operador y
-// admin, asi que sin cookie, con la sesion vencida o sin rol se muestra el
-// aviso que corresponde en vez de reventar. Los filtros viven en la URL
-// (formulario GET) y filtran aqui, en el servidor: comercio devuelve el
-// tablero entero y las tarjetas de arriba son siempre las globales, para que
-// un filtro no esconda que hay incidencias.
-//
-// Server Component, mismo patron que la Cola.
-
 import Link from "next/link";
 import { Truck, PackageCheck, CircleDollarSign, TriangleAlert, Columns3, Rows3 } from "lucide-react";
 import type { AlertaPedido, Pedido, TableroComercio } from "@tukit/contrato";
@@ -99,7 +88,6 @@ export default async function PaginaLogistica({ searchParams }: Props) {
   const filtros = leerFiltros(await searchParams);
   const ordenados = ordenarPorPrioridad(filtrarPedidos(pedidos, filtros));
   const etiquetas = await etiquetasDePedidos(token, pedidos);
-  // Un solo reloj para la antiguedad de todas las tarjetas.
   // eslint-disable-next-line react-hooks/purity
   const ahora = Date.now();
 
@@ -180,9 +168,6 @@ export default async function PaginaLogistica({ searchParams }: Props) {
       ) : null}
 
       {pedidos.length > 0 ? (
-        // `next/form` con action de texto no acepta `key`: el envoltorio
-        // remonta el formulario cuando cambian los filtros (atras/adelante, o
-        // "Limpiar"), para que sus `defaultValue` no queden viejos.
         <div key={claveFiltros(filtros)}>
           <FiltrosLogistica filtros={filtros} colegios={opcionesDeColegio(pedidos, etiquetas.colegios)} />
         </div>
@@ -297,13 +282,11 @@ function FilaPedido({ pedido, etiquetas }: { pedido: Pedido; etiquetas: Etiqueta
       <td className={styles.lista}>{nombresDeColegios(pedido.colegios, etiquetas.colegios) || "—"}</td>
       <td className={styles.envio}>
         {pedido.envio ? (
-          // La localidad ordena la ruta del dia; fuera de Bogota, la ciudad.
           <span className={styles.lugar}>{pedido.envio.localidad || pedido.envio.ciudad}</span>
         ) : null}
         {pedido.envio?.repartidor_nombre ? (
           <span>{pedido.envio.repartidor_nombre}</span>
         ) : pedido.envio?.transportadora ? (
-          // Envio viejo, de cuando se despachaba por transportadora.
           <>
             <span>{pedido.envio.transportadora}</span>
             {pedido.envio.guia ? (

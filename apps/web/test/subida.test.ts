@@ -1,7 +1,3 @@
-// La subida de listas desde la web: los topes que se cortan antes de leer el
-// cuerpo y la ruta de "Recibimos tu lista" que sigue a la subida.
-// Runner nativo de Node (type-stripping): `npm test` en apps/web.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -31,8 +27,6 @@ test("el archivo pasa con el tamano y los tipos que promete la pantalla", () => 
   assert.match(motivoDeRechazo({ size: MAX_BYTES_ARCHIVO + 1, type: "image/jpeg" }) ?? "", /10 MB/);
   assert.match(motivoDeRechazo({ size: 1, type: "application/zip" }) ?? "", /PDF, JPG/);
 });
-
-// --- Recibimos tu lista: subidas y diferidas (ADR 0040) ------------------------
 
 const importada = { version_id: "v-1" } as const;
 const diferida = { version_id: null, estado: "pendiente" } as const;

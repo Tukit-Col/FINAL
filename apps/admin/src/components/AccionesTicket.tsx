@@ -1,11 +1,5 @@
 "use client";
 
-// Lo que el operador hace en un ticket: responder al acudiente, moverlo de
-// estado y ligarlo a un pedido. Las reglas (transiciones, texto vacio o largo,
-// ticket cerrado) las decide operacion; aqui solo se pinta su mensaje y se
-// marca el `campo` culpable, para no tener dos reglas que se desalineen. La
-// tabla de transiciones del contrato solo decide que botones se ofrecen.
-
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { EstadoCaso, Prioridad } from "@tukit/contrato";
@@ -40,11 +34,9 @@ interface Props {
   casoId: string;
   estado: EstadoCaso;
   pedidoId: string | null;
-  // Sin titular resuelto la respuesta se guarda pero no hay a quien avisar.
   puedeAvisar: boolean;
   prioridad: Prioridad;
   asignadoA: string | null;
-  /** El `usuario_id` de quien mira y si es admin (de la sesión, en el servidor). */
   yo: string | null;
   esAdmin: boolean;
   urlIngresar?: string;
@@ -105,7 +97,6 @@ export default function AccionesTicket({
           campo,
           estado: sinActivar ? 0 : causa.estado,
         });
-        // 409: otro operador lo movio; el refresco trae el estado real.
         if (causa.estado === 409) router.refresh();
       } else {
         setFallo({

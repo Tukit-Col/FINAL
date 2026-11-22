@@ -1,9 +1,3 @@
-// `POST /api/productos/{sku}/no-disponible` — AD-05.
-//
-// El efecto no es de este trabajo sino del catalogo: apagar la oferta la
-// apaga para todos los trabajos en cola. Por eso la ruta cuelga de
-// `/productos` y no de `/trabajos/{id}`.
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { MarcarNoDisponible } from "@tukit/contrato";
 import { cuerpoJson, respuestaDeError, SIN_CONTENIDO } from "@/lib/respuesta";

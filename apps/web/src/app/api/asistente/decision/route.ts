@@ -1,6 +1,3 @@
-// `POST /api/asistente/decision`: deja constancia de si el acudiente acepto,
-// rechazo o edito una propuesta. Es solo bitacora; no cambia ningun dato.
-
 import { ErrorTukit } from "@tukit/contrato/servidor";
 import { respuestaDeError } from "@/lib/respuesta";
 import { reenviar } from "@/components/asistente/servidor";
@@ -15,7 +12,6 @@ export async function POST(peticion: Request): Promise<Response> {
   try {
     c = (await peticion.json()) as typeof c;
   } catch {
-    /* validado abajo */
   }
   if (
     typeof c.propuesta_id !== "string" ||
@@ -32,6 +28,5 @@ export async function POST(peticion: Request): Promise<Response> {
     decision: c.decision,
     tipo: c.tipo,
   });
-  // La bitacora nunca debe estorbar al acudiente.
   return estado === 202 ? Response.json(cuerpo, { status: 202 }) : Response.json({ estado: "omitida" });
 }

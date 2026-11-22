@@ -1,6 +1,3 @@
-// Lo que confirma el padre en /kits va a los endpoints de S3, nunca a otro lado.
-// `npm test` en apps/web.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { aplicacionDePropuesta, pendientesDelTurno, renglonesPorDecidir, type PropuestaAplicable } from "../src/components/asistente/aplicar.ts";
@@ -60,6 +57,5 @@ test("se iluminan los renglones de las propuestas sin decidir, en orden y sin re
   const resumen = { tipo: "ResumenLote", props: {} } as never;
   const turnos = [[resumen, cambio("c1"), cambio("c2")], null, [cambio("c2"), cambio("c3")]];
   assert.deepEqual(renglonesPorDecidir(turnos, {}), ["c1", "c2", "c3"]);
-  // Ya decididos (aplicada o rechazada) dejan de iluminarse.
   assert.deepEqual(renglonesPorDecidir(turnos, { "0-1": "aplicada", "2-1": "rechazada" }), ["c2"]);
 });

@@ -1,4 +1,3 @@
-// Correr:  node --test test/panel-vivo.test.ts
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { VersionListaAdmin, ResumenComercio } from "@tukit/contrato";
@@ -95,15 +94,15 @@ test("proporcion: piso para positivos, 0 para cero y tope en 100", () => {
   assert.equal(proporcion(3, 0), 100);
 });
 
-const ahora = Date.parse("2026-11-12T15:00:00Z"); // 10 a. m. en Bogota
+const ahora = Date.parse("2026-11-12T15:00:00Z");
 
 test("agruparPorDia: Hoy / Ayer / Hace N días en hora de Bogota", () => {
   const a = (clave: string, instante: string) => ({ clave, instante }) as never;
   const g = agruparPorDia(
     [
       a("1", "2026-11-12T14:00:00Z"),
-      a("2", "2026-11-12T06:00:00Z"), // 1 a. m. Bogota: sigue siendo hoy
-      a("3", "2026-11-12T03:00:00Z"), // 10 p. m. del 11 en Bogota: ayer
+      a("2", "2026-11-12T06:00:00Z"),
+      a("3", "2026-11-12T03:00:00Z"),
       a("4", "2026-11-05T15:00:00Z"),
       a("5", "2026-10-01T15:00:00Z"),
       a("6", "basura"),

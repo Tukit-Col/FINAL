@@ -1,12 +1,5 @@
 "use client";
 
-// El acceso a "subir una lista" desde la propia cola. Antes vivía en una
-// pantalla aparte (`/onboarding`); ahora es una acción secundaria de la cola,
-// porque subir una lista y verificarla son el mismo trabajo visto en dos
-// momentos. Es de cliente por una sola razón: abre y cierra el formulario. El
-// formulario en sí (`FormularioOnboarding`) ya percibe el PDF y salta al
-// revisor de esa versión al terminar.
-
 import { useState } from "react";
 import { FileUp, X } from "lucide-react";
 import type { Colegio } from "@tukit/contrato";

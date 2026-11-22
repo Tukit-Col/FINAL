@@ -1,6 +1,3 @@
-// Ficha del cliente: filtrado por titular, resumen, actividad y privacidad.
-// Correr:  node --test test/cliente-detalle.test.ts
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { AcudienteAdmin, Caso, Pedido } from "@tukit/contrato";

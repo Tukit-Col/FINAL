@@ -1,7 +1,3 @@
-// El vocabulario que ya usa el catálogo, para sugerirlo al crear un concepto:
-// los nombres de atributo (en sus dos papeles) y las categorías. Sugerir lo que
-// existe evita partir el vocabulario en "tamano", "tamaño" y "tamaño_hoja".
-
 import type { ConceptoCatalogo } from "@tukit/contrato";
 
 export interface VocabularioConceptos {

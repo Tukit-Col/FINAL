@@ -14,10 +14,6 @@ export default async function Esperando({
   params: Promise<{ trabajo_id: string }>;
 }) {
   const { trabajo_id } = await params;
-  // Quien llega con sesion (desde "Mis solicitudes") vuelve a su panel; sin
-  // sesion no hay panel al que volver y el pie lleva al inicio.
-  // Con el cupo agotado (429) la cookie sigue viva: cuenta como con sesion, y
-  // el aviso de la espera lo pinta el sondeo de la pantalla.
   let conSesion: boolean;
   let correo: string | null = null;
   try {

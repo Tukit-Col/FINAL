@@ -1,22 +1,12 @@
-// `/cola` — la cola de revision unificada (AD-01, AD-03).
+// `/cola`: la cola de revisión unificada.
 //
-// El item de la cola es una VERSION DE LISTA pendiente (`revisada=false`): el
-// mismo acto —revisar "la lista del colegio X, grado Y"— sin importar si la
-// envio el colegio (onboarding) o la subio un acudiente (sugerencia_padre).
-// Revisar una version abre el revisor de cuatro paneles; aprobarla la vuelve
-// lista oficial verificada y la reusa el pipeline para todos los acudientes de
-// ese (colegio, grado).
-//
-// La pantalla se lee de arriba abajo por urgencia:
-//   1. Lo que un acudiente espera (versiones con contacto y trabajos de
-//      acudiente): tarjetas grandes, porque aprobarlas dispara un kit.
-//   2. El resto de versiones, AGRUPADAS POR COLEGIO: un colegio que envio sus
-//      quince grados es un bloque con quince fichas de grado en orden
-//      pedagogico, no quince filas que repiten el mismo nombre.
-//   3. Las previsualizaciones del revisor, plegadas: nadie las espera.
-//
-// Server Component: lee el origen directamente. No hay `fetch` de por medio
-// porque la lectura no pasa por el navegador.
+// Decisiones:
+// - El ítem de la cola es una versión de lista pendiente, sin importar si la envió el colegio o la subió
+//   un acudiente. Aprobarla la vuelve lista oficial verificada y el pipeline la reusa para todos los
+//   acudientes de ese colegio y grado.
+// - La pantalla se lee de arriba abajo por urgencia: primero lo que un acudiente espera (tarjetas
+//   grandes, porque aprobarlas dispara un kit) y luego el resto de versiones agrupadas por colegio, con
+//   los grados en orden pedagógico.
 
 import Link from "next/link";
 import type { EntradaCola, VersionListaAdmin } from "@tukit/contrato";
@@ -43,9 +33,6 @@ import styles from "./Cola.module.css";
 
 export const dynamic = "force-dynamic";
 
-// Como se nombra cada ingreso en la insignia. `null` es una version sin
-// procedencia conocida (sembrada del corpus): se revisa igual, pero no se
-// atribuye a un colegio ni a un padre.
 const ETIQUETA_INGRESO: Record<NonNullable<VersionListaAdmin["procedencia"]>, string> = {
   onboarding: "El colegio la envió",
   sugerencia_padre: "Un acudiente la subió",
@@ -55,7 +42,6 @@ function etiquetaIngreso(v: VersionListaAdmin): string {
   return v.procedencia ? ETIQUETA_INGRESO[v.procedencia] : "Sin procedencia";
 }
 
-// Un grado fuera de la lista canonica va al final, en orden alfabetico.
 function ordenGrado(a: string, b: string): number {
   const ia = GRADOS_CANONICOS.indexOf(a);
   const ib = GRADOS_CANONICOS.indexOf(b);
@@ -65,7 +51,6 @@ function ordenGrado(a: string, b: string): number {
   return ia - ib;
 }
 
-/** Agrupa por clave conservando el orden de primera aparicion. */
 function agrupar<T>(elementos: readonly T[], clave: (e: T) => string): Map<string, T[]> {
   const grupos = new Map<string, T[]>();
   for (const e of elementos) {
@@ -77,7 +62,6 @@ function agrupar<T>(elementos: readonly T[], clave: (e: T) => string): Map<strin
   return grupos;
 }
 
-/** El valor si todos lo comparten; si no, `null` y cada ficha dice el suyo. */
 function comun<T>(elementos: readonly T[], valor: (e: T) => string): string | null {
   const primero = elementos[0];
   if (primero === undefined) return null;
@@ -119,8 +103,6 @@ function Pendientes({ n }: { n: number }) {
     <span className={styles.cero}>Nada por resolver</span>
   );
 }
-
-// ---------------------------------------------------------- 1. lo urgente
 
 function TarjetaVersionUrgente({ v, nombre }: { v: VersionListaAdmin; nombre: string }) {
   const href = `/onboarding/${encodeURIComponent(v.version_id)}`;
@@ -183,8 +165,6 @@ function TarjetaTrabajoUrgente({
     </article>
   );
 }
-
-// ------------------------------------------------ 2. versiones por colegio
 
 function BloqueColegio({
   grupo,
@@ -332,8 +312,6 @@ function Paginacion({ f, pagina, paginas }: { f: FiltrosCola; pagina: number; pa
   );
 }
 
-// ------------------------------------------------- 3. previsualizaciones
-
 function Previsualizaciones({
   entradas,
   nombreColegio,
@@ -343,7 +321,6 @@ function Previsualizaciones({
   entradas: EntradaCola[];
   nombreColegio: Map<string, string>;
   ahora: number;
-  /** Borradores de la versión siguiente de kits ya publicados («Editar kits»). */
   edicion?: boolean;
 }) {
   const porColegio = agrupar(entradas, (e) =>
@@ -420,9 +397,6 @@ export default async function PaginaCola({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const filtros = leerFiltrosCola(await searchParams);
-  // Dos lecturas del mismo origen: las versiones PENDIENTES (el item real de la
-  // cola) y los trabajos en vuelo (el ingreso de acudiente que aún no se ha
-  // migrado a versión). Los colegios dan el nombre legible de cada `colegio_id`.
   let lecturas;
   try {
     lecturas = await Promise.all([
@@ -441,13 +415,9 @@ export default async function PaginaCola({
   const nombreDe = (v: VersionListaAdmin): string =>
     nombreColegio.get(v.colegio_id) ?? v.colegio_nombre ?? v.colegio_id;
 
-  // Un solo reloj para toda la página: si cada fila llamara a `Date.now()`, dos
-  // filas del mismo instante podrían mostrar minutos distintos.
   // eslint-disable-next-line react-hooks/purity
   const ahora = Date.now();
 
-  // Filtros y paginación en el servidor de Next sobre la respuesta (el endpoint
-  // solo filtra por grado y año). Los contadores de la cabecera usan TODO.
   const filtradas = filtrarVersiones(pendientes, filtros, nombreDe);
   const conAcudiente = filtradas
     .filter((v) => v.tiene_contacto)
@@ -457,15 +427,8 @@ export default async function PaginaCola({
   const grados = [...new Set(pendientes.map((v) => v.grado))].sort(ordenGrado);
   const anios = [...new Set(pendientes.map((v) => v.anio_lectivo))].sort((a, b) => b - a);
 
-  // Solo los trabajos que esperan una persona: lo publicado es historial y lo
-  // que aún procesa no necesita acción. Un trabajo es el ingreso de acudiente
-  // sin migrar; se muestra aparte, no mezclado con las versiones.
   const trabajosEnEspera = entradas.filter((e) => e.estado === "espera_revision");
-  // La previsualizacion del revisor tambien queda en espera, pero nadie la
-  // espera: se aparta para no hacerla pasar por la lista de un acudiente.
   const previsualizaciones = trabajosEnEspera.filter((e) => e.origen === "preview_onboarding");
-  // Igual con la edición de kits ya publicados: es trabajo del admin, no de
-  // un acudiente que espera.
   const ediciones = trabajosEnEspera.filter((e) => e.edicion_de);
   const qNorm = normalizar(filtros.q);
   const trabajosAcudiente = trabajosEnEspera.filter(
@@ -478,7 +441,6 @@ export default async function PaginaCola({
         normalizar(e.colegios.map((id) => nombreColegio.get(id) ?? id).join(" ")).includes(qNorm)),
   );
 
-  // Contador de la cabecera: sin filtros, igual que antes.
   const esperando =
     pendientes.filter((v) => v.tiene_contacto).length +
     trabajosEnEspera.filter((e) => e.origen !== "preview_onboarding" && !e.edicion_de).length;

@@ -1,14 +1,8 @@
-// La ficha visual de un producto del gestor de catálogo (`TablaProductos`):
-// foto grande, pastillas de nivel/personaje, nombre y SKU. El pie va como slot
-// `children` (precio+tiendas). Presentación pura: sin estado, sin fetch.
-
 import { ImageOff } from "lucide-react";
 import { ETIQUETA_NIVEL } from "@tukit/contrato";
 import type { Nivel } from "@tukit/contrato";
 import styles from "./CatalogoSpa.module.css";
 
-// Lo mínimo que la concha pinta: lo comparten `ProductoKit` y
-// `ProductoCatalogoDetalle` sin coerción.
 interface ProductoVisual {
   sku: string;
   nombre: string;
@@ -20,10 +14,8 @@ interface ProductoVisual {
 interface Props {
   producto: ProductoVisual;
   activo?: boolean;
-  // Insignia opcional sobre las pastillas (p. ej. "elegido por el sistema").
   insignia?: string;
   onClick?: () => void;
-  // El pie de la ficha: precio+tiendas en el catálogo, ofertas en el kit.
   children?: React.ReactNode;
 }
 
@@ -34,9 +26,6 @@ export default function TarjetaProductoCard({
   onClick,
   children,
 }: Props) {
-  // Con acción es un <button> real (accesible por teclado); en solo lectura
-  // (kit) no hay onClick y cae a un <div> para no anidar botones ni prometer
-  // interacción que no existe.
   const Cont = onClick ? "button" : "div";
   return (
     <Cont

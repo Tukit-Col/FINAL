@@ -4,7 +4,6 @@
   gap: var(--espacio-3);
 }
 
-/* Logo completo (libro-tienda + palabra TUKIT), sin fondo. */
 .logo {
   width: auto;
   height: 64px;

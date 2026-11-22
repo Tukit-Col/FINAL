@@ -1,11 +1,3 @@
-// Portal del colegio (aliado B2B).
-//
-// La app `apps/colegio` esta pendiente de portar (ADR 0008: tres apps por
-// rol). En vez de un 404 o un portal falso, se muestra un aviso honesto: el rol
-// se reconoce, el destino existe en el diseno, y lo que falta es construir la
-// app. Se protege por rol en el servidor: quien no sea del colegio se va a
-// /ingresar, fail-closed como `puede()`.
-
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Construction, GraduationCap } from "lucide-react";

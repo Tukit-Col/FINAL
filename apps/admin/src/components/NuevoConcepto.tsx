@@ -1,25 +1,3 @@
-// Alta de un CONCEPTO nuevo (P4c bis). El otro brazo de la curación: cuando una
-// lista trae algo que el catálogo no cubre con ningún concepto, aquí nace el
-// concepto (el código C0NN lo autogenera el backend) y después se le encolan sus
-// tres niveles con "Agregar útil"/"Agregar libro". Así crece la BD al revisar.
-//
-// Vive en dos lugares: la pestaña «Nuevo concepto» del catálogo y, en modo
-// `compacto`, dentro del editor de un renglón del revisor de listas —ahí nace
-// con el texto del renglón como nombre y, al crearlo, queda elegido—.
-//
-// Además de nombre, categoría y sinónimos, el concepto declara sus atributos en
-// sus dos papeles (ver `demanda_atributos` en el catálogo):
-//   - los que FILTRAN: un producto que no cumple se descarta (un cuaderno
-//     cuadriculado no pasa por uno rayado);
-//   - los que INFORMAN: se muestran al acudiente pero no descartan nada (la
-//     talla de una bata, que ninguna lista pide).
-// Un mismo atributo no puede estar en las dos listas: pasarlo a una lo saca de
-// la otra.
-//
-// Nombre y categoría obligatorios (validado aquí, en el Route Handler y en el
-// origen, §1.4); un nombre duplicado lo rechaza el backend (409) y el mensaje
-// que se muestra es el suyo.
-
 "use client";
 
 import { useId, useState } from "react";
@@ -28,8 +6,6 @@ import { crearConcepto, FalloCatalogo } from "@/lib/api-catalogo";
 import Desplegable from "./Desplegable";
 import styles from "./CatalogoSpa.module.css";
 
-// Los tipos que un concepto puede llevar (§1.1). El comprable por defecto es
-// "util"; el resto se ofrece por si el concepto es de texto, licencia, etc.
 const TIPOS: TipoItem[] = [
   "util",
   "texto",
@@ -43,18 +19,13 @@ const TIPOS: TipoItem[] = [
 
 interface Props {
   onCreado: (concepto: ConceptoCreado) => void;
-  /** Nombre con que arranca el formulario (el texto del renglón, en el revisor). */
   nombreInicial?: string;
-  /** Nombres de atributo que ya usan otros conceptos, para sugerirlos. */
   atributosConocidos?: string[];
-  /** Categorías existentes, para sugerirlas y no partir el vocabulario. */
   categoriasConocidas?: string[];
-  /** Versión embebida: sin la nota larga y con botón de cancelar. */
   compacto?: boolean;
   onCancelar?: () => void;
 }
 
-/** La forma del corpus: minúsculas y `_` por espacio. */
 function normalizarAtributo(texto: string): string {
   return texto.trim().toLowerCase().replace(/\s+/g, "_");
 }
@@ -82,7 +53,6 @@ export default function NuevoConcepto({
 
   const puedeCrear = nombre.trim().length > 0 && categoria.trim().length > 0;
 
-  // Un atributo vive en una sola lista: agregarlo a una lo saca de la otra.
   function agregarA(lista: "filtran" | "informan", atributo: string) {
     if (lista === "filtran") {
       setFiltran((a) => (a.includes(atributo) ? a : [...a, atributo]));
@@ -131,7 +101,6 @@ export default function NuevoConcepto({
   }
 
   const listaCategorias = `${id}-categorias`;
-  // Lo que ya usan otros conceptos y este todavía no tiene en ninguna lista.
   const sugerenciasAtributo = atributosConocidos.filter(
     (a) => !filtran.includes(a) && !informan.includes(a),
   );
@@ -249,9 +218,6 @@ export default function NuevoConcepto({
   );
 }
 
-// ------------------------------------------------------- editor de atributos
-
-// Valor de la opción que cambia el menú por un campo de texto.
 const OTRO_ATRIBUTO = "__otro__";
 
 function EditorAtributos({
@@ -270,15 +236,10 @@ function EditorAtributos({
   onQuitar: (atributo: string) => void;
 }) {
   const id = useId();
-  // Un menú como el de «Tipo» con los atributos que ya existen; «Otro» lo
-  // cambia por un campo para escribir uno nuevo. Sin sugerencias se escribe
-  // directo. (Antes era un `datalist`, cuyo desplegable es del navegador y no
-  // se parece a ningún otro menú del admin.)
   const [escribiendo, setEscribiendo] = useState(false);
   const [borrador, setBorrador] = useState("");
   const conCampo = escribiendo || sugerencias.length === 0;
 
-  // Agrega lo escrito (puede venir más de uno separado por coma o |).
   function confirmar() {
     for (const parte of borrador.split(/[,|]/)) {
       const atributo = normalizarAtributo(parte);

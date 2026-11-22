@@ -1,26 +1,5 @@
 "use client";
 
-// La matriz de comparacion (AD-04, rediseño §7): una fila por concepto, tres
-// columnas —Ahorrador / Fan / Premium— y en cada celda el producto que el
-// optimizador eligio para ESE kit, con su `nivel` (economico/confiable/
-// premium). Asi "notas adhesivas" es UNA fila y se ve de un vistazo como sube
-// de economico a premium entre kits, que es justo lo que la consola de pestañas
-// escondia.
-//
-// La decision sigue siendo por item, no por kit: el backend valida contra una
-// sola RESOLUCION por `item_crudo_id` (= `item_id`), compartida entre los tres
-// kits. Por eso la celda solo MUESTRA; al hacer clic se despliega el editor de
-// esa linea (`LineaRevision`, reutilizado tal cual) para actuar. El item_id es
-// el mismo en las tres columnas, asi que la fila los une sin tocar el backend.
-//
-// Una fila que no tiene producto en NINGUN kit (un hueco, un uniforme, lo que
-// se consigue por su cuenta) no se pinta como tres celdas vacias: lo pendiente
-// sale arriba como aviso de ancho completo con su razon, y lo que ni se busca
-// en el catalogo baja al final como fichas compactas agrupadas por motivo.
-//
-// `soloLectura` es la misma vista sin editor: la usa la pagina del colegio
-// para mostrar los kits ya publicados, que solo cambian con «Editar kits».
-
 import { useState } from "react";
 import type { ClaseLinea, Kit, LineaKit, PerfilKit } from "@tukit/contrato";
 import {
@@ -38,15 +17,10 @@ interface Props {
   trabajoId: string;
   kits: Kit[];
   recomendado: PerfilKit | undefined;
-  // Kits sin acudiente (vista previa, canónicos): el recomendado sigue sirviendo
-  // de columna de referencia, pero no se rotula, porque nadie lo eligió.
   sinRotuloRecomendado?: boolean;
-  /** Kits publicados: se ven igual, pero ninguna celda abre el editor. */
   soloLectura?: boolean;
 }
 
-// El orden de las columnas es el del precio creciente, que es como el acudiente
-// las lee y como `KIT.total_cop` las ordena en el backend.
 const ORDEN_PERFIL: PerfilKit[] = ["Ahorrador", "Fan", "A tu Medida", "Premium"];
 
 interface Fila {
@@ -55,8 +29,6 @@ interface Fila {
   descripcion: string;
   hijo: string | undefined;
   concepto: string | null | undefined;
-  // La linea de cada kit para este item. Puede faltar en algun kit (un item
-  // que un perfil no incluye), por eso es un mapa parcial.
   porPerfil: Map<PerfilKit, LineaKit>;
 }
 
@@ -72,15 +44,10 @@ export default function MatrizComparacion({
   soloLectura = false,
 }: Props) {
   const rotulado = sinRotuloRecomendado ? undefined : recomendado;
-  // (itemId, perfil) de la celda abierta. Una sola a la vez: desplegar todas
-  // seria volver al muro de HTML que el `<details>` de `LineaRevision` evita.
   const [abierta, setAbierta] = useState<{ itemId: string; perfil: PerfilKit } | null>(null);
 
   const perfiles = ORDEN_PERFIL.filter((p) => kits.some((k) => k.perfil === p));
 
-  // Se arma una fila por item_id conservando el orden y la clase de la seccion.
-  // La clase se toma de la primera linea que aparezca: es la misma en los tres
-  // kits (el estado de resolucion es del item, no del kit).
   const filasPorItem = new Map<string, Fila>();
   for (const kit of kits) {
     for (const linea of kit.lineas) {
@@ -88,7 +55,7 @@ export default function MatrizComparacion({
       if (!fila) {
         fila = {
           itemId: linea.item_id,
-          clase: "comprable", // se corrige abajo con agruparPorClase
+          clase: "comprable",
           descripcion: linea.descripcion,
           hijo: linea.hijo,
           concepto: linea.concepto,
@@ -100,9 +67,6 @@ export default function MatrizComparacion({
     }
   }
 
-  // La clase de cada item la decide el clasificador del contrato, igual que la
-  // consola vieja, para no desincronizar sus palabras. Se clasifica una linea
-  // representativa (la del perfil recomendado o la primera que haya).
   const perfilRef = recomendado ?? perfiles[0];
   const representativas: LineaKit[] = [];
   for (const fila of filasPorItem.values()) {
@@ -117,8 +81,6 @@ export default function MatrizComparacion({
     fila.clase = claseDe.get(fila.itemId) ?? "comprable";
   }
 
-  // Secciones en el orden que duele primero, vacias fuera. Cada una cae en uno
-  // de tres bloques segun si alguna de sus filas tiene producto en algun kit.
   const secciones = ORDEN_SECCIONES.map((clase) => ({
     clase,
     filas: [...filasPorItem.values()].filter((f) => f.clase === clase),
@@ -131,8 +93,6 @@ export default function MatrizComparacion({
   const seccionesAviso = sinProducto.filter((s) => esPendiente(s.clase));
   const seccionesFuera = sinProducto.filter((s) => !esPendiente(s.clase));
 
-  // Con un solo hijo (o la referencia "preview" del revisor) la insignia del
-  // hijo se repite en cada renglon sin decir nada: solo sale si hay varios.
   const hijos = new Set([...filasPorItem.values()].map((f) => f.hijo).filter(Boolean));
   const mostrarHijo = hijos.size > 1;
 
@@ -145,8 +105,6 @@ export default function MatrizComparacion({
     );
   }
 
-  // Una fila sin producto se edita desde la linea del perfil recomendado: la
-  // resolucion es del item, asi que cualquiera de los tres sirve.
   function perfilDeFila(fila: Fila): PerfilKit | undefined {
     if (perfilRef && fila.porPerfil.has(perfilRef)) return perfilRef;
     return perfiles.find((p) => fila.porPerfil.has(p));
@@ -232,8 +190,6 @@ export default function MatrizComparacion({
                       </span>
                     </span>
                     <span className={`${styles.celdaPrecio} cifra`}>
-                      {/* La linea que otra ya cubre (tijeras en tres materias) va en
-                          cero: se compra una sola vez, arriba. */}
                       {linea && linea.unidades_a_comprar === 0 && linea.subtotal_linea === 0
                         ? "Ya va arriba"
                         : formatearPesos(linea?.subtotal_linea ?? null)}
@@ -346,8 +302,6 @@ export default function MatrizComparacion({
           </header>
           <div className={styles.fueraGrupos}>
             {seccionesFuera.map(({ clase, filas }) => {
-              // Si todas las fichas del grupo comparten la razon (lo comun:
-              // "los uniformes todavia no los surtimos") se dice una vez arriba.
               const razones = filas.map(razonDeFila);
               const razonComun = razones.every((r) => r === razones[0]) ? razones[0] : null;
               const abiertaAqui = filas.find((f) => f.itemId === abierta?.itemId);

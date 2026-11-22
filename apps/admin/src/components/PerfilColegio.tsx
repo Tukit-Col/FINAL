@@ -1,16 +1,5 @@
 "use client";
 
-// P4/P1b — la ficha editable de un colegio. Solo se edita lo que Tukit administra:
-// el código DANE (llave del directorio DUEB) y la URL del logo (lo único que el
-// padre ve en el selector de /empezar). El resto de los datos (sitio, contactos,
-// dirección) sale del directorio oficial y se muestra —solo lectura— en la página
-// que envuelve a este formulario, así que aquí no se duplica ni se edita. Manda un
-// PATCH con solo lo que cambió y re-pinta con el detalle que el backend devuelve.
-//
-// Sin URL propia, el logo que se ve sale del directorio de Bogotá por el DANE
-// (`logoDelDirectorio`). El campo lo dice con una nota y lo muestra de
-// placeholder, pero sigue vacío: el logo del directorio no se guarda en la base.
-
 import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ColegioDetalle, ColegioEditable } from "@tukit/contrato";
@@ -19,12 +8,9 @@ import styles from "@/app/colegios/Colegios.module.css";
 
 interface Props {
   colegio: ColegioDetalle;
-  // El logo del directorio que se ve hoy, o `null` si el colegio tiene uno
-  // propio o el directorio no trae logo para su DANE.
   logoDelDirectorio: string | null;
 }
 
-// Un campo del formulario: mapea a una clave de `ColegioEditable`.
 const CAMPOS: {
   clave: keyof ColegioEditable;
   etiqueta: string;
@@ -33,11 +19,6 @@ const CAMPOS: {
   inputMode?: "numeric";
   pattern?: string;
 }[] = [
-  // El código DANE (llave del directorio DUEB); editable porque el `colegio_id`
-  // es un UUID que ya existe, no se re-deriva del DANE al guardar. Son 12
-  // dígitos (mismo largo que la columna), de ahí el `maxLength`/teclado numérico y
-  // el `pattern`. Vacío sigue siendo válido (no es `required`): así se puede
-  // limpiar el DANE, y el backend lo valida igual (12 dígitos o null).
   {
     clave: "dane",
     etiqueta: "Código DANE",
@@ -83,8 +64,6 @@ export default function PerfilColegio({ colegio, logoDelDirectorio }: Props) {
     setOk(false);
     setSinCambios(false);
 
-    // Solo se manda lo que cambió. Un campo vaciado se manda `null` (limpia el
-    // campo); uno sin tocar no se manda.
     const base = valorInicial(actual);
     const cambios: ColegioEditable = {};
     for (const { clave } of CAMPOS) {
@@ -94,8 +73,6 @@ export default function PerfilColegio({ colegio, logoDelDirectorio }: Props) {
     }
 
     if (Object.keys(cambios).length === 0) {
-      // Nada que guardar: no se llama al backend ni se dice "guardado" (sería
-      // engañoso); se avisa que no hubo cambios.
       setGuardando(false);
       setSinCambios(true);
       return;
@@ -106,9 +83,6 @@ export default function PerfilColegio({ colegio, logoDelDirectorio }: Props) {
       setActual(actualizado);
       setValores(valorInicial(actualizado));
       setOk(true);
-      // Re-consulta el server component: si se acaba de guardar el DANE, la
-      // ficha del directorio DUEB (que se lee en el servidor) aparece sin
-      // recargar a mano.
       router.refresh();
     } catch (causa) {
       setError(causa instanceof FalloListas ? causa.message : "No se pudo guardar el perfil.");

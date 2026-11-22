@@ -1,6 +1,3 @@
-// Cambio de marca en lote para una categoría del kit. Reglas puras: la UI
-// (CabeceraCategoria) y el asistente de la Fase 5 comparten el mismo plan.
-
 import type { LineaKit, OpcionDeLinea } from "@tukit/contrato";
 import { normalizarTexto } from "./kit-vista.ts";
 
@@ -14,7 +11,6 @@ export interface PlanDeCambio {
 const mismaMarca = (o: OpcionDeLinea, marca: string) =>
   o.marca != null && normalizarTexto(o.marca) === normalizarTexto(marca);
 
-/** Marcas que aparecen en alguna línea, por cobertura descendente. */
 export function marcasDisponibles(opcionesPorLinea: OpcionesPorLinea): { marca: string; lineas: number }[] {
   const cuentas = new Map<string, { marca: string; lineas: number }>();
   for (const opciones of Object.values(opcionesPorLinea)) {
@@ -46,14 +42,13 @@ export function planDeCambioPorMarca(
       plan.sinEsaMarca.push(linea.item_id);
       continue;
     }
-    if (deLaMarca.some((o) => o.en_kit)) continue; // ya la tiene
+    if (deLaMarca.some((o) => o.en_kit)) continue;
     const barata = deLaMarca.reduce((a, b) => (b.precio < a.precio ? b : a));
     plan.cambian.push({ item_id: linea.item_id, sku: barata.sku });
   }
   return plan;
 }
 
-/** Aplica el plan una línea a la vez; un fallo no detiene las demás. */
 export async function aplicarPlanEnLote(
   plan: PlanDeCambio,
   cambiar: (itemId: string, sku: string) => Promise<unknown>,

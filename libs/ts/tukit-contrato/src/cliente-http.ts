@@ -1,10 +1,3 @@
-// Cliente HTTP contra el backend real, sobre `/v1`.
-//
-// Corre SOLO en el servidor de Next: la URL del backend no sale al navegador
-// y el tiempo de espera largo que el pipeline necesita no se puede pedir desde
-// un `rewrite`, que corta a los 30 s. Es la misma razon que ya estaba escrita
-// en el proxy del prototipo, y se conserva.
-
 import { GRADOS_CANONICOS } from "./contrato";
 import { conEspera } from "./espera";
 import type {
@@ -145,13 +138,11 @@ import type {
   SugerenciaCruda,
 } from "./normalizar";
 
-// El pipeline tarda minutos, no segundos, y eso es deliberado (§0).
 const TIEMPO_MAXIMO_MS = 300_000;
 
 function ordenGrado(a: string, b: string): number {
   const ia = GRADOS_CANONICOS.indexOf(a);
   const ib = GRADOS_CANONICOS.indexOf(b);
-  // Un grado que no esté en la lista canónica va al final, en orden alfabético.
   if (ia === -1 && ib === -1) return a.localeCompare(b);
   if (ia === -1) return 1;
   if (ib === -1) return -1;
@@ -161,10 +152,6 @@ function ordenGrado(a: string, b: string): number {
 export interface OpcionesCliente {
   urlBase: string;
   tiempoMaximoMs?: number;
-  // Las cabeceras que viajan al backend en cada `fetch`, segun la ruta que se
-  // pide: `X-Forwarded-For` en todas, para que el limite de tasa del gateway
-  // cuente por la IP del cliente y no por la del servidor de Next (ADR 0047), y
-  // el Bearer de la sesion en las de consola (`/v1/admin/*`, contrato 1.12).
   cabeceras?: (ruta: string) => Promise<Record<string, string>>;
 }
 
@@ -180,7 +167,6 @@ export class ClienteApi implements OrigenDatos {
     this.cabeceras = opciones.cabeceras ?? (async () => ({}));
   }
 
-  // Las cabeceras de la llamada mas las reenviadas; las de la llamada ganan.
   private async conReenviadas(ruta: string, init?: RequestInit): Promise<RequestInit> {
     const reenviadas = Object.entries(await this.cabeceras(ruta));
     if (reenviadas.length === 0) return init ?? {};
@@ -227,8 +213,6 @@ export class ClienteApi implements OrigenDatos {
     }
 
     if (!respuesta.ok) {
-      // Un 429 del limite de tasa trae la espera en el detalle, del cuerpo o de
-      // `Retry-After`, para que el manejador la reenvie (ADR 0047).
       const detalle = conEspera(
         respuesta.status,
         (cuerpo ?? {}) as Record<string, unknown>,
@@ -247,8 +231,6 @@ export class ClienteApi implements OrigenDatos {
     return cuerpo as T;
   }
 
-  // El Bearer de la sesion del acudiente cuando el Route Handler lo reenvia
-  // desde la cookie; vacio en el flujo anonimo. Se esparce sobre las cabeceras.
   private autoriza(token?: string): Record<string, string> {
     return token ? { Authorization: `Bearer ${token}` } : {};
   }
@@ -261,13 +243,6 @@ export class ClienteApi implements OrigenDatos {
     });
   }
 
-  // ------------------------------------------------------------ §Identidad
-  //
-  // El cliente NO habla con identidad directamente: pega al gateway
-  // (`urlBase`), y el gateway rutea a identidad `/v1/sesiones*`, valida el
-  // token y compara `version_permisos` (§1, edges C4 web→gateway→identidad).
-  // El error 503 de `pedir` ("levanta los servicios") cubre el login cuando el
-  // backend esta caido, gratis.
   async iniciarSesion(cred: Credenciales): Promise<{ sesion: Sesion; token: string }> {
     return this.pedir<{ sesion: Sesion; token: string }>("/v1/sesiones", {
       method: "POST",
@@ -297,9 +272,6 @@ export class ClienteApi implements OrigenDatos {
     });
   }
 
-  // El registro de verdad: crea la cuenta con credencial y persiste las
-  // matriculas de sus hijos. Sin token (la ruta es publica), igual que el
-  // alta del contacto. El gateway lo rutea a identidad `POST /v1/registro`.
   registrarAcudiente(datos: RegistroAcudiente): Promise<{ usuario_id: string; creado: boolean }> {
     return this.pedir<{ usuario_id: string; creado: boolean }>("/v1/registro", {
       method: "POST",
@@ -308,9 +280,6 @@ export class ClienteApi implements OrigenDatos {
     });
   }
 
-  // La tenencia del portador, para precargar `/empezar`. El backend envuelve la
-  // lista en `{total, matriculas}`; aqui se devuelve el arreglo pelado, que es
-  // lo que la interfaz promete. Bearer, igual que `sesionActual`.
   async matriculasDelAcudiente(token: string): Promise<MatriculaAcudiente[]> {
     const cuerpo = await this.pedir<{ total: number; matriculas: MatriculaAcudiente[] }>(
       "/v1/cuenta/matriculas",
@@ -319,8 +288,6 @@ export class ClienteApi implements OrigenDatos {
     return cuerpo.matriculas;
   }
 
-  // Agrega matriculas del portador (camino autenticado). Mismo path que el GET,
-  // con Bearer, igual que `sesionActual`. El backend responde `{total}`.
   async guardarMatriculas(token: string, hijos: HijoNuevo[]): Promise<{ total: number }> {
     return this.pedir<{ total: number }>("/v1/cuenta/matriculas", {
       method: "POST",
@@ -362,10 +329,6 @@ export class ClienteApi implements OrigenDatos {
     });
   }
 
-  // El padron de acudientes para el equipo interno (solo admin/operador:
-  // identidad gatea con 401/403). `ids` opcional, separados por coma, acota a
-  // esos usuarios. El backend envuelve en `{total, acudientes}`; se devuelve el
-  // arreglo pelado. Bearer, igual que `sesionActual`.
   async acudientesAdmin(token: string, ids?: string[]): Promise<AcudienteAdmin[]> {
     const qs = new URLSearchParams();
     if (ids && ids.length) qs.set("ids", ids.join(","));
@@ -374,8 +337,6 @@ export class ClienteApi implements OrigenDatos {
       `/v1/admin/acudientes${cadena ? `?${cadena}` : ""}`,
       { headers: { Authorization: `Bearer ${token}` } },
     );
-    // Ley 1581: el apodo de un menor no llega a las vistas admin aunque el
-    // servicio todavia lo envie; se descarta aqui, en el borde del contrato.
     return cuerpo.acudientes.map((a) => ({
       ...a,
       hijos: (a.hijos ?? []).map((h) => {
@@ -385,7 +346,6 @@ export class ClienteApi implements OrigenDatos {
     }));
   }
 
-  // ------------------------------------------------------------------ §2, §4
   async crearTrabajo(
     solicitud: SolicitudTrabajo,
     archivos: ArchivoLista[] = [],
@@ -399,8 +359,6 @@ export class ClienteApi implements OrigenDatos {
       });
     }
 
-    // Entrada (b): `multipart/form-data` con el JSON en el campo `hijos` y un
-    // `archivo` por hijo, tal como lo escribe el §2.
     const forma = new FormData();
     forma.append("hijos", JSON.stringify(solicitud));
     for (const archivo of archivos) {
@@ -421,11 +379,6 @@ export class ClienteApi implements OrigenDatos {
     return normalizarTrabajo(crudo);
   }
 
-  // §2 — la subida de listas de un acudiente. `multipart/form-data` hacia
-  // inteligencia: `hijos` y `contacto` como JSON, y un `archivo`+`referencia`
-  // por hijo APAREADOS por orden, igual que `crearTrabajo` con archivos.
-  // Inteligencia percibe cada PDF y lo importa como version pendiente; devuelve
-  // a que version quedo ligado cada hijo. No crea un trabajo.
   async subirListas(
     hijos: HijoSubida[],
     archivos: ArchivoLista[],
@@ -436,8 +389,6 @@ export class ClienteApi implements OrigenDatos {
     const forma = new FormData();
     forma.append("hijos", JSON.stringify(hijos));
     if (contacto) forma.append("contacto", JSON.stringify(contacto));
-    // Las preferencias del paso 3 son del HOGAR: viajan una vez y quedan con
-    // cada version importada, para que el kit de la aprobacion las use.
     if (preferencias) forma.append("preferencias", JSON.stringify(preferencias));
     for (const archivo of archivos) {
       forma.append("archivo", archivo.contenido, archivo.nombre);
@@ -450,25 +401,6 @@ export class ClienteApi implements OrigenDatos {
     });
   }
 
-  // ------------------------------------------------------- ASUMIDO (v1.1)
-  //
-  // El fichero `catalogo.ts` infirio una superficie 1.1 que el backend no
-  // implemento tal cual: no hay un `/v1/catalogo` de una pieza, ni colegios
-  // colgando de catalogo, ni una lista por `(colegio, grado)`. Lo que SI existe
-  // es lo que sirve el corpus real, y a eso se pega el cliente. La reconciliacion
-  // vive aqui, en el borde HTTP, para no tocar ni el contrato ni las pantallas.
-
-  // El catalogo de pantalla junta tres lecturas reales y las cose en la forma
-  // que el contrato asumio (§12): el resumen curado, las tiendas y —lo que el
-  // backend NO sirve de una pieza— los conceptos con sus productos anidados.
-  //
-  // El backend los separa a proposito: `/v1/catalogo/conceptos` devuelve el
-  // concepto con `productos` como un CONTEO, no como el arreglo que el contrato
-  // pide; el arreglo solo existe producto a producto en `/v1/catalogo/productos`
-  // (con `concepto.codigo` en cada fila) y solo trae `ofertas` cuando se pide
-  // `con_ofertas=true`. Asi que se traen todos los productos con ofertas y se
-  // agrupan aqui por concepto. Es la misma reconciliacion 1.0→1.1 del resto del
-  // fichero, en el borde HTTP, para no tocar ni el contrato ni la pantalla.
   async catalogo(): Promise<Catalogo> {
     const [resumen, tiendasResp, conceptosResp, productos] = await Promise.all([
       this.pedir<Catalogo["resumen"]>("/v1/catalogo/resumen"),
@@ -477,9 +409,6 @@ export class ClienteApi implements OrigenDatos {
       this.todosLosProductos(),
     ]);
 
-    // Los productos se indexan por su codigo de concepto para colgarlos del
-    // concepto al que pertenecen. Un concepto sin productos se queda con `[]`,
-    // que es exactamente lo que la pantalla usa para pintarlo como hueco.
     const porConcepto = new Map<string, ProductoCatalogo[]>();
     for (const p of productos) {
       const codigo = p.concepto?.codigo;
@@ -491,8 +420,6 @@ export class ClienteApi implements OrigenDatos {
 
     const conceptos: ConceptoCatalogo[] = (conceptosResp.conceptos ?? []).map((c) => ({
       codigo: c.codigo,
-      // El backend nombra el campo `nombre`; el contrato lo llama
-      // `nombre_canonico`. Se acepta cualquiera de los dos.
       nombre_canonico: c.nombre_canonico ?? c.nombre ?? c.codigo,
       sinonimos: c.sinonimos ?? [],
       categoria: c.categoria,
@@ -511,9 +438,6 @@ export class ClienteApi implements OrigenDatos {
     };
   }
 
-  // Trae TODOS los productos activos con sus ofertas, paginando contra el tope
-  // real del backend (200). El corpus tiene ~406, asi que son dos o tres
-  // vueltas; se para cuando la pagina viene incompleta o ya se juntaron `total`.
   private async todosLosProductos(): Promise<ProductoCrudo[]> {
     const POR_PAGINA = 200;
     const todos: ProductoCrudo[] = [];
@@ -528,22 +452,6 @@ export class ClienteApi implements OrigenDatos {
     return todos;
   }
 
-  // Identidad sirve los colegios (`/v1/colegios`) y los grados existen aparte
-  // (`/v1/grados`), pero los grados VERIFICADOS de un colegio (los que habilitan
-  // la ruta rapida "lista oficial") se derivan de las listas REVISADAS reales de
-  // catalogo, no del catalogo global de grados: ofrecer un grado sin lista
-  // revisada manda al acudiente a un trabajo que falla con `sin_lista_oficial`.
-  //
-  // Pero el colegio SI se puede elegir aunque no tenga ningun grado revisado: la
-  // ruta "subir archivo" (y la sugerencia de alianza) existe justo para el
-  // colegio que todavia no es aliado. Antes esto filtraba fuera todo colegio con
-  // `grados.length === 0`, y como la semilla deja casi todas las listas sin
-  // revisar, el selector mostraba 1 de 17 colegios y el onboarding del admin
-  // —que precisamente quiere ver los NO aliados— quedaba vacio. `es_partner`
-  // sigue marcando quien tiene grados verificados; la lista ya no se recorta.
-  //
-  // Los grados verificados se ordenan pedagogicamente; un colegio sin ellos
-  // llega con `grados: []` y solo es usable por la ruta de archivo.
   async colegios(): Promise<Colegio[]> {
     const [colegiosResp, listasResp] = await Promise.all([
       this.pedir<{
@@ -554,12 +462,6 @@ export class ClienteApi implements OrigenDatos {
           logo_url?: string | null;
         }[];
       }>("/v1/colegios"),
-      // El selector arranca VACIO y solo se llena con lo verificado, asi que
-      // pedimos `?revisada=true` y el filtro lo resuelve el servidor: una lista
-      // importada pero sin revisar no habilita el grado —la ruta rapida a
-      // optimizacion solo aplica a listas verificadas—. El tope de página del
-      // backend es 200 (POR_PAGINA_MAXIMO); las revisadas caben en una, y si
-      // algún día pasan de 200 habría que paginar (por eso se comprueba `total`).
       this.pedir<{
         total: number;
         listas: { colegio_id: string; grado: string; revisada: boolean }[];
@@ -579,15 +481,9 @@ export class ClienteApi implements OrigenDatos {
         return {
           colegio_id: c.colegio_id,
           nombre: c.nombre,
-          // El backend no lleva la trazabilidad `fuente`/`atribucion_dudosa`
-          // (es una senal del cargador de listas, no del dominio); se reportan
-          // neutros para no fingir un dato que no existe.
           fuente: "backend",
           atribucion_dudosa: false,
-          // El logo lo sirve identidad; `null` cuando el colegio no cargo marca.
           logo_url: c.logo_url ?? null,
-          // El DANE deja al buscador reconducir al aliado por `colegio_id` cuando
-          // el padre elige del directorio un colegio que ya es aliado.
           dane: c.dane ?? null,
           grados,
           es_partner: grados.length > 0,
@@ -595,8 +491,6 @@ export class ClienteApi implements OrigenDatos {
       });
   }
 
-  // Trae la lista publicada de un (colegio, grado): primero la localiza en el
-  // indice `/v1/listas` y luego pide su detalle por id.
   async listaOficial(colegioId: string, grado: string): Promise<ListaOficial> {
     const indice = await this.pedir<{
       listas: { lista_id: string; grado: string; anio_lectivo: number; version: number }[];
@@ -625,14 +519,6 @@ export class ClienteApi implements OrigenDatos {
     };
   }
 
-  // ----------------------------------------------- §Catalogo — admin (P4c)
-  //
-  // La SPA de administracion del catalogo. `personajes` sale de una lectura
-  // dedicada del backend; los tres verbos de escritura pegan al producto por su
-  // SKU (PATCH parcial, POST reclasificar, DELETE baja suave) y devuelven la
-  // forma de detalle `_producto_publico`, que se normaliza en el borde igual que
-  // `normalizarProductoCatalogo`. `buscarProductos` arma el querystring con solo
-  // los filtros presentes.
   async personajes(): Promise<Personaje[]> {
     const resp = await this.pedir<{ personajes?: PersonajeCrudo[] }>(
       "/v1/catalogo/personajes",
@@ -711,13 +597,6 @@ export class ClienteApi implements OrigenDatos {
     });
   }
 
-  // ------------------------------------ §Catalogo — curaduria proactiva (P4c bis)
-  //
-  // La cola de curaduria del catalogo, sus altas y sus decisiones. Vive bajo
-  // `/v1/admin/catalogo/*` (que el gateway rutea a catalogo), salvo el rechazo,
-  // que reusa la ruta ya existente `/v1/admin/propuestas/{id}/rechazar`. El
-  // backend envuelve la cola en `{total, propuestas}` y la busqueda en
-  // `{candidatos}`; aca se propaga solo el arreglo, igual que `personajes`.
   async colaPropuestas(concepto?: string): Promise<PropuestaCola[]> {
     const qs = concepto ? `?concepto=${encodeURIComponent(concepto)}` : "";
     const resp = await this.pedir<{ total?: number; propuestas?: PropuestaCola[] }>(
@@ -789,9 +668,6 @@ export class ClienteApi implements OrigenDatos {
     id: string,
     cuerpo: RechazarPropuesta,
   ): Promise<{ id: string; estado: string }> {
-    // Ruta EXISTENTE (no estrena prefijo): `/v1/admin/propuestas` ya se rutea a
-    // catalogo por su propio prefijo, asi que el rechazo no cuelga de
-    // `/v1/admin/catalogo`.
     return this.pedir<{ id: string; estado: string }>(
       `/v1/admin/propuestas/${encodeURIComponent(id)}/rechazar`,
       {
@@ -802,15 +678,7 @@ export class ClienteApi implements OrigenDatos {
     );
   }
 
-  // ------------------------------------------------------------------ §7
   async cola(): Promise<ColaAdmin> {
-    // El backend responde `{trabajos:[{creado_en, lineas_a_revisar, ...}]}`;
-    // el contrato pide `{entradas:[{recibido_en, lineas_pendientes, ...}]}`.
-    // Se normaliza aqui, igual que `trabajoAdmin`/`producto`, en vez de dejar
-    // el cast crudo (que dejaba `entradas` undefined y reventaba la cola).
-    // `colegios` (ids) y `grados` salen de los hijos del trabajo; el nombre
-    // del colegio lo pone la consola. Un backend viejo que no los mande deja
-    // listas vacias. `lineas_totales` no viaja: se reporta igual a pendientes.
     const crudo = await this.pedir<{
       trabajos?: {
         trabajo_id: string;
@@ -844,10 +712,6 @@ export class ClienteApi implements OrigenDatos {
     const crudo = await this.pedir<TrabajoAdmin>(
       `/v1/admin/trabajos/${encodeURIComponent(trabajoId)}`,
     );
-    // El backend ya manda `lineas_pendientes` con el nombre del contrato, asi
-    // que no hay remapeo como en `cola()`. El `?? []` es cinturon y tirantes:
-    // un backend viejo que lo omita degrada a "sin pendientes" en vez de
-    // tumbar el detalle con un `.length` sobre `undefined`.
     return {
       ...crudo,
       kits: crudo.kits.map(normalizarKit),
@@ -859,8 +723,6 @@ export class ClienteApi implements OrigenDatos {
     return this.pedir<{ acudientes: Partial<AcudienteResumen>[] }>(
       `/v1/admin/colegios/${encodeURIComponent(colegioId)}/acudientes`,
     ).then((r) =>
-      // `grados`/`preferencias` son recientes: un backend que aún no los sirva
-      // no debe romper el panel. Se rellenan vacíos, mismo cinturón que la cola.
       (r.acudientes ?? []).map((a) => ({
         ...(a as AcudienteResumen),
         grados: a.grados ?? [],
@@ -869,10 +731,6 @@ export class ClienteApi implements OrigenDatos {
     );
   }
 
-  // Nombres de acudientes ADULTOS por id, para poner cara al panel del colegio.
-  // Es PII (§Anexo M): identidad exige `usuario:leer:nombre`, asi que el panel
-  // reenvia el Bearer de la sesion del admin (leido de la cookie por el Server
-  // Component). Devuelve un mapa id→nombre; un id sin nombre no aparece.
   async nombresDeUsuarios(ids: string[], token: string): Promise<Record<string, string>> {
     if (ids.length === 0) return {};
     const cola = ids.map((id) => `ids=${encodeURIComponent(id)}`).join("&");
@@ -980,9 +838,6 @@ export class ClienteApi implements OrigenDatos {
     return this.pedir<OpcionesDeLinea>(ruta, { headers: this.autoriza(token) });
   }
 
-  // Las tres van por `/v1/comercio/mis-pedidos/{id}` con el Bearer: comercio
-  // saca al acudiente de la sesion y un pedido ajeno es 404. `/v1/ordenes/*` es
-  // interno y la puerta no lo expone.
   miPedido(token: string, pedidoId: string): Promise<PedidoDelAcudiente> {
     return this.pedir<PedidoDelAcudiente>(`/v1/comercio/mis-pedidos/${encodeURIComponent(pedidoId)}`, {
       headers: this.autoriza(token),
@@ -1128,14 +983,6 @@ export class ClienteApi implements OrigenDatos {
     });
   }
 
-  // ---------------------------------------------------------- §Onboarding (P2)
-  //
-  // Inteligencia expone la ruta publica `POST /v1/admin/onboarding` como
-  // `multipart/form-data`: el PDF va en `archivo` y el destino (el colegio
-  // designado, `grado`, `anio_lectivo`) en campos aparte, igual que
-  // `crearTrabajo` con archivos. Inteligencia percibe y escribe en catalogo por
-  // su cuenta; el cliente solo recibe la version creada. El token del staff va
-  // como Bearer: inteligencia exige rol de operador o admin.
   async onboarding(
     token: string,
     colegio: string | ColegioDesignado,
@@ -1155,11 +1002,6 @@ export class ClienteApi implements OrigenDatos {
     );
   }
 
-  // Un acudiente sugiere la lista de su (colegio, grado) cuando no hay una
-  // verificada. A diferencia de `onboarding` (multipart hacia inteligencia),
-  // esto es JSON hacia catalogo por el gateway: el PDF va en base64 dentro de
-  // `evidencia`, y la traza al acudiente es SOLO `contacto_referencia`. Nunca
-  // se envia correo ni telefono: esa PII vive solo en identidad.
   async sugerirColegio(
     colegio_id: string,
     grado: string,
@@ -1181,9 +1023,6 @@ export class ClienteApi implements OrigenDatos {
     });
   }
 
-  // Un Blob a base64 sin `data:` prefijo, para meter el PDF en el JSON de la
-  // sugerencia. Se lee como bytes y se codifica en bloques para no reventar la
-  // pila con `String.fromCharCode(...bytes)` en archivos grandes.
   private async aBase64(blob: Blob): Promise<string> {
     const bytes = new Uint8Array(await blob.arrayBuffer());
     let binario = "";
@@ -1194,14 +1033,6 @@ export class ClienteApi implements OrigenDatos {
     return btoa(binario);
   }
 
-  // ------------------------------------------- §Admin — revision de listas (P4)
-  //
-  // La superficie de escritura que `admin_http.py` sirve bajo `/v1/admin`. El
-  // indice y la vista de revision se cosen en el borde a las formas del
-  // contrato: el backend anida `concepto` en `{codigo, nombre}` y aca se aplana
-  // a `concepto_codigo`/`concepto_nombre`, y el precio de una propuesta ya llega
-  // en pesos enteros. Las mutaciones (editar/agregar/cerrar/nueva) mandan JSON y
-  // devuelven lo justo que la pantalla necesita para re-pintar.
   async listasAdmin(filtros: FiltrosListasAdmin = {}): Promise<VersionListaAdmin[]> {
     const qs = new URLSearchParams();
     if (filtros.revisada !== undefined) qs.set("revisada", String(filtros.revisada));
@@ -1212,9 +1043,6 @@ export class ClienteApi implements OrigenDatos {
     const resp = await this.pedir<{ listas?: Partial<VersionListaAdmin>[] }>(
       `/v1/admin/listas${cadena ? `?${cadena}` : ""}`,
     );
-    // `procedencia`/`tiene_contacto` son recientes en el contrato: un backend
-    // que aun no los sirva no debe romper la cola. Se rellenan a null/false, el
-    // mismo cinturon-y-tirantes que `trabajoAdmin` usa con `lineas_pendientes`.
     return (resp.listas ?? []).map((v) => ({
       ...(v as VersionListaAdmin),
       procedencia: v.procedencia ?? null,
@@ -1245,8 +1073,6 @@ export class ClienteApi implements OrigenDatos {
     itemId: string,
     cambios: ItemListaEditable,
   ): Promise<void> {
-    // El backend responde 200 con `{item_id, actualizado}`; se descarta, el
-    // metodo es void y la pantalla re-lee la revision.
     return this.pedir<void>(
       `/v1/admin/listas/${encodeURIComponent(versionId)}/items/${encodeURIComponent(itemId)}`,
       {
@@ -1261,8 +1087,6 @@ export class ClienteApi implements OrigenDatos {
     versionId: string,
     item: ItemListaEditable,
   ): Promise<{ item_id: string }> {
-    // El POST del backend responde 201 con `{item_id, orden}`; solo se propaga
-    // `item_id`, que es lo que el contrato promete.
     const resp = await this.pedir<{ item_id: string; orden?: number }>(
       `/v1/admin/listas/${encodeURIComponent(versionId)}/items`,
       {
@@ -1275,7 +1099,6 @@ export class ClienteApi implements OrigenDatos {
   }
 
   quitarItemLista(versionId: string, itemId: string): Promise<void> {
-    // El backend responde 204 sin cuerpo; guarda 409 `lista_ya_revisada`.
     return this.pedir<void>(
       `/v1/admin/listas/${encodeURIComponent(versionId)}/items/${encodeURIComponent(itemId)}`,
       { method: "DELETE" },
@@ -1283,14 +1106,12 @@ export class ClienteApi implements OrigenDatos {
   }
 
   eliminarVersionLista(versionId: string): Promise<void> {
-    // 204 sin cuerpo; 409 `lista_ya_revisada` si ya se aprobo.
     return this.pedir<void>(`/v1/admin/listas/${encodeURIComponent(versionId)}`, {
       method: "DELETE",
     });
   }
 
   cerrarLista(versionId: string): Promise<void> {
-    // Responde 200 con `{version_id, revisada, ya_estaba?}`; se descarta.
     return this.pedir<void>(
       `/v1/admin/listas/${encodeURIComponent(versionId)}/cerrar`,
       { method: "POST" },
@@ -1302,8 +1123,6 @@ export class ClienteApi implements OrigenDatos {
     grado: string,
     anioLectivo: number,
   ): Promise<{ version_id: string }> {
-    // El backend exige `anio_lectivo` como query y responde 201 con
-    // `{version_id, numero, revisada}`; se propaga solo `version_id`.
     const resp = await this.pedir<{ version_id: string; numero?: number; revisada?: boolean }>(
       `/v1/admin/listas/${encodeURIComponent(colegioId)}/${encodeURIComponent(grado)}/nueva-version?anio_lectivo=${anioLectivo}`,
       { method: "POST" },
@@ -1346,9 +1165,6 @@ export class ClienteApi implements OrigenDatos {
     versionId: string,
     cambios: ColegioNuevoEditable,
   ): Promise<DatosColegioNuevo> {
-    // El backend hace merge de los campos presentes sobre `colegio_datos` de la
-    // tarea y responde `{version_id, colegio_datos}`; se propaga solo el bloque
-    // de datos ya combinado, que es lo que la pantalla vuelve a pintar.
     const resp = await this.pedir<{ version_id: string; colegio_datos: DatosColegioNuevo }>(
       `/v1/admin/listas/${encodeURIComponent(versionId)}/colegio`,
       {
@@ -1361,9 +1177,6 @@ export class ClienteApi implements OrigenDatos {
   }
 
   async directorioColegio(dane: string): Promise<DatosColegioNuevo | null> {
-    // El directorio alza 404 cuando el DANE no esta (colegio de otra ciudad o
-    // escrito a mano); eso NO es un error de la revision, es "no hay que
-    // pre-llenar", asi que se degrada a null en vez de propagar.
     try {
       return await this.pedir<DatosColegioNuevo>(
         `/v1/directorio/${encodeURIComponent(dane)}`,
@@ -1375,12 +1188,6 @@ export class ClienteApi implements OrigenDatos {
   }
 
   async directorioCompleto(dane: string): Promise<DirectorioColegio | null> {
-    // Mismo endpoint que `directorioColegio`, pero OPTA a la ficha COMPLETA con
-    // `?completo=true` (sector, localidad, rector y las listas de telefonos/
-    // correos) que el detalle del colegio en el admin pinta. El default del
-    // endpoint es la forma reducida de 7 campos, a proposito: la subida de
-    // listas vuelca esa respuesta sin filtrar, asi que los campos extra solo
-    // salen cuando alguien los pide explicitamente. Mismo 404 -> null.
     try {
       return await this.pedir<DirectorioColegio>(
         `/v1/directorio/${encodeURIComponent(dane)}?completo=true`,
@@ -1391,11 +1198,6 @@ export class ClienteApi implements OrigenDatos {
     }
   }
 
-  // ------------------------------------------ §Admin — identidad del colegio (P4)
-  //
-  // El detalle vive en identidad (`/v1/colegios/{id}`) y el PATCH lo sirve el
-  // slice que construye la edicion en paralelo. Los dos responden con la misma
-  // forma de detalle, que se cose a `ColegioDetalle` en el borde.
   colegio(colegioId: string): Promise<ColegioDetalle> {
     return this.pedirColegioDetalle(
       `/v1/colegios/${encodeURIComponent(colegioId)}`,
@@ -1410,12 +1212,6 @@ export class ClienteApi implements OrigenDatos {
     });
   }
 
-  // La vista previa de una version curada (region 4). Un slice de backend sirve
-  // `POST /v1/admin/onboarding/{version_id}/preview` con el destino en el
-  // cuerpo; responde `{trabajo_id, estado}` y se propaga solo `trabajo_id`, que
-  // es lo que la pantalla necesita para leer luego `trabajoAdmin(trabajo_id)`.
-  // Es el mismo patron de `crearTrabajo` (POST con cuerpo) y `trabajoAdmin`
-  // (leer del id devuelto).
   async previewDeVersion(
     versionId: string,
     ctx: { colegioId: string; grado: string; anioLectivo: number },
@@ -1456,8 +1252,6 @@ export class ClienteApi implements OrigenDatos {
     };
   }
 
-  // El backlog de sugerencias. Se lee tal cual del backend y se recorta a los
-  // campos SEGUROS: nunca correo ni telefono —esa PII vive solo en identidad—.
   async sugerencias(): Promise<Sugerencia[]> {
     const resp = await this.pedir<{ sugerencias?: SugerenciaCruda[] }>(
       "/v1/admin/sugerencias",
@@ -1473,11 +1267,6 @@ export class ClienteApi implements OrigenDatos {
     }));
   }
 
-  // La evidencia de una version importada. `documento` es el PDF crudo
-  // (`application/pdf`), asi que NO pasa por `pedir` (que espera JSON): se lee
-  // como Blob. `percepcion` si es JSON y se cose a `PercepcionCruda` en el
-  // borde, tolerando que un item venga con `descripcion` en vez de
-  // `texto_original` y que falten `cantidad`/`confianza`.
   async documento(versionId: string): Promise<Blob> {
     let respuesta: Response;
     const ruta = `/v1/admin/listas/${encodeURIComponent(versionId)}/documento`;
@@ -1539,9 +1328,6 @@ export class ClienteApi implements OrigenDatos {
     };
   }
 
-  // ------------------------------------------------- ASUMIDO (comercio 1.x)
-  // Logistica: solo staff. El Bearer lo reenvia el Server Component o el Route
-  // Handler del admin desde la cookie de sesion.
   pedidos(token: string): Promise<TableroComercio> {
     return this.pedir<TableroComercio>("/v1/comercio/pedidos", {
       headers: this.autoriza(token),
@@ -1570,9 +1356,6 @@ export class ClienteApi implements OrigenDatos {
     );
   }
 
-  // Los pedidos del portador para su dashboard: sin `usuario_id` en la URL,
-  // comercio lo saca de la sesion. Responde `{total, pedidos}`; la pantalla
-  // solo usa la lista, asi que se propaga esa.
   async misPedidos(token: string): Promise<Pedido[]> {
     const resp = await this.pedir<{ total: number; pedidos: Pedido[] }>(
       "/v1/comercio/mis-pedidos",
@@ -1581,9 +1364,6 @@ export class ClienteApi implements OrigenDatos {
     return resp.pedidos ?? [];
   }
 
-  // Las solicitudes de kit del acudiente (trabajos del pipeline). Inteligencia
-  // valida la sesion, asi que se identifica por el Bearer que reenvia el Route
-  // Handler. Responde `{total, trabajos}`; la pantalla solo usa la lista.
   async misTrabajos(token?: string): Promise<TrabajoResumen[]> {
     const resp = await this.pedir<{ total: number; trabajos: TrabajoResumen[] }>("/v1/trabajos", {
       headers: { ...this.autoriza(token) },
@@ -1591,10 +1371,6 @@ export class ClienteApi implements OrigenDatos {
     return resp.trabajos ?? [];
   }
 
-  // "Mis solicitudes": las listas subidas + los trabajos del portador, unidas.
-  // Bearer, no `usuario_id` en la URL: inteligencia saca la identidad de la
-  // sesion. `listas_disponibles` por defecto `true` para no inventar una
-  // degradacion que el backend no reporto.
   async misSolicitudes(token: string): Promise<MisSolicitudes> {
     const cuerpo = await this.pedir<{ solicitudes?: Solicitud[]; listas_disponibles?: boolean }>(
       "/v1/mis-solicitudes",
@@ -1606,7 +1382,6 @@ export class ClienteApi implements OrigenDatos {
     };
   }
 
-  // ------------------------------------------------ ASUMIDO (operacion 1.x)
   casos(token?: string, usuarioId?: string): Promise<BandejaOperacion> {
     const qs = usuarioId ? `?usuario_id=${encodeURIComponent(usuarioId)}` : "";
     return this.pedir<BandejaOperacion>(`/v1/operacion/casos${qs}`, { headers: this.autoriza(token) });
@@ -1627,7 +1402,6 @@ export class ClienteApi implements OrigenDatos {
     });
   }
 
-  // ------------------------------------------- back-office (admin.ts)
   pedidoAdmin(token: string, pedidoId: string): Promise<PedidoAdmin> {
     return this.pedir<PedidoAdmin>(`/v1/comercio/pedidos/${encodeURIComponent(pedidoId)}`, {
       headers: this.autoriza(token),
@@ -1727,18 +1501,12 @@ export class ClienteApi implements OrigenDatos {
     });
   }
 
-  // -------------------------------------------------------------- Metricas
-  // La medida en vivo de un colegio (Inteligencia) y la serie congelada por dia
-  // (Operacion). Ambas ya tienen forma de contrato en el backend, asi que se
-  // propagan tal cual; los filtros de la serie se traducen a query params.
   metricasColegio(colegioId: string): Promise<MetricasColegio> {
     return this.pedir<MetricasColegio>(
       `/v1/metricas/colegios/${encodeURIComponent(colegioId)}`,
     );
   }
 
-  // Exige Bearer de operador/admin: la respuesta trae los `usuario_id` de los
-  // padres que pagaron (dato sensible). Bearer, igual que `acudientesAdmin`.
   resumenPedidosColegio(token: string, colegioId: string): Promise<ResumenPedidosColegio> {
     return this.pedir<ResumenPedidosColegio>(
       `/v1/metricas/colegios/${encodeURIComponent(colegioId)}/pedidos`,

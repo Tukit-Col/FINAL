@@ -1,13 +1,3 @@
-/* ============================================================
-   Dashboard — TuKit (rediseño claymorphico)
-
-   Los pedidos salen de `comercio` via el contrato; el saludo y los perfiles de
-   los hijos, de `identidad` (sesion + `/v1/cuenta/matriculas`). Los perfiles se
-   pintan con dato minimo del portador (colegio, grado y apodo descifrado), sin
-   nombre legal ni documento (Ley 1581).
-   ============================================================ */
-
-/* Layout shell */
 .shell {
   display: flex;
   flex-direction: column;
@@ -28,15 +18,11 @@
   max-width: 1040px;
   margin: 0 auto;
   width: 100%;
-  /* La cabecera del sitio es fija: el aire de arriba evita que el saludo
-     quede pegado o recortado detras de la barra. */
+
   padding-top: var(--espacio-6);
   align-items: flex-start;
 }
 
-/* ============================================================
-   Columna de contenido
-   ============================================================ */
 .content {
   flex: 1;
   min-width: 0;
@@ -45,7 +31,6 @@
   gap: var(--espacio-5);
 }
 
-/* ---- Encabezado ---- */
 .pageHeader {
   display: flex;
   align-items: flex-end;
@@ -56,7 +41,6 @@
   scroll-margin-top: 88px;
 }
 
-/* Resumen: tres numeros que llevan a su seccion. */
 .resumen {
   display: flex;
   gap: var(--espacio-3);
@@ -99,7 +83,6 @@
   color: var(--color-text-secondary);
 }
 
-/* Estado vacio con imagen de la marca. */
 .vacio {
   display: flex;
   align-items: center;
@@ -142,7 +125,6 @@
   color: var(--color-text-primary);
 }
 
-/* CTA primario: pildora inflada, 44px tactil. */
 .btnPrimario {
   display: inline-flex;
   align-items: center;
@@ -196,15 +178,12 @@
   color: var(--color-text-secondary);
 }
 
-/* ============================================================
-   Tarjeta de seccion (compartida)
-   ============================================================ */
 .card {
   background: var(--clay-surface-grad);
   border-radius: var(--radius-xl);
   box-shadow: var(--clay-shadow);
   overflow: hidden;
-  /* Al saltar a una seccion desde el menu, la cabecera fija no la tapa. */
+
   scroll-margin-top: 88px;
 }
 
@@ -222,9 +201,6 @@
   color: var(--color-text-primary);
 }
 
-/* ============================================================
-   Seccion pedidos
-   ============================================================ */
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -262,8 +238,6 @@
   font-weight: 700;
 }
 
-/* La fila del pedido es un enlace a `/pedidos/[id]`: el `::after` del codigo
-   cubre la fila entera (stretched link), sin envolver celdas en un `<a>`. */
 .filaPedido {
   position: relative;
 }
@@ -283,8 +257,6 @@
   inset: 0;
 }
 
-/* El foco se dibuja en la fila entera; sin `:has()` queda el anillo del
-   enlace, que es el de siempre. */
 @supports selector(:has(*)) {
   .enlacePedido:focus-visible {
     outline: none;
@@ -296,7 +268,6 @@
   }
 }
 
-/* Solo para lectores de pantalla. */
 .paraLectores {
   position: absolute;
   width: 1px;
@@ -318,8 +289,6 @@
   font-weight: 700;
 }
 
-/* Un pedido pendiente ocupa dos filas: la del pedido (sin borde abajo) y una
-   franja a todo el ancho con su texto y sus acciones. */
 .filaConAcciones td {
   border-bottom: none;
   padding-bottom: 8px;
@@ -432,8 +401,6 @@
   color: var(--color-danger);
 }
 
-/* Etiqueta de estado: verde lo pagado y en camino, amarillo lo que espera
-   pago, rojo lo cancelado o con incidencia. */
 .badge {
   display: inline-flex;
   align-items: center;
@@ -472,9 +439,6 @@
   color: var(--color-danger);
 }
 
-/* ============================================================
-   Línea de etapas de una solicitud (EtapasSolicitud)
-   ============================================================ */
 .etapas {
   display: flex;
   flex-wrap: wrap;
@@ -528,9 +492,6 @@
   color: var(--color-aviso);
 }
 
-/* ============================================================
-   Seccion perfiles de hijos
-   ============================================================ */
 .hijos {
   list-style: none;
   display: grid;
@@ -539,7 +500,6 @@
   padding: 0 var(--espacio-5) var(--espacio-5);
 }
 
-/* Tarjeta anidada tintada, mismo lenguaje que .ayudaCard (cielo + clay-sm). */
 .hijoCard {
   display: flex;
   flex-direction: column;
@@ -613,9 +573,6 @@
   color: var(--color-text-secondary);
 }
 
-/* Acciones de una tarjeta (hijo o solicitud): texto pequeño, sin caja, para
-   que no compitan con lo que la tarjeta dice. La de quitar o cancelar se
-   enrojece solo al pasar el mouse. */
 .accionesDiscretas {
   display: flex;
   flex-wrap: wrap;
@@ -644,7 +601,6 @@
   color: var(--color-danger);
 }
 
-/* Confirmar en la misma tarjeta, sin ventana emergente. */
 .confirmacion {
   display: grid;
   gap: var(--espacio-2);
@@ -711,7 +667,6 @@
   cursor: progress;
 }
 
-/* Vacio: mismo patron visual que .sinPedidos. */
 .sinHijos {
   padding: var(--espacio-4) var(--espacio-5);
   font-size: 13.5px;
@@ -723,7 +678,6 @@
   font-weight: 700;
 }
 
-/* Lectura fallida: aviso ambar NO bloqueante; el resto del panel sigue vivo. */
 .hijosError {
   margin: 0 var(--espacio-5) var(--espacio-5);
   padding: var(--espacio-4);
@@ -734,9 +688,6 @@
   font-size: 13.5px;
 }
 
-/* ============================================================
-   Seccion mis solicitudes
-   ============================================================ */
 .solicitudes {
   list-style: none;
   display: flex;
@@ -745,8 +696,6 @@
   padding: 0 var(--espacio-5) var(--espacio-5);
 }
 
-/* Mismo lenguaje tintado que .hijoCard, pero en fila: cada solicitud es una
-   linea con su colegio+grado y su estado en palabras. */
 .solicitudCard {
   display: flex;
   flex-direction: column;
@@ -809,7 +758,6 @@
   color: var(--color-text-secondary);
 }
 
-/* CTA primario de la solicitud ("Ver mis kits"). */
 .solicitudEnlace {
   display: inline-flex;
   align-items: center;
@@ -844,9 +792,6 @@
   }
 }
 
-/* ============================================================
-   Tarjeta de ayuda
-   ============================================================ */
 .ayudaCard {
   background: var(--clay-cielo-bg);
   border-radius: var(--radius-lg);
@@ -908,9 +853,6 @@
   transform: translateY(-2px);
 }
 
-/* ============================================================
-   Responsive
-   ============================================================ */
 @media (max-width: 780px) {
   .main {
     flex-direction: column;
@@ -954,10 +896,6 @@
   }
 }
 
-/* En el celular la tabla de pedidos (≈520px) no cabe en la tarjeta y la
-   tarjeta recorta (`overflow: hidden`): el Estado salía cortado y el Total no
-   se veía. Cada pedido pasa a ser un bloque de dos renglones —código y total
-   arriba, fecha y estado abajo— y la franja de acciones va debajo, a lo ancho. */
 @media (max-width: 560px) {
   .table,
   .table tbody {
@@ -1029,10 +967,6 @@
   }
 }
 
-
-/* ============================================================
-   Detalle del pedido: seguimiento y retracto
-   ============================================================ */
 .detallePedido {
   display: grid;
   gap: var(--espacio-3);
@@ -1201,9 +1135,6 @@
   color: var(--color-text-primary);
 }
 
-/* ============================================================
-   Mis casos
-   ============================================================ */
 .casos {
   display: grid;
   gap: var(--espacio-3);
@@ -1281,13 +1212,10 @@
   gap: var(--espacio-3);
 }
 
-
-/* ---- Cambiar colegio en la tarjeta: el mismo buscador que /empezar ---- */
 .hijoBuscador {
   min-width: 0;
 }
 
-/* ---- Mis casos: estado vacio, formulario y boton ---- */
 .casosVacio {
   display: grid;
   grid-template-columns: 96px minmax(0, 1fr);
@@ -1316,7 +1244,6 @@
   margin: 0;
 }
 
-/* Boton secundario con icono: siempre dentro de la tarjeta, nunca desborda. */
 .btnNuevoCaso {
   justify-self: start;
   display: inline-flex;
@@ -1352,7 +1279,6 @@
   box-shadow: var(--clay-shadow-sm);
 }
 
-/* Etiqueta arriba, campo debajo, ancho completo. */
 .campo {
   display: grid;
   gap: 6px;
@@ -1422,12 +1348,10 @@
   font-weight: 700;
 }
 
-/* Editando: la tarjeta ocupa la fila para que el buscador respire. */
 .hijoCardAncha {
   grid-column: 1 / -1;
 }
 
-/* Iconos de estado vacío: sustituyen las fotos de marca, que se repetían. */
 .vacioIcono,
 .casosVacioIcono {
   display: grid;
@@ -1440,9 +1364,6 @@
 .vacioIcono { width: 96px; height: 96px; }
 .casosVacioIcono { width: 72px; height: 72px; border-radius: var(--radius-md); }
 
-/* ============================================================
-   Mis pedidos como tarjetas con sus fases
-   ============================================================ */
 .pedidos {
   list-style: none;
   margin: 0;

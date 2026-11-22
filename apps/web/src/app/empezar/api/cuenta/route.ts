@@ -1,9 +1,3 @@
-// `POST /empezar/api/cuenta`: el paso 1 de /empezar crea la cuenta del acudiente.
-//
-// Mismo patron que `/api/sesion`: es el unico punto donde se pone la cookie de
-// sesion tras el alta, el navegador no habla con el backend, y el token nunca
-// sale al cliente. Devuelve la sesion (nombre/roles), no el token.
-
 import { NextResponse } from "next/server";
 import { origenDeDatos, type NuevaCuenta } from "@tukit/contrato/servidor";
 import { respuestaDeError } from "@/lib/respuesta";

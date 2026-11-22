@@ -1,6 +1,3 @@
-// El 404 del §11 con cara de consola: un identificador mal pegado es el error
-// mas comun de llegar aqui, y la salida util es volver a la cola.
-
 import Link from "next/link";
 import styles from "./Detalle.module.css";
 

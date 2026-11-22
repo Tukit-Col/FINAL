@@ -1,11 +1,3 @@
-// Rejilla paginada de productos del catálogo (P4c). Es presentación pura:
-// recibe la página ya resuelta y avisa hacia arriba cuándo se elige una ficha o
-// se cambia de página. La búsqueda/filtrado la maneja `GestorCatalogo`.
-//
-// Se muestra como REJILLA DE TARJETAS (como el gestor del MS), no como tabla:
-// cada producto es una ficha con foto grande, pastilla de nivel, nombre, precio
-// y metadatos. Cada tarjeta es un <button> real, así funciona con teclado.
-
 import { formatearPesos } from "@tukit/contrato";
 import type { ProductoCatalogoDetalle } from "@tukit/contrato";
 import TarjetaProductoCard from "./TarjetaProductoCard";

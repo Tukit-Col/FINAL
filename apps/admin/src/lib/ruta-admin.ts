@@ -1,7 +1,3 @@
-// Andamiaje comun de las rutas proxy de escritura: sesion, JSON legible, forma
-// del cuerpo y llamada al origen. El token sale de la cookie httpOnly y viaja
-// como Bearer; las reglas de negocio las decide el servicio.
-
 import { ErrorTukit } from "@tukit/contrato/servidor";
 import { cuerpoJson, respuestaDeError } from "@/lib/respuesta";
 import { tokenDeSesion } from "@/lib/sesion";

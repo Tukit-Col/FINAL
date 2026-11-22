@@ -10,20 +10,6 @@ export const metadata = {
   title: "Recibimos tu lista — Tukit",
 };
 
-// La pantalla de verificación (decisión "wait-screen wins"). El acudiente que
-// subió al menos un PDF aterriza aquí: cada archivo quedó como una versión
-// PENDIENTE de su (colegio, grado) y esperamos a que un administrador la
-// apruebe antes de armar su kit. No sondea nada —no hay trabajo que seguir—:
-// el aviso llega por correo y celular cuando la lista quede verificada.
-//
-// Si el hogar además tenía hijos con lista verificada, su kit instantáneo ya
-// existe y se enlaza aquí (parámetro `trabajo`), sin quitarle el protagonismo
-// a la verificación pendiente.
-//
-// Con el catálogo caído la subida igual responde (ADR 0040): la lista queda
-// guardada en Tukit y pasa sola a la fila de revisión cuando el catálogo
-// vuelve. Esas llegan como `diferidas` y la pantalla le dice al acudiente que
-// no tiene que volver a subirlas.
 export default async function Recibimos({
   searchParams,
 }: {

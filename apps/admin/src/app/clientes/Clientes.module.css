@@ -1,7 +1,3 @@
-/* Reusa el mismo lenguaje visual de la Cola: el shell (.pagina/.encabezado/
- * .bajada/.resumen) y el marco de tabla. Todo con tokens de
- * @tukit/contrato/tokens.css; cero hex, cero estilos en línea. */
-
 .pagina {
   display: flex;
   flex-direction: column;
@@ -54,8 +50,6 @@
   line-height: 1.2;
 }
 
-/* ------------------------------------------------------------------ tabla */
-
 .tabla {
   width: 100%;
   border-collapse: collapse;
@@ -97,8 +91,6 @@
   background: var(--color-surface-2);
 }
 
-/* El enlace real vive en la celda del correo; su ::after cubre toda la fila,
- * así el área completa abre la ficha sin anidar enlaces en una fila. */
 .enlaceFila {
   color: inherit;
   text-decoration: none;
@@ -153,7 +145,6 @@
   color: var(--color-text-secondary);
 }
 
-/* Solo para lectores de pantalla: la <caption> que nombra la tabla. */
 .oculto {
   position: absolute;
   width: 1px;
@@ -162,8 +153,6 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
-
-/* ----------------------------------------------------- vacío y aviso */
 
 .vacio {
   padding: var(--espacio-6);
@@ -193,8 +182,6 @@
 .aviso p {
   color: var(--color-text-secondary);
 }
-
-/* ---------------------------------------------------------------- filtros */
 
 .filtros {
   display: flex;
@@ -281,7 +268,6 @@
   font-size: 13px;
 }
 
-/* ------------------------------------------------ Por colegio y grado */
 .porColegio {
   display: grid;
   gap: var(--espacio-3);
@@ -388,7 +374,6 @@
   gap: 6px;
 }
 
-/* El tono de cada grado sube con cuantos hijos tiene: se ve donde estan. */
 .chipGrado {
   --peso: 0;
   display: inline-flex;
@@ -416,7 +401,6 @@
   color: var(--color-white);
 }
 
-/* ---- Cifras de arriba ---------------------------------------------------- */
 .kpis {
   display: grid;
   grid-template-columns: repeat(4, minmax(110px, 1fr));
@@ -447,7 +431,6 @@
   color: var(--color-success);
 }
 
-/* ---- Fila de la tabla ---------------------------------------------------- */
 .avatar {
   display: inline-grid;
   place-items: center;
@@ -497,7 +480,6 @@
   }
 }
 
-/* ---- Estado del pedido de la familia ---------------------------------------- */
 .pastillaPedido {
   display: inline-flex;
   align-items: center;

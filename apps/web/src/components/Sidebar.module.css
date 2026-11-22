@@ -1,7 +1,3 @@
-/* ============================================================
-   Sidebar — TuKit (rediseño claymorphico)
-   ============================================================ */
-
 .sidebar {
   width: 224px;
   flex-shrink: 0;
@@ -13,11 +9,10 @@
   padding: var(--espacio-4) 0;
   align-self: flex-start;
   position: sticky;
-  /* Debajo de la cabecera fija del sitio (≈64 px), con aire. */
+
   top: 88px;
 }
 
-/* ---- Account info ---- */
 .sidebar__account {
   padding: 0 var(--espacio-4) var(--espacio-4);
   border-bottom: 1px solid var(--color-border);
@@ -38,7 +33,6 @@
   margin-top: 2px;
 }
 
-/* ---- Nav items ---- */
 .sidebar__nav {
   display: flex;
   flex-direction: column;
@@ -74,7 +68,6 @@
   transform: translateX(2px);
 }
 
-/* La seccion del panel que esta a la vista. */
 .sidebar__item--activo {
   background: var(--clay-cielo-bg);
   color: var(--color-primary);
@@ -88,7 +81,6 @@
   outline-offset: 2px;
 }
 
-/* CTA a ruta real (/empezar) — boton clay inflado dentro del nav. */
 .sidebar__cta {
   display: flex;
   align-items: center;
@@ -129,13 +121,10 @@
   margin: var(--espacio-2) var(--espacio-4);
 }
 
-/* Cerrar sesión: solo donde la cabecera no lo muestra (mismo corte, 680px). */
 .sidebar__salir {
   display: none;
 }
 
-/* En pantallas angostas la navegacion pasa a pestañas horizontales que se
-   quedan pegadas bajo la cabecera y se desplazan de lado si no caben. */
 @media (max-width: 780px) {
   .sidebar {
     width: 100%;

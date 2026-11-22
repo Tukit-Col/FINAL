@@ -1,8 +1,3 @@
-// La linea de tiempo del pedido, vertical. Comercio decide en que paso va, que
-// fechas hay y si hubo un desvio (`linea_de_tiempo`); aqui solo se pinta. Las
-// fechas son las que Comercio tiene: un paso alcanzado sin fecha lo dice, no
-// se inventa una.
-
 import { AlertTriangle, Check, XCircle } from "lucide-react";
 import {
   ETIQUETA_PASO_PEDIDO,
@@ -27,8 +22,6 @@ const PARA_LECTORES: Record<SituacionPaso, string> = {
   futuro: "Pendiente",
 };
 
-// `tipo_incidencia` es texto en el contrato: uno nuevo de Comercio que aun no
-// tiene etiqueta se nombra en generico, no con su clave tecnica.
 function nombreIncidencia(tipo: string | null): string {
   return (tipo && ETIQUETA_TIPO_INCIDENCIA[tipo as TipoIncidencia]) || "Otro inconveniente";
 }
@@ -58,7 +51,6 @@ export default function LineaDeTiempoPedido({
           <p>
             <strong>Tuvimos un inconveniente con la entrega.</strong> Motivo:{" "}
             {nombreIncidencia(especial.tipo_incidencia)}. Te contactaremos para resolverlo.
-            {/* La hora en es-CO ya termina en "p. m.": la fecha cierra la frase. */}
             {especial.fecha && (
               <>
                 {" "}

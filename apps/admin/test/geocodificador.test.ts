@@ -1,9 +1,3 @@
-// La politica de Nominatim hecha prueba: una peticion por segundo, User-Agent con
-// contacto, cache (tambien negativa), tope por llamada y descarte de homonimos
-// fuera de Colombia.
-//
-// Correr:  node --test test/geocodificador.test.ts
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -116,7 +110,6 @@ test("una direccion del DANE no cae en el centro de Bogota: se normaliza y, si n
   const { geo, llamadas } = armar((url) => {
     const q = url.searchParams.get("q") ?? "";
     if (q.startsWith("Carrera 109, Fontibón")) return [{ lat: "4.6791", lon: "-74.1498", addresstype: "road" }];
-    // Lo que hoy pasa con "KR 109 # 23 D - 35": Nominatim devuelve la ciudad entera.
     if (q.includes("KR 109")) return [{ lat: "4.6533", lon: "-74.0836", addresstype: "city" }];
     return [];
   });

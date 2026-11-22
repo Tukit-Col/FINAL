@@ -1,13 +1,3 @@
-// `/pedidos/[pedido_id]` — la pagina de UN pedido del acudiente: primero su
-// linea de tiempo (en que paso va, desde cuando y si algo se desvio), luego los
-// productos, el pago y la entrega.
-//
-// Server Component: el token sale de la cookie httponly y viaja a Comercio
-// (`GET /v1/comercio/mis-pedidos/{id}`), que saca al acudiente de la sesion. Un
-// pedido ajeno responde 404 igual que uno que no existe: aqui los dos son el
-// mismo not-found, para no confirmar que el id existe. La linea de tiempo llega
-// hecha de Comercio; esta pagina la pinta y no recalcula ninguna regla.
-
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -27,7 +17,6 @@ export const metadata = { title: "Tu pedido — Tukit" };
 
 export default async function PaginaPedido({ params }: { params: Promise<{ pedido_id: string }> }) {
   const { pedido_id } = await params;
-  // Un 429 (cupo agotado) pinta el aviso con la espera, no un error.
   return conAvisoDeLimite(() => paginaPedido(pedido_id));
 }
 
@@ -41,9 +30,7 @@ async function paginaPedido(pedido_id: string) {
     pedido = await origenDeDatos().miPedido(token, pedido_id);
   } catch (causa) {
     if (causa instanceof ErrorTukit) {
-      // La sesion vencio: a ingresar y de vuelta aqui.
       if (causa.estado === 401) redirect(destino);
-      // Ajeno, inexistente o un id que ni es un UUID: el mismo not-found.
       if ([400, 404, 422].includes(causa.estado)) notFound();
     }
     throw causa;

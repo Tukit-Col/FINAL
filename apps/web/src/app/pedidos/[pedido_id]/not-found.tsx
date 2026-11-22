@@ -1,6 +1,3 @@
-// Un pedido que no existe o que no es del acudiente: el mismo aviso para los
-// dos, para no confirmar que un id ajeno existe.
-
 import Link from "next/link";
 import styles from "./PaginaPedido.module.css";
 

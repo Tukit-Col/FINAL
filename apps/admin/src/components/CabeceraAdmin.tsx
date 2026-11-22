@@ -1,10 +1,5 @@
 "use client";
 
-// Barra del back-office. Antes era un solo enlace de vuelta a la cola; ahora es
-// la navegación de un back-office de e-commerce con cinco secciones. Es de
-// cliente por una sola razón: `usePathname` marca en qué sección estás. La
-// lógica de cada pantalla sigue en su propio Server Component.
-
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -21,13 +16,6 @@ import {
 import SalirBoton from "./SalirBoton";
 import styles from "./CabeceraAdmin.module.css";
 
-// El orden es el del flujo de trabajo: primero el pulso del negocio (Panel),
-// luego lo que hay que verificar (Cola) —donde ahora también se sube una lista
-// nueva, sin pantalla aparte, y donde una lista de acudiente trae su colegio y
-// grado para crearlos al aprobar—, la BD durable de colegios y listas
-// (Colegios), el padrón de familias registradas (Clientes), lo que hay en
-// catálogo (Catálogo), lo que hay que mover (Logística) y lo que hay que
-// responder (Tickets).
 const SECCIONES = [
   { href: "/", etiqueta: "Panel", Icono: LayoutDashboard },
   { href: "/cola", etiqueta: "Cola", Icono: ClipboardList },
@@ -39,11 +27,6 @@ const SECCIONES = [
   { href: "/correos", etiqueta: "Correos", Icono: Mail },
 ] as const;
 
-// Un enlace está activo si la ruta actual empieza por su href. El Panel es la
-// casa ("/") y solo se enciende en la raíz exacta. La Cola vive en "/cola" y
-// además es dueña de "/trabajos/…" (un ingreso de acudiente) y de
-// "/onboarding/…" (el revisor de una versión): ambas rutas son revisar algo de
-// la cola, así que encienden el mismo ítem.
 function estaActiva(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
   if (href === "/cola")

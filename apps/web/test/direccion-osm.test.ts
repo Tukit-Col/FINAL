@@ -1,10 +1,3 @@
-// La búsqueda de direcciones en OpenStreetMap hecha prueba: la política del
-// Nominatim público (una petición por segundo, User-Agent con contacto, caché,
-// sesgo a Bogotá), el descarte de homónimos fuera de Colombia y que un fallo del
-// servicio sea un error controlado y no un cuelgue del pago.
-//
-// Runner nativo de Node sobre TypeScript. Correr: `node --test test/direccion-osm.test.ts`.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { direccionDesdeNominatim } from "../../../libs/ts/tukit-contrato/src/localidades.ts";
@@ -74,7 +67,6 @@ test("lee la dirección, el punto y la localidad, y descarta lo de fuera de Colo
   assert.equal(unico?.direccion, "Calle 72 #10-34");
   assert.equal(unico?.latitud, 4.6518184);
   assert.equal(unico?.longitud, -74.0510026);
-  // El barrio "UPZs de Bogotá" es ruido de OSM: no se muestra.
   assert.equal(unico?.secundario, "Localidad Chapinero, Bogotá");
   assert.equal(unico?.componentes["suburb"], "Localidad Chapinero");
 });
@@ -104,13 +96,11 @@ test("de Nominatim a ciudad, departamento y localidad canónicos", () => {
     departamento: "Bogotá, D.C.",
     localidad: "Chapinero",
   });
-  // Fuera de Bogotá no hay localidad, aunque OSM traiga un suburb.
   assert.deepEqual(direccionDesdeNominatim({ town: "Chía", state: "Cundinamarca", suburb: "Fonqueta" }), {
     ciudad: "Chía",
     departamento: "Cundinamarca",
     localidad: "",
   });
-  // Sin localidad reconocible, la elige el acudiente.
   assert.equal(direccionDesdeNominatim({ city: "Bogotá ciudad", state: "Bogotá, Distrito Capital" }).localidad, "");
   assert.equal(direccionDesdeNominatim(null).ciudad, "");
 });
@@ -119,7 +109,6 @@ test("la consulta sesga a Bogotá, pide Colombia y manda el contacto", async () 
   const { buscador, llamadas } = armar(() => [CHAPINERO]);
   const r = await buscador.buscar("Cra 7 # 72-41");
   assert.equal(r.length, 1);
-  // Primero intenta el cruce (sin trazados no lo hay); la libre es la última.
   const { url, ua } = llamadas[llamadas.length - 1]!;
   assert.equal(url.searchParams.get("countrycodes"), "co");
   assert.equal(url.searchParams.get("viewbox"), "-74.35,4.95,-73.90,4.40");
@@ -186,8 +175,6 @@ test("con la cola llena responde 429 en vez de acumular esperas", async () => {
   assert.equal(((rechazadas[0] as PromiseRejectedResult).reason as ErrorBusqueda).estado, 429);
 });
 
-// ---- Dedupe, orden y restricción a Bogotá ----
-
 function via(id: number, lat: string, lon: string, extra: Record<string, string> = {}) {
   return {
     osm_type: "way",
@@ -220,19 +207,15 @@ test("la entrega es solo en Bogotá: límites duros y se descarta lo de fuera", 
   assert.equal(parametrosDeBusqueda("calle 72").get("bounded"), "1");
   const medellin = { ...via(9, "6.2442", "-75.5812"), address: { road: "Carrera 91", city: "Medellín" } };
   assert.equal(leerCandidatos([medellin]).length, 0);
-  // Soacha cae dentro de la caja pero no es Bogotá.
   const soacha = { ...via(8, "4.58", "-74.21"), address: { road: "Carrera 91", city: "Soacha" } };
   assert.equal(leerCandidatos([soacha]).length, 0);
 });
-
-// ---- Cruce de dos vías ----
 
 const linea = (...p: [number, number][]) => ({ type: "LineString", coordinates: p });
 const tramo = (id: number, road: string, geojson: unknown, extra: Record<string, string> = {}) => ({
   osm_type: "way", osm_id: id, lat: "4.667", lon: "-74.135", category: "highway", name: road, geojson,
   address: { road, suburb: "Localidad Fontibón", city: "Bogotá", ...extra },
 });
-// Carrera 91 va de sur a norte; la Calle 19A la corta cerca de (-74.135, 4.667).
 const CRA91_BOSA = tramo(1, "Carrera 91", linea([-74.198, 4.62], [-74.198, 4.63]), { suburb: "Localidad Bosa" });
 const CRA91_FONTIBON = tramo(2, "Carrera 91", linea([-74.135, 4.66], [-74.135, 4.67], [-74.135, 4.68]));
 const CALLE19A = tramo(3, "Calle 19A", linea([-74.14, 4.667], [-74.13, 4.667]));
@@ -277,7 +260,6 @@ test("el buscador intenta el cruce primero y devuelve solo esa opción", async (
 test("si las vías no se tocan, cae a la búsqueda libre", async () => {
   const { buscador, llamadas } = armar((url) => (url.searchParams.has("street") ? [] : [CRA91_BOSA]));
   const r = await buscador.buscar("carrera 91 #19 A 29");
-  // cruce (2) + ronda "Avenida" (2) + libre (1)
   assert.equal(llamadas.length, 5);
   assert.equal(llamadas[4]!.url.searchParams.get("q"), "carrera 91 19 A 29");
   assert.equal(r[0]!.cruceCon, undefined);
@@ -302,15 +284,12 @@ test("formatearPlaca y formatearDireccion arman la línea colombiana", () => {
   assert.equal(formatearPlaca("19 A 29"), "#19A-29");
   assert.equal(formatearPlaca("29"), "#29");
   const zona = ["Villa Luz", "Localidad Engativá", "Bogotá"];
-  // OSM trae el número: manda el de OSM.
   const osm = formatearDireccion({ calle: "Carrera 91", numeroOsm: "19A-29", consulta: "cra 91 20-30", zona });
   assert.equal(osm.completa, "Carrera 91 #19A-29, Villa Luz, Localidad Engativá, Bogotá");
   assert.equal(osm.confirmarNumero, false);
-  // OSM solo resolvió la calle: se conserva el número del padre y se marca.
   const padre = formatearDireccion({ calle: "Carrera 91", consulta: "cra 91 19a-29", zona });
   assert.equal(padre.direccion, "Carrera 91 #19A-29");
   assert.deepEqual([padre.confirmarNumero, padre.numeroDelPadre], [true, true]);
-  // Otra vía: el número del padre no se pega a una calle distinta.
   const otra = formatearDireccion({ calle: "Carrera 910", consulta: "cra 91 19a-29", zona });
   assert.equal(otra.direccion, "Carrera 910");
   assert.deepEqual([otra.confirmarNumero, otra.numeroDelPadre], [true, false]);

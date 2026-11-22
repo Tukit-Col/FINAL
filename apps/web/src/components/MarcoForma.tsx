@@ -1,26 +1,15 @@
 import { useId, type CSSProperties, type ReactNode } from "react";
 import estilos from "./MarcoForma.module.css";
 
-// Port a React de `form-frame` (sf-design-stack): una forma con corte curvo,
-// dibujada como SVG en linea DETRAS del contenido, con degradado propio y sin
-// mask-image. El degradado se dibuja del ancho de la forma y la forma es una
-// ventana: `desde` y `hasta` escogen los dos colores. Solo es decoracion
-// (aria-hidden); el contenido lleva su propio contraste. Sin animacion.
-
 interface Props {
   children: ReactNode;
-  /** Color de arranque del degradado (arriba-izquierda). */
   desde?: string;
-  /** Color final (abajo-derecha). */
   hasta?: string;
   className?: string;
   style?: CSSProperties;
-  /** Etiqueta del contenedor. */
   as?: "div" | "section" | "header";
 }
 
-// Rectangulo de esquinas suaves con un mordisco circular en la esquina
-// superior derecha, en unidades de la caja (0..1).
 const RUTA =
   "M0.03,0 H0.84 A0.085,0.34 0 0 0 0.935,0.34 A0.065,0.26 0 0 1 1,0.6 V0.96 Q1,1 0.97,1 H0.03 Q0,1 0,0.96 V0.04 Q0,0 0.03,0 Z";
 
