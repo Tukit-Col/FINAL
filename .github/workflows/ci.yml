@@ -20,7 +20,7 @@ jobs:
     name: Fronteras de arquitectura
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
@@ -34,7 +34,7 @@ jobs:
     name: Estilo
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
@@ -54,7 +54,7 @@ jobs:
       matrix:
         servicio: [identidad, catalogo, inteligencia, comercio, operacion, gateway]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -116,7 +116,7 @@ jobs:
     needs: fronteras
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
@@ -175,7 +175,7 @@ jobs:
       PGGSSENCMODE: disable
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
@@ -247,7 +247,7 @@ jobs:
       TUKIT_PRUEBAS_RABBITMQ_OBLIGATORIO: "1"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
@@ -298,7 +298,7 @@ jobs:
       TUKIT_PRUEBAS_REDIS_OBLIGATORIO: "1"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
@@ -330,7 +330,7 @@ jobs:
     name: Web y admin (tipos, estilo y pruebas)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 24
