@@ -19,6 +19,13 @@ AHORA = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
 _TTL_MIN = int(TTL_RESERVA.total_seconds() // 60)
 
 
+@pytest.fixture(autouse=True)
+def _ttl_por_defecto(monkeypatch):
+    # Las edades de abajo se miden contra TTL_RESERVA; si el entorno trae
+    # TUKIT_TTL_RESERVA_MIN (el .env local lo pone), el barredor usaria otro TTL.
+    monkeypatch.delenv("TUKIT_TTL_RESERVA_MIN", raising=False)
+
+
 @pytest_asyncio.fixture
 async def motor():
     m = create_async_engine("sqlite+aiosqlite:///:memory:")
