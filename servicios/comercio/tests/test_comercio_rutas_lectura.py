@@ -122,6 +122,7 @@ async def test_tablero_vacio_trae_el_resumen_en_ceros_con_todos_los_estados(ento
             "por_estado": {estado.value: 0 for estado in EstadoPedido},
             "ingresos_confirmados": 0,
             "entregas_pendientes": 0,
+            "alertas": {"incidencia_abierta": 0, "pagado_sin_avanzar": 0, "pago_atascado": 0},
         },
         "pedidos": [],
     }
@@ -154,6 +155,7 @@ async def test_tablero_cuenta_ingresos_solo_de_lo_confirmado_y_entregas_pendient
         },
         "ingresos_confirmados": 27_000,
         "entregas_pendientes": 2,
+        "alertas": {"incidencia_abierta": 1, "pagado_sin_avanzar": 1, "pago_atascado": 0},
     }
     assert len(cuerpo["pedidos"]) == 6
 
@@ -254,7 +256,6 @@ async def test_detalle_de_un_pedido_trae_la_forma_completa_del_contrato(entorno)
         "documento_destinatario",
         "indicaciones",
         "localidad",
-        "google_place_id",
         "latitud",
         "longitud",
         "transportadora",

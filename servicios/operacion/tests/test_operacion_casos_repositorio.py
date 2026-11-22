@@ -163,7 +163,14 @@ class TestElResumenDeLaBandeja:
         async with entorno.motor.sesion() as db:
             resumen = await RepoCasos(await db.connection()).resumen(AHORA)
 
-        assert resumen == {"abiertos": 0, "urgentes": 0, "vencen_hoy": 0, "resueltos_semana": 0}
+        assert resumen == {
+            "abiertos": 0,
+            "urgentes": 0,
+            "vencen_hoy": 0,
+            "resueltos_semana": 0,
+            "sin_asignar": 0,
+            "vencidos": 0,
+        }
 
     async def test_cada_tarjeta_cuenta_lo_que_dice_su_nombre(self, entorno):
         motor = entorno.motor
@@ -186,6 +193,8 @@ class TestElResumenDeLaBandeja:
             "urgentes": 1,  # el urgente resuelto no cuenta
             "vencen_hoy": 2,  # el de hoy y el ya vencido; ni el de manana ni el sin termino ni el resuelto
             "resueltos_semana": 1,  # el resuelto de ayer; el cerrado del dia 10 ya salio de la ventana
+            "sin_asignar": 4,  # ninguno de los cuatro activos tiene responsable
+            "vencidos": 1,  # solo el que vencio el dia 20; el de hoy aun tiene horas
         }
 
     @pytest.mark.parametrize(
@@ -382,7 +391,14 @@ class TestLaBandeja:
 
         assert respuesta.status_code == 200
         assert respuesta.json() == {
-            "resumen": {"abiertos": 0, "urgentes": 0, "vencen_hoy": 0, "resueltos_semana": 0},
+            "resumen": {
+                "abiertos": 0,
+                "urgentes": 0,
+                "vencen_hoy": 0,
+                "resueltos_semana": 0,
+                "sin_asignar": 0,
+                "vencidos": 0,
+            },
             "casos": [],
         }
 

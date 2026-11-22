@@ -125,11 +125,8 @@ class TestADV07RankingPorEmbeddings:
         record_property("ejemplos", " | ".join(ejemplos[:10]))
         assert hundidos == 0, f"la fusion cambia {hundidos} de {casos} ganadores lexicos correctos"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="H-A-50: el rescate por coseno de un concepto rival (>= 0,86) le gana a la cabeza "
-        "anclada; un vector envenenado cambia el concepto de la mitad de los pares del oro",
-    )
+    # H-A-50 (vector del rival): sale XPASS(strict) sobre la limpieza, porque 1b0d278 quito el rescate por
+    # coseno sin ancla lexica; se quita el xfail. La otra mitad de H-A-50 (la fusion) sigue abierta.
     def test_el_vector_de_un_rival_no_le_quita_el_renglon_a_su_concepto(self, record_property):
         _canal(record_property, "adversarial: vector del concepto rival")
         robados = []

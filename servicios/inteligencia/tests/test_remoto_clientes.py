@@ -266,7 +266,7 @@ class TestCatalogoPideLoQueElContratoDice:
         assert dict(con_producto.ultima.url.params) == {
             "concepto": "C001",
             "personaje": "Estrella",
-            "por_pagina": "1",
+            "por_pagina": "20",
         }
 
     async def test_listas_por_contacto_cuelga_de_interno_y_tolera_cuerpo_sin_listas(self, fabrica):

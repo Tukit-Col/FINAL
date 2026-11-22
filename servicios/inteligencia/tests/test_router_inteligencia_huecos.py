@@ -258,7 +258,7 @@ class TestTokenDelEncabezado:
         ],
     )
     def test_acepta_bearer_o_token_pelado(self, encabezado, esperado):
-        assert router._token_bearer(encabezado) == esperado
+        assert router.token_bearer(encabezado) == esperado
 
 
 class TestMultipartAMano:

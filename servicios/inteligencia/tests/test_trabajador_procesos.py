@@ -270,7 +270,7 @@ class TestBucle:
     async def test_amplia_el_claim_a_colgados_cada_doce_vueltas(self, prestamo, vueltas):
         """A 5 s por vuelta, un `procesando` huerfano se retoma a los 60 s, no antes."""
         with pytest.raises(_Basta):
-            await trabajador._bucle(7.5)
+            await trabajador.correr_en_bucle(7.5)
 
         assert vueltas["retomar"] == [False] * 11 + [True] + [False]
         assert vueltas["duermen"] == [7.5] * 13  # el intervalo pedido, entre vuelta y vuelta
@@ -279,7 +279,7 @@ class TestBucle:
         vueltas["corta_en"] = 3
 
         with pytest.raises(_Basta):
-            await trabajador._bucle(1.0)
+            await trabajador.correr_en_bucle(1.0)
 
         lineas = [linea for linea in capsys.readouterr().out.splitlines() if linea.startswith("[trabajador]")]
         assert lineas == [
@@ -290,7 +290,7 @@ class TestBucle:
         vueltas["corta_en"] = 1
 
         with pytest.raises(_Basta):
-            await trabajador._bucle(1.0)
+            await trabajador.correr_en_bucle(1.0)
 
         assert prestamo.pedidos == ["inteligencia"]
         assert prestamo.cierres == 1
@@ -307,7 +307,7 @@ class TestLineaDeComandos:
             raise AssertionError("sin --seguir no debe entrar al bucle")
 
         monkeypatch.setattr(trabajador, "correr_una_vez", _una_vez)
-        monkeypatch.setattr(trabajador, "_bucle", _bucle_no)
+        monkeypatch.setattr(trabajador, "correr_en_bucle", _bucle_no)
 
         codigo = trabajador.main([])
 
@@ -328,7 +328,7 @@ class TestLineaDeComandos:
         async def _una_vez_no() -> int:
             raise AssertionError("con --seguir no se hace una pasada suelta")
 
-        monkeypatch.setattr(trabajador, "_bucle", _bucle)
+        monkeypatch.setattr(trabajador, "correr_en_bucle", _bucle)
         monkeypatch.setattr(trabajador, "correr_una_vez", _una_vez_no)
 
         assert trabajador.main(argv) == 0

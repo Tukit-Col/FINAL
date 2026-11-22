@@ -98,4 +98,4 @@ class TestTrabajadorYPoller:
         codigo = _ejecutar_como_modulo(monkeypatch, nombre, "--seguir", "--intervalo", "0.5")
 
         assert codigo == 0
-        assert vistas == [("_bucle", 0.5)]
+        assert vistas == [("correr_en_bucle", 0.5)]

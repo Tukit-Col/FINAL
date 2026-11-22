@@ -35,6 +35,7 @@ from _ayudas_inteligencia import catalogo_simple as _catalogo
 from _ayudas_inteligencia import crear_y_procesar as _crear_y_procesar
 from _ayudas_inteligencia import sembrar_canonico as _canonico
 from tukit_inteligencia import trabajos
+from tukit_inteligencia.trabajos import base, solicitudes
 from tukit_inteligencia.modelos import EstadoResolucion, EstadoTrabajo
 from tukit_inteligencia.remoto import RemotoCaido
 
@@ -153,7 +154,7 @@ class TestTauYFechas:
     def test_tau_por_omision_es_el_umbral_de_confianza_del_contrato(self, monkeypatch):
         monkeypatch.delenv("TUKIT_TAU", raising=False)
 
-        assert trabajos.tau() == trabajos.TAU_POR_OMISION == 0.75
+        assert trabajos.tau() == base.TAU_POR_OMISION == 0.75
 
     def test_tau_se_puede_ajustar_por_entorno_sin_tocar_codigo(self, monkeypatch):
         monkeypatch.setenv("TUKIT_TAU", "0.9")
@@ -173,11 +174,11 @@ class TestTauYFechas:
         naive = datetime(2026, 3, 1, 10, 0)
         aware = datetime(2026, 3, 1, 10, 0, tzinfo=timezone(timedelta(hours=-5)))
 
-        assert trabajos._a_consciente(None) == datetime.min.replace(tzinfo=UTC)
-        assert trabajos._a_consciente(naive) == naive.replace(tzinfo=UTC)
-        assert trabajos._a_consciente(aware) == aware  # la zona propia se respeta
-        assert trabajos._a_consciente("2026-03-01T10:00:00+00:00") == naive.replace(tzinfo=UTC)
-        ordenadas = sorted([aware, naive, None, "2026-01-01T00:00:00"], key=trabajos._a_consciente)
+        assert solicitudes._a_consciente(None) == datetime.min.replace(tzinfo=UTC)
+        assert solicitudes._a_consciente(naive) == naive.replace(tzinfo=UTC)
+        assert solicitudes._a_consciente(aware) == aware  # la zona propia se respeta
+        assert solicitudes._a_consciente("2026-03-01T10:00:00+00:00") == naive.replace(tzinfo=UTC)
+        ordenadas = sorted([aware, naive, None, "2026-01-01T00:00:00"], key=solicitudes._a_consciente)
         assert ordenadas[0] is None
         assert ordenadas[1] == "2026-01-01T00:00:00"
 

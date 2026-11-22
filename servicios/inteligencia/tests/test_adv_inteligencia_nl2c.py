@@ -462,11 +462,8 @@ class TestADV15HerramientasFueraDeLista:
         assert await _filas(motor) == antes
         assert lecturas == [str(tid)]
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="H-A-65: interpretar copia a la bitacora el `motivo` de `sin_accion` tal como lo "
-        "escribe el modelo, sin lista ni tope (nl2c_flujo.py:52-65)",
-    )
+    # H-A-65: sale XPASS(strict) sobre la limpieza (el motivo ya llega a la bitacora como un codigo) y se
+    # quita el xfail.
     async def test_al_empezar_el_motivo_de_sin_accion_llega_a_la_bitacora_como_un_codigo(
         self,
         cliente,  # noqa: F811

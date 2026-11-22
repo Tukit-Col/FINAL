@@ -206,7 +206,7 @@ class TestElGaugeDelDisyuntor:
 
         (gauge,) = meter.gauges
         assert gauge.nombre == "tukit.breaker.abierto"
-        assert "ADR 0020" in gauge.descripcion
+        assert "disyuntor" in gauge.descripcion
         (callback,) = gauge.callbacks
         lecturas = {o.atributos["destino"]: o.valor for o in callback(None)}
         assert lecturas == {"catalogo": 1, "identidad": 0}

@@ -636,7 +636,7 @@ async def test_rechazar_una_propuesta_pendiente_guarda_estado_y_motivo(cliente):
     # Con la unica pendiente rechazada, la version ya puede cerrarse.
     cierre = await cliente.post(f"/v1/admin/listas/{ids['abierta']}/cerrar")
     assert cierre.status_code == 200
-    assert cierre.json() == {"version_id": str(ids["abierta"]), "revisada": True}
+    assert cierre.json() == {"version_id": str(ids["abierta"]), "revisada": True, "avisos_cerrados": 1}
 
 
 async def test_rechazar_sin_cuerpo_tambien_funciona(cliente):

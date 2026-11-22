@@ -12,7 +12,7 @@ bordes que deciden si el outbox pierde o duplica trabajo:
   en la pasada siguiente en vez de perderse;
 - el `limite` acota cuantos eventos se atienden por pasada;
 - `anio_lectivo` solo viaja al trabajo si el evento lo trae;
-- `correr_una_vez`/`_bucle`/`main` abren los dos motores (el propio y el de
+- `correr_una_vez`/`correr_en_bucle`/`main` abren los dos motores (el propio y el de
   lectura al catalogo, la unica excepcion de frontera de bases) y los cierran
   SIEMPRE.
 
@@ -300,7 +300,7 @@ class TestArranqueComoProceso:
         monkeypatch.setattr(asyncio, "sleep", _dormir)
 
         with pytest.raises(_Basta):
-            await modulo_poller._bucle(2.5)
+            await modulo_poller.correr_en_bucle(2.5)
 
         assert duermen == [2.5, 2.5, 2.5]
         lineas = [x for x in capsys.readouterr().out.splitlines() if x.startswith("[poller]")]
@@ -321,7 +321,7 @@ class TestLineaDeComandos:
             raise AssertionError("sin --seguir no debe entrar al bucle")
 
         monkeypatch.setattr(modulo_poller, "correr_una_vez", _una_vez)
-        monkeypatch.setattr(modulo_poller, "_bucle", _bucle_no)
+        monkeypatch.setattr(modulo_poller, "correr_en_bucle", _bucle_no)
 
         assert modulo_poller.main([]) == 0
         assert capsys.readouterr().out.strip() == "[poller] kits de ruta rapida arrancados: 4"
@@ -340,7 +340,7 @@ class TestLineaDeComandos:
         async def _una_vez_no() -> int:
             raise AssertionError("con --seguir no se hace una pasada suelta")
 
-        monkeypatch.setattr(modulo_poller, "_bucle", _bucle)
+        monkeypatch.setattr(modulo_poller, "correr_en_bucle", _bucle)
         monkeypatch.setattr(modulo_poller, "correr_una_vez", _una_vez_no)
 
         assert modulo_poller.main(argv) == 0

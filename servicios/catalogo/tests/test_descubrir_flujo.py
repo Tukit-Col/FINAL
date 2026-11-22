@@ -164,17 +164,15 @@ class TestClasificarHibrido:
         concepto = {**CUADERNO, "embedding": [1.0, 0.0]}
         assert clasificar("cuaderno", [concepto], embedding_renglon=[1.0, 0.0])[2] == 1.0
 
-    def test_un_coseno_muy_alto_rescata_un_sinonimo_que_no_esta_en_la_lista(self):
-        """'estuche' responde a 'cartuchera' sin haberlo escrito antes, y entra a revision."""
+    def test_un_coseno_muy_alto_ya_no_rescata_un_sinonimo_sin_ancla_lexica(self):
+        """Desde 1b0d278 el coseno solo suma si el lexico ancla la cabeza: 'estuche' no llega a 'cartuchera'."""
         cartuchera = {
             "id": uuid.UUID(int=0xB1),
             "nombre": "cartuchera",
             "sinonimos": [],
             "embedding": [1.0, 0.0],
         }
-        id_, nombre, puntaje = clasificar("estuche", [cartuchera], embedding_renglon=[1.0, 0.0])
-        assert (id_, nombre) == (cartuchera["id"], "cartuchera")
-        assert puntaje == pytest.approx(0.95)  # piso 0.55 + el tramo completo del umbral a 1.0
+        assert clasificar("estuche", [cartuchera], embedding_renglon=[1.0, 0.0]) == (None, "", 0.0)
 
     def test_el_rescate_exige_el_umbral_alto(self):
         """Un parecido de tema (coseno mediano) no rescata nada: 'chaquiras' no es 'colores'."""
@@ -187,16 +185,16 @@ class TestClasificarHibrido:
         # coseno = 0.8 < 0.86
         assert clasificar("estuche", [cartuchera], embedding_renglon=[0.8, 0.6]) == (None, "", 0.0)
 
-    def test_el_rescate_en_el_borde_cae_justo_en_el_piso_de_revision(self):
+    def test_sin_ancla_lexica_el_coseno_en_el_borde_tampoco_rescata(self):
         cartuchera = {
             "id": uuid.UUID(int=0xB1),
             "nombre": "cartuchera",
             "sinonimos": [],
             "embedding": [1.0, 0.0],
         }
-        # coseno = 0.86 exacto
+        # coseno = 0.86, el antiguo umbral de rescate
         _, _, puntaje = clasificar("estuche", [cartuchera], embedding_renglon=[0.86, (1 - 0.86**2) ** 0.5])
-        assert puntaje == pytest.approx(0.55)
+        assert puntaje == 0.0
 
     def test_sin_conceptos_no_hay_clasificacion(self):
         assert clasificar("cuaderno", []) == (None, "", 0.0)

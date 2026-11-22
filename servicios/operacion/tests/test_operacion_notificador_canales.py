@@ -32,6 +32,7 @@ from tukit_operacion.notificador import (
     NotificadorCompuesto,
     NotificadorFalso,
     WaLink,
+    asunto_de,
     notificador_desde_entorno,
     texto_de,
 )
@@ -45,9 +46,11 @@ DATOS = {"turno": "AB12CD34", "pedido": "99FF00AA", "enlace": "https://tukit.exa
 
 
 @pytest.fixture(autouse=True)
-def _sin_smtp_en_el_entorno(monkeypatch: pytest.MonkeyPatch) -> None:
+def _sin_smtp_en_el_entorno(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    monkeypatch.setenv("TUKIT_BUZON_DIR", str(tmp_path / "buzon"))  # el modo consola tambien deja el correo en un buzon
     for nombre in ("HOST", "PORT", "USER", "PASSWORD", "DESDE"):
         monkeypatch.delenv(f"TUKIT_SMTP_{nombre}", raising=False)
+    monkeypatch.setenv("TUKIT_CORREO_PERMITIDOS", CORREO)  # example.test es de siembra: solo sale si se permite
 
 
 @pytest.fixture
@@ -95,28 +98,28 @@ def smtp(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
 class TestLasPlantillas:
     def test_rellena_las_variables_de_negocio(self):
         assert texto_de("pedido_pagado", DATOS) == (
-            "Recibimos tu pago del pedido 99FF00AA. Turno AB12CD34. Te avisamos cuando salga."
+            "Recibimos tu pago del pedido 99FF00AA. Ya empezamos a preparar tu kit; te avisamos cuando salga."
         )
 
     def test_kits_publicados_lleva_el_enlace_de_precompra(self):
-        texto = texto_de("kits_publicados", DATOS)
+        texto = texto_de("kits_publicados", {**DATOS, "lugar": "Colegio Ficticio"})
 
-        assert "Turno AB12CD34" in texto
+        assert "Colegio Ficticio" in texto
         assert texto.endswith("https://tukit.example.test/kits/abc")
 
     def test_una_variable_ausente_deja_la_plantilla_sin_rellenar_en_vez_de_reventar(self):
         texto = texto_de("pedido_pagado", {"turno": "AB12CD34"})  # falta `pedido`
 
-        assert texto == "Recibimos tu pago del pedido {pedido}. Turno {turno}. Te avisamos cuando salga."
+        assert texto == "Recibimos tu pago del pedido {pedido}. Ya empezamos a preparar tu kit; te avisamos cuando salga."
 
     def test_una_plantilla_sin_registrar_cae_al_texto_generico(self):
-        assert texto_de("plantilla_nueva", DATOS) == "Tienes una novedad en Tukit. Turno AB12CD34."
+        assert texto_de("plantilla_nueva", DATOS) == "Tienes una novedad en Tukit."
 
     def test_las_llaves_dentro_de_un_valor_no_se_interpretan_como_plantilla(self):
         """Un dato con `{turno}` literal sale tal cual: el texto no se formatea dos veces."""
         texto = texto_de("pedido_pagado", {"pedido": "{turno}", "turno": "AB12CD34"})
 
-        assert texto.startswith("Recibimos tu pago del pedido {turno}. Turno AB12CD34.")
+        assert texto.startswith("Recibimos tu pago del pedido {turno}.")
 
 
 class TestWaLink:
@@ -161,12 +164,18 @@ class TestCorreoSinServidor:
         assert smtp.conexiones == []
         assert capsys.readouterr().out == ""
 
-    async def test_sin_host_imprime_a_consola_el_usuario_y_el_texto_pero_no_el_correo(self, smtp, capsys):
+    async def test_sin_host_imprime_a_consola_el_usuario_y_el_asunto_pero_no_el_correo(self, smtp, capsys):
         envio = await Correo().enviar(Contacto(USUARIO, correo=CORREO), "pedido_pagado", DATOS)
 
         salida = capsys.readouterr().out
-        assert envio == Envio(canal="correo", exito=True, detalle="consola")
-        assert salida == f"[correo:consola] -> usuario {USUARIO}: {texto_de('pedido_pagado', DATOS)}\n"
+        assert envio == Envio(
+            canal="correo",
+            exito=True,
+            detalle="consola",
+            asunto=asunto_de("pedido_pagado", DATOS),
+            destino_dominio="example.test",
+        )
+        assert salida == f"[correo:consola] -> usuario {USUARIO}: {asunto_de('pedido_pagado', DATOS)}\n"
         assert CORREO not in salida  # el log nunca lleva el dato de contacto
         assert smtp.conexiones == []  # modo consola: no se finge un servidor
 
@@ -189,14 +198,20 @@ class TestCorreoPorSmtp:
         envio = await Correo().enviar(Contacto(USUARIO, correo=CORREO), "pedido_pagado", DATOS)
 
         (conexion,) = smtp.conexiones
-        assert envio == Envio(canal="correo", exito=True, detalle="smtp")
+        assert envio == Envio(
+            canal="correo",
+            exito=True,
+            detalle="smtp",
+            asunto=asunto_de("pedido_pagado", DATOS),
+            destino_dominio="example.test",
+        )
         assert (conexion.host, conexion.puerto, conexion.timeout) == ("smtp.example.test", 587, 30)
         assert conexion.pasos == ["starttls", "enviar", "cerrar"]  # sin credenciales: no hay login
         mensaje = conexion.mensaje
         assert mensaje["To"] == CORREO
         assert mensaje["From"] == "no-responder@tukit.co"
-        assert mensaje["Subject"] == "Novedad en Tukit"
-        assert mensaje.get_content().strip() == texto_de("pedido_pagado", DATOS)
+        assert mensaje["Subject"] == asunto_de("pedido_pagado", DATOS)
+        assert texto_de("pedido_pagado", DATOS) in mensaje.get_body(preferencelist=("plain",)).get_content()
 
     async def test_el_envio_bloqueante_corre_en_otro_hilo_para_no_congelar_el_bucle(self, smtp):
         await Correo().enviar(Contacto(USUARIO, correo=CORREO), "pedido_pagado", DATOS)
@@ -364,7 +379,13 @@ class TestNotificadorCompuesto:
             Contacto(USUARIO, correo=CORREO), "incidencia", DATOS
         )
 
-        assert envio == Envio(canal="correo", exito=True, detalle="consola")
+        assert envio == Envio(
+            canal="correo",
+            exito=True,
+            detalle="consola",
+            asunto=asunto_de("incidencia", DATOS),
+            destino_dominio="example.test",
+        )
         assert "[correo:consola]" in capsys.readouterr().out
 
     async def test_por_omision_un_contacto_con_celular_sale_por_wa_link(self):
