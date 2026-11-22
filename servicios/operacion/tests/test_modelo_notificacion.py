@@ -1,17 +1,3 @@
-"""La tabla `notificacion`: sin contacto, un aviso enviado por evento, y su migracion.
-
-- **Sin dato de contacto** (Ley 1581). La notificacion referencia al usuario por
-  id; el servicio anterior persistia el correo en el contenido y el derecho al
-  olvido no lo alcanzaba. Ninguna columna de `notificacion` ni de
-  `preferencia_notificacion` se llama como un dato de contacto.
-- **Un aviso enviado por evento** (ADR 0042). Un indice unico parcial no deja
-  dos filas `enviada` del mismo `(evento_origen, evento_id)`; si deja varias
-  `fallida` y los avisos sin evento de antes de la columna.
-- **La migracion va y vuelve.** La suite crea las tablas con `create_all`; aqui
-  se ejerce el par upgrade/downgrade de la revision que agrega el evento, la que
-  corre contra Postgres, sobre la `notificacion` PREVIA armada a mano.
-"""
-
 from __future__ import annotations
 
 import importlib.util
@@ -47,21 +33,11 @@ def _aviso(estado: str, evento_origen: str | None = "comercio", evento_id: int |
     }
 
 
-# ---------------------------------------------------------------------------
-# Sin dato de contacto
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.parametrize("modelo", [Notificacion, PreferenciaNotificacion], ids=lambda m: m.__tablename__)
 def test_referencia_al_usuario_por_id_y_no_guarda_contacto(modelo):
     columnas = {c.name for c in modelo.__table__.columns}
     assert PROHIBIDAS.isdisjoint(columnas)
     assert "usuario_id" in columnas
-
-
-# ---------------------------------------------------------------------------
-# Un aviso enviado por evento
-# ---------------------------------------------------------------------------
 
 
 @pytest_asyncio.fixture
@@ -87,7 +63,6 @@ async def test_admite_varios_fallidos_y_avisos_sin_evento(engine):
         _aviso("fallida"),
         _aviso("enviada"),
         _aviso("enviada", evento_origen="inteligencia"),
-        # Las notificaciones de antes de esta columna no tienen evento.
         _aviso("enviada", evento_origen=None, evento_id=None),
         _aviso("enviada", evento_origen=None, evento_id=None),
     ]
@@ -99,11 +74,6 @@ async def test_admite_varios_fallidos_y_avisos_sin_evento(engine):
     assert total == len(filas)
 
 
-# ---------------------------------------------------------------------------
-# La migracion del evento (ADR 0042)
-# ---------------------------------------------------------------------------
-
-
 def _cargar_revision():
     spec = importlib.util.spec_from_file_location("revision_evento_notificacion", _REVISION)
     modulo = importlib.util.module_from_spec(spec)
@@ -113,7 +83,6 @@ def _cargar_revision():
 
 
 def _notificacion_previa(*extra: sa.Column) -> sa.Table:
-    """`notificacion` como estaba ANTES de esta revision, mas `extra`."""
     return sa.Table(
         "notificacion",
         sa.MetaData(),
@@ -141,14 +110,12 @@ def test_la_migracion_agrega_el_evento_con_su_indice_parcial_y_el_downgrade_lo_q
     with engine.begin() as conexion:
         previa = _notificacion_previa()
         previa.create(conexion)
-        # Las notificaciones que ya existian no tienen evento y tienen que seguir valiendo.
         aviso_de_antes = {k: v for k, v in _aviso("enviada").items() if not k.startswith("evento_")}
         conexion.execute(previa.insert().values(**aviso_de_antes))
 
         contexto = MigrationContext.configure(conexion)
         with Operations.context(contexto):
             revision.upgrade()
-            # Las columnas de revisiones posteriores (asunto, detalle, destino_dominio) no son de esta.
             posteriores = {"asunto", "detalle", "destino_dominio"}
             assert _columnas(conexion) == {c.name for c in NOTIFICACION.columns} - posteriores
             indices = {i["name"]: i for i in sa.inspect(conexion).get_indexes("notificacion")}
@@ -160,14 +127,11 @@ def test_la_migracion_agrega_el_evento_con_su_indice_parcial_y_el_downgrade_lo_q
                 sa.Column("evento_origen", sa.String(32), nullable=True),
                 sa.Column("evento_id", sa.BigInteger(), nullable=True),
             )
-            # Varios intentos fallidos del mismo evento y uno enviado conviven...
             conexion.execute(nueva.insert().values(**_aviso("fallida")))
             conexion.execute(nueva.insert().values(**_aviso("fallida")))
             conexion.execute(nueva.insert().values(**_aviso("enviada")))
-            # ...pero no dos enviados del mismo evento.
             with pytest.raises(sa.exc.IntegrityError), conexion.begin_nested():
                 conexion.execute(nueva.insert().values(**_aviso("enviada")))
-            # El mismo id en otra bandeja es otro evento.
             conexion.execute(nueva.insert().values(**_aviso("enviada", evento_origen="inteligencia")))
 
             revision.downgrade()

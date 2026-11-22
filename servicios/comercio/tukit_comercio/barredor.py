@@ -1,24 +1,14 @@
-"""El barredor de reservas vencidas: la compensacion C1 de la saga (ADR 0023).
+"""Barredor de reservas vencidas: compensacion C1 de la saga de compra.
 
-Si un acudiente crea la orden (T1: reserva + pedido `pendiente_pago`) pero nunca
-paga, la reserva de inventario queda tomada para siempre —el unico gap real de
-consistencia del flujo de compra—. Este proceso lo cierra: toma las reservas
-`activa` de pedidos sin pagar mas viejas que el TTL (con el mismo `SELECT … FOR
-UPDATE SKIP LOCKED` del outbox, ADR 0022), las marca `liberada` y cancela el
-pedido abandonado.
+Decisiones:
+- Una reserva `activa` de un pedido sin pagar mas vieja que el TTL (`TUKIT_TTL_RESERVA_MIN`) se
+  marca `liberada` y el pedido abandonado se cancela; si no, el inventario queda tomado para siempre.
+- La decision de que reservas vencieron es pura (`dominio/saga.reservas_vencidas`); aqui vive solo
+  el I/O, con `SELECT ... FOR UPDATE SKIP LOCKED` como el outbox.
+- El bucle corre sobre `bucle_resiliente`: si la base cae, espera con backoff y reconecta; un error
+  de programacion termina el proceso.
 
-    python -m tukit_comercio.barredor          # una pasada
-    python -m tukit_comercio.barredor --seguir  # bucle
-
-La decision de QUE reservas vencieron es pura (`dominio/saga.reservas_vencidas`);
-aqui vive solo el I/O: el join reserva↔pedido, el SKIP LOCKED y la escritura. El
-TTL sale del entorno (`TUKIT_TTL_RESERVA_MIN`), con el default conservador del
-dominio; es la deuda que el ADR declara calibrar con datos de piloto.
-
-**Sobrevive a una caida de Postgres** (ADR 0041). El bucle corre sobre
-`bucle_resiliente`: si la base no responde, espera con backoff, deja el error en
-el log y vuelve a intentar; cada pasada abre su motor, asi que reconecta sola.
-Un error de programacion sigue terminando el proceso.
+Uso:  python -m tukit_comercio.barredor [--seguir]
 """
 
 from __future__ import annotations
@@ -50,11 +40,6 @@ def _ttl() -> timedelta:
 
 
 async def pasada(motor: Any, *, ahora: datetime | None = None, limite: int = 200) -> int:
-    """Una pasada: libera las reservas vencidas y cancela sus pedidos. Devuelve cuantas.
-
-    `ahora` se inyecta para probar el vencimiento sin esperar; en produccion es
-    el reloj. El join trae el `pedido_estado` que la decision pura necesita.
-    """
     ahora = ahora or datetime.now(UTC)
     ttl = _ttl()
     async with motor.begin() as conexion:
@@ -79,8 +64,6 @@ async def pasada(motor: Any, *, ahora: datetime | None = None, limite: int = 200
         ids_reserva = [f.id for f in vencidas]
         pedidos = {f.pedido_id for f in vencidas}
         await conexion.execute(update(RESERVA).where(RESERVA.c.id.in_(ids_reserva)).values(estado="liberada"))
-        # El pedido abandonado se cancela: es terminal y libera al acudiente de
-        # una compra a medias. `pendiente_pago -> cancelado` es transicion legal.
         await conexion.execute(
             update(PEDIDO).where(PEDIDO.c.id.in_(pedidos)).values(estado=EstadoPedido.CANCELADO.value)
         )

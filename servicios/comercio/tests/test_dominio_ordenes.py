@@ -1,12 +1,3 @@
-"""La regla de re-verificación de precio (FU-08), como dominio puro.
-
-Es la invariante más cara del §9 —no cobrar a un precio que cambió— y hasta
-ahora solo se podía probar levantando FastAPI + SQLite + un Catálogo falso
-(ver `test_checkout_orden.py::test_reverificacion_*`). Extraída a `dominio/ordenes.py`
-se prueba con una lista y nada más: sin red, sin base. Ese es el payoff de la
-ADR 0019.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -32,7 +23,6 @@ def _linea(sku: str = "TK-C001-ECO", aprobado: int = 4500, actual: int | None = 
 
 
 def test_todos_los_precios_coinciden_no_hay_cambios():
-    # Precio aprobado == precio vigente en todas las líneas: la orden puede cerrarse.
     assert reverificar_precios([_linea(), _linea(sku="TK-C002", aprobado=3000, actual=3000)]) == []
 
 
@@ -42,8 +32,6 @@ def test_un_precio_cambio_se_reporta_con_ambos_valores():
 
 
 def test_sku_sin_precio_vigente_cuenta_como_cambio():
-    # precio_actual None = el sku no existe o no tiene precio publicado hoy.
-    # No se cobra a ciegas: es un cambio, no un pase libre.
     cambios = reverificar_precios([_linea(actual=None)])
     assert cambios == [CambioPrecio(sku="TK-C001-ECO", precio_aprobado=4500, precio_actual=None)]
 

@@ -1,11 +1,3 @@
-"""Alertas accionables de un pedido, como dominio puro.
-
-El operador no necesita contar pedidos: necesita saber cuales estan detenidos.
-Esta funcion dice, para un pedido, si hay algo que atender. Sin I/O: el
-repositorio le pasa las fechas ya leidas. Los umbrales son constantes de
-dominio, no numeros sueltos.
-"""
-
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
@@ -13,9 +5,7 @@ from datetime import UTC, datetime, timedelta
 from ..modelos import EstadoPago, EstadoPedido
 from .pagos import vencido
 
-# Un pedido pagado que lleva mas de esto sin avanzar es el reclamo mas probable.
 UMBRAL_PAGADO_SIN_AVANZAR = timedelta(hours=24)
-# Un pago `iniciado` con mas de esto de edad, aun dentro de la vigencia del pedido.
 UMBRAL_PAGO_ATASCADO = timedelta(minutes=30)
 
 PAGADO_SIN_AVANZAR = "pagado_sin_avanzar"
@@ -25,7 +15,6 @@ ALERTAS = (PAGADO_SIN_AVANZAR, PAGO_ATASCADO, INCIDENCIA_ABIERTA)
 
 
 def _utc(fecha: datetime) -> datetime:
-    """SQLite devuelve fechas sin zona: se leen como UTC, como se escribieron."""
     return fecha if fecha.tzinfo is not None else fecha.replace(tzinfo=UTC)
 
 
@@ -38,7 +27,6 @@ def alertas_de_pedido(
     creado_en: datetime,
     ahora: datetime,
 ) -> tuple[str, ...]:
-    """Cero o mas alertas del pedido (ver `ALERTAS`)."""
     ahora = _utc(ahora)
     if estado == EstadoPedido.PAGADO.value:
         if ahora - _utc(estado_desde) > UMBRAL_PAGADO_SIN_AVANZAR:

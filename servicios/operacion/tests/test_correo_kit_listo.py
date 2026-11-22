@@ -1,9 +1,3 @@
-"""Los correos del notificador: plantillas, marco HTML, privacidad, remitente y envio.
-
-Sin red ni SMTP: el modo consola escribe a un buzon temporal. Ningun correo real
-sale. Lo que el repartidor pone en cada aviso (colegio, listas, sin apodo) se
-prueba en `test_repartidor.py`."""
-
 from __future__ import annotations
 
 import email
@@ -63,8 +57,8 @@ def test_encabezado_logo_con_url_absoluta(monkeypatch):
 def test_encabezado_cae_a_texto_sin_url_publica(monkeypatch):
     monkeypatch.delenv("TUKIT_PUBLIC_URL", raising=False)
     cuerpo = html_de("kits_publicados", {"lugar": "x", "enlace": "https://tukit.co/kits/x"})
-    assert 'src="cid:logo-tukit"' in cuerpo  # sin URL publica el logo viaja adjunto
-    monkeypatch.setenv("TUKIT_PUBLIC_URL", "/marca")  # relativa: no vale en un correo
+    assert 'src="cid:logo-tukit"' in cuerpo
+    monkeypatch.setenv("TUKIT_PUBLIC_URL", "/marca")
     assert 'src="cid:logo-tukit"' in html_de("kits_publicados", {})
 
 
@@ -173,15 +167,11 @@ def test_html_kit_listo_lista_cada_lista_y_dice_los_kits():
     assert "Armamos los kits de Colegio X, grados Septimo y Jardin" in cuerpo
     assert ">Listas<" in cuerpo
     assert "Colegio X, grado Septimo<br>Colegio X, grado Jardin" in cuerpo
-    # Una sola lista: la fila sigue llamandose "Lista" y el texto en singular.
     uno = html_de("kits_publicados", {"lugar": "Colegio X, grado 3", "listas": ["Colegio X, grado 3"]})
     assert ">Lista<" in uno and "Armamos la lista de Colegio X, grado 3" in uno
 
 
 def test_el_remitente_siempre_lleva_direccion(monkeypatch):
-    # `make` exporta TUKIT_SMTP_DESDE sin comillas y «TUKIT <tukit.ayuda@gmail.com>»
-    # llegaba cortado en «TUKIT»: un From sin direccion, que Gmail acepta y no
-    # entrega en la bandeja. Sin direccion se completa con la cuenta SMTP.
     monkeypatch.setenv("TUKIT_SMTP_DESDE", "TUKIT")
     monkeypatch.setenv("TUKIT_SMTP_USER", "tukit.ayuda@gmail.com")
     mensaje = Correo()._armar("a@b.co", "pedido_pagado", {"pedido": "AB12", "turno": "7", "caso": "CAS1"})
@@ -192,8 +182,6 @@ def test_el_remitente_siempre_lleva_direccion(monkeypatch):
 
 
 def test_el_correo_lleva_fecha_y_message_id():
-    # Sin Date ni Message-ID, Gmail acepta el envio por SMTP y luego no lo
-    # pone en la bandeja: el E2E marcaba cuatro avisos «enviada» y no llego ninguno.
     mensaje = Correo()._armar("a@b.co", "pedido_pagado", {"pedido": "AB12", "turno": "7", "caso": "CAS1"})
     assert mensaje["Date"]
     assert mensaje["Message-ID"] and mensaje["Message-ID"].startswith("<")
@@ -238,7 +226,7 @@ async def test_destino_no_enviable_no_abre_smtp_y_se_marca_omitido(monkeypatch):
 
 
 async def test_el_envio_lleva_asunto_y_dominio_pero_no_la_direccion(tmp_path, monkeypatch):
-    monkeypatch.delenv("TUKIT_SMTP_HOST", raising=False)  # consola: la guarda no aplica
+    monkeypatch.delenv("TUKIT_SMTP_HOST", raising=False)
     monkeypatch.setenv("TUKIT_BUZON_DIR", str(tmp_path))
     envio = await Correo().enviar(
         Contacto(usuario_id="u1", correo="maria@gmail.com"), "pedido_pagado", {"pedido": "AB12"}

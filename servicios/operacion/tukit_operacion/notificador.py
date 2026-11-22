@@ -1,18 +1,11 @@
-"""El puerto `Notificador` (FU-10) y sus adaptadores: wa-link y correo.
+"""Puerto `Notificador` y sus adaptadores: wa-link y correo.
 
-El §10 del contrato lo fija: un puerto con dos adaptadores en v1, wa-link
-(FU-11, reactiva) y correo (FU-02). Empujar por WhatsApp Business (proactivo)
-esta diferido a v2+ por decision del SRS, no por omision; el puerto existe para
-que la Cloud API entre despues sin tocar el dominio.
-
-La regla dura, y por eso vive aqui: el contacto (correo, celular) se resuelve
-contra Identidad EN EL MOMENTO de enviar y NO se guarda. La notificacion en la
-base referencia al destinatario por `usuario_id`; el dato de contacto entra en
-esta capa, se usa para el envio y se descarta. Es la deuda que el manifiesto
-documenta de `operacion.notificacion`.
-
-`NotificadorFalso` registra lo enviado sin salir a ninguna parte, para las
-pruebas y el desarrollo sin SMTP.
+Decisiones:
+- Dos adaptadores en esta version: wa-link (reactivo) y correo. Empujar por WhatsApp Business
+  queda diferido; el puerto permite sumarlo sin tocar el dominio.
+- El contacto (correo, celular) se resuelve contra Identidad en el momento de enviar y no se guarda:
+  la notificacion referencia al destinatario por `usuario_id`.
+- `NotificadorFalso` registra lo enviado sin salir a ninguna parte, para pruebas y desarrollo sin SMTP.
 """
 
 from __future__ import annotations
@@ -35,7 +28,6 @@ _log = logging.getLogger("tukit.correo")
 
 @dataclass(frozen=True)
 class Contacto:
-    """Lo que Identidad devuelve para poder entregar. Efimero: no se persiste."""
 
     usuario_id: str
     correo: str | None = None
@@ -44,33 +36,21 @@ class Contacto:
 
 @dataclass(frozen=True)
 class Envio:
-    """El resultado de un envio, para que el repartidor lo registre."""
 
     canal: str
     exito: bool
-    # Para wa-link, el enlace generado; para correo, None. Nunca el contacto.
     enlace: str | None = None
     detalle: str | None = None
-    # Para el panel de correos enviados: el asunto que salio y el DOMINIO del
-    # destino (no el correo: no se guarda, Ley 1581).
     asunto: str | None = None
     destino_dominio: str | None = None
-    # El envio no se intento a proposito (destino no enviable): no es un fallo
-    # que reintentar.
     omitido: bool = False
 
 
-# Direcciones que no existen o son de siembra: un correo ahi rebota y daña la
-# reputacion de la cuenta que envia. Se omiten sin reintentar.
 _DOMINIOS_NO_ENVIABLES = ("tukit.co", "example.com", "ejemplo.com")
 _SUFIJOS_NO_ENVIABLES = (".test", ".invalid", ".local", ".example")
 
 
 def destino_enviable(correo: str) -> bool:
-    """Si vale la pena intentar entregar a `correo`.
-
-    `TUKIT_CORREO_PERMITIDOS` (direcciones separadas por coma) deja pasar
-    excepciones, por ejemplo una cuenta real en un dominio bloqueado."""
     direccion = correo.strip().lower()
     permitidos = {c.strip().lower() for c in os.environ.get("TUKIT_CORREO_PERMITIDOS", "").split(",")}
     if direccion in permitidos:
@@ -82,27 +62,15 @@ def destino_enviable(correo: str) -> bool:
 
 
 class Notificador(Protocol):
-    """El puerto. El repartidor depende de esto, no de SMTP ni de wa.me."""
 
     async def enviar(self, contacto: Contacto, plantilla: str, datos: dict[str, object]) -> Envio: ...
 
 
-# ---------------------------------------------------------------------------
-# Plantillas: texto por clave. No llevan dato de contacto, solo variables de
-# negocio (el turno, el numero de pedido). El contenido de la notificacion
-# guardada tampoco los lleva.
-# ---------------------------------------------------------------------------
-
 _PLANTILLAS = {
-    # Sin nombre ni apodo de menores (Ley 1581): solo colegio y grado, que salen
-    # de la lista oficial y no identifican a nadie.
     "kits_publicados": (
         "Tu kit esta listo. Armamos la lista de {lugar}. "
         "Revisa los productos y elige cuando comprar: {enlace}"
     ),
-    # Una por fase del dashboard del acudiente (`FASES_SEGUIMIENTO` del contrato):
-    # pago, preparacion, despacho, reparto, entrega. El unico identificador que ve el
-    # padre es el codigo del pedido, el mismo de "Mis pedidos" y de /pedidos/<id>.
     "pedido_pagado": "Recibimos tu pago del pedido {pedido}. Ya empezamos a preparar tu kit; te avisamos cuando salga.",
     "pedido_en_preparacion": "Estamos preparando el kit de tu pedido {pedido}. Te avisamos cuando salga.",
     "pedido_despachado": "Tu pedido {pedido} salió y va con {repartidor}.",
@@ -113,7 +81,6 @@ _PLANTILLAS = {
     "caso_respuesta": "Respondimos tu caso {caso}. Entra a Tukit para leer la respuesta.",
 }
 
-# Variantes del texto segun un dato del aviso (ver `_variante`). Clave `plantilla:variante`.
 _TEXTOS_VARIANTE = {
     "pedido_en_preparacion:retoma": "Retomamos tu pedido {pedido} y volvemos a preparar tu kit. Te avisamos cuando salga.",
     "incidencia:cobro_tras_cancelacion": (
@@ -129,7 +96,6 @@ _TEXTOS_VARIANTE = {
 
 
 def _variante(plantilla: str, datos: dict[str, object]) -> str | None:
-    """La variante del aviso cuando un dato cambia lo que hay que decir, o `None`."""
     if plantilla == "incidencia" and datos.get("motivo") == "pago_tras_cancelacion":
         return "cobro_tras_cancelacion"
     if plantilla == "pedido_en_preparacion" and datos.get("retoma"):
@@ -143,8 +109,6 @@ def _variante(plantilla: str, datos: dict[str, object]) -> str | None:
 
 
 def texto_de(plantilla: str, datos: dict[str, object]) -> str:
-    """Rellena la plantilla con los datos. Una plantilla sin registrar cae a un
-    texto generico, para no reventar el envio por una clave nueva."""
     variante = _variante(plantilla, datos)
     base = _TEXTOS_VARIANTE.get(f"{plantilla}:{variante}") if variante else None
     base = base or _PLANTILLAS.get(plantilla, "Tienes una novedad en Tukit.")
@@ -168,14 +132,6 @@ _ASUNTOS = {
 
 
 def asunto_de(plantilla: str, datos: dict[str, object] | None = None) -> str:
-    """El asunto del correo: fijo por plantilla, y con el codigo del pedido o del caso
-    cuando lo hay. Nunca lleva datos del menor.
-
-    Sin el codigo, los avisos de un mismo pedido —y los de pedidos distintos— tienen el
-    mismo asunto y el cliente de correo los junta en una sola conversacion: el aviso
-    nuevo cae en un hilo viejo (leido, archivado o en la papelera) y el acudiente no
-    ve llegar nada.
-    """
     asunto = _ASUNTOS.get(plantilla, "Novedad en Tukit")
     datos = datos or {}
     if datos.get("pedido"):
@@ -193,23 +149,15 @@ _SUAVE = "#eef2ff"
 
 
 def _base_publica() -> str:
-    """Base de los enlaces del correo: `TUKIT_PUBLIC_URL` o, en desarrollo, localhost."""
     base = (os.environ.get("TUKIT_PUBLIC_URL") or "").strip().rstrip("/")
     return base if base.lower().startswith(("http://", "https://")) else "http://localhost:3000"
 
 
 def _contacto() -> str:
-    """El buzon que atiende las bajas y las dudas: la cuenta que envia, o un generico."""
     return os.environ.get("TUKIT_SMTP_USER") or "ayuda@tukit.co"
 
 
 def _url_logo() -> str | None:
-    """URL absoluta del logo para el correo, o `None` si no hay URL publica.
-
-    Sale de `TUKIT_PUBLIC_URL` (la base publica del sitio; se lee del entorno y
-    no se imprime). Un correo no puede usar rutas relativas ni archivos locales:
-    sin URL, el encabezado cae al texto TUKIT. PNG y no webp: Outlook y varios
-    clientes no muestran webp."""
     base = (os.environ.get("TUKIT_PUBLIC_URL") or "").strip().rstrip("/")
     if not base.lower().startswith(("http://", "https://")):
         return None
@@ -220,10 +168,9 @@ _LOGO_ARCHIVO = Path(__file__).parent / "recursos" / "logo.png"
 
 
 def _encabezado_html() -> str:
-    """Franja azul de marca: logo con alt TUKIT y tamaño fijo, o el texto TUKIT."""
     logo = _url_logo()
     if logo is None and _LOGO_ARCHIVO.is_file():
-        logo = "cid:logo-tukit"  # va adjunto en el propio correo (ver `Correo._armar`)
+        logo = "cid:logo-tukit"
     if logo is None:
         marca = (
             '<p style="margin:0;font-size:22px;letter-spacing:3px;color:#ffffff;'
@@ -241,15 +188,10 @@ def _encabezado_html() -> str:
     )
 
 
-# Las cinco fases que el padre ve en su dashboard (`ETIQUETA_FASE_SEGUIMIENTO` del
-# contrato, sin `creado`): el correo habla con las mismas palabras.
 _FASES = ("Pago confirmado", "Preparando tu kit", "Despachado", "En reparto", "Entregado")
 
 
 def _fases_html(actual: int) -> str:
-    """Barra de cinco tramos, uno por fase, con su nombre debajo. Hasta la fase
-    actual va en azul. Solo tablas y colores de fondo: sin puntos ni bordes
-    redondeados en celdas, que Gmail y Outlook deforman."""
     ultima = len(_FASES) - 1
     celdas = []
     for i, nombre in enumerate(_FASES):
@@ -275,7 +217,6 @@ def _fases_html(actual: int) -> str:
 
 
 def _pie_html() -> str:
-    """Pie legal comun: por que llega, como darse de baja y tratamiento de datos."""
     base = _base_publica()
     contacto = html.escape(_contacto())
     estilo = f"margin:0 0 8px;font-size:12px;line-height:1.5;color:{_APAGADO}"
@@ -307,10 +248,6 @@ def _envolver_html(
     boton: tuple[str, str] | None = None,
     enlace_alterno: str | None = None,
 ) -> str:
-    """Marco comun de los correos HTML: tablas y estilos en linea, sin CSS externo.
-
-    Franja de marca, icono, titulo, cuerpo, boton con la accion principal, el enlace
-    en texto por si el boton no abre y el pie legal."""
     boton_html = ""
     if boton is not None:
         etiqueta, url = boton
@@ -364,7 +301,6 @@ def _envolver_html(
 
 
 def _detalle_html(filas: list[tuple[str, str]]) -> str:
-    """Caja con pares etiqueta/valor (pedido, turno, repartidor...). Valores ya escapados."""
     if not filas:
         return ""
     cuerpo = "".join(
@@ -380,9 +316,6 @@ def _detalle_html(filas: list[tuple[str, str]]) -> str:
     )
 
 
-# Por plantilla: icono, titulo, parrafo, fase del pedido (0..4, o None), boton y a donde lleva.
-# `ruta` es la ruta de respaldo en la app del acudiente; `usa_enlace` lleva al enlace que trae
-# el aviso (el kit, o /pedidos/<id>). `variantes` cambia titulo/parrafo segun `_variante`.
 _VISTAS: dict[str, dict[str, object]] = {
     "kits_publicados": {
         "icono": "&#127890;", "titulo": "Tu kit est&aacute; listo", "fase": None,
@@ -471,7 +404,6 @@ _VISTAS: dict[str, dict[str, object]] = {
 
 
 def destino_de(plantilla: str, datos: dict[str, object]) -> str:
-    """A donde lleva el boton principal del correo (y el enlace del texto plano)."""
     base = _base_publica()
     vista = _VISTAS.get(plantilla, {})
     if vista.get("usa_enlace") and datos.get("enlace"):
@@ -480,7 +412,6 @@ def destino_de(plantilla: str, datos: dict[str, object]) -> str:
 
 
 def _cop(valor: object) -> str:
-    """"$609.343": pesos colombianos con punto de miles. Vacio si no es un entero."""
     try:
         return "$" + f"{int(valor):,}".replace(",", ".")  # type: ignore[call-overload]
     except (TypeError, ValueError):
@@ -488,11 +419,6 @@ def _cop(valor: object) -> str:
 
 
 def html_de(plantilla: str, datos: dict[str, object]) -> str | None:
-    """El cuerpo HTML de cada correo; `None` solo si la plantilla no existe.
-
-    Estilos en linea; la unica imagen es el logo (ver `_encabezado_html`), sin pixel
-    de seguimiento. Todo valor se escapa. Cada correo lleva un boton con la accion
-    principal y el pie legal; los de pedido, la barra con la fase en que va."""
     if plantilla not in _PLANTILLAS:
         return None
     vista = _VISTAS[plantilla]
@@ -516,7 +442,7 @@ def html_de(plantilla: str, datos: dict[str, object]) -> str | None:
     elif plantilla == "caso_respuesta":
         if datos.get("caso"):
             filas.append(("Caso", v("caso")))
-    else:  # avisos de pedido: el codigo es el mismo de "Mis pedidos"
+    else:
         if datos.get("pedido"):
             filas.append(("Pedido", v("pedido")))
         if plantilla == "pedido_pagado" and _cop(datos.get("total")):
@@ -541,7 +467,6 @@ def html_de(plantilla: str, datos: dict[str, object]) -> str | None:
 
 
 def pie_texto() -> str:
-    """El pie legal en texto plano (la parte `text/plain` de cada correo)."""
     base = _base_publica()
     return (
         "\n\n--\n"
@@ -555,20 +480,12 @@ def pie_texto() -> str:
 
 
 def _buzon() -> Path | None:
-    """La carpeta donde el modo consola deja el .eml. `TUKIT_BUZON_DIR` la cambia;
-    vacia la apaga. Por omision `.ejecucion/buzon` (ignorada por git)."""
     valor = os.environ.get("TUKIT_BUZON_DIR", ".ejecucion/buzon")
     return Path(valor) if valor else None
 
 
 @dataclass
 class WaLink:
-    """wa-link (FU-11): construye `https://wa.me/<numero>?text=<mensaje>`.
-
-    Es la via reactiva: no empuja nada, arma el enlace que el acudiente abre. Sin
-    celular no hay enlace, y eso es un fallo de envio (no una excepcion): el
-    repartidor lo reintenta o cae a correo segun la preferencia.
-    """
 
     async def enviar(self, contacto: Contacto, plantilla: str, datos: dict[str, object]) -> Envio:
         if not contacto.celular:
@@ -581,14 +498,6 @@ class WaLink:
 
 @dataclass
 class Correo:
-    """Correo (FU-02). Por omision imprime a consola (desarrollo); con SMTP
-    configurado por entorno, envia de verdad.
-
-    Las variables SMTP salen del entorno (`TUKIT_SMTP_HOST`, `_PORT`, `_USER`,
-    `_PASSWORD`, `_DESDE`), mismo idioma que el resto de la configuracion. Sin
-    host configurado, el modo consola deja el aviso en el log sin fingir que
-    salio: es honesto sobre que no hay servidor detras.
-    """
 
     remitente: str = ""
 
@@ -597,10 +506,6 @@ class Correo:
 
     def _armar(self, destino: str, plantilla: str, datos: dict[str, object]) -> EmailMessage:
         desde = self.remitente or os.environ.get("TUKIT_SMTP_DESDE", "no-responder@tukit.co")
-        # `make -include .env` corta un valor sin comillas en el primer espacio:
-        # «TUKIT <tukit.ayuda@gmail.com>» llegaba como «TUKIT», un From sin
-        # direccion que Gmail acepta y no entrega. Sin @ se completa con la
-        # cuenta que autentica, que es la unica que el SMTP deja usar.
         if "@" not in desde:
             cuenta = os.environ.get("TUKIT_SMTP_USER") or "no-responder@tukit.co"
             desde = f"{desde.strip() or 'TUKIT'} <{cuenta}>"
@@ -608,8 +513,6 @@ class Correo:
         mensaje["From"] = desde
         mensaje["To"] = destino
         mensaje["Subject"] = asunto_de(plantilla, datos)
-        # Gmail recibe por SMTP un correo sin Date ni Message-ID y luego no lo
-        # entrega: el envio sale «exitoso» y el acudiente no ve nada.
         mensaje["Date"] = email.utils.formatdate(localtime=True)
         mensaje["Message-ID"] = email.utils.make_msgid(domain=desde.rsplit("@", 1)[-1].strip(" >") or None)
         texto = texto_de(plantilla, datos)
@@ -622,8 +525,6 @@ class Correo:
         if cuerpo_html:
             mensaje.add_alternative(cuerpo_html, subtype="html")
             if "cid:logo-tukit" in cuerpo_html:
-                # El logo viaja dentro del correo: no depende de una URL publica ni de
-                # que el cliente baje imagenes remotas.
                 mensaje.get_body(("html",)).add_related(
                     _LOGO_ARCHIVO.read_bytes(), "image", "png", cid="<logo-tukit>", disposition="inline"
                 )
@@ -634,7 +535,6 @@ class Correo:
             return Envio(canal="correo", exito=False, detalle="sin_correo")
         dominio = contacto.correo.rsplit("@", 1)[-1].strip().lower()
         asunto = asunto_de(plantilla, datos)
-        # La guarda solo importa con SMTP real: en modo consola nada sale y nada rebota.
         if self._smtp_host() is not None and not destino_enviable(contacto.correo):
             return Envio(
                 canal="correo",
@@ -650,10 +550,6 @@ class Correo:
             if host is None:
                 envio = self._enviar_consola(contacto.usuario_id, mensaje)
             else:
-                # `smtplib.SMTP` es bloqueante (socket + starttls + login); correrlo tal
-                # cual dentro de este `async` congelaria el event loop —y con el la cola
-                # del repartidor— mientras un servidor de correo lento responde. Se corre
-                # en un hilo para que solo espere quien envia, no todo el servicio.
                 envio = await asyncio.to_thread(self._enviar_smtp, host, mensaje)
         except Exception as error:  # noqa: BLE001 - un correo nunca tumba al repartidor
             _log.warning("correo no enviado (%s): %s", plantilla, type(error).__name__)
@@ -661,8 +557,6 @@ class Correo:
         return replace(envio, asunto=asunto, destino_dominio=dominio)
 
     def _enviar_consola(self, usuario_id: str, mensaje: EmailMessage) -> Envio:
-        """Sin servidor: deja el aviso en el log y, si hay buzon, el .eml completo.
-        No finge que salio: el detalle dice `consola`. El destinatario NO se imprime."""
         _log.info("[correo:consola] -> usuario %s: %s", usuario_id, mensaje["Subject"])
         print(f"[correo:consola] -> usuario {usuario_id}: {mensaje['Subject']}")
         carpeta = _buzon()
@@ -688,11 +582,6 @@ class Correo:
 
 @dataclass
 class NotificadorFalso:
-    """Registra lo enviado sin salir a ninguna parte. Para pruebas y desarrollo.
-
-    Guarda tuplas (usuario_id, plantilla, canal, texto) para que una prueba
-    compruebe que se envio exactamente uno y que el texto NO trae el contacto.
-    """
 
     enviados: list[dict[str, object]] = field(default_factory=list)
     canal: str = "correo"
@@ -712,14 +601,6 @@ class NotificadorFalso:
 
 @dataclass
 class NotificadorCompuesto:
-    """Elige canal por preferencia: wa-link si hay celular, si no correo.
-
-    En v1 la preferencia por usuario aun no gobierna (no hay pantalla que la
-    fije); la heuristica es "wa-link si el contacto trae celular, correo en otro
-    caso", con caida a correo si wa-link no pudo. Cuando exista
-    `preferencia_notificacion` con datos, este selector la lee sin tocar el
-    puerto.
-    """
 
     wa: Notificador = field(default_factory=WaLink)
     correo: Notificador = field(default_factory=Correo)
@@ -733,7 +614,6 @@ class NotificadorCompuesto:
 
 
 def notificador_desde_entorno() -> Notificador:
-    """El notificador compuesto por omision: wa-link + correo (consola o SMTP)."""
     return NotificadorCompuesto()
 
 

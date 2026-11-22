@@ -1,20 +1,3 @@
-"""Tickets del back-office: puerta de staff, transiciones de estado y respuesta.
-
-Se prueba por HTTP contra la app real con SQLite en memoria y un doble de
-Identidad que mapea token -> sesion. Lo que se defiende:
-
-- **Acceso.** Bandeja, detalle, responder, estado y vinculo son de operador/admin:
-  401 sin sesion, 403 con otro rol, 503 si Identidad no responde (falla cerrada).
-- **Transiciones.** Solo las de `TRANSICIONES_CASO`; `cerrado` es terminal.
-- **Responder.** Guarda la respuesta, encola el aviso SIN el texto y no deja el
-  contacto en ningun lado; un ticket cerrado no admite respuestas.
-- **Asignar.** "yo" fija el dueño, "nadie" lo suelta (solo el dueño o un admin);
-  cada cambio deja su evento y su fila de auditoría.
-- **Prioridad.** Solo valores conocidos; un ticket cerrado no se reprioriza.
-- **Nota interna.** Nunca llega al acudiente (`mis-casos`).
-- **Conteos.** La bandeja cuenta los activos sin dueño y los vencidos.
-"""
-
 from __future__ import annotations
 
 import json
@@ -75,10 +58,6 @@ async def _filas(tabla):
         return list(await (await db.connection()).execute(select(tabla)))
 
 
-# ---------------------------------------------------------------------------
-# Acceso
-# ---------------------------------------------------------------------------
-
 CASOS_DE_ACCESO = [
     ({}, 401),
     (bearer("token-que-no-existe"), 401),
@@ -132,13 +111,7 @@ async def test_identidad_caida_falla_cerrada_con_503(cliente, ruta):
 
 
 async def test_el_alta_del_acudiente_sigue_sin_sesion(cliente):
-    # La puerta de staff no toca el alta: el acudiente abre su PQRS sin token.
     assert await _abrir(cliente)
-
-
-# ---------------------------------------------------------------------------
-# Transiciones de estado
-# ---------------------------------------------------------------------------
 
 
 def test_cerrado_es_terminal_y_resuelto_se_puede_reabrir():
@@ -194,11 +167,6 @@ async def test_reabrir_un_resuelto_limpia_resuelto_en(cliente):
     assert reabierto.json()["resuelto_en"] is None
 
 
-# ---------------------------------------------------------------------------
-# Responder
-# ---------------------------------------------------------------------------
-
-
 async def test_responder_guarda_la_respuesta_avisa_y_pasa_a_gestion(cliente):
     caso = await _abrir(cliente)
     respuesta = await cliente.post(
@@ -215,7 +183,6 @@ async def test_responder_guarda_la_respuesta_avisa_y_pasa_a_gestion(cliente):
     avisos = [f for f in await _filas(BANDEJA) if f.tipo == "caso_respuesta"]
     assert len(avisos) == 1
     assert str(avisos[0].agregado_id) == caso
-    # El aviso no lleva ni el texto ni el contacto del acudiente.
     carga = str(avisos[0].carga)
     assert "cuadernos" not in carga
     assert "papa@ejemplo.com" not in carga
@@ -275,10 +242,6 @@ async def test_bandeja_filtra_por_titular(cliente):
     assert (await cliente.get(f"/v1/operacion/casos?usuario_id={USUARIO}")).status_code == 401
 
 
-# ---------------------------------------------------------------------------
-# Gestion: asignar, prioridad, nota interna y conteos
-# ---------------------------------------------------------------------------
-
 CASO = Base.metadata.tables["caso"]
 OP = STAFF
 ADM = bearer(TOKEN_ADMIN)
@@ -306,9 +269,6 @@ async def _poner(caso, **valores):
         await (await db.connection()).execute(
             update(CASO).where(CASO.c.id == uuid.UUID(caso)).values(**valores)
         )
-
-
-# --- Gestion: dominio puro ----------------------------------------------------------
 
 
 def test_reglas_de_prioridad_asignacion_y_nota():
@@ -341,9 +301,6 @@ async def test_la_gestion_rechaza_a_quien_no_es_staff_y_no_escribe(
     assert await _filas(AUDITORIA) == []
 
 
-# --- Gestion: asignar ---------------------------------------------------------------
-
-
 async def test_asignar_yo_y_soltar(cliente):
     caso = await _abrir_como_acudiente(cliente)
     r = await _post(cliente, caso, "asignar", {"asignar": "yo"})
@@ -362,10 +319,8 @@ async def test_asignar_yo_y_soltar(cliente):
 async def test_relevo_a_otro_staff_y_soltar_ajeno(cliente):
     caso = await _abrir_como_acudiente(cliente)
     await _post(cliente, caso, "asignar", {"asignar": "yo"}, headers=ADM)
-    # el operador toma el relevo explicitamente
     r = await _post(cliente, caso, "asignar", {"asignar": "yo"})
     assert r.json()["asignado_a"] == OPERADOR
-    # el admin lo suelta aunque no sea suyo; el operador no suelta el de otro
     await _post(cliente, caso, "asignar", {"asignar": "yo"}, headers=ADM)
     denegado = await _post(cliente, caso, "asignar", {"asignar": "nadie"})
     assert denegado.status_code == 403
@@ -378,9 +333,6 @@ async def test_asignar_a_otro_es_422_y_a_un_caso_inexistente_404(cliente):
     caso = await _abrir_como_acudiente(cliente)
     assert (await _post(cliente, caso, "asignar", {"asignar": "otro"})).status_code == 422
     assert (await _post(cliente, str(uuid.uuid4()), "asignar", {"asignar": "yo"})).status_code == 404
-
-
-# --- Gestion: prioridad -------------------------------------------------------------
 
 
 async def test_prioridad_reordena_la_bandeja(cliente):
@@ -407,9 +359,6 @@ async def test_prioridad_invalida_o_de_un_caso_cerrado_es_422(cliente):
     assert r.json()["error"] == "caso_cerrado"
 
 
-# --- Gestion: nota interna ----------------------------------------------------------
-
-
 async def test_nota_interna_es_de_staff_y_no_llega_al_acudiente(cliente):
     caso = await _abrir_como_acudiente(cliente)
     r = await _post(cliente, caso, "nota", {"texto": f"  {TEXTO_SECRETO}  "})
@@ -431,20 +380,16 @@ async def test_nota_vacia_o_larga_es_422(cliente, texto):
     assert (await _post(cliente, caso, "nota", {"texto": texto})).status_code == 422
 
 
-# --- Gestion: conteos ---------------------------------------------------------------
-
-
 async def test_resumen_cuenta_sin_asignar_y_vencidos(cliente):
     ayer = datetime.now(UTC) - timedelta(days=1)
     vencido_sin_dueno = await _abrir_como_acudiente(cliente, asunto="a")
     vencido_asignado = await _abrir_como_acudiente(cliente, asunto="b")
     resuelto_vencido = await _abrir_como_acudiente(cliente, asunto="c")
-    await _abrir_como_acudiente(cliente, asunto="d")  # reciente, sin dueno
+    await _abrir_como_acudiente(cliente, asunto="d")
     await _poner(vencido_sin_dueno, vence_en=ayer)
     await _poner(vencido_asignado, vence_en=ayer)
     await _poner(resuelto_vencido, vence_en=ayer, estado="resuelto", resuelto_en=datetime.now(UTC))
     await _post(cliente, vencido_asignado, "asignar", {"asignar": "yo"})
     resumen = (await cliente.get("/v1/operacion/casos", headers=OP)).json()["resumen"]
-    # sin dueno activos: a, d (b asignado, c resuelto no cuenta). Vencidos activos: a, b.
     assert resumen["sin_asignar"] == 2
     assert resumen["vencidos"] == 2

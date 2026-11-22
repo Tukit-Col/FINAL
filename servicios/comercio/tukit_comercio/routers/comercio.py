@@ -1,26 +1,15 @@
-"""Las rutas de Comercio: parsear, llamar al dominio, delegar al repo.
+"""Rutas de Comercio: parsear, llamar al dominio y delegar al repositorio.
 
-Dos superficies, como en el §9 del contrato:
-
-- **Lectura** (`GET /v1/comercio/pedidos`, `/mis-pedidos`, `/{id}`): el tablero
-  del back-office de logística y el historial del acudiente. El tablero y el
-  detalle son SOLO para staff (operador/admin); "mis pedidos" exige sesión y usa
-  el usuario DE LA SESIÓN. Ambas puertas validan el Bearer contra Identidad y
-  fallan cerradas (503) si no responde.
-- **Escritura** (`POST /v1/ordenes`, `/{id}/pago`, `/v1/webhooks/wompi`,
-  `/{id}/retracto`): el checkout. Tres invariantes que no se negocian:
-  re-verificar precio antes de cobrar (`422 precio_cambiado`); precio CONGELADO
-  en la línea y dirección CONGELADA en el envío (ADR 0012 / 0015); no se guarda
-  medio de pago, sólo id de transacción y estado (SG-03). El webhook es
-  idempotente contra `evento_pasarela_procesado`.
-
-El router no calcula ni arma SQL: `reverificar_precios`/`total_orden`/
-`pedido_tras_pago` viven en `dominio/`, y todo el SQL en `repositorios/`. Aquí
-sólo se orquesta y se traducen los resultados a sobres de error.
-
-Los singletons (`pasarela`, `catalogo`, `identidad`, `motor`) se leen de `request.app.state`
-en cada petición, no se capturan al importar: así las pruebas pueden sustituir
-los dobles después de construir la app.
+Decisiones:
+- El tablero y el detalle de pedidos son solo para staff; "mis pedidos" exige sesion y usa el
+  usuario de la sesion. Ambas puertas validan el Bearer contra Identidad y fallan cerradas (503)
+  si no responde.
+- Checkout: se reverifica el precio antes de cobrar (`422 precio_cambiado`), el precio y la
+  direccion quedan congelados, y no se guarda medio de pago, solo id de transaccion y estado. El
+  webhook es idempotente contra `evento_pasarela_procesado`.
+- El router no calcula ni arma SQL: las reglas viven en `dominio/` y el SQL en `repositorios/`.
+- Los singletons (`pasarela`, `catalogo`, `identidad`, `motor`) se leen de `request.app.state` en
+  cada peticion para que las pruebas puedan sustituir los dobles.
 """
 
 from __future__ import annotations
@@ -56,21 +45,10 @@ def _repo(conexion: Any) -> RepoPedidos:
     return RepoPedidos(conexion)
 
 
-# ---------------------------------------------------------------------------
-# Sesion: quien llama. Mismas puertas y mismos sobres que inteligencia
-# (`_exigir_staff` / `_usuario_de_sesion`), para que el front trate igual un 401
-# de cualquier servicio.
-# ---------------------------------------------------------------------------
-
-# Los roles del equipo interno; el admin es superconjunto del operador.
 _ROLES_STAFF = frozenset({"admin", "operador"})
 
 
-
 async def _sesion_valida(request: Request, authorization: str | None) -> dict[str, Any]:
-    """La sesion del portador, validada contra Identidad por HTTP (Comercio no
-    lee la base de Identidad: regla 1). 401 sin token o con uno invalido; 503 si
-    Identidad no responde: FALLA CERRADA, no autorizar por no poder preguntar."""
     token = token_bearer(authorization)
     if not token:
         raise ErrorDominio("sesion_invalida", "El token no es valido o expiro.", estado=401)
@@ -85,15 +63,12 @@ async def _sesion_valida(request: Request, authorization: str | None) -> dict[st
 
 @dataclass(frozen=True)
 class Actor:
-    """Quien del equipo interno hace la peticion: lo que queda en el historial."""
 
     usuario_id: uuid.UUID
     correo: str | None
 
 
 async def _exigir_staff(request: Request, authorization: str | None) -> Actor:
-    """Puerta operador/admin: 401/503 como `_sesion_valida`, 403 si el rol no es
-    staff. Devuelve el actor (id y correo de la sesion), que queda en el historial."""
     sesion = await _sesion_valida(request, authorization)
     roles = {r.get("rol") for r in sesion.get("roles", [])}
     if not roles & _ROLES_STAFF:
@@ -104,8 +79,6 @@ async def _exigir_staff(request: Request, authorization: str | None) -> Actor:
 
 
 async def _usuario_de_sesion(request: Request, authorization: str | None) -> uuid.UUID:
-    """Puerta de portador: cualquier sesion valida, sin rol. Devuelve el
-    `usuario_id` DE LA SESION, nunca uno que venga del navegador."""
     sesion = await _sesion_valida(request, authorization)
     return uuid.UUID(str(sesion["usuario_id"]))
 
@@ -115,11 +88,6 @@ async def _pedido_o_404(repo: RepoPedidos, pedido_id: uuid.UUID) -> Any:
     if fila is None:
         raise ErrorDominio("pedido_no_existe", "No hay ningun pedido con ese identificador.", estado=404)
     return fila
-
-
-# ---------------------------------------------------------------------------
-# Lectura: tablero de logística e historial del acudiente
-# ---------------------------------------------------------------------------
 
 
 @router.get("/v1/comercio/pedidos", summary="Tablero de logistica: resumen + pedidos")
@@ -151,9 +119,6 @@ async def mis_pedidos(
         filas = await repo.listar_de_usuario(usuario_id)
         pedidos = await repo.pedidos_completos(filas)
         pedidos = [await _con_seguimiento(repo, p, _ahora(request)) for p in pedidos]
-        # La misma `linea_de_tiempo` que `/mis-pedidos/{id}` (vistas sin actor,
-        # nota ni celular): asi "Mis pedidos" pinta las fases sin pedir cada
-        # pedido por separado.
         for fila, pedido in zip(filas, pedidos, strict=True):
             pagos, historial, envio = await repo.vistas_para_linea_de_tiempo(fila.id)
             pedido["linea_de_tiempo"] = linea_de_tiempo(
@@ -163,28 +128,17 @@ async def mis_pedidos(
 
 
 def _ahora(request: Request) -> datetime:
-    """El reloj del retracto y de la linea de tiempo.
-
-    Sale de `app.state.reloj` si alguien lo colgo (las pruebas fijan ahi el
-    instante, como hacen con la pasarela o el catalogo); si no, el reloj real."""
     reloj = getattr(request.app.state, "reloj", None)
     return reloj() if reloj is not None else datetime.now(UTC)
 
 
 def _fecha(valor: Any) -> datetime | None:
-    """Una fecha ISO del serializador (o ya datetime) como `datetime`, o `None`."""
     if valor is None or isinstance(valor, datetime):
         return valor
     return datetime.fromisoformat(str(valor))
 
 
 async def _con_seguimiento(repo: RepoPedidos, pedido: dict[str, Any], ahora: datetime) -> dict[str, Any]:
-    """Un pedido del acudiente con su linea de tiempo y lo que puede hacer con el retracto.
-
-    Del historial interno solo salen el estado y la hora (nunca el actor, la nota
-    ni la incidencia). El plazo del retracto (Ley 1480, art. 47) corre desde la
-    entrega; la regla vive en `dominio/retracto`.
-    """
     pedido_id = uuid.UUID(pedido["pedido_id"])
     historial = await repo.historial_de(pedido_id)
     pago_en = await repo.pago_aprobado_en(pedido_id)
@@ -200,7 +154,6 @@ async def _con_seguimiento(repo: RepoPedidos, pedido: dict[str, Any], ahora: dat
     estado = evaluar_retracto(
         pedido["estado"], entregado_en, ahora, ya_solicitado=devolucion is not None
     )
-    # El historial interno y el celular del repartidor no son del acudiente.
     envio_publico = {k: v for k, v in envio.items() if k != "repartidor_celular"} or None
     return {
         **pedido,
@@ -263,7 +216,6 @@ async def ver_pedido(
 async def _detalle_staff(repo: RepoPedidos, fila: Any) -> dict[str, Any]:
     pedido = await repo.pedido_completo(fila, con_celular=True)
     if pedido["pago"] is not None:
-        # El id de transaccion de Wompi solo lo necesita el staff para conciliar.
         pedido["pago"] |= await repo.datos_de_pago_staff(fila.id)
     entregado_en = _a_datetime(pedido["envio"]["entregado_en"]) if pedido["envio"] else None
     return {
@@ -277,19 +229,8 @@ def _a_datetime(iso: str | None) -> datetime | None:
     return datetime.fromisoformat(iso) if iso else None
 
 
-# ---------------------------------------------------------------------------
-# Escritura: checkout, pago y webhook (§9 del contrato)
-# ---------------------------------------------------------------------------
-
-
 class LineaOrden(BaseModel):
-    """Un renglon que el acudiente aprobo. El precio que trae es el que VIO;
-    Comercio lo re-verifica contra Catalogo y solo lo congela si sigue igual."""
 
-    # Opcional: Comercio lo resuelve por sku contra Catalogo (endpoint interno),
-    # en la misma lectura con que re-verifica el precio. Quien arma la orden
-    # (Inteligencia, el navegador) nunca ve un id canonico -RPO cero, ADR 0017-,
-    # asi que no puede mandarlo; se acepta si viene, pero no se exige.
     producto_canonico_id: str | None = None
     sku: str = Field(min_length=1, max_length=64)
     nombre: str = Field(min_length=1, max_length=256)
@@ -299,18 +240,6 @@ class LineaOrden(BaseModel):
 
 
 class DireccionEntrega(BaseModel):
-    """La direccion a la que se entrega. Se COPIA congelada en el envio (ADR
-    0015): no es una llave a la libreta de Identidad.
-
-    `telefono`/`departamento`/`documento_destinatario`/`indicaciones` son
-    opcionales: el checkout legado manda solo los tres primeros y sigue
-    cerrando. El formulario nuevo los exige del lado del cliente.
-
-    `localidad` es el nombre canonico de una de las 20 de Bogota; aqui solo se
-    valida el largo, porque la regla "obligatoria en Bogota" es del formulario y
-    un cliente viejo tiene que seguir cerrando. `latitud`/`longitud` salen del pin
-    que el acudiente confirmo en el mapa de OpenStreetMap (ADR 0049): van juntas
-    o ninguna, y dentro de Colombia (un punto fuera es un error del cliente)."""
 
     destinatario: str = Field(min_length=1, max_length=256)
     direccion: str = Field(min_length=1, max_length=512)
@@ -331,7 +260,6 @@ class DireccionEntrega(BaseModel):
 
 
 class SolicitudOrden(BaseModel):
-    """Lo que el checkout manda para crear una orden (FU-01)."""
 
     usuario_id: str
     trabajo_id: str | None = None
@@ -342,7 +270,6 @@ class SolicitudOrden(BaseModel):
 
 
 class SolicitudPago(BaseModel):
-    """Lo que el checkout manda para iniciar el pago (FU-03)."""
 
     correo_cliente: str = Field(min_length=5, max_length=320)
     metodo: str = Field(default=MetodoPago.PSE.value, max_length=16)
@@ -350,23 +277,11 @@ class SolicitudPago(BaseModel):
 
 
 class SolicitudRetracto(BaseModel):
-    """Lo que el checkout manda para un retracto o devolucion (FU-04)."""
 
     motivo: str = Field(default="", max_length=512)
 
 
 class SolicitudAvance(BaseModel):
-    """Lo que el back-office de logistica manda para avanzar un pedido.
-
-    `destino` es el siguiente estado de la cadena de entrega. Con reparto
-    propio, el despacho trae nombre y celular del repartidor (y la fecha
-    estimada); una incidencia trae su tipo y, si es `otro`, la nota. La validez
-    de la transicion y de los datos la decide `validar_avance`: por eso
-    `tipo_incidencia` es texto libre y no un `Literal`, para que el rechazo
-    llegue con el mensaje del dominio y no como un 400 generico.
-
-    `entrega_estimada` exige zona horaria (`AwareDatetime`): una fecha pelada
-    seria medianoche sin zona y se correria al guardarla en `timestamptz`."""
 
     destino: str = Field(min_length=1, max_length=24)
     repartidor_nombre: str | None = Field(default=None, max_length=128)
@@ -374,7 +289,6 @@ class SolicitudAvance(BaseModel):
     tipo_incidencia: str | None = Field(default=None, max_length=32)
     nota: str | None = Field(default=None, max_length=512)
     entrega_estimada: AwareDatetime | None = None
-    # Despacho por transportadora (alternativa al reparto propio): con ella, la guia es obligatoria.
     transportadora: str | None = Field(default=None, max_length=128)
     guia: str | None = Field(default=None, max_length=128)
 
@@ -408,10 +322,6 @@ async def crear_orden(request: Request, solicitud: SolicitudOrden) -> dict[str, 
     usuario_id = _uuid_o_422(solicitud.usuario_id, "usuario_id")
     trabajo_id = _uuid_o_422(solicitud.trabajo_id, "trabajo_id") if solicitud.trabajo_id else None
 
-    # Re-verificacion por HTTP contra Catalogo (no un cruce a su base). Sin
-    # poder leer el precio no se cobra: Catalogo caido es 503, no un cobro a
-    # ciegas. Cada sku se resuelve a (id canonico, precio vigente) y se arma la
-    # linea resuelta que el dominio compara contra el precio aprobado.
     resueltas: list[LineaResuelta] = []
     for linea in solicitud.lineas:
         try:
@@ -440,9 +350,6 @@ async def crear_orden(request: Request, solicitud: SolicitudOrden) -> dict[str, 
             campo="lineas",
         )
 
-    # Todos los precios coinciden: se arma la persistencia. El id resuelto por
-    # Catalogo manda; si el cliente mando uno se respeta, pero la fuente de
-    # verdad es el sku re-verificado arriba.
     por_sku = {r.sku: r for r in resueltas}
     lineas_persistir: list[dict[str, Any]] = []
     for linea in solicitud.lineas:
@@ -456,14 +363,10 @@ async def crear_orden(request: Request, solicitud: SolicitudOrden) -> dict[str, 
                 "sku": linea.sku,
                 "nombre": linea.nombre,
                 "cantidad": linea.cantidad,
-                "precio_unitario": linea.precio_unitario,  # congelado (ADR 0012)
+                "precio_unitario": linea.precio_unitario,
             }
         )
 
-    # Un kit, un pedido pendiente. Si el acudiente vuelve a pulsar Pagar con lo
-    # mismo, se reutiliza el pedido (Inteligencia le crea un intento de pago
-    # nuevo); si cambio algo, el pendiente anterior se cancela, pero solo si
-    # Wompi confirma que no tiene un pago aprobado o en curso.
     if trabajo_id is not None:
         reutilizable = await _resolver_pendientes_del_kit(request, usuario_id, trabajo_id, solicitud)
         if reutilizable is not None:
@@ -487,9 +390,6 @@ async def crear_orden(request: Request, solicitud: SolicitudOrden) -> dict[str, 
             entrega=solicitud.entrega,
         )
         cuerpo = await repo.pedido_completo(fila)
-    # Fuera del `async with`: la orden ya se persistio (commit sin excepcion). La
-    # metrica de dominio T1 (ADR 0021) se cuenta aqui para no inflar el numero si
-    # la transaccion hubiera hecho rollback.
     contar_orden_creada()
     return cuerpo
 
@@ -533,10 +433,6 @@ async def iniciar_pago(request: Request, pedido_id: uuid.UUID, solicitud: Solici
                 estado=409,
             )
 
-        # El intento numera la referencia (`-1`, `-2`, ...): un reintento tras
-        # rechazo crea un pago nuevo, y sin el sufijo chocaria con el indice
-        # unico de `referencia_wompi`. El webhook la busca por igualdad exacta,
-        # asi que numerarla no cambia su lookup.
         intento = await repo.contar_pagos_pedido(pedido_id) + 1
         referencia = f"tukit-{pedido_id}-{intento}"
         try:
@@ -548,9 +444,6 @@ async def iniciar_pago(request: Request, pedido_id: uuid.UUID, solicitud: Solici
                 url_redireccion=solicitud.url_redireccion,
             )
         except httpx.HTTPError:
-            # Wompi caido o devolviendo 5xx: nada se cobro y no se guarda pago.
-            # 502, no 500: el fallo es del upstream, y el cliente puede
-            # reintentar (la referencia numerada lo permite sin colision).
             raise ErrorDominio(
                 "pasarela_no_disponible",
                 "No se pudo contactar la pasarela de pago; intenta de nuevo en un momento.",
@@ -592,8 +485,6 @@ async def webhook_wompi(request: Request, evento: dict[str, Any]) -> dict[str, A
     """
     pasarela = request.app.state.pasarela
     if not pasarela.verificar_firma(evento):
-        # Firma que no cuadra: se ignora sin mover nada. 200 para que la
-        # pasarela no reintente en bucle un evento que nunca vamos a aceptar.
         return {"estado": "ignorado", "motivo": "firma_invalida"}
 
     datos = pasarela.parsear_evento(evento)
@@ -603,9 +494,6 @@ async def webhook_wompi(request: Request, evento: dict[str, Any]) -> dict[str, A
     async with request.app.state.motor.sesion() as db:
         resultado = await _repo(await db.connection()).aplicar_resultado(datos)
 
-    # Fuera del `async with`: se conto solo si el pago llevo el pedido a PAGADO y
-    # la transaccion cerro bien (T3 de la saga, ADR 0021). El candado de
-    # idempotencia evita contar dos veces un webhook repetido.
     if resultado.pagado:
         contar_pago_aprobado()
 
@@ -662,9 +550,6 @@ async def sincronizar_pago(request: Request, transaccion_id: str) -> dict[str, A
 
 
 async def _aplicar_con_reintento(request: Request, datos: EventoPasarela) -> ResultadoAplicacion:
-    """Aplica un resultado en su propia sesion. Si el webhook llega a la vez, el
-    segundo INSERT del candado choca con el indice unico: se reintenta UNA vez
-    en una sesion nueva, donde la fila ya existe y el resultado es `repetido`."""
     for intento in range(2):
         try:
             async with request.app.state.motor.sesion() as db:
@@ -679,14 +564,6 @@ async def _aplicar_con_reintento(request: Request, datos: EventoPasarela) -> Res
 
 
 async def _revisar_pagos_en_wompi(request: Request, pedido_id: uuid.UUID) -> str:
-    """Antes de cancelar: `pagado`, `en_curso` o `libre`.
-
-    Un PSE puede estar en curso, o ya aprobado, sin que Tukit lo sepa (el
-    acudiente no volvio y no hay webhook). Se busca en Wompi cada intento que
-    aqui sigue `iniciado`; uno aprobado se aplica en el acto (el pedido pasa a
-    `pagado`) y uno rechazado se anota. Si Wompi no responde, `PasarelaCaida`
-    sube: sin saberlo no se cancela.
-    """
     async with request.app.state.motor.sesion() as db:
         referencias = await _repo(await db.connection()).referencias_iniciadas(pedido_id)
     en_curso = False
@@ -749,10 +626,6 @@ async def reconciliar_pago(
 
 
 async def _cancelar_si_se_puede(request: Request, pedido_id: uuid.UUID) -> str:
-    """Cancela un pedido pendiente y libera su reserva, si Wompi lo permite.
-
-    Devuelve `cancelado`, `pagado`, `en_curso` o `no_cancelable`.
-    """
     async with request.app.state.motor.sesion() as db:
         pedido = await _repo(await db.connection()).obtener(pedido_id)
     if pedido is None or pedido.estado != EstadoPedido.PENDIENTE_PAGO.value:
@@ -768,15 +641,6 @@ async def _cancelar_si_se_puede(request: Request, pedido_id: uuid.UUID) -> str:
 async def _resolver_pendientes_del_kit(
     request: Request, usuario_id: uuid.UUID, trabajo_id: uuid.UUID, solicitud: SolicitudOrden
 ) -> dict[str, Any] | None:
-    """El pedido pendiente a reutilizar para este kit, o `None` para crear uno.
-
-    Uno identico y vigente se reutiliza. Los demas pendientes del mismo kit se
-    cancelan con la revision de Wompi; uno con pago en curso o aprobado se deja
-    como esta (cancelarlo podria cobrar sin entregar), y si Wompi no responde
-    tambien se deja: duplicar es mejor que cancelar a ciegas.
-    """
-    # La entrega compara toda la copia congelada , localidad
-    # incluida: ver `CAMPOS_FIRMA_ENTREGA`.
     buscada = firma_orden(
         [(linea.sku, linea.cantidad, linea.precio_unitario) for linea in solicitud.lineas],
         tuple(getattr(solicitud.entrega, campo) for campo in CAMPOS_FIRMA_ENTREGA),
@@ -840,22 +704,9 @@ async def cancelar_orden(request: Request, pedido_id: uuid.UUID) -> dict[str, An
 
 @router.get("/v1/ordenes/{pedido_id}", summary="Seguimiento de una orden (FU-01 + UM-03)")
 async def ver_orden(request: Request, pedido_id: uuid.UUID) -> dict[str, Any]:
-    # Interna (la puerta no la expone): reusa el serializador del pedido, sin el
-    # celular del repartidor ni el historial, que son solo del detalle staff.
     async with request.app.state.motor.sesion() as db:
         repo = _repo(await db.connection())
         return await repo.pedido_completo(await _pedido_o_404(repo, pedido_id))
-
-
-# ---------------------------------------------------------------------------
-# El acudiente sobre SUS pedidos: ver, pagar y cancelar desde su panel
-# ---------------------------------------------------------------------------
-#
-# `/v1/ordenes/*` no sale por la puerta (solo `avanzar`): sin sesion, cualquiera
-# con el id de un pedido podria pagarlo o cancelarlo. Estas tres rutas son las
-# mismas operaciones con la puerta del portador: el `usuario_id` sale del token
-# y un pedido ajeno responde 404, igual que uno que no existe, para no confirmar
-# que existe.
 
 
 async def _pedido_del_portador(request: Request, pedido_id: uuid.UUID, authorization: str | None) -> None:
@@ -918,8 +769,6 @@ async def ver_mi_pedido(
         fila = await _pedido_o_404(repo, pedido_id)
         pedido = await _con_seguimiento(repo, await repo.pedido_completo(fila), _ahora(request))
         pagos, historial, envio = await repo.vistas_para_linea_de_tiempo(fila.id)
-    # La linea de tiempo de `/pedidos/[id]` es la de `dominio.linea_de_tiempo`;
-    # `seguimiento` y `retracto` (panel) viajan al lado.
     return {
         **pedido,
         "linea_de_tiempo": linea_de_tiempo(
@@ -1001,8 +850,6 @@ async def retractar_mi_pedido(
             motivo=solicitud.motivo,
             monto=int(pedido.total),
         )
-        # Si la maquina de estados no deja cancelar (ya despachado, en reparto),
-        # queda la solicitud registrada para que el equipo detenga el envio.
         cancelado = estado.antes_de_entrega and transicion_valida(pedido.estado, EstadoPedido.CANCELADO.value)
         if cancelado:
             await repo.cancelar_pedido(pedido_id)
@@ -1076,9 +923,6 @@ _MENSAJE_AVANCE = {
 async def _avanzar_uno(
     request: Request, actor: Actor, pedido_id: uuid.UUID, solicitud: SolicitudAvance
 ) -> dict[str, Any]:
-    """El avance de UN pedido en su propia unidad de trabajo (todo o nada por pedido).
-
-    Lo comparten `/v1/ordenes/{id}/avanzar` y el avance en lote."""
     async with request.app.state.motor.sesion() as db:
         repo = _repo(await db.connection())
         pedido = await _pedido_o_404(repo, pedido_id)
@@ -1112,8 +956,6 @@ async def _avanzar_uno(
             guia=avance.guia,
         )
         if not movido:
-            # Otro avance gano la carrera entre la lectura y el UPDATE. Lanzar
-            # revierte la unidad de trabajo: no queda historial ni aviso huerfano.
             raise ErrorDominio(
                 "avance_concurrente",
                 "Alguien mas movio este pedido mientras tanto; recarga y vuelve a intentar.",
@@ -1130,8 +972,6 @@ async def _avanzar_uno(
         )
         reembolso: bool | None = None
         if solicitud.destino == EstadoPedido.CANCELADO.value:
-            # Como el retracto: el pedido cancelado deja su pago aprobado marcado
-            # para reembolso, en la misma transaccion. El aviso dice si hay algo que devolver.
             reembolso = await repo.marcar_pago_reembolsado(pedido_id)
         if avance.aviso is not None:
             await repo.encolar_aviso_pedido(
@@ -1167,8 +1007,6 @@ async def avanzar_pedido(
     return await _avanzar_uno(request, actor, pedido_id, solicitud)
 
 
-# Avance en lote: solo destinos que no piden datos (despachar pide repartidor o guia;
-# incidencia y cancelar piden tipo/nota y confirmacion), y un tope por llamada.
 MAX_LOTE = 50
 DESTINOS_DE_LOTE = frozenset(
     {EstadoPedido.EN_PREPARACION.value, EstadoPedido.EN_REPARTO.value, EstadoPedido.ENTREGADO.value}

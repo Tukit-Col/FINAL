@@ -1,10 +1,3 @@
-"""Banco de pruebas de Operacion: SQLite en memoria, sin base externa ni Identidad.
-
-El cliente de Identidad se sustituye por un doble que devuelve un id fijo, para
-poder probar el alta de casos sin levantar Identidad. Es la misma tecnica que
-Inteligencia usa con su `ClienteCatalogo`.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -18,11 +11,6 @@ from tukit_operacion.modelos import Base
 
 @pytest.fixture(autouse=True)
 def _sin_broker(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Las pruebas corren sin RabbitMQ aunque quien las lance tenga `RABBITMQ_URL`.
-
-    La variable cambia el modo del repartidor (ADR 0046): con ella consume su
-    cola en vez de sondear. Las que prueban el modo con broker la ponen ellas.
-    """
     monkeypatch.delenv("RABBITMQ_URL", raising=False)
 
 
@@ -54,10 +42,6 @@ def _sesion(usuario: str, rol: str) -> dict:
 
 
 class IdentidadFalsa:
-    """Devuelve siempre el mismo id sin salir a la red. Registra que le pidieron.
-
-    Tambien valida sesiones (token -> sesion) para la puerta de staff; `caida=True`
-    imita a Identidad sin responder."""
 
     def __init__(self, usuario_id: str | None = None, *, caida: bool = False) -> None:
         self.usuario_id = usuario_id or str(uuid.uuid4())
@@ -88,13 +72,10 @@ TOKEN_OTRO = "token-otro"
 
 
 class IdentidadConSesiones(IdentidadFalsa):
-    """Como `IdentidadFalsa`, y ademas valida tokens de sesion (token -> usuario)."""
 
     def __init__(self, caida: bool = False) -> None:
         super().__init__()
         self.caida = caida
-        # Conserva las sesiones de staff de `IdentidadFalsa`: los casos del
-        # portador y la bandeja del back-office conviven en la misma app.
         self.sesiones = {
             **self.sesiones,
             TOKEN_ACUDIENTE: {"usuario_id": ACUDIENTE, "correo": "a@x.com", "roles": []},

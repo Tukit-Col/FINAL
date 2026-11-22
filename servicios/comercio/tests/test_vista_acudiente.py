@@ -1,5 +1,3 @@
-"""Vista previa de lo que verá el acudiente al mover un pedido (solo staff, sin escribir)."""
-
 from __future__ import annotations
 
 import json
@@ -46,7 +44,6 @@ async def test_destino_legal_muestra_el_paso_y_el_aviso(cliente):
     assert cuerpo["aviso"] == "pedido_despachado"
     assert _actual(cuerpo["ahora"]) == ["en_preparacion"]
     assert _actual(cuerpo["despues"]) == ["despachado"]
-    # No escribe nada.
     assert len(await filas_de(HISTORIAL, pedido_id)) == len(antes)
     detalle = (await cliente.get(f"/v1/comercio/pedidos/{pedido_id}", headers=OPERADOR_HDR)).json()
     assert detalle["estado"] == "en_preparacion"
@@ -71,8 +68,6 @@ async def test_nada_privado_sale_en_la_vista(cliente):
 
 
 async def test_la_vista_de_un_pedido_inexistente_es_404(cliente):
-    # El acceso (401/403) se prueba con las demas rutas de back-office en
-    # `test_logistica_acceso.py`.
     r = await cliente.get(_url("00000000-0000-4000-8000-000000000000", "despachado"), headers=OPERADOR_HDR)
     assert r.status_code == 404
     assert r.json()["error"] == "pedido_no_existe"

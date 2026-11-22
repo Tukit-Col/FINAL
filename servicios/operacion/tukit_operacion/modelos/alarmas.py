@@ -1,11 +1,3 @@
-"""Alarmas: un caso que se acerca a su vencimiento o lo paso.
-
-Una alarma es una senal derivada de un caso, para que la bandeja pueda subir
-lo que corre riesgo de incumplir el termino sin recalcular contra el reloj en
-cada render. La dispara el barrido de vencimientos; se apaga cuando el caso se
-resuelve.
-"""
-
 from __future__ import annotations
 
 import uuid

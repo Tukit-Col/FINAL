@@ -1,5 +1,3 @@
-"""Avance en lote: por pedido, con resumen, y solo destinos simples."""
-
 from __future__ import annotations
 
 import uuid
@@ -78,8 +76,6 @@ async def test_validaciones_de_forma(cliente):
 
 
 async def test_el_admin_tambien_avanza_en_lote(cliente):
-    # El acceso (401/403) vive en `test_logistica_acceso.py` con las demas rutas
-    # de back-office.
     a = await pedido_pagado(cliente)
     r = await _lote(cliente, [a], "en_preparacion", headers=bearer(TOKEN_ADMIN))
     assert r.json() == {"avanzados": [a], "fallidos": []}

@@ -1,5 +1,3 @@
-"""Alertas de pedido: pagado sin avanzar, pago atascado, incidencia."""
-
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
@@ -50,7 +48,7 @@ def test_incidencia_y_terminales():
 
 
 async def test_resumen_y_tablero_marcan_los_pedidos_correctos(db):
-    viejo = await crear_pedido(db, estado="pagado")  # pagado hace 30 h (via pago aprobado)
+    viejo = await crear_pedido(db, estado="pagado")
     reciente = await crear_pedido(db, estado="pagado")
     atascado = await crear_pedido(db, estado="pendiente_pago")
     incidencia = await crear_pedido(db, estado="incidencia")
@@ -72,7 +70,6 @@ async def test_resumen_y_tablero_marcan_los_pedidos_correctos(db):
                 actualizado_en=hace(**{"seconds": edad.total_seconds()}),
             )
         )
-    # El pedido viejo/atascado se creo hace poco o mucho: la ventana de pago cuenta desde creado_en.
     repo = RepoPedidos(conexion)
     resumen = await repo.resumen()
     assert resumen["alertas"] == {"pagado_sin_avanzar": 1, "pago_atascado": 1, "incidencia_abierta": 1}

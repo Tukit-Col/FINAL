@@ -1,15 +1,3 @@
-"""El ensamblador de Comercio: crea la app, cuelga singletons, monta el router.
-
-La superficie (lectura de logística + escritura de checkout, §9 del contrato)
-vive en `routers/comercio.py`; el qué-decide-el-negocio en `dominio/`; el SQL en
-`repositorios/`. Aquí sólo se construye la `FastAPI` con `crear_app`, se cuelgan
-de `app.state` los singletons que el router lee en cada petición (el motor de
-base, la pasarela y los clientes de Catálogo e Identidad) y se incluye el router. Esta
-separación es la ADR 0019: capas internas de puertos-y-adaptadores ligero.
-
-    python -m tukit_comercio.api            # localhost:8014
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -29,17 +17,9 @@ PUERTO_POR_OMISION = 8014
 async def _arrancar(app: FastAPI) -> None:
     app.state.motor = crear_motor("comercio")
     instrumentar_motor(app.state.motor.engine)
-    # La pasarela y el cliente de Catalogo se cuelgan de la app para poder
-    # sustituirlos por dobles en las pruebas sin tocar los endpoints. La
-    # pasarela sale de WOMPI_MODO (falso por omision, sandbox con llaves).
     app.state.pasarela = pasarela_desde_entorno()
-    # Pool httpx de vida larga hacia Catalogo (bulkhead, ADR 0020): reusa
-    # conexiones y acota las que van a ese destino. El cliente inyectado en las
-    # pruebas (`app.state.catalogo` con su doble) no pasa por aqui.
     app.state.pool_catalogo = crear_pool(espera=ESPERA_SEGUNDOS)
     app.state.catalogo = ClienteCatalogo(cliente=app.state.pool_catalogo)
-    # Identidad valida el Bearer de la logistica y de "mis pedidos". Pool propio:
-    # una Identidad lenta no debe agotar las conexiones del checkout a Catalogo.
     app.state.pool_identidad = crear_pool(espera=ESPERA_SEGUNDOS)
     app.state.identidad = ClienteIdentidad(cliente=app.state.pool_identidad)
 

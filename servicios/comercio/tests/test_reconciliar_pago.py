@@ -1,5 +1,3 @@
-"""Reconciliar el pago de un pedido atascado con Wompi (solo staff)."""
-
 from __future__ import annotations
 
 import httpx
@@ -80,8 +78,6 @@ async def test_pedido_inexistente_es_404(cliente):
 
 
 async def test_el_admin_tambien_reconcilia(cliente):
-    # El operador ya reconcilia arriba; el acceso (401/403) vive en
-    # `test_logistica_acceso.py` con las demas rutas de back-office.
     pedido_id, referencia = await _pendiente(cliente)
     app.state.pasarela.fijar_resultado(referencia, "DECLINED")
     r = await cliente.post(_url(pedido_id), headers=bearer(TOKEN_ADMIN))

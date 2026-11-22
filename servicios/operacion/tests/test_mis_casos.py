@@ -1,10 +1,3 @@
-"""Los casos del acudiente: el dueno es la sesion, no un campo del formulario.
-
-Defiende que un caso se abre a nombre del portador del token, que cada quien ve
-solo los suyos, que un caso ajeno es 403 (para leerlo y para comentarlo) y que
-sin sesion no se entra (401), con falla cerrada si Identidad no responde (503).
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -72,7 +65,6 @@ async def test_un_caso_ajeno_es_403_al_leerlo_y_al_comentarlo(cliente):
         f"/v1/operacion/mis-casos/{caso_id}/comentarios", json={"texto": "intruso"}, headers=_h(TOKEN_OTRO)
     )
     assert comentar.status_code == 403
-    # Nada quedo escrito en el caso del dueno.
     detalle = (await cliente.get(f"/v1/operacion/mis-casos/{caso_id}", headers=_h(TOKEN_ACUDIENTE))).json()
     assert detalle["comentarios"] == []
 
@@ -120,9 +112,6 @@ async def test_un_caso_puede_apuntar_a_un_pedido(cliente):
 
 
 async def test_el_dueno_y_el_staff_comparten_la_conversacion_por_puertas_distintas(cliente):
-    """S3 (portador) y S5 (staff) sobre el mismo caso: el acudiente no entra a la
-    bandeja, el staff ve su mensaje y el acudiente ve la respuesta del equipo,
-    sin el actor ni los cambios de estado."""
     caso_id = await _abrir(cliente)
     assert (await cliente.get("/v1/operacion/casos", headers=_h(TOKEN_ACUDIENTE))).status_code == 403
     assert (await cliente.get(f"/v1/operacion/casos/{caso_id}", headers=_h(TOKEN_ACUDIENTE))).status_code == 403

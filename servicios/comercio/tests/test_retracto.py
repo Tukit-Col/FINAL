@@ -1,10 +1,3 @@
-"""El retracto del acudiente (Ley 1480 de 2011, art. 47) y el seguimiento de su pedido.
-
-Dominio puro (plazo en dias habiles, con festivos) y HTTP contra la app real con
-SQLite: solo el dueno ejerce el retracto (403 si el pedido es ajeno), solo dentro
-de los 5 dias habiles desde la entrega (409 vencido) y una sola vez.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -23,33 +16,28 @@ from tukit_comercio.dominio.retracto import (
 )
 from tukit_comercio.modelos import EstadoPago, EstadoPedido
 
-# ---------------------------------------------------------------- dominio
-
 
 def test_los_festivos_de_colombia_2026_incluyen_los_trasladados():
     f = festivos(2026)
     assert date(2026, 1, 1) in f
-    assert date(2026, 1, 12) in f  # Reyes, trasladado al lunes
-    assert date(2026, 4, 2) in f and date(2026, 4, 3) in f  # jueves y viernes santo
-    assert date(2026, 11, 2) in f  # Todos los santos, trasladado al lunes
-    assert date(2026, 11, 16) in f  # Independencia de Cartagena, trasladado
+    assert date(2026, 1, 12) in f
+    assert date(2026, 4, 2) in f and date(2026, 4, 3) in f
+    assert date(2026, 11, 2) in f
+    assert date(2026, 11, 16) in f
     assert date(2026, 12, 8) in f and date(2026, 12, 25) in f
     assert date(2026, 11, 3) not in f
 
 
 def test_cinco_dias_habiles_se_saltan_fines_de_semana_y_festivos():
-    # Lunes 2-nov-2026 es festivo: desde el viernes 30-oct, el 1.o habil es el martes 3.
     assert sumar_dias_habiles(date(2026, 10, 30), 1) == date(2026, 11, 3)
     assert sumar_dias_habiles(date(2026, 10, 30), 5) == date(2026, 11, 9)
-    # Sin festivos de por medio: miercoles 4-mar -> miercoles 11-mar.
     assert sumar_dias_habiles(date(2026, 3, 4), 5) == date(2026, 3, 11)
 
 
 def test_el_plazo_cierra_al_final_del_dia_local_no_en_utc():
-    # Entrega el miercoles 4-mar-2026 a las 20:00 hora Bogota (01:00 UTC del jueves).
     entregado = datetime(2026, 3, 5, 1, 0, tzinfo=UTC)
     vence = vence_retracto(entregado)
-    assert vence == datetime(2026, 3, 12, 4, 59, 59, tzinfo=UTC)  # 23:59:59 del miercoles 11 en Bogota
+    assert vence == datetime(2026, 3, 12, 4, 59, 59, tzinfo=UTC)
 
 
 def test_pedido_entregado_dentro_y_fuera_del_plazo():
@@ -87,9 +75,6 @@ def test_la_linea_de_tiempo_no_filtra_al_equipo_interno():
     assert all(set(p) == {"estado", "en", "etiqueta"} for p in pasos)
 
 
-# ------------------------------------------------------------------- HTTP
-
-
 async def _entregar(pedido_id: str, entregado_en: datetime) -> None:
     async with app.state.motor.sesion() as db:
         conexion = await db.connection()
@@ -118,7 +103,6 @@ async def test_retracto_dentro_del_plazo_registra_la_solicitud_y_se_puede_pedir_
     assert respuesta.status_code == 201
     cuerpo = respuesta.json()
     assert cuerpo["devolucion_id"] and cuerpo["monto"] == total_de(nueva_orden())
-    # Ya entregado: la maquina de estados no cancela; queda la solicitud para el equipo.
     assert cuerpo["cancelado"] is False
 
     ficha = (await cliente.get(f"/v1/comercio/mis-pedidos/{pedido_id}", headers=bearer(TOKEN_ACUDIENTE))).json()
@@ -151,7 +135,6 @@ async def test_retracto_de_un_pedido_ajeno_es_403_y_no_toca_nada(cliente, reloj)
     respuesta = await _retracto(cliente, pedido_id, token=TOKEN_OTRO)
     assert respuesta.status_code == 403
     assert respuesta.json()["error"] == "pedido_ajeno"
-    # El dueno sigue pudiendo y el pedido sigue pagado.
     ficha = (await cliente.get(f"/v1/comercio/mis-pedidos/{pedido_id}", headers=bearer(TOKEN_ACUDIENTE))).json()
     assert ficha["estado"] == EstadoPedido.PAGADO.value
     assert ficha["retracto"]["puede"] is True
@@ -185,8 +168,6 @@ async def test_el_retracto_por_la_ruta_interna_cancela_y_marca_reembolso(cliente
     assert respuesta.status_code == 201
     cuerpo = respuesta.json()
     assert cuerpo["devolucion_id"]
-    # `pagado -> cancelado` es una transicion valida (ADR/tabla), asi que el
-    # retracto cancela el pedido y marca el pago para reembolso.
     assert cuerpo["cancelado"] is True
     assert cuerpo["estado"] == EstadoPedido.CANCELADO.value
 
@@ -207,7 +188,6 @@ async def test_mis_pedidos_trae_linea_de_tiempo_sin_datos_internos(cliente):
     await pedido_pagado(cliente)
     cuerpo = (await cliente.get("/v1/comercio/mis-pedidos", headers=bearer(TOKEN_ACUDIENTE))).json()
     pedido = cuerpo["pedidos"][0]
-    # El panel lee `seguimiento`; `linea_de_tiempo` es la de /pedidos/[id] (oe5).
     estados = [p["estado"] for p in pedido["seguimiento"]]
     assert estados[:2] == ["pendiente_pago", "pagado"]
     assert "retracto" in pedido
@@ -216,14 +196,12 @@ async def test_mis_pedidos_trae_linea_de_tiempo_sin_datos_internos(cliente):
 
 
 def test_acudiente_y_back_office_ven_el_mismo_plazo():
-    """Un solo calendario (`dominio.ley1480`): el cierre que ve el acudiente cae
-    el mismo dia de Bogota que el `plazo_retracto` del detalle staff."""
     from tukit_comercio.dominio.ley1480 import BOGOTA, evaluar_devolucion
 
     for entregado in (
-        datetime(2026, 3, 5, 1, 0, tzinfo=UTC),  # miercoles 20:00 en Bogota
-        datetime(2026, 10, 30, 15, 0, tzinfo=UTC),  # viernes antes del festivo del 2-nov
-        datetime(2026, 4, 1, 12, 0, tzinfo=UTC),  # semana santa
+        datetime(2026, 3, 5, 1, 0, tzinfo=UTC),
+        datetime(2026, 10, 30, 15, 0, tzinfo=UTC),
+        datetime(2026, 4, 1, 12, 0, tzinfo=UTC),
     ):
         vence = vence_retracto(entregado)
         staff = evaluar_devolucion(entregado, entregado)
