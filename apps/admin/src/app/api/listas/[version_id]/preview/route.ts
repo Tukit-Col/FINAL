@@ -1,17 +1,3 @@
-// `POST /api/listas/{version_id}/preview` — región 4 del revisor: armar la vista
-// previa de los tres kits que saldrían de una versión curada.
-//
-// El administrador, parado sobre una versión, pide previsualizar sin crear un
-// trabajo de acudiente: `previewDeVersion` arma un trabajo de preview para ese
-// (colegio, grado) y devuelve su `trabajo_id`. La pantalla lo lee luego con el
-// `trabajoAdmin(trabajo_id)` de siempre. Preview NO aprueba: `cerrarLista` sigue
-// siendo el único que publica.
-//
-// El destino (colegio, grado, año) llega en el cuerpo: es lo que la revisión ya
-// tenía en la pantalla, y así el origen recibe el destino ya resuelto en `ctx`
-// sin volver a leer la versión. Las guardas de dominio (404 version_no_existe)
-// las impone el backend; aquí solo se traduce el error tal cual (§11).
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import { cuerpoJson, respuestaDeError } from "@/lib/respuesta";
 

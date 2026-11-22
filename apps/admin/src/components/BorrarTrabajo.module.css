@@ -1,5 +1,3 @@
-/* El borrado de un trabajo en la barra del detalle: discreto hasta que se pide. */
-
 .contenedor {
   display: flex;
   flex-direction: column;

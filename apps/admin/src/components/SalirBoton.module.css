@@ -1,7 +1,3 @@
-/* El boton de salir vive al final de la cabecera. Mismo lenguaje que los
- * enlaces de nav (pastilla, borde de luz, se eleva al pasar por encima) pero en
- * tono neutro: no es una seccion, es la puerta. */
-
 .salir {
   display: inline-flex;
   align-items: center;

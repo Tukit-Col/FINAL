@@ -1,7 +1,6 @@
 .panel {
   padding: var(--espacio-4) var(--espacio-5) var(--espacio-4);
-  /* Baja con el acudiente mientras llena el formulario, justo bajo la cabecera
-   * (que tambien es sticky), para que vea siempre en que paso va. */
+
   position: sticky;
   top: 76px;
   z-index: 15;
@@ -12,7 +11,7 @@
   justify-content: space-between;
   align-items: baseline;
   gap: var(--espacio-3);
-  /* El mordisco de la forma ocupa la esquina superior derecha. */
+
   padding-right: 14%;
 }
 
@@ -127,7 +126,7 @@
 
 @media (max-width: 520px) {
   .titulo {
-    /* En celular los puntos bastan; el titulo del paso actual ya va arriba. */
+
     position: absolute;
     width: 1px;
     height: 1px;

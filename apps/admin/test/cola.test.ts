@@ -1,4 +1,3 @@
-// Filtros, grupos y paginacion de la cola. Correr: node --test test/cola.test.ts
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {

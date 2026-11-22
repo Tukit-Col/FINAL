@@ -1,6 +1,3 @@
-// Bandeja de tickets: filtros nuevos, paginación, SLA, asignación.
-// Correr:  node --test test/tickets.test.ts
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Caso } from "@tukit/contrato";

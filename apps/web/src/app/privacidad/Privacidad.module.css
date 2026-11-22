@@ -1,6 +1,3 @@
-/* Privacidad y mis datos: reusa las tarjetas del panel (Dashboard.module.css);
-   aqui solo van las listas de datos y el flujo de borrado. */
-
 .datos {
   display: grid;
   grid-template-columns: max-content 1fr;

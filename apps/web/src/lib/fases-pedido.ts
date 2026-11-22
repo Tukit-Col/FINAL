@@ -1,11 +1,3 @@
-// Las fases de "Mis pedidos" como datos puros (sin React): de la
-// `linea_de_tiempo` que arma Comercio saca que fases se muestran, cuales van
-// hechas, cual es la actual y cual es el desvio (incidencia o cancelado). No
-// recalcula la regla del pedido: solo la ordena para pintarla. Nunca trae
-// notas del staff ni el celular del repartidor, porque la linea no los trae.
-
-// Valores desde `comercio` (solo tipos por dentro) para que `node --test` lo
-// cargue sin el cliente HTTP del contrato.
 import {
   ETIQUETA_FASE_SEGUIMIENTO,
   ETIQUETA_TIPO_INCIDENCIA,
@@ -27,16 +19,12 @@ export interface FaseVista {
 
 export interface SeguimientoVista {
   fases: FaseVista[];
-  /** Fases hechas, para la barra de avance y el texto de lectores. */
   hechas: number;
-  /** La fase en curso, o `null` si el pedido espera pago, esta entregado o cancelado. */
   actual: FaseVista | null;
-  /** El pedido aun no se paga: ninguna fase empezo. */
   esperaPago: boolean;
   entregado: boolean;
   desvio: { tipo: "incidencia" | "cancelado"; mensaje: string; fecha: string | null } | null;
   entregaEstimada: string | null;
-  /** Una frase para el padre sobre donde va. */
   resumen: string;
 }
 
@@ -59,8 +47,6 @@ function mensajeDesvio(d: DesvioPedido): string {
 
 export function seguimientoDePedido(linea: LineaDeTiempoPedido): SeguimientoVista {
   const porPaso = new Map(linea.pasos.map((p) => [p.paso, p]));
-  // Comercio marca `entregado` como `actual` (es donde esta el pedido), pero
-  // para el padre es una fase terminada: se pinta con check, sin pulso.
   const entregado = porPaso.get("entregado")?.estado === "actual";
   const fases: FaseVista[] = FASES_SEGUIMIENTO.map((paso) => {
     const p = porPaso.get(paso);
@@ -93,7 +79,6 @@ export function seguimientoDePedido(linea: LineaDeTiempoPedido): SeguimientoVist
     esperaPago,
     entregado,
     desvio,
-    // Una vez entregado (o cancelado) la fecha estimada ya no dice nada.
     entregaEstimada: entregado || desvio?.tipo === "cancelado" ? null : linea.entrega_estimada,
     resumen,
   };

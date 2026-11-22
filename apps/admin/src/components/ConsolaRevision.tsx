@@ -1,15 +1,5 @@
 "use client";
 
-// El cuerpo de la revision (AD-04, rediseño §7). Antes eran pestañas: un kit a
-// la vez, y para comparar económico→premium había que ir y volver. Ahora es una
-// MATRIZ: una fila por concepto, tres columnas (Ahorrador/Fan/Premium), y el
-// cambio de nivel entre kits se ve de un vistazo. La decisión sigue siendo por
-// item (una RESOLUCION por `item_crudo_id`, compartida entre kits), así que
-// editar una celda vale para los tres.
-//
-// El admin SI ve los kits antes de publicar —esa es su tarea— mientras que el
-// §4 se los oculta al acudiente hasta que alguien los apruebe.
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCheck } from "lucide-react";
@@ -22,14 +12,9 @@ import styles from "./Revision.module.css";
 
 interface Props {
   trabajo: TrabajoAdmin;
-  // Franquicias del catálogo para el interruptor de personaje del kit Fan.
   personajes: string[];
 }
 
-// Las líneas que se pueden validar en lote: las de la clase que el sistema dejó
-// ambigua (`pendiente_revision`) con un producto ya elegido. Confirmar el
-// elegido no pide decidir nada, así que es lo único seguro de hacer a varias a
-// la vez. Se toman del kit recomendado —da igual cuál, el item_id es el mismo—.
 function pendientesConElegido(lineas: LineaKit[]): LineaKit[] {
   const grupos = agruparPorClase(lineas);
   return (grupos.get("pendiente_revision") ?? []).filter(
@@ -51,18 +36,11 @@ export default function ConsolaRevision({ trabajo, personajes }: Props) {
     );
   }
 
-  // Un kit de referencia para lo que es común a los tres: consolidaciones y las
-  // líneas por confirmar en lote (item_id compartido). El recomendado si existe.
   const kitRef =
     trabajo.kits.find((k) => k.perfil === trabajo.recomendado?.perfil) ?? trabajo.kits[0]!;
   const masivas = pendientesConElegido(kitRef.lineas);
-  // Las vistas previas de onboarding y los canónicos de una lista aprobada se
-  // arman sin acudiente ni preferencias: `recomendar` les pone la razón por
-  // omisión ("Elegiste precio…"), que aquí sería falsa.
   const sinAcudiente =
     trabajo.origen === "preview_onboarding" || trabajo.origen === "canonico_lista";
-  // Unos kits canónicos ya publicados no se editan en sitio (el backend lo
-  // niega con 409): su versión siguiente se abre con «Editar kits».
   const soloLectura = sinAcudiente && trabajo.estado === "publicado";
 
   async function validarPendientes(): Promise<void> {
@@ -72,11 +50,7 @@ export default function ConsolaRevision({ trabajo, personajes }: Props) {
     setErrorLote(null);
     let hechas = 0;
     try {
-      // En secuencia y no en paralelo: el backend recalcula el estado del
-      // trabajo en cada validación y una ráfaga simultánea pelearía por ese
-      // recálculo. Si una falla, se sabe cuántas se alcanzaron a guardar.
       for (const linea of masivas) {
-        // Sin sku: "confirmo el que el sistema eligió".
         await validarLinea(trabajo.trabajo_id, linea.item_id, {});
         hechas += 1;
       }
@@ -106,7 +80,6 @@ export default function ConsolaRevision({ trabajo, personajes }: Props) {
         <p className={styles.razonRecomendacion}>
           <strong>Se le va a marcar {trabajo.recomendado.perfil}:</strong>{" "}
           {trabajo.recomendado.razon}{" "}
-          {/* `null` es "no declaró presupuesto": solo `false` es pasarse. */}
           {trabajo.recomendado.dentro_de_presupuesto === false
             ? "Ojo: queda fuera del presupuesto declarado."
             : ""}
@@ -163,10 +136,6 @@ export default function ConsolaRevision({ trabajo, personajes }: Props) {
       ) : null}
 
       {(() => {
-        // El personaje es una preferencia del acudiente (ADR 0030): una lista que
-        // subio el colegio, o el canonico que sale de ella, no tiene a quien
-        // preguntarle, asi que aqui no se elige. Un Fan viejo de antes de esa
-        // regla se ve, pero no se toca.
         const fan = trabajo.kits.find((k) => k.perfil === "Fan");
         return fan && !sinAcudiente && personajes.length > 0 ? (
           <PersonajeFan trabajoId={trabajo.trabajo_id} fan={fan} personajes={personajes} />

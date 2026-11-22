@@ -1,14 +1,5 @@
 "use client";
 
-// Gestor de huecos de catálogo. Cada concepto sin cobertura se puede expandir
-// y dar de alta un producto con `altaProducto()` — la MISMA mutación del
-// contrato que usa AD-07 en la revisión, aquí sin línea de por medio (el
-// contrato admite `altaProducto` sin trabajo/item: solo agrega al catálogo).
-//
-// El precio se valida con el mismo `leerPesos()` que AD-07, por la misma razón:
-// el dinero es entero (§1.4) y `18.900` es ambiguo entre países. No se duplica
-// la regla, se importa.
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, PackageX, Layers, Check } from "lucide-react";
@@ -33,8 +24,6 @@ interface Props {
 
 const NIVELES: readonly Nivel[] = ["economico", "confiable", "premium"];
 
-// Formulario de alta acotado a un concepto. Es hermano del AD-07 pero más
-// pequeño: aquí no hay línea que resolver, solo se llena el catálogo.
 function AltaConcepto({ codigo, alTerminar }: { codigo: string; alTerminar: () => void }) {
   const router = useRouter();
   const [nombre, setNombre] = useState("");
@@ -73,7 +62,6 @@ function AltaConcepto({ codigo, alTerminar }: { codigo: string; alTerminar: () =
         tienda: tienda.trim(),
         precio,
         ...(url.trim() ? { url: url.trim() } : {}),
-        // Sin trabajo/item: solo agrega al catálogo, no resuelve ninguna línea.
       });
       alTerminar();
       router.refresh();

@@ -1,7 +1,3 @@
-/* Estilos del onboarding y su revisor de cuatro paneles (P4). Un solo módulo
- * para el formulario de subida y el revisor porque son el mismo flujo: subir
- * una lista y aprobarla. Tokens compartidos desde `@tukit/contrato/tokens.css`. */
-
 .pagina {
   display: flex;
   flex-direction: column;
@@ -40,8 +36,6 @@
 .migas a:hover {
   text-decoration: underline;
 }
-
-/* ------------------------------------------------------ formulario de subida */
 
 .formulario {
   display: flex;
@@ -95,8 +89,6 @@
   font-size: 12px;
   color: var(--color-text-muted);
 }
-
-/* ------------------------------------------- buscador del colegio (la cola) */
 
 .buscadorColegio {
   position: relative;
@@ -233,8 +225,6 @@
   cursor: pointer;
 }
 
-/* -------------------------------------------------------------- zona archivo */
-
 .zonaArchivo {
   display: flex;
   flex-direction: column;
@@ -294,8 +284,6 @@
   font-weight: 600;
 }
 
-/* ---------------------------------------------------------------- acción */
-
 .barraAccion {
   display: flex;
   align-items: center;
@@ -321,8 +309,6 @@
   cursor: not-allowed;
 }
 
-/* La acción de previsualizar: distinta del publicar (contorno, no relleno) para
-   que quede claro que no aprueba nada. */
 .secundario {
   display: inline-flex;
   align-items: center;
@@ -353,8 +339,6 @@
   border-radius: var(--radius-sm);
   color: var(--color-danger);
 }
-
-/* ---------------------------------------------- revisor de cuatro paneles */
 
 .regiones {
   display: grid;
@@ -446,8 +430,6 @@
   line-height: 1.5;
 }
 
-/* ------------------------------------------------- ítems percibidos (region 3) */
-
 .items {
   display: flex;
   flex-direction: column;
@@ -509,8 +491,6 @@
   color: var(--color-aviso);
   font-size: 13px;
 }
-
-/* ------------------------- controles de edición/alta de ítem (region 3) */
 
 .concepto {
   font-size: 12px;
@@ -606,7 +586,6 @@
   border-radius: var(--radius-md);
 }
 
-/* El selector de concepto con su atajo «+ Nuevo» al lado. */
 .conceptoFila {
   display: flex;
   align-items: center;
@@ -618,7 +597,6 @@
   min-width: 0;
 }
 
-/* «Atributos que se exigen» del renglón: lo leído del texto y lo curado. */
 .atributos {
   display: flex;
   flex-direction: column;
@@ -691,7 +669,6 @@
   color: var(--color-text-muted);
 }
 
-/* El resumen de lo que se exige, visible sin abrir el editor. */
 .exige {
   font-size: 12px;
   color: var(--color-text-secondary);

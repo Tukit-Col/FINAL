@@ -13,8 +13,6 @@
   color: var(--color-primary);
 }
 
-/* ------------------------------------------------------------ encabezado */
-
 .encabezado {
   padding: var(--espacio-5);
   background: var(--clay-surface-grad);
@@ -58,8 +56,6 @@
   color: var(--color-text-muted);
 }
 
-/* ---------------------------------------------------------------- estado */
-
 .estado {
   display: inline-block;
   padding: 1px 9px;
@@ -101,8 +97,6 @@
 .estado_cancelado {
   color: var(--color-text-muted);
 }
-
-/* ---------------------------------------------------------------- bloques */
 
 .columnas {
   display: grid;
@@ -153,8 +147,6 @@
   font-size: 13px;
 }
 
-/* -------------------------------------------------------------- historial */
-
 .historial {
   display: flex;
   flex-direction: column;
@@ -192,8 +184,6 @@
   color: var(--color-text-secondary);
   white-space: pre-wrap;
 }
-
-/* ------------------------------------------------------- linea de tiempo */
 
 .tiempo {
   display: grid;
@@ -241,8 +231,6 @@
   color: var(--color-text-muted);
   font-weight: 600;
 }
-
-/* --------------------------------------------------------------- lineas */
 
 .tablaMarco {
   overflow-x: auto;
@@ -304,8 +292,6 @@
   gap: 2px;
 }
 
-/* ------------------------------------------------------------- retracto */
-
 .alertaRetracto {
   padding: 1px 9px;
   border-radius: var(--radius-full);
@@ -326,8 +312,6 @@
   padding: 0;
   font-size: 13px;
 }
-
-/* ------------------------------------------------------ correos del pedido */
 
 .correos {
   display: flex;

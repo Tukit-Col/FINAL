@@ -1,25 +1,5 @@
 "use client";
 
-// Región 3 del revisor de listas (P4): los renglones de una versión importada
-// (`revisionLista`), con su concepto ya emparejado, sus candidatos/confianza
-// (las `propuestas`) y —por línea— el control de adquisición directa del colegio
-// (modo + instrucción libre). WIRED contra los Route Handlers de esta app.
-//
-// ALCANCE: ADD + EDIT, nunca borrado duro desde la revisión (el borrado vive en
-// /cola sobre el producto de catálogo). Editar un renglón manda un PATCH con solo
-// lo que cambió; dar de alta uno manda un POST. Tras cada escritura se hace
-// `router.refresh()` para que el Server Component vuelva a leer `revisionLista`.
-//
-// Si ningún concepto le sirve al renglón, se crea ahí mismo (con sus atributos
-// que filtran e informan) en vez de ir al catálogo y volver: nace con el texto
-// del renglón como nombre, entra a la lista de conceptos de toda la pantalla y
-// queda elegido en el editor, listo para «Guardar cambios».
-//
-// Lo que el renglón le exige al producto (los atributos discriminantes de su
-// concepto, leídos del texto) se cura también aquí, en «Atributos que se
-// exigen»: cambiar un valor, «No exigir» (guarda `*`) o agregar uno. Viaja como
-// `atributos` en el mismo PATCH, solo si cambió.
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -45,9 +25,6 @@ import Desplegable from "./Desplegable";
 import type { VocabularioConceptos } from "@/lib/vocabulario-conceptos";
 import styles from "@/app/onboarding/Onboarding.module.css";
 
-// Los modos de adquisición directa del colegio que el §1.1.1 lista y que el
-// revisor puede fijar por línea. `mercado_abierto`/`libro_libre` no están aquí:
-// esos son "se compra normal", no "el colegio lo entrega".
 const MODOS_DIRECTOS: { valor: ModoAdquisicion; etiqueta: string }[] = [
   { valor: "venta_directa_editorial", etiqueta: "Venta directa de la editorial" },
   { valor: "edicion_exclusiva", etiqueta: "Edición exclusiva del colegio" },
@@ -64,11 +41,9 @@ interface Props {
   propuestas: PropuestaRevision[];
   conceptos: OpcionConcepto[];
   vocabulario: VocabularioConceptos;
-  /** Por concepto y atributo, los valores que declaran sus productos (sugerencias). */
   valoresAtributos?: Record<string, Record<string, string[]>>;
 }
 
-// El resumen de lo que se exige, para verlo sin abrir el editor.
 function resumenExigido(filas: FilaExigencia[]): string | null {
   const partes = filas
     .filter((f) => !f.ajena)
@@ -79,10 +54,6 @@ function resumenExigido(filas: FilaExigencia[]): string | null {
   return partes.length ? partes.join(" · ") : null;
 }
 
-// Los candidatos de un renglón. La llave fiable es `item_id` (1:1 con el
-// renglón): una lista pide dos renglones iguales ("Cuaderno ferrocarril" dos
-// veces) y agrupar por texto le colgaba a uno los candidatos del otro. Se cae a
-// `texto_origen` solo para propuestas viejas anteriores al vínculo (item_id null).
 function candidatosDe(item: ItemRevision, propuestas: PropuestaRevision[]): PropuestaRevision[] {
   return propuestas.filter((p) =>
     p.item_id != null ? p.item_id === item.id : p.texto_origen === item.texto_original,
@@ -98,8 +69,6 @@ export default function ItemsPercibidos({
   vocabulario,
   valoresAtributos = {},
 }: Props) {
-  // En estado para que un concepto creado desde un renglón aparezca enseguida
-  // en el selector de todos los demás, sin refrescar.
   const [conceptos, setConceptos] = useState(conceptosIniciales);
 
   function alCrearConcepto(creado: ConceptoCreado) {
@@ -134,8 +103,6 @@ export default function ItemsPercibidos({
   );
 }
 
-// ------------------------------------------------------------- renglón editable
-
 function RenglonEditable({
   versionId,
   revisada,
@@ -162,30 +129,20 @@ function RenglonEditable({
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // La lectura de Gemini, corregible sin tener que dividir el renglon.
   const [texto, setTexto] = useState(item.texto_original);
   const [concepto, setConcepto] = useState(item.concepto_codigo ?? "");
   const [cantidad, setCantidad] = useState(String(item.cantidad));
-  // El select solo distingue los modos directos; cualquier otro modo guardado
-  // (mercado_abierto, libro_libre, diferido) se muestra como la opción vacía.
   const modoGuardado = VALORES_DIRECTOS.has(item.modo_adquisicion ?? "") ? item.modo_adquisicion! : "";
   const [modo, setModo] = useState<ModoAdquisicion | "">(modoGuardado);
   const [instruccion, setInstruccion] = useState(item.instruccion_colegio ?? "");
-  // Lo que se exige, leído y curado. Se rearma al abrir el editor para tomar lo
-  // que el backend recalculó tras guardar (p. ej. con otro concepto).
   const [filasAtributos, setFilasAtributos] = useState<FilaExigencia[]>(() =>
     filasDeExigencia(item),
   );
   const conceptoCambiado = concepto !== (item.concepto_codigo ?? "");
   const exige = resumenExigido(filasDeExigencia(item));
 
-  // Adquisición directa del colegio: el colegio lo entrega, no se compra. No
-  // tiene sentido mostrar concepto ni candidatos ("no lo ofrecemos"). Se toma
-  // del estado del editor (lo que el revisor está fijando), para que el
-  // colapso reaccione al elegir el modo sin recargar.
   const esDirecto = VALORES_DIRECTOS.has(modo);
 
-  // La confianza más alta entre los candidatos, para el semáforo del renglón.
   const confianza =
     !esDirecto && candidatos.length > 0 ? Math.max(...candidatos.map((c) => c.puntaje)) : null;
 
@@ -209,8 +166,6 @@ function RenglonEditable({
     }
     setGuardando(true);
     setError(null);
-    // Solo se manda lo que cambió (todos opcionales). El modo vacío = mercado
-    // abierto: la columna es NOT NULL, así que se manda el valor explícito.
     const cambios: ItemListaEditable = {};
     if (texto.trim() !== item.texto_original) cambios.texto_original = texto.trim();
     if (concepto !== (item.concepto_codigo ?? "")) cambios.concepto = concepto || null;
@@ -219,8 +174,6 @@ function RenglonEditable({
     if (modo !== modoGuardado) cambios.modo_adquisicion = modo || "mercado_abierto";
     if (instruccion !== (item.instruccion_colegio ?? ""))
       cambios.instruccion_colegio = instruccion || null;
-    // La curaduría de atributos, solo si cambió y solo si el concepto sigue
-    // siendo el mismo: lo que se ve es lo leído para el concepto guardado.
     if (!conceptoCambiado && item.concepto_codigo) {
       const curados = serializarAtributos(paresCurados(filasAtributos));
       if (!mismosAtributos(curados, item.atributos)) cambios.atributos = curados;
@@ -340,8 +293,6 @@ function RenglonEditable({
             <span>Texto del renglón</span>
             <input value={texto} onChange={(e) => setTexto(e.target.value)} disabled={guardando} />
           </label>
-          {/* div y no label: el selector es un botón con su propio buscador, y un
-              label alrededor le reenviaría los clics. */}
           <div className={styles.campo}>
             <span>Concepto (vacío = sin concepto)</span>
             <span className={styles.conceptoFila}>
@@ -447,14 +398,6 @@ function RenglonEditable({
   );
 }
 
-// -------------------------------------------------------------- dividir renglón
-//
-// Partir un renglón que el modelo juntó ("Cuaderno cuadriculado y lápiz") en
-// varios. No hay endpoint de "split": se reusan los que ya existen (POST agrega,
-// DELETE quita). Se AGREGAN primero todas las partes y solo al final se QUITA el
-// original, para que una falla a mitad no borre la línea dejando huecos. El
-// original arranca prellenado como primera parte (para editarla, no reescribir).
-
 function DividirRenglon({
   versionId,
   item,
@@ -470,7 +413,6 @@ function DividirRenglon({
   const [error, setError] = useState<string | null>(null);
 
   const validas = partes.map((p) => p.trim()).filter(Boolean);
-  // Dividir exige al menos dos partes con texto: una sola sería sólo editar.
   const puedeDividir = validas.length >= 2;
 
   async function dividir() {
@@ -484,7 +426,6 @@ function DividirRenglon({
       for (const texto of validas) {
         await agregarItemLista(versionId, { texto_original: texto, cantidad: item.cantidad });
       }
-      // Solo tras agregar todas las partes se quita el original.
       await quitarItemLista(versionId, item.id);
       onListo();
       router.refresh();
@@ -531,8 +472,6 @@ function DividirRenglon({
     </div>
   );
 }
-
-// -------------------------------------------------------------- alta de renglón
 
 function AltaRenglon({ versionId, revisada }: { versionId: string; revisada: boolean }) {
   const router = useRouter();

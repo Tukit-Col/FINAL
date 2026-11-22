@@ -3,25 +3,15 @@
   max-width: var(--ancho-contenido);
   margin: 0 auto;
   padding: 0 var(--espacio-4) var(--espacio-7);
-  /* Nuevo contexto de apilado: la capa de útiles de fondo vive detrás y las
-   * secciones por encima, sin pelear con el resto de la app. */
+
   isolation: isolate;
 }
 
-/* Las secciones van por encima de la capa de fondo de útiles. El héroe y el
- * cierre ya crean su propio contexto, pero las secciones intermedias necesitan
- * subir para que el texto no quede tapado por una pieza. */
 .pagina > section {
   position: relative;
   z-index: 1;
 }
 
-/* ------------------------------------------------------------------ Heroe */
-
-/* Héroe tipo landing de startup (referencia Payway): lienzo casi blanco,
- * titular grande y CENTRADO que se entrelaza con útiles en clay flotando a los
- * lados, un solo acento de color y CTA claros. Sin cifras de catálogo: a un
- * acudiente que llega a comprar no le dicen nada, y llenaban el héroe de ruido. */
 .heroe {
   position: relative;
   margin-top: var(--espacio-5);
@@ -36,7 +26,7 @@
 
 .heroeTexto {
   position: relative;
-  /* El texto pasa POR ENCIMA de los útiles flotantes, como en la referencia. */
+
   z-index: 3;
   max-width: 960px;
   margin: 0 auto;
@@ -67,10 +57,6 @@
   text-wrap: balance;
 }
 
-/* El acento ya no es un subrayado: es un "sticker" de plastilina. La palabra
- * que carga la promesa ("tiempo en familia") va sobre una pastilla dorada
- * inflada, con brillo arriba y sombra de contacto abajo (mismo lenguaje clay
- * que los útiles y los botones), ligeramente torcida como pegada a mano. */
 .titular em {
   font-style: normal;
   position: relative;
@@ -87,7 +73,6 @@
     0 8px 16px rgba(224, 169, 43, 0.32);
 }
 
-/* Brillo diagonal sutil sobre la pastilla, como el reflejo de una pieza clay. */
 .titular em::before {
   content: "";
   position: absolute;
@@ -119,7 +104,7 @@
   align-items: center;
   gap: 9px;
   justify-content: center;
-  /* 52px de alto: se pulsa con el pulgar, de pie, con el celular en una mano. */
+
   min-height: 52px;
   padding: 0 var(--espacio-6);
   border-radius: var(--radius-full);
@@ -159,8 +144,6 @@
   transform: scale(0.96);
 }
 
-/* Micro-tranquilizador bajo los CTA: baja el "labor" percibido antes del clic
- * (gratis, decides tú, sin registro). Discreto, no compite con los botones. */
 .tranquilizador {
   position: relative;
   z-index: 3;
@@ -171,10 +154,6 @@
   max-width: 52ch;
 }
 
-/* ----------------------------------------------------------- Encabezados */
-
-/* Encabezado compartido de sección: kicker + título + subtítulo opcional,
- * centrado, con aire arriba. Da ritmo a la página y evita títulos sueltos. */
 .encabezadoSeccion {
   max-width: 720px;
   margin: 0 auto var(--espacio-6);
@@ -204,8 +183,6 @@
   color: var(--color-text-secondary);
   max-width: 56ch;
 }
-
-/* -------------------------------------------------------------- Dolores */
 
 .dolores {
   padding: var(--espacio-7) 0 var(--espacio-6);
@@ -264,8 +241,6 @@
   color: var(--color-text-secondary);
 }
 
-/* -------------------------------------------------------------- Razones */
-
 .razones {
   padding: var(--espacio-6) 0;
 }
@@ -277,8 +252,6 @@
   gap: var(--espacio-4);
 }
 
-/* Las razones son más "airadas" que los dolores: fondo blanco, icono en dorado,
- * para que se lean como la respuesta luminosa al bloque de dolores de arriba. */
 .razon {
   background: var(--color-white);
   border-radius: var(--radius-xl);
@@ -312,23 +285,16 @@
   color: var(--color-text-secondary);
 }
 
-/* ----------------------------------------------------------- Como funciona */
-
 .comoFunciona {
   padding: var(--espacio-7) 0 var(--espacio-6);
-  /* Deja aire bajo el header sticky para que el ancla /#como-funciona no
-   * quede tapada al saltar aquí. */
+
   scroll-margin-top: var(--espacio-6);
 }
-
-/* -------------------------------------------------------------- Cierre */
 
 .cierre {
   padding: var(--espacio-6) 0 0;
 }
 
-/* Tarjeta de cierre: el último empujón. Fondo cielo tenue, promesa honesta
- * arriba (la cifra de lo que NOS falta), titular de acción y un solo CTA. */
 .tarjetaCierre {
   position: relative;
   text-align: center;
@@ -342,7 +308,6 @@
   isolation: isolate;
 }
 
-/* El texto de la tarjeta va por encima de los útiles flotantes de fondo. */
 .cierreTexto {
   position: relative;
   z-index: 3;
@@ -363,8 +328,6 @@
   color: var(--color-text-secondary);
   max-width: 46ch;
 }
-
-/* --------------------------------------------------------------- Cifras */
 
 .cifras {
   padding: var(--espacio-6) 0 0;
@@ -402,8 +365,6 @@
   text-wrap: balance;
 }
 
-/* --------------------------------------------------- Tres pasos con foto */
-
 .pasosFoto {
   list-style: none;
   display: grid;
@@ -417,7 +378,7 @@
   background: var(--color-white);
   border-radius: var(--radius-xl);
   box-shadow: var(--clay-shadow);
-  /* Sin overflow:hidden aqui: la flecha entre tarjetas sale por el costado. */
+
 }
 
 .pasoImagen {
@@ -514,8 +475,6 @@
     rotate: 90deg;
   }
 
-  /* Movil: una cifra por fila (numero a la izquierda, texto a la derecha),
-   * en lugar de tres columnas de 100 px donde el texto se partia mal. */
   .rejillaCifras {
     grid-template-columns: 1fr;
     gap: var(--espacio-2);

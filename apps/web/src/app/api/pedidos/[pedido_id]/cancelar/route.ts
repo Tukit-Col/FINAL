@@ -1,11 +1,3 @@
-// `POST /api/pedidos/{pedido_id}/cancelar` — cancelar desde "Mis pedidos" un
-// pedido que quedo pendiente.
-//
-// Se verifica con la sesion de la cookie que el pedido sea del acudiente y siga
-// pendiente (un pedido vencido tambien se cancela: asi libera su reserva).
-// Comercio pregunta a Wompi antes de cancelar y responde 409 si hay un pago
-// aprobado o en curso; ese mensaje llega tal cual al acudiente.
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import { decidirAccionPedido } from "@/lib/pagar-pedido";
 import { respuestaDeError } from "@/lib/respuesta";
@@ -18,7 +10,6 @@ export async function POST(
   contexto: { params: Promise<{ pedido_id: string }> },
 ): Promise<Response> {
   const { pedido_id } = await contexto.params;
-  // Un 429 al leer la sesion sale como 429 con su espera, no como "inicia sesion".
   let sesion: Awaited<ReturnType<typeof sesionActual>>;
   try {
     sesion = await sesionActual();

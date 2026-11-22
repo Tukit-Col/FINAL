@@ -1,9 +1,3 @@
-// El consolidado de entregas del mapa: que pedidos son entregas pendientes,
-// como se agrupan por colegio, como se apilan en marcadores y cuantos hijos hay
-// por salon.
-//
-// Correr:  node --test test/consolidado.test.ts
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Pedido } from "@tukit/contrato";

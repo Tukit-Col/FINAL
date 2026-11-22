@@ -1,13 +1,6 @@
 import { Check } from "lucide-react";
 import estilos from "./ResumenRecibo.module.css";
 
-// Port a React de `receipt` (sf-design-stack): el resumen del kit como un
-// tiquete. Cada categoria es un renglon con su marca, una linea de corte
-// punteada y el total. Es solo presentacion: los conteos y el total ya vienen
-// calculados por VistaKits; aqui no se suma ni se cambia nada. Los renglones
-// "se marcan" en cascada una sola vez al montar (CSS puro); con
-// prefers-reduced-motion aparece todo de una.
-
 export interface RenglonResumen {
   clave: string;
   titulo: string;

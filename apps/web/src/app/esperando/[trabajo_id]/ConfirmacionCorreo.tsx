@@ -3,9 +3,6 @@ import Link from "next/link";
 import { BellRing, MailCheck, PackageCheck } from "lucide-react";
 import styles from "./Armado.module.css";
 
-// La pantalla que cierra el armado cuando el kit queda en revision: dice a que
-// correo escribimos y que pasa despues. No promete una hora: la revision la
-// hace una persona y puede tardar.
 export default function ConfirmacionCorreo({
   correo,
   conSesion,

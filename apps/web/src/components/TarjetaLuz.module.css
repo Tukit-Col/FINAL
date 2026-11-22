@@ -6,8 +6,6 @@
   isolation: isolate;
 }
 
-/* Capa de la luz: rejilla fina + borde, visibles solo bajo un disco suave. No
- * pinta resplandor propio y no recibe clics. */
 .luz {
   position: absolute;
   inset: 0;
@@ -47,7 +45,6 @@
   initial-value: 92%;
 }
 
-/* Entra por abajo a la izquierda, cruza y descansa arriba a la derecha. */
 @keyframes pasada {
   0% {
     --luz-x: 0%;

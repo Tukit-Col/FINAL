@@ -1,5 +1,3 @@
-/* Estilos del asistente. Mobile first: una columna, toques de al menos 44px. */
-
 .panel {
   display: grid;
   gap: var(--espacio-4);
@@ -35,8 +33,6 @@
   color: var(--color-text-primary);
 }
 
-/* Referencia visual: la entrada de `chat-assistant` (campo claro, borde que se
- * enciende al enfocar). Foco AA: borde de marca + anillo, no solo un halo claro. */
 .entrada {
   transition: border-color var(--dur-rapido) var(--ease-suave),
     box-shadow var(--dur-rapido) var(--ease-suave);
@@ -409,14 +405,6 @@
   }
 }
 
-/* ------------------------------------------------ Chat flotante de /kits */
-/* La burbuja vive en la esquina, por encima de la franja del total. La franja
- * pegada de /kits (`.pie`) mide ~97 px en escritorio y se pega a 12 px del borde
- * (≈109 px) con "Ir a pagar" a la derecha, justo bajo la burbuja. 144 px deja
- * ~35 px de holgura para que no lo tape ni cuando el rótulo del total se parte
- * en dos renglones. En móvil la franja es de una sola fila (~70 px con su
- * margen); ahí bastan 124 px (12 px de aire sobre la franja). */
-
 .burbuja {
   position: fixed;
   right: 20px;
@@ -628,7 +616,6 @@
   outline-offset: -3px;
 }
 
-/* Siempre visible, fija sobre el campo de texto; en movil se desplaza de lado. */
 .sugerencias {
   display: flex;
   flex-wrap: nowrap;
@@ -687,7 +674,7 @@
     left: 0;
     bottom: 0;
     width: 100%;
-    /* dvh: en el celular 85vh incluye la barra del navegador y la ventana se salía. */
+
     height: 100dvh;
     border-radius: 0;
   }

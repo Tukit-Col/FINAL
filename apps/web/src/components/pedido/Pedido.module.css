@@ -1,6 +1,3 @@
-/* Las piezas de un pedido que comparten `/pago/resultado` y `/pedidos/[id]`:
-   la tarjeta de productos y la de entrega. Mismo lenguaje clay del pago. */
-
 .tarjeta {
   width: 100%;
   display: grid;
@@ -22,7 +19,6 @@
   color: var(--color-text-primary);
 }
 
-/* Productos del pedido. */
 .contador {
   font-family: var(--font);
   font-size: 13px;
@@ -84,7 +80,6 @@
   color: var(--color-text-primary);
 }
 
-/* Entrega. */
 .entrega {
   display: flex;
   gap: var(--espacio-3);

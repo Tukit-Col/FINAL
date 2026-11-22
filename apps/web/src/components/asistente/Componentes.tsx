@@ -1,8 +1,5 @@
 "use client";
 
-// Los componentes de la lista blanca del asistente. Cada uno recibe props ya
-// validadas por `validarEspec` y pinta texto plano: nada de HTML recibido.
-
 import { CLAVES_PESO, ETIQUETA_PESO, formatearCop, textoDelta, type ClavePeso, type TarjetaProducto } from "./espec";
 import estilos from "./Asistente.module.css";
 
@@ -10,7 +7,6 @@ export function TarjetaPersonaje({ nombre, imagen_url }: { nombre: string; image
   return (
     <li className={`${estilos.tarjeta} ${estilos.personaje}`}>
       {imagen_url ? (
-        // Foto real del catalogo; Next/Image exige dominios fijos y aqui vienen de varias tiendas.
         // eslint-disable-next-line @next/next/no-img-element
         <img className={estilos.foto} src={imagen_url} alt="" loading="lazy" referrerPolicy="no-referrer" />
       ) : (
@@ -138,7 +134,6 @@ export function ResumenRestricciones({
         <dd>{presupuesto === null ? "Sin tope" : formatearCop(presupuesto)}</dd>
         <dt>Lo más importante</dt>
         <dd>{ETIQUETA_PESO[orden[0] ?? CLAVES_PESO[0]!]}</dd>
-        {/* Los filtros solo se listan si el acudiente los pidió: lo que viaja es lo que ve. */}
         {marcasExcluidas.length > 0 && (
           <>
             <dt>Sin estas marcas</dt>
@@ -178,7 +173,6 @@ function Producto({ etiqueta, p }: { etiqueta: string; p: TarjetaProducto }) {
   );
 }
 
-// El nombre del renglon y "Ver en el kit": lleva la pagina a ese renglon (iluminado).
 function RotuloRenglon({ descripcion, onVer }: { descripcion: string; onVer?: (() => void) | undefined }) {
   return (
     <div className={estilos.rotuloFila}>
@@ -302,7 +296,6 @@ export function ResumenLote({
   texto: string;
   delta_total_cop: number;
   propuestas: number;
-  // Cuántas de las propuestas siguen sin decidir; "Aceptar todos" solo existe mientras haya alguna.
   pendientes: number;
   ocupado: boolean;
   onAceptarTodos: () => void;

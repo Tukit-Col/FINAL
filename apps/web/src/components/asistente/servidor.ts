@@ -1,10 +1,3 @@
-// Puente servidor del asistente: reenvia al backend con el token de la sesion
-// y devuelve solo lo que el navegador puede pintar.
-//
-// El navegador no conoce la URL del backend ni el token. Si el asistente falla
-// por cualquier causa se responde 503 `asistente_no_disponible`, que es la senal
-// para caer al formulario de siempre.
-
 import { cabecerasReenviadas, origenDeDatos, urlApi } from "@tukit/contrato/servidor";
 import { tokenDeSesion } from "@/lib/sesion";
 import { validarEspec, type EspecUi } from "./espec";
@@ -24,7 +17,6 @@ export const NO_DISPONIBLE: Resultado = {
   },
 };
 
-/** Apagado en este entorno (bandera del servidor): distinto de "fallo", la web lo dice con otras palabras. */
 export const DESACTIVADO: Resultado = {
   estado: 503,
   cuerpo: {
@@ -35,8 +27,6 @@ export const DESACTIVADO: Resultado = {
 
 export async function reenviar(ruta: string, cuerpo: unknown): Promise<Resultado> {
   const token = await tokenDeSesion();
-  // La IP del padre, para que el cupo anonimo del asistente sea por familia y no uno
-  // solo para todo este servidor (el backend solo la cree si viene de un proxy de confianza).
   const reenviadas = await cabecerasReenviadas(ruta);
   let respuesta: Response;
   try {
@@ -64,19 +54,15 @@ export async function reenviar(ruta: string, cuerpo: unknown): Promise<Resultado
     return respuesta.ok ? NO_DISPONIBLE : { estado: respuesta.status, cuerpo: { error: "error_desconocido" } };
   }
   const objeto = json as Record<string, unknown>;
-  // Bandera apagada (404 del backend) y fallo del modelo (503) se distinguen: una es "no esta
-  // activo aqui", la otra "ahora fallo, intenta de nuevo".
   if (respuesta.status === 404 && objeto["error"] === "asistente_desactivado") return DESACTIVADO;
   if (respuesta.status === 503) return NO_DISPONIBLE;
   return { estado: respuesta.status, cuerpo: objeto };
 }
 
-/** La spec validada o `null`: lo que no pasa la lista blanca no llega al navegador. */
 export function especSegura(v: unknown): EspecUi | null {
   return validarEspec(v);
 }
 
-/** Una foto real del catalogo para un personaje; `null` si no hay (la tarjeta cae al icono). */
 export async function imagenDePersonaje(nombre: string): Promise<string | null> {
   try {
     const pagina = await origenDeDatos().buscarProductos({
@@ -90,16 +76,13 @@ export async function imagenDePersonaje(nombre: string): Promise<string | null> 
       try {
         if (new URL(url).protocol === "https:") return url;
       } catch {
-        /* siguiente producto */
       }
     }
   } catch {
-    /* sin foto, se pinta el icono */
   }
   return null;
 }
 
-/** Estado del asistente para el panel: sin llamar al modelo. `caido` si el backend no contesta. */
 export async function estadoDelAsistente(): Promise<"activo" | "apagado" | "sin_modelo" | "caido"> {
   try {
     const r = await fetch(`${urlApi()}/v1/nl2c/estado`, {

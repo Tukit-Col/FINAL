@@ -1,18 +1,5 @@
 "use client";
 
-// «Atributos que se exigen» — la sección del editor de un renglón donde el
-// revisor cura lo que la ruta rápida le exige al producto, sin ir al CSV de
-// curaduría (`listas_revisadas.csv`).
-//
-// Muestra por atributo lo que el backend leyó del texto (`atributos_leidos`,
-// con la misma regla de `_renglon_resuelto`) y lo curado (`atributos`), y deja
-// cambiar el valor, marcarlo «No exigir» (guarda `*`), agregar uno de los
-// discriminantes del concepto o quitar la curaduría para volver a lo leído.
-//
-// Controlado: el estado vive en el renglón (`RenglonEditable`), que lo manda en
-// el mismo PATCH de «Guardar cambios» y solo si cambió. Lo leído no se
-// recalcula aquí: si se cambia el concepto, se recalcula al guardar y recargar.
-
 import { useState } from "react";
 import {
   NO_EXIGIR,
@@ -28,9 +15,7 @@ interface Props {
   onCambio: (filas: FilaExigencia[]) => void;
   discriminantes: readonly string[];
   porRevisar: readonly string[];
-  /** Por atributo, los valores que declaran los productos del concepto. */
   sugerencias: Record<string, string[]>;
-  /** El concepto elegido en el editor no es el guardado: lo leído es del viejo. */
   conceptoCambiado: boolean;
   disabled: boolean;
 }
@@ -76,7 +61,6 @@ export default function AtributosRenglon({
   }
 
   function quitarCuraduria(fila: FilaExigencia) {
-    // Sin lo leído ni curaduría, la fila no tiene nada que mostrar.
     if (fila.leido === null) onCambio(filas.filter((f) => f.clave !== fila.clave));
     else cambiar(fila.clave, { curado: null });
   }

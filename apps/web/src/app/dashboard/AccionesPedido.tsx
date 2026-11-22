@@ -1,15 +1,5 @@
 "use client";
 
-// La franja de acciones bajo un pedido pendiente en "Mis pedidos":
-// - Pagar: abre el mismo widget de Wompi que el kit, sobre un intento de pago
-//   nuevo del pedido. Al terminar va a la pantalla de resultado.
-// - Cancelar: pide confirmacion; Comercio pregunta a Wompi antes y no cancela
-//   si hay un pago aprobado o en curso (su mensaje se muestra tal cual).
-// - Vencido (mas de 24 horas): ya no se paga; se ofrece rearmar el kit, donde
-//   el precio se re-verifica. Cancelarlo libera lo reservado.
-// Va en su propia fila de la tabla, a todo el ancho: como quinta columna no
-// cabia en la tarjeta.
-
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -65,8 +55,6 @@ export default function AccionesPedido({
       router.refresh();
     } catch (causa) {
       setError(causa instanceof FalloApi ? causa.message : "No pudimos cancelar el pedido.");
-      // Un 409 puede significar que el pago ya se aprobo: refrescar muestra el
-      // estado real del pedido.
       router.refresh();
     } finally {
       setOcupado(null);

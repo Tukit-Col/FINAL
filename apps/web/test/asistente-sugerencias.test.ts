@@ -1,5 +1,3 @@
-// La fila de sugerencias nunca queda vacia y solo ofrece lo que el asistente hace hoy.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { AYUDA, sugerenciasDe } from "../src/components/asistente/sugerencias.ts";

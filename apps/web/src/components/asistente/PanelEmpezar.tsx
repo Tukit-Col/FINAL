@@ -1,11 +1,5 @@
 "use client";
 
-// El chat de /empezar: el acudiente cuenta que necesita, el asistente propone
-// restricciones y el acudiente las edita y confirma. Confirmar NO envia nada al
-// backend de pedidos: publica la propuesta en el navegador (evento y
-// sessionStorage) para que el formulario existente la tome. Si el asistente no
-// responde, el panel se retira y queda el formulario clasico.
-
 import { useState } from "react";
 import {
   CLAVES_PESO,
@@ -26,7 +20,6 @@ export interface RestriccionesConfirmadas {
   prioridad: "precio" | "equilibrio" | "calidad";
   pesos: Record<ClavePeso, number>;
   disposicion_sobreprecio: number;
-  // Filtros duros que el servidor ya validó; sin ellos el optimizador nunca se entera.
   marcas_excluidas: string[];
   solo_disponibles: boolean;
 }
@@ -56,7 +49,6 @@ async function avisarDecision(propuesta_id: string, decision: "aceptada" | "rech
       body: JSON.stringify({ propuesta_id, decision, tipo: "restricciones" }),
     });
   } catch {
-    /* la bitacora no estorba */
   }
 }
 
@@ -86,7 +78,7 @@ export default function PanelEmpezar() {
       });
       const cuerpo = (await respuesta.json().catch(() => null)) as Record<string, unknown> | null;
       if (respuesta.status === 503 || respuesta.status === 404) {
-        setRetirado(true); // sin asistente: queda el formulario de siempre
+        setRetirado(true);
         return;
       }
       if (!respuesta.ok || !cuerpo) {
@@ -123,7 +115,6 @@ export default function PanelEmpezar() {
   function confirmar() {
     if (!propuesta) return;
     const personajes = propuesta.ui.flatMap((c) => (c.tipo === "TarjetaPersonaje" ? [c.props.nombre] : []));
-    // Los pesos de R se reordenan segun lo que el acudiente dejo arriba.
     const ordenados = [...CLAVES_PESO].map((k) => propuesta.preferencias.pesos[k]).sort((a, b) => b - a);
     const pesos = { ...propuesta.preferencias.pesos };
     orden.forEach((clave, i) => {
@@ -141,7 +132,6 @@ export default function PanelEmpezar() {
     try {
       sessionStorage.setItem(CLAVE_ALMACEN, JSON.stringify(salida));
     } catch {
-      /* sin almacenamiento, queda el evento */
     }
     window.dispatchEvent(new CustomEvent(EVENTO_RESTRICCIONES, { detail: salida }));
     void avisarDecision(propuesta.propuesta_id, editado ? "editada" : "aceptada");

@@ -1,9 +1,3 @@
-// Validacion de los cuerpos que reciben las rutas proxy de la Fase 4.
-//
-// Pura (sin Next ni el contrato en runtime) para probarse con `node --test`.
-// Devuelve el valor limpio o el campo y el mensaje del 400 `peticion_invalida`.
-// Las reglas de negocio las decide el backend; aqui solo la forma.
-
 export type Validado<T> = { ok: true; valor: T } | { ok: false; campo: string; mensaje: string };
 
 const DESTINOS_LOTE = ["en_preparacion", "en_reparto", "entregado"] as const;

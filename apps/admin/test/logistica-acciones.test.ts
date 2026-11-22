@@ -1,9 +1,3 @@
-// Lo que el operador puede hacer con un pedido: las acciones por estado (espejo
-// de la matriz de comercio), el avance en lote, la reconciliacion de un pago y
-// como se nombra cada fallo de acceso o de la accion.
-//
-// Correr:  node --test test/logistica-acciones.test.ts
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Pedido } from "@tukit/contrato";
@@ -93,7 +87,6 @@ test("motivoDeFallo distingue sesion, rol, limite de tasa y caida", () => {
   assert.equal(motivoDeFallo(401), "sesion_expirada");
   assert.equal(motivoDeFallo(403), "sin_rol");
   assert.equal(motivoDeFallo(503), "servicio_caido");
-  // Un 429 es el limite de tasa, no un servicio caido ni una sesion vencida.
   assert.equal(motivoDeFallo(429), "limite");
 });
 
@@ -101,7 +94,6 @@ test("motivoDeAcceso: un error de sesion, rol o limite se pinta como aviso, lo d
   assert.equal(motivoDeAcceso({ estado: 401 }), "sesion_expirada");
   assert.equal(motivoDeAcceso({ estado: 403 }), "sin_rol");
   assert.equal(motivoDeAcceso({ estado: 429 }), "limite");
-  // Un 404 o una caida no son de acceso: la pagina decide (notFound o error).
   assert.equal(motivoDeAcceso({ estado: 404 }), null);
   assert.equal(motivoDeAcceso({ estado: 503 }), null);
   assert.equal(motivoDeAcceso(new Error("red")), null);

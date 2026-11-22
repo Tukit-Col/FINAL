@@ -72,7 +72,6 @@ import TarjetaLuz from "@/components/TarjetaLuz";
 import ResumenRecibo from "./ResumenRecibo";
 import styles from "./Kits.module.css";
 
-// Un icono por perfil, para que los kits se distingan de un vistazo.
 const ICONO_PERFIL: Record<PerfilKit, typeof PiggyBank> = {
   Ahorrador: PiggyBank,
   Fan: Sparkles,
@@ -80,8 +79,6 @@ const ICONO_PERFIL: Record<PerfilKit, typeof PiggyBank> = {
   Premium: Gem,
 };
 
-// Que promete cada perfil, en una frase. Todos tienen el MISMO alcance: lo que
-// cambia es el punto del frente de Pareto, no cuanto te resuelven.
 const PROMESA: Record<PerfilKit, string> = {
   Ahorrador: "Lo más barato que cumple con la lista.",
   Fan: "Con los personajes que pidió tu hijo, donde se puede.",
@@ -89,11 +86,8 @@ const PROMESA: Record<PerfilKit, string> = {
   Premium: "Las marcas que más aguantan el año.",
 };
 
-// Del más barato al de mejor marca: Ahorrador y Premium en las puntas y, entre
-// ellos, los que el acudiente pidió (Fan, A tu Medida).
 const ORDEN_PERFIL: PerfilKit[] = ["Ahorrador", "Fan", "A tu Medida", "Premium"];
 
-// La ciudad de entrega: fija, sin forma de cambiarla.
 const CIUDAD_ENTREGA = "Bogotá";
 
 export default function VistaKits({
@@ -105,7 +99,6 @@ export default function VistaKits({
 }: {
   trabajo: Trabajo;
   correo: string;
-  // Colegio, grado y apodo de los hijos del portador (vacio sin sesion).
   matriculas: ApodoMatricula[];
   entregaPrevia: EntregaPrevia | null;
   abrirPago: boolean;
@@ -122,8 +115,6 @@ export default function VistaKits({
 
   const kit = useMemo(() => kits.find((k) => k.perfil === activo) ?? kits[0], [kits, activo]);
 
-  // El nombre de cada hijo del kit: su apodo, "Hijo N" o nada; nunca la
-  // referencia interna con la que viaja cada renglon.
   const nombresHijos = useMemo(
     () =>
       etiquetasDeHijos(
@@ -137,7 +128,6 @@ export default function VistaKits({
     () => gradosDeHijos(trabajo.kits.flatMap((k) => k.lineas.map((l) => l.hijo)), trabajo.hijos),
     [trabajo.kits, trabajo.hijos],
   );
-  // El resumen por hijo del kit que se mira (solo se pinta con 2+ hijos).
   const resumen = useMemo(
     () =>
       kit ? resumenPorHijo(kit, nombresHijos, gradosHijos, trabajo.personajes_por_hijo) : [],
@@ -152,8 +142,6 @@ export default function VistaKits({
     );
   }
 
-  // En la ruta rápida el "recomendado" es el kit que el acudiente eligió al
-  // empezar; en los demás trabajos, el que marcó el recomendador.
   const eligioEl = trabajo.origen === "parent_apply";
   const rotuloMarcado = eligioEl ? "Tu elección" : "Te recomendamos este";
   const IconoActivo = ICONO_PERFIL[kit.perfil];
@@ -170,9 +158,6 @@ export default function VistaKits({
         </p>
       </header>
 
-      {/* ------------------------------------- Selector discreto de kits. Los
-          tres siguen a un clic (el contrato exige mostrarlos), pero no
-          compiten con el kit que se está mirando. */}
       {kits.length > 1 && (
         <div className={styles.selectorKits} role="tablist" aria-label="Ver otro kit">
           <span className={styles.selectorRotulo}>Ver kit</span>
@@ -208,7 +193,6 @@ export default function VistaKits({
         </div>
       )}
 
-      {/* ------------------------------------------------ El kit que se mira */}
       <TarjetaLuz key={`luz-${kit.perfil}`} className={`${styles.tarjetaKit} ${styles.kitActivo}`} aria-live="polite">
         {kit.perfil === recomendado?.perfil && (
           <span className={styles.chapaRecomendado}>
@@ -226,8 +210,6 @@ export default function VistaKits({
           {hayQueCobrar(kit.total) ? formatearPesos(kit.total) : "Sin productos con precio"}
         </span>
         <span className={styles.promesa}>{PROMESA[kit.perfil]}</span>
-        {/* Un kit sin objetivos (los de la ruta rápida anteriores al
-            cálculo) no pinta la línea: mejor nada que "NaN%". */}
         {Number.isFinite(kit.objetivos?.disponibilidad) && (
           <span className={styles.objetivos}>
             {Math.round(kit.objetivos.disponibilidad * 100)}% con precio confirmado
@@ -255,7 +237,6 @@ export default function VistaKits({
               {eligioEl ? "Tu kit:" : `Por qué el ${recomendado.perfil}:`}
             </strong>{" "}
             {recomendado.razon}
-            {/* `null` es "no puso tope": solo `false` es pasarse. */}
             {recomendado.dentro_de_presupuesto === false && (
               <em className={styles.fueraPresupuesto}> Ojo: se pasa del tope que pusiste.</em>
             )}
@@ -336,9 +317,6 @@ export default function VistaKits({
   );
 }
 
-// El pago: se congela el precio del kit elegido y se manda al acudiente a la
-// pasarela. No viaja ni un id de producto —el backend arma la orden desde el
-// trabajo—; aqui solo se recoge a donde entregar y el correo del comprobante.
 function Checkout({
   trabajoId,
   perfil,
@@ -351,9 +329,7 @@ function Checkout({
   perfil: PerfilKit;
   total: number;
   correo: string;
-  // La entrega del pedido pendiente de este kit (reintento tras un rechazo).
   entregaPrevia: EntregaPrevia | null;
-  // Llegar con el formulario de entrega ya abierto ("Intentar de nuevo").
   abrirPago: boolean;
 }) {
   const router = useRouter();
@@ -366,15 +342,10 @@ function Checkout({
     indicaciones: "",
     localidad: "",
     departamento: "",
-    // El pin confirmado en el mapa de OpenStreetMap.
     latitud: null as number | null,
     longitud: null as number | null,
-    // Tras un pago rechazado, la entrega que ya se habia escrito.
     ...entregaPrevia,
-    // La entrega es solo en Bogota: una entrega previa de otra ciudad no la cambia.
     ciudad: CIUDAD_ENTREGA,
-    // Prellenado con el correo de la sesion: al acudiente ya identificado no se
-    // le vuelve a pedir. Editable por si el comprobante va a otro correo.
     correo,
   });
   const formRef = useRef<HTMLFormElement>(null);
@@ -382,8 +353,6 @@ function Checkout({
 
   useEffect(() => {
     if (!abierto) return;
-    // El form aparece bajo la barra fija del total; lo traemos a la vista y
-    // enfocamos el primer campo. Con prefers-reduced-motion, sin animacion.
     formRef.current?.scrollIntoView({
       behavior: prefiereMenosMovimiento() ? "auto" : "smooth",
       block: "start",
@@ -395,14 +364,9 @@ function Checkout({
     (campo: Exclude<keyof typeof datos, "ciudad" | "latitud" | "longitud">) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setDatos((d) => ({ ...d, [campo]: e.target.value }));
 
-  // Editar la direccion a mano la desliga del lugar que se eligio, y suelta la
-  // localidad y el pin derivados de el (`direccion-checkout.ts`).
   const escribirDireccion = (direccion: string) =>
     setDatos((d) => escribirDireccionAMano(d, direccion));
 
-  // Elegir un resultado fija la direccion y pre-llena lo que se pudo derivar. El
-  // departamento que no se derivo conserva lo escrito; la localidad siempre se
-  // reemplaza (la anterior era de otra direccion) y, si no se pudo derivar, queda vacia para elegirla.
   const elegirLugar = (lugar: LugarElegido) =>
     setDatos((d) =>
       ({
@@ -415,7 +379,6 @@ function Checkout({
       }),
     );
 
-  // Mover el pin confirma otro punto sin tocar el texto ni la localidad.
   const moverPin = (latitud: number, longitud: number) =>
     setDatos((d) => ({ ...d, latitud, longitud }));
 
@@ -425,13 +388,10 @@ function Checkout({
     setError(null);
     try {
       const { destinatario, direccion, ciudad, correo } = datos;
-      // Los opcionales vacios no viajan: el cuerpo de quien no los llena es el
-      // mismo de siempre.
       const opcionales = {
         indicaciones: datos.indicaciones.trim(),
         localidad: datos.localidad,
         departamento: datos.departamento.trim(),
-        // Juntas o ninguna: Comercio rechaza una sola.
         latitud: datos.latitud !== null && datos.longitud !== null ? datos.latitud : undefined,
         longitud: datos.latitud !== null && datos.longitud !== null ? datos.longitud : undefined,
       };
@@ -444,19 +404,12 @@ function Checkout({
           ciudad,
           ...Object.fromEntries(Object.entries(opcionales).filter(([, valor]) => valor)),
         },
-        // La pasarela simulada redirige aqui; con Wompi, solo PSE (que se lleva
-        // la pestana al banco) vuelve por esta URL.
         url_redireccion: `${window.location.origin}/pago/resultado`,
       });
       if (checkout.widget) {
-        // Wompi abre el pago en un modal encima del kit. Al terminar, el id
-        // de la transaccion va a la pagina de resultado, que lo confirma con
-        // el servidor (el callback del widget es solo informativo).
         await abrirWidgetWompi(checkout.widget, (transaccionId) => {
           router.push(`/pago/resultado?id=${encodeURIComponent(transaccionId)}`);
         });
-        // El modal ya cubre la pagina. Si el acudiente lo cierra sin pagar, el
-        // boton vuelve a quedar disponible.
         setEnviando(false);
       } else if (checkout.url_redireccion) {
         window.location.href = checkout.url_redireccion;
@@ -476,9 +429,6 @@ function Checkout({
 
   return (
     <>
-      {/* La franja pegada abajo lleva solo el total y el boton: en el celular
-          cualquier renglon de mas tapa el kit que se esta mirando. La
-          aclaracion de que entra en el total va justo encima, en el flujo. */}
       <p className={styles.notaTotalKit}>
         El total incluye solo lo que está en tu carrito. Lo de la sección «Fuera
         del carrito» no entra en esta cifra.
@@ -517,7 +467,6 @@ function Checkout({
               required
             />
           </label>
-          {/* Búsqueda en OpenStreetMap con mapa de confirmación (ADR 0049). */}
           <CampoDireccionOsm
             valor={datos.direccion}
             latitud={datos.latitud}
@@ -564,9 +513,6 @@ function Checkout({
               autoComplete="address-level1"
             />
           </label>
-          {/* El correo solo se pide a quien no tiene sesion: al acudiente ya
-              identificado no se le vuelve a pedir, su comprobante va al correo
-              de la cuenta. Anonimo => el campo aparece y es obligatorio. */}
           {correo ? (
             <p className={styles.notaTotal}>
               El comprobante va a <strong>{correo}</strong>.
@@ -597,8 +543,6 @@ function Checkout({
   );
 }
 
-// El icono del útil cuando el producto no trae foto: dice qué es, en vez de
-// un "sin foto" que no dice nada.
 const ICONO_CATEGORIA: Record<CategoriaKit, LucideIcon> = {
   cuadernos: NotebookPen,
   escritura: Pencil,
@@ -621,8 +565,6 @@ function FranjaFan({
   sinEncaje: FilaSinEncaje[];
   nombresHijos: Map<string, string>;
 }) {
-  // Con `pedidos` solo cuenta el personaje que pidió cada hijo; un trabajo
-  // viejo sin ese campo cuenta cualquier personaje, como antes.
   const grupos = personajesPorHijo(lineas, pedidos);
   if (grupos.length === 0 && sinEncaje.length === 0) return null;
   const hijos = [...new Set([...grupos.map((g) => g.hijo), ...sinEncaje.map((f) => f.hijo)])];
@@ -683,8 +625,6 @@ function FranjaFan({
   );
 }
 
-// El resto de lo que compra un hijo, en fotos chicas: es un vistazo, no la lista (esa
-// esta abajo, por categoria). Con muchas se muestran las primeras y "+N".
 const MAX_MINIATURAS = 10;
 function MiniaturasHijo({ lineas }: { lineas: LineaKit[] }) {
   const vistas = lineas.slice(0, MAX_MINIATURAS);
@@ -756,9 +696,6 @@ function NotasSinEncaje({ filas }: { filas: FilaSinEncaje[] }) {
   );
 }
 
-// El hogar con 2+ hijos: una tarjeta por hijo (quien es, su total, sus productos con
-// personaje y lo que le falta) y, debajo, una sola seccion de lo que comparten con la
-// foto de cada producto. Es de lectura: los cambios viven en la lista por categoria.
 function ResumenPorHijo({
   kit,
   resumen,
@@ -780,7 +717,6 @@ function ResumenPorHijo({
       else siguiente.add(hijo);
       return siguiente;
     });
-  // Los productos con el personaje que pidio cada hijo (solo trae algo en Fan).
   const conPersonaje = new Map<string, LineaKit[]>();
   for (const g of personajesPorHijo(kit.lineas, pedidos)) {
     conPersonaje.set(g.hijo, [...(conPersonaje.get(g.hijo) ?? []), ...g.lineas]);
@@ -844,9 +780,6 @@ function ResumenPorHijo({
                     <>
                       <h3 className={styles.subtituloHijo}>
                         {fan.length > 0 ? "El resto de su lista" : "Su lista"}
-                        {/* Fotos de los productos, no un conteo: dos renglones que se
-                            resuelven con el mismo producto salen una vez, y eso cambia
-                            entre kits aunque la lista sea la misma. */}
                       </h3>
                       <MiniaturasHijo lineas={otros} />
                     </>
@@ -916,15 +849,6 @@ function ResumenPorHijo({
   );
 }
 
-
-// Lo que el acudiente compra va primero y completo. Todo lo que no se cobra en
-// Tukit (libros, uniformes, licencias, lo que ya tiene en casa, lo que gestiona
-// el colegio) va despues en un solo bloque compacto, agrupado por que hacer con
-// ello: renglones cortos, sin tarjetas vacias ni la misma frase repetida.
-// Lo que Tukit no supo resolver (huecos, sin leer, en revision) no se esconde:
-// sale arriba con color de aviso, porque descubrirlo tarde es el dolor que la
-// encuesta mas reporta.
-
 const ABSTENCIONES: readonly ClaseLinea[] = ["hueco", "sin_match", "pendiente_revision"];
 
 type GrupoFuera = { clave: string; titulo: string; Icono: LucideIcon; lineas: LineaKit[] };
@@ -942,7 +866,7 @@ function gruposFueraDelCarrito(lineas: readonly LineaKit[]): GrupoFuera[] {
     else if (esUniforme(l) || clase === "fuera_de_alcance") uniformes.push(l);
     else if (clase === "no_comprar") casa.push(l);
     else if (clase === "por_su_cuenta") cuenta.push(l);
-    else colegio.push(l); // licencia_digital, informativa, diferido
+    else colegio.push(l);
   }
   return [
     { clave: "libros", titulo: "Libros", Icono: BookOpen, lineas: libros },
@@ -997,8 +921,6 @@ function SeccionesDeLineas({
   nombresHijos: Map<string, string>;
 }) {
   const abstenciones = kit.lineas.filter((l) => ABSTENCIONES.includes(clasificar(l)));
-  // En el carrito, lo que el acudiente quito queda al final para que la lista
-  // de lo que si se compra se lea seguida.
   const carrito = kit.lineas
     .filter((l) => clasificar(l) === "comprable")
     .sort((a, b) => Number(a.descartado === true) - Number(b.descartado === true));

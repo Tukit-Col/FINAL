@@ -1,10 +1,3 @@
-// `POST /api/tickets/{caso}/responder` — el operador responde al acudiente.
-//
-// El token de la cookie httpOnly se reenvia como Bearer: operacion valida la
-// sesion y el rol (operador/admin), guarda la respuesta en la historia del caso
-// y encola el aviso al acudiente. Aqui solo se exige sesion y un JSON legible;
-// el texto lo valida operacion (vacio, demasiado largo, ticket cerrado).
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import { cuerpoJson, respuestaDeError } from "@/lib/respuesta";
 import { tokenDeSesion } from "@/lib/sesion";

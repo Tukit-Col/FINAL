@@ -1,9 +1,3 @@
-// El tablero kanban de logistica: las columnas siguen el flujo, cada etapa se
-// agrupa y recorta con las alertas primero, y la tarjeta solo ofrece el avance
-// legal de la matriz.
-//
-// Correr:  node --test test/logistica-tablero.test.ts
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Pedido } from "@tukit/contrato";
@@ -54,7 +48,6 @@ test("agruparPorEtapa: conteo real, alertas y lo mas viejo primero; cerrados rec
   assert.equal(entregado!.total, 7);
   assert.equal(entregado!.pedidos.length, 5);
   assert.equal(entregado!.ocultos, 2);
-  // Lo entregado mas reciente primero (por `entregado_en`).
   assert.equal(entregado!.pedidos[0]!.pedido_id, "e-6");
   assert.deepEqual(agruparPorEtapa([], ["en_reparto"])[0], { estado: "en_reparto", total: 0, pedidos: [], ocultos: 0 });
 });
@@ -78,7 +71,6 @@ test("accionDeTarjeta: solo el avance legal de la matriz, sin saltos", () => {
   for (const estado of [...COLUMNAS_FLUJO, ...CARRIL_APARTE]) {
     const a = accionDeTarjeta(estado);
     if (!a) continue;
-    // Siempre una transicion que la matriz permite desde ese estado.
     assert.ok(accionesDisponibles(estado).some((x) => x.destino === a.accion.destino));
     assert.notEqual(a.accion.destino, "incidencia");
     assert.notEqual(a.accion.destino, "cancelado");
@@ -87,7 +79,6 @@ test("accionDeTarjeta: solo el avance legal de la matriz, sin saltos", () => {
     accion: accionesDisponibles("pagado")[0],
     directa: true,
   });
-  // Despachar pide repartidor: va al detalle.
   assert.equal(accionDeTarjeta("en_preparacion")!.directa, false);
   assert.equal(accionDeTarjeta("en_reparto")!.accion.destino, "entregado");
   for (const quieto of ["pendiente_pago", "entregado", "cancelado", "incidencia"] as const) {

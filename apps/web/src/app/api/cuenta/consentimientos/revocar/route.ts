@@ -1,5 +1,3 @@
-// `POST /api/cuenta/consentimientos/revocar`: el titular retira su autorizacion
-// de tratamiento sin borrar la cuenta (Ley 1581, art. 8 lit. e).
 import { cookies } from "next/headers";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import { respuestaDeError } from "@/lib/respuesta";

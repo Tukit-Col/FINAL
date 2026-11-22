@@ -1,8 +1,3 @@
-// La regla pura del campo de dirección del checkout: qué se borra al editar a
-// mano una dirección ya elegida.
-//
-// Runner nativo de Node sobre TypeScript. Correr: `node --test test/direccion-checkout.test.ts`.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { escribirDireccionAMano } from "../src/lib/direccion-checkout.ts";

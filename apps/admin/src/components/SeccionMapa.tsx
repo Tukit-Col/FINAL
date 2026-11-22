@@ -1,10 +1,3 @@
-// La seccion "Entregas en el mapa" de /logistica. Server Component: aqui se
-// geocodifica (solo en el servidor, con cache y 1 peticion por segundo) y se
-// agrupa; el mapa de Leaflet entra por el envoltorio de cliente con ssr:false.
-//
-// Es un consolidado, no un planificador: cuenta y lista por colegio, y marca
-// donde esta cada direccion. No ordena rutas ni calcula tiempos.
-
 import Link from "next/link";
 import type { Pedido } from "@tukit/contrato";
 import { ETIQUETA_ESTADO_PEDIDO } from "@tukit/contrato";
@@ -21,7 +14,6 @@ import { hrefColegioEnTabla } from "@/lib/logistica";
 import MapaEntregasCarga from "./MapaEntregasCarga";
 import styles from "./SeccionMapa.module.css";
 
-/** Cuantos pedidos lista cada colegio antes de mandar a la tabla. */
 const VISIBLES_POR_GRUPO = 10;
 
 interface Props {
@@ -39,7 +31,6 @@ export default async function SeccionMapa({ pedidos, nombresColegio }: Props) {
     ciudad: p.envio!.ciudad,
     departamento: p.envio!.departamento,
   }));
-  // Si Nominatim o el disco fallan, el mapa se degrada a lista sin marcadores.
   const puntos: Map<string, ResultadoGeo> = geocodificador
     ? await geocodificador.resolver(direcciones).catch(() => new Map<string, ResultadoGeo>())
     : new Map<string, ResultadoGeo>();

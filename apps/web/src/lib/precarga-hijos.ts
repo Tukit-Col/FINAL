@@ -1,20 +1,8 @@
-// Qué hijos de la cuenta se precargan en /empezar cuando el acudiente entra por
-// "Ya tengo cuenta". Separado del formulario para probarlo sin navegador.
-//
-// Solo se precarga un hijo que se puede usar tal cual: su colegio tiene la
-// lista de ese grado verificada, así que va directo a armar el kit. Uno de un
-// colegio sin lista (o de un grado sin verificar) pediría subir el archivo y,
-// precargado, dejaba el buscador vacío y el botón bloqueado sin explicar por
-// qué. Esos quedan fuera con su motivo, y el formulario lo dice.
-
-// Lo que el formulario deja agregar: precargar más dejaría hijos que no se
-// pueden quitar y volver a poner.
 export const MAX_HIJOS = 4;
 
 export interface ColegioPrecarga {
   colegio_id: string;
   nombre: string;
-  // Los grados con lista verificada.
   grados: string[];
 }
 
@@ -25,9 +13,7 @@ export interface MatriculaPrecarga {
 }
 
 export interface HijoSinPrecargar {
-  // El apodo, o `null` si no tiene.
   nombre: string | null;
-  // El nombre del colegio, o `null` si no se conoce (nunca el id).
   colegio: string | null;
   grado: string;
   motivo: "sin_lista" | "tope";
@@ -69,9 +55,6 @@ function unir(items: string[]): string {
   return `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}`;
 }
 
-// Un aviso por motivo, en palabras de papá y con lo que puede hacer. Con
-// `cargados` en el tope, el formulario ya no muestra «Agregar otro hijo»: el
-// aviso no puede mandar a un botón que no está.
 export function avisosDePrecarga(fuera: readonly HijoSinPrecargar[], cargados = 0): string[] {
   const sinLista = fuera.filter((h) => h.motivo === "sin_lista").map(quien);
   const tope = fuera.filter((h) => h.motivo === "tope").map(quien);

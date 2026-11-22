@@ -1,7 +1,3 @@
-/* ============================================================
-   StepIndicator — Indicador de pasos del flujo (clay)
-   ============================================================ */
-
 .steps {
   display: flex;
   align-items: center;

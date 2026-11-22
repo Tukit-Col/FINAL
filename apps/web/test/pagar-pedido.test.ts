@@ -1,7 +1,3 @@
-// Pruebas de las reglas de "Mis pedidos": si el acudiente puede pagar o
-// cancelar un pedido, cuando un pedido vencio, y como se abre el widget de pago. Runner nativo de Node
-// (type-stripping), sin dependencias: `npm test` en apps/web.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -106,13 +102,10 @@ test("un pendiente vencido, uno cancelado o uno de otro kit no cambian la solici
 });
 
 test("un pedido en incidencia ya esta pagado: la solicitud queda comprada", () => {
-  // Si no, se le ofreceria "Cancelar solicitud" a un kit que ya se cobro.
   const pedidos = [pedidoDe("pend", "pendiente_pago", 1), pedidoDe("inc", "incidencia", 3)];
   assert.deepEqual(compraDeSolicitud(kit, pedidos, AHORA), { estado: "comprado", pedidoId: "inc" });
 });
 
-// "Intentar de nuevo" tras un pago rechazado: el kit precarga la entrega del
-// pedido que quedo pendiente, para no volver a escribir la direccion.
 const envio = {
   destinatario: "Ana Pérez",
   direccion: "Calle 1 # 2-3",
@@ -153,8 +146,6 @@ test("sin pedido pendiente y vigente del kit no hay entrega que precargar", () =
   );
 });
 
-// --- widget de Wompi -----------------------------------------------------------
-
 const base = {
   publicKey: "pub_test_x",
   currency: "COP",
@@ -165,9 +156,6 @@ const base = {
 };
 
 test("el widget se abre por postMessage para que el redirectUrl no viaje en la URL", () => {
-  // Por omision el widget serializa la configuracion en la URL de su iframe, y
-  // el CDN de Wompi responde 403 si ahi aparece un redirect-url a localhost: el
-  // iframe nunca carga y el modal se queda en "cargando".
   const opciones = opcionesWidget(base);
   assert.equal(opciones.bootstrapTransport, "postmessage");
   assert.equal(opciones.redirectUrl, "http://localhost:3000/pago/resultado");

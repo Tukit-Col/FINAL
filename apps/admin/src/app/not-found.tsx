@@ -1,5 +1,3 @@
-// 404 de la consola. Dentro del layout: con sesion la cabecera (y el logo) ya está arriba.
-
 import Link from "next/link";
 
 export default function NoEncontrada() {

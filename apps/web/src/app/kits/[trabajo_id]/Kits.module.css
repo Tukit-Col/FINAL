@@ -21,10 +21,6 @@
   color: var(--color-text-muted);
 }
 
-/* -------------------------------------------------- Selector discreto */
-
-/* Los tres kits a un clic, sin competir con el que se mira: una fila de
- * pastillas con su total. El marcado (recomendado o elegido) lleva estrella. */
 .selectorKits {
   display: flex;
   flex-wrap: wrap;
@@ -94,7 +90,6 @@
     box-shadow var(--dur-medio) var(--ease-suave);
 }
 
-/* El kit que se mira: una sola tarjeta grande, debajo del selector. */
 .kitActivo {
   margin-top: var(--espacio-5);
   box-shadow: var(--clay-shadow-lg), inset 0 0 0 3px var(--color-primary);
@@ -177,8 +172,6 @@
   font-weight: 700;
 }
 
-/* --------------------------------------------------------------- Resumen */
-
 .resumen {
   display: flex;
   flex-wrap: wrap;
@@ -218,8 +211,6 @@
   color: var(--color-aviso);
 }
 
-/* -------------------------------------------------------- Consolidaciones */
-
 .consolidaciones {
   margin-top: var(--espacio-5);
   background: var(--color-success-bg);
@@ -255,8 +246,6 @@
   color: var(--color-text-secondary);
 }
 
-/* -------------------------------------------------------------- Secciones */
-
 .secciones {
   margin-top: var(--espacio-6);
   display: grid;
@@ -288,9 +277,6 @@
   max-width: 76ch;
 }
 
-/* Las abstenciones se marcan con color, no se esconden al final. Que "no lo
- * tenemos" sea lo primero que se ve es una decision de producto: la encuesta
- * dice que el 37 % del dolor es descubrir tarde que algo no estaba. */
 .seccion_hueco .cabeceraSeccion h2,
 .seccion_sin_match .cabeceraSeccion h2 {
   color: var(--color-aviso);
@@ -308,8 +294,6 @@
   display: grid;
   gap: var(--espacio-3);
 }
-
-/* ----------------------------------------------------------------- Linea */
 
 .linea {
   background: var(--clay-surface-grad);
@@ -392,8 +376,6 @@
   color: var(--color-text-secondary);
 }
 
-/* `nivel` y `personaje` son ejes ortogonales y por eso son dos pastillas
- * distintas: un cuaderno de Spiderman tambien tiene nivel de calidad. */
 .nivel {
   font-size: 10.5px;
   font-weight: 800;
@@ -502,8 +484,6 @@
   color: var(--color-text-muted);
 }
 
-/* ----------------------------------------------- Cambiar por otra opción */
-
 .alternativas {
   margin-top: var(--espacio-3);
   padding-top: var(--espacio-3);
@@ -573,7 +553,6 @@
   transform: translateY(-2px);
 }
 
-/* La que ya está en el kit: marcada, no se mueve. */
 .opcionEnKit {
   background: var(--clay-cielo-bg);
   box-shadow: inset 0 0 0 2px var(--color-primary);
@@ -698,8 +677,6 @@
   color: var(--color-text-muted);
 }
 
-/* ------------------------------------------------------------------- Pie */
-
 .pie {
   position: sticky;
   bottom: var(--espacio-3);
@@ -719,7 +696,6 @@
   display: grid;
 }
 
-/* Lo que entra en el total, fuera de la franja pegada para que no la engorde. */
 .notaTotalKit {
   margin-top: var(--espacio-6);
   font-size: 12.5px;
@@ -765,7 +741,6 @@
   box-shadow: var(--clay-shadow-primary);
 }
 
-/* Mientras se manda a la pasarela: apagado para no cobrar dos veces. */
 .pagar:disabled {
   background: var(--color-border);
   color: var(--color-text-muted);
@@ -775,7 +750,7 @@
 
 .formPago {
   margin-top: var(--espacio-4);
-  /* Deja aire bajo la cabecera sticky superior (~63px) al saltar aqui. */
+
   scroll-margin-top: var(--espacio-7);
   display: grid;
   gap: var(--espacio-3);
@@ -824,15 +799,12 @@
   color: var(--color-text-muted);
 }
 
-/* Ciudad y localidad lado a lado; en movil, una sobre otra. */
 .filaPago {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: var(--espacio-3);
 }
 
-/* El campo de direccion lleva su rotulo aparte (no envolvente) y la lista de
-   resultados colgando debajo. */
 .campoDireccion {
   position: relative;
   display: grid;
@@ -879,10 +851,6 @@
   color: var(--color-text-muted);
 }
 
-/* Dirección con OpenStreetMap (ADR 0049): el campo y el
-   botón Buscar van en fila; en pantallas angostas el botón baja debajo para que
-   ninguno quede por debajo de 44 px de toque. */
-/* Ancla de la lista de resultados: ver `CampoDireccionOsm`. */
 .anclaListaDireccion {
   position: relative;
 }
@@ -922,7 +890,6 @@
   cursor: not-allowed;
 }
 
-/* Cada resultado es un blanco de toque de al menos 44 px. */
 .sugerenciasDireccion .sugerenciaDireccion {
   min-height: 44px;
   align-content: center;
@@ -934,7 +901,6 @@
   color: var(--color-text-muted);
 }
 
-/* La licencia de OSM pide atribuir; en la lista y, abajo, sobre el mapa mismo. */
 .atribucionOsm {
   padding: var(--espacio-1) var(--espacio-4) var(--espacio-2);
   border-top: 1px solid var(--color-border-light);
@@ -955,7 +921,6 @@
   color: var(--color-text-primary);
 }
 
-/* `min-width: 0` y ancho al 100%: el mapa nunca ensancha el formulario. */
 .mapaEntrega,
 .mapaCargando {
   width: 100%;
@@ -964,8 +929,7 @@
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
   background: var(--color-surface-2);
-  /* Leaflet apila sus paneles con z-index altos: se encierran aqui para que no
-     pasen por encima de la barra fija ni de la lista de resultados. */
+
   isolation: isolate;
 }
 
@@ -976,8 +940,6 @@
   color: var(--color-text-muted);
 }
 
-/* Leaflet inyecta el divIcon fuera del arbol de React: la clase del modulo va en
-   el contenedor y el dibujo en el span. Una gota con la punta abajo. */
 .pinEntrega {
   background: none;
   border: 0;
@@ -1029,9 +991,6 @@
     text-align: left;
   }
 
-  /* En el celular la franja del total es una sola fila compacta (total a la
-   * izquierda, boton a la derecha), pegada al borde: antes envolvia en tres
-   * renglones y tapaba casi media pantalla del kit. */
   .pie {
     bottom: var(--espacio-2);
     flex-wrap: nowrap;
@@ -1064,8 +1023,6 @@
   }
 }
 
-/* ------------------------------------------- Quitar un renglón y el carrusel */
-
 .lineaDescartada {
   opacity: 0.72;
   background: var(--color-neutro-bg);
@@ -1092,12 +1049,6 @@
   cursor: progress;
 }
 
-/* Cadena de padres del carrusel. Un hijo de grid o flex tiene `min-width:auto`
- * (el ancho de su contenido), así que una pista con muchas tarjetas le exige al
- * renglón (y a la tarjeta del kit) ser tan ancho como TODAS las opciones juntas:
- * la página se ensanchaba en vez de que la pista hiciera scroll. Con `min-width:0`
- * en cada eslabón (y columna `minmax(0,1fr)` en el grid) el ancho lo manda la
- * tarjeta y el exceso se queda dentro de la pista. */
 .lineas {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -1115,10 +1066,6 @@
   max-width: 100%;
 }
 
-/* Difuminado en los bordes con más contenido: dice "hay más" sin ocupar sitio
- * y funciona también en el celular, donde no hay flechas. Es una máscara sobre
- * la propia pista (no un degradado de color) para no depender del fondo de la
- * tarjeta, que es un degradado. */
 .hayIzq .carrusel {
   -webkit-mask-image: linear-gradient(to right, transparent 0, #000 28px);
   mask-image: linear-gradient(to right, transparent 0, #000 28px);
@@ -1138,7 +1085,7 @@
   list-style: none;
   display: flex;
   gap: var(--espacio-3);
-  /* La pista nunca es más ancha que su marco: el resto se desplaza. */
+
   min-width: 0;
   max-width: 100%;
   overflow-x: auto;
@@ -1146,8 +1093,7 @@
   overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
   scroll-snap-type: x mandatory;
-  /* El relleno lateral se descuenta del snap para que la primera y la última
-   * tarjeta queden alineadas con el borde y no pegadas a él. */
+
   scroll-padding-inline: 2px;
   padding: var(--espacio-2) 2px var(--espacio-3);
   scrollbar-width: thin;
@@ -1155,14 +1101,13 @@
 
 .carrusel:focus-visible {
   outline: 2px solid var(--color-primary);
-  /* Hacia adentro: la máscara de difuminado recorta todo lo que cae fuera de la
-   * caja de la pista, y un contorno externo desaparecería al enfocar con teclado. */
+
   outline-offset: -2px;
   border-radius: var(--radius-md);
 }
 
 .tarjetaOpcion {
-  /* Nunca más ancha que la pista (en 320 px, 72 % ya cabe), con tope de 220. */
+
   flex: 0 0 min(220px, 72%);
   min-width: 0;
   scroll-snap-align: start;
@@ -1176,8 +1121,6 @@
   box-shadow: var(--clay-shadow-sm);
 }
 
-/* Los textos largos (nombres de producto, marcas) se parten dentro de la
- * tarjeta en vez de empujar su ancho. */
 .tarjetaOpcion > span {
   max-width: 100%;
   overflow-wrap: anywhere;
@@ -1208,8 +1151,6 @@
   color: var(--color-text-muted);
 }
 
-/* Flechas: solo aparecen del lado donde hay más (las pinta el componente).
- * 44 px de toque. Van dentro del marco, no fuera, para no salirse de la tarjeta. */
 .flechaCarrusel {
   display: none;
   position: absolute;
@@ -1233,8 +1174,6 @@
   right: 4px;
 }
 
-/* En pantallas con puntero fino hay flechas; en tactiles se desliza con el dedo
- * y el difuminado avisa que hay mas. */
 @media (min-width: 720px) {
   .flechaCarrusel {
     display: grid;
@@ -1247,8 +1186,6 @@
   font-size: 12px;
   color: var(--color-text-muted);
 }
-
-/* ------------------------------------------------------- Franja del personaje */
 
 .franjaFan {
   margin-top: var(--espacio-5);
@@ -1343,8 +1280,6 @@
   color: var(--color-text-muted);
 }
 
-/* ------------------------------------------------------- Libros y uniformes */
-
 .seccion_libros .cabeceraSeccion h2,
 .seccion_uniformes .cabeceraSeccion h2 {
   color: var(--color-info);
@@ -1390,8 +1325,6 @@
   padding: 3px 12px;
 }
 
-/* ------------------------------------------------ Pie: total y consentimiento */
-
 .avisoExcluidos {
   margin-top: var(--espacio-3);
   font-size: 13px;
@@ -1420,9 +1353,6 @@
   opacity: 0.55;
   cursor: not-allowed;
 }
-
-/* ------------------------------------------------ Fuera del carrito */
-/* Un solo bloque compacto: renglones cortos, sin tarjeta por renglon. */
 
 .fueraCarrito {
   background: var(--color-white);
@@ -1515,12 +1445,6 @@
   }
 }
 
-/* ------------------------------------------ Blancos táctiles y franja en móvil */
-
-/* Los botones de la tarjeta (selector de kit, "Cambiar por otra opción",
- * "Quitar", "Elegir") medían 28-32 px de alto: en el celular se fallaba el
- * toque. WCAG 2.5.5 / guía de Apple y Google piden 44 px. Solo en pantallas
- * táctiles anchas de hasta 720 px para no engordar la versión de escritorio. */
 @media (max-width: 720px) {
   .opcionKit,
   .botonCambiar,
@@ -1533,8 +1457,6 @@
     padding-inline: var(--espacio-5);
   }
 
-  /* El total no puede empujar el botón "Ir a pagar" fuera de la franja si el
-   * texto es largo ("Sin productos con precio"): se recorta con puntos. */
   .totalPie {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1552,11 +1474,9 @@
   font-weight: 700;
 }
 
-/* ------------------------------------------------- Grupos por categoría */
-
 .grupoCategoria {
   margin-top: var(--espacio-5);
-  /* Deja libre el encabezado fijo al saltar a #cat-… (ancla del asistente). */
+
   scroll-margin-top: var(--espacio-7);
 }
 
@@ -1621,12 +1541,6 @@
   color: var(--color-text-secondary);
 }
 
-/* ============================================================ Diseño en acción */
-
-/* ---- Acento por categoría (orientación) ------------------------------------
- * Cada grupo del carrito lleva su propio color en una barra lateral y en el
- * punto del título. Es decoración: el nombre del grupo y su conteo siguen
- * siendo texto (AA); el color nunca es el único portador de significado. */
 .grupoCategoria {
   --acento: var(--color-primary);
   --acento-bg: var(--color-info-bg);
@@ -1681,13 +1595,11 @@
   margin-bottom: var(--espacio-3);
 }
 
-/* Cambiar todos: objetivo táctil de 44 px */
 .botonCambiar,
 .botonLoteSecundario {
   min-height: 44px;
 }
 
-/* ---- Lo que el asistente esta proponiendo cambiar --------------------------- */
 .linea[data-asistente] {
   box-shadow:
     0 0 0 2px var(--color-primary),
@@ -1716,7 +1628,6 @@
   }
 }
 
-/* ---- Transición al cambiar de producto ------------------------------------ */
 .productoNuevo {
   animation: productoNuevo var(--dur-lento) var(--ease-suave) both;
 }
@@ -1734,7 +1645,6 @@
   }
 }
 
-/* ---- Estados de carga: esqueleto con destello suave ------------------------ */
 .esqueletoOpciones {
   display: flex;
   gap: var(--espacio-3);
@@ -1804,7 +1714,6 @@
   }
 }
 
-/* Ciudad fijada por la direccion elegida (Bogota): solo lectura + salida explicita. */
 .ciudadFija {
   margin: calc(-1 * var(--espacio-2)) 0 0;
   font-size: 13px;
@@ -1816,7 +1725,6 @@
   color: var(--color-text-secondary);
 }
 
-/* Tarjeta de confirmación de la dirección elegida (OpenStreetMap). */
 .anclaListaDireccion[hidden] {
   display: none;
 }
@@ -1876,8 +1784,6 @@
   cursor: pointer;
 }
 
-/* ------------------------------------------------- Resumen por hijo (2+ hijos) */
-/* ---- El hogar con 2+ hijos: un kit por hijo y lo que comparten ------------- */
 .familia {
   min-width: 0;
   margin-top: var(--espacio-6);

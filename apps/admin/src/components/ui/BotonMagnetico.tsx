@@ -1,17 +1,11 @@
 "use client";
 
-// Enlace-boton con "iman" (port de `magnetic-button`): se inclina unos pixeles
-// hacia el puntero al acercarse y vuelve al salir. Es feedback de que la
-// accion es la principal; solo se usa en los CTA del panel. Sin puntero fino
-// (tactil) o con prefers-reduced-motion no se mueve nada. El objetivo mide
-// >=44 px de alto y el foco visible no depende del movimiento.
-
 import Link from "next/link";
 import { useRef, type PointerEvent, type ReactNode } from "react";
 import styles from "./BotonMagnetico.module.css";
 
 const FUERZA = 0.22;
-const TOPE = 6; // px
+const TOPE = 6;
 
 export default function BotonMagnetico({
   href,

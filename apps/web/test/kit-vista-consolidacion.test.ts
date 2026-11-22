@@ -1,8 +1,3 @@
-// La consolidacion entre hermanos: la frase que dice para quienes es, cuanto se
-// compra, cuanto se ahorra y por que; y la foto del producto compartido.
-//
-// Runner nativo de Node sobre TypeScript. Correr: `node --test test/kit-vista-consolidacion.test.ts`.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fotoDeConsolidacion, textoDeConsolidacion } from "../src/lib/kit-vista.ts";
@@ -18,7 +13,6 @@ test("textoDeConsolidacion nombra a los hijos con sus apodos, sin palabras inter
   assert.equal(dos.paraQuienes, "Para Ana y Luis");
   assert.equal(dos.cantidad, "Necesitan 4 unidades en total y compras 1 paquete");
   assert.equal(dos.ahorro, "Ahorras $ 5.000 frente a comprarlos por separado");
-  // Tres hijos y uno sin apodo: "Hijo N" por su lugar; sin ahorro no se inventa.
   const tres = textoDeConsolidacion(
     { hijos: ["hijo-0", "hijo-1", "hijo-2"], demanda_base: 6, unidades_a_comprar: 2 },
     nombres,
@@ -32,16 +26,12 @@ test("textoDeConsolidacion nombra a los hijos con sus apodos, sin palabras inter
 test("textoDeConsolidacion aguanta datos incompletos sin frases colgadas", () => {
   const nombres = new Map([["hijo-0", "Ana"]]);
   const base = { demanda_base: 2, unidades_a_comprar: 1 };
-  // Sin hijos: no queda un "Para " suelto.
   assert.equal(textoDeConsolidacion({ ...base, hijos: [] }, nombres, null).paraQuienes, null);
-  // Hijo repetido: se nombra una vez.
   assert.equal(
     textoDeConsolidacion({ ...base, hijos: ["hijo-0", "hijo-0"] }, nombres, null).paraQuienes,
     "Para Ana",
   );
-  // Un solo hijo.
   assert.equal(textoDeConsolidacion({ ...base, hijos: ["hijo-0"] }, nombres, null).paraQuienes, "Para Ana");
-  // Demanda 0 o nula: se omite la frase de cantidad que no existe.
   assert.equal(
     textoDeConsolidacion({ hijos: ["hijo-0"], demanda_base: 0, unidades_a_comprar: 2 }, nombres, null).cantidad,
     "En total compras 2 paquetes",

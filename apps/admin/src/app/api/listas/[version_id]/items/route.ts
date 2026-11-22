@@ -1,12 +1,3 @@
-// `POST /api/listas/{version_id}/items` — P4, alta de un renglón en la revisión.
-//
-// El revisor agrega una línea que el modelo no itemizó. El cuerpo es un
-// `ItemListaEditable` (en un alta el backend solo exige `texto_original`); la
-// respuesta trae el `item_id` que el backend asignó, para que la región 3 pueda
-// re-leer. Las guardas de dominio (lista_ya_revisada 409, campo inválido) las
-// impone el backend; aquí solo se traduce el error tal cual (§11), sin devolver
-// lo que el cliente mandó.
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { ItemListaEditable } from "@tukit/contrato";
 import { cuerpoJson, respuestaDeError } from "@/lib/respuesta";

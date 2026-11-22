@@ -30,7 +30,6 @@
   animation: barrer 700ms var(--ease-suave) both;
 }
 
-/* El arco crece desde su inicio: dasharray de 0 a su largo. */
 @keyframes barrer {
   from {
     opacity: 0;
@@ -125,7 +124,6 @@
   font-weight: 500;
 }
 
-/* Resumen dentro de una tarjeta: el anillo acompaña, no protagoniza. */
 .compacta {
   grid-template-columns: 112px minmax(0, 1fr);
   gap: var(--espacio-4);
@@ -139,8 +137,6 @@
   font-size: 10.5px;
 }
 
-/* Dentro de un contenedor angosto (la tarjeta declara container-type) la
- * leyenda baja bajo el anillo en vez de quedar apretada al lado. */
 @container (max-width: 440px) {
   .compacta {
     grid-template-columns: minmax(0, 1fr);

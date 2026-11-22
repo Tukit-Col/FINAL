@@ -1,5 +1,3 @@
-// Imagen al compartir el enlace (WhatsApp, redes): el logo sobre el crema de la
-// marca. Se genera una vez al construir; no depende de red ni de datos.
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";

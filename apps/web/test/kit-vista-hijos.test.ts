@@ -1,9 +1,3 @@
-// Como se nombra a cada hijo en el kit: por su apodo (del trabajo o, si no,
-// de las matriculas), o «Hijo N» cuando hay varios; nunca por la referencia
-// interna. Y el grado de cada uno.
-//
-// Runner nativo de Node sobre TypeScript. Correr: `node --test test/kit-vista-hijos.test.ts`.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { etiquetasDeHijos, gradosDeHijos } from "../src/lib/kit-vista.ts";
@@ -21,8 +15,6 @@ test("la ruta rápida («canonico») muestra el apodo del hijo de la cuenta", ()
 });
 
 test("sin matriculas, el apodo guardado en el trabajo nombra al hijo", () => {
-  // Ruta rapida: las lineas dicen "canonico" y el trabajo trae un solo hijo con su
-  // apodo. Sin matriculas (fallo o 429 -> []), el kit igual lo nombra.
   const etiquetas = etiquetasDeHijos(
     ["canonico", "canonico"],
     [{ colegio_id: COLEGIO, grado: "Primero", apodo: "Tomi" }],

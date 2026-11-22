@@ -1,7 +1,3 @@
-// `POST /api/cuenta/supresion`: el titular borra sus datos (Ley 1581, art. 8).
-// Identidad exige la frase escrita, anonimiza, revoca la sesion y responde que
-// se borro y que se conserva (con su fundamento). Si salio bien, aqui se borra
-// tambien la cookie: el token ya no vale y no tiene sentido dejarlo.
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";

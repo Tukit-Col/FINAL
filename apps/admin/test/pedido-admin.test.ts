@@ -1,9 +1,3 @@
-// El detalle de pedido del admin: la linea de tiempo con quien y cuando, el
-// enmascarado de datos personales, los totales por linea y como se nombra a
-// cada hijo sin su apodo (Ley 1581).
-//
-// Correr:  node --test test/pedido-admin.test.ts
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { PedidoAdmin } from "@tukit/contrato";
@@ -107,10 +101,6 @@ test("un plazo YYYY-MM-DD se pinta sin correrse de dia", () => {
   assert.equal(formatearDiaIso(null), "—");
   assert.equal(formatearDiaIso("mañana"), "—");
 });
-
-// --- Ley 1581: el apodo de un menor no llega a las vistas admin ---------------
-// Que ninguna fuente de `src/` lea `.apodo` lo vigila la regla de lint de
-// `eslint.config.mjs`; aqui, que el rotulo no lo deje pasar aunque llegue.
 
 test("el rotulo de un hijo dice su posicion y grado, nunca el apodo que traiga el objeto", () => {
   const rotulo = rotuloDeHijo({ apodo: "Sofi", grado: "3°" } as { grado: string }, 0);

@@ -4,8 +4,6 @@
   gap: var(--espacio-5);
 }
 
-/* -------------------------------------------------------------- grupo */
-
 .grupo {
   display: flex;
   flex-direction: column;
@@ -42,8 +40,6 @@
   color: var(--color-text-muted);
   font-size: 13px;
 }
-
-/* --------------------------------------------------------------- lista */
 
 .lista {
   display: flex;
@@ -130,8 +126,6 @@
   padding: 0 var(--espacio-4) var(--espacio-4);
   border-top: 1px dashed var(--color-border);
 }
-
-/* ------------------------------------------------------ alta acotada */
 
 .alta {
   display: flex;

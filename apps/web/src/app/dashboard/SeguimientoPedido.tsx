@@ -1,9 +1,3 @@
-// La linea de fases de UN pedido en "Mis pedidos": cinco iconos unidos por un
-// trazo (horizontal en escritorio, vertical en movil). Pinta lo que arma
-// `seguimientoDePedido` (que viene de la linea de tiempo de Comercio); no
-// decide ninguna regla. Inspirada en el journey-canvas del sf-design-stack,
-// portada con los tokens de Tukit.
-
 import {
   Ban,
   BadgeCheck,

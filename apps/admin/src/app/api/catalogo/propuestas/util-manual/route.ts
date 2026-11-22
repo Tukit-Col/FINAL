@@ -1,12 +1,3 @@
-// `POST /api/catalogo/propuestas/util-manual` — encola un útil a mano (P4c bis).
-//
-// Para lo que la búsqueda en vivo no encuentra (VTEX/Shopify no lo indexa, o es
-// una tienda sin búsqueda): el personal escribe nombre, precio, tienda y —si lo
-// tiene— SKU y marca. Como el resto de altas, solo encola (`estado: "pendiente"`):
-// una persona decide el nivel al aprobar. El precio va en PESOS enteros y > 0;
-// se valida aquí además del form y del origen (tres veces a propósito, §1.4). La
-// tienda tiene que existir en la BD; si no, el backend responde `tienda_desconocida`.
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { AltaUtilManual } from "@tukit/contrato";
 import { cuerpoJson, respuestaDeError } from "@/lib/respuesta";

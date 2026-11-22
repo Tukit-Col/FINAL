@@ -1,12 +1,3 @@
-// `POST /api/colegios/{colegio}/{grado}/nueva-version` — P4, "Editar" una lista.
-//
-// Clona la lista vigente de ese (colegio, grado) en una versión nueva SIN
-// revisar, para corregir una lista ya publicada sin tocar la vigente. Devuelve
-// el `version_id` de la copia, para que el cliente caiga en el revisor de cuatro
-// paneles (`/onboarding/{version_id}`). El `anio_lectivo` viene en el cuerpo
-// (lo sabe la pantalla del grado, de la lista vigente). Las guardas las impone
-// el backend; aquí solo se traduce el error tal cual (§11).
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import { cuerpoJson, respuestaDeError } from "@/lib/respuesta";
 

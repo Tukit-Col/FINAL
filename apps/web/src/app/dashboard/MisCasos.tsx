@@ -1,10 +1,5 @@
 "use client";
 
-// "Mis casos": crear, ver y seguir las solicitudes (PQRS) del acudiente. El
-// dueño de cada caso es la sesión (Operación lo verifica); aquí no se pide ni
-// se manda ningún correo. Seguir un caso es leer su estado y plazo y agregarle
-// mensajes mientras siga abierto.
-
 import { useId, useState } from "react";
 import { CheckCircle2, LifeBuoy, MessageSquarePlus, Send } from "lucide-react";
 import {
@@ -28,7 +23,6 @@ export default function MisCasos({
   formularioInicial = false,
 }: {
   iniciales: MiCaso[];
-  /** Solo para pruebas visuales: arranca con el formulario abierto. */
   formularioInicial?: boolean;
 }) {
   const idForm = useId();

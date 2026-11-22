@@ -1,10 +1,3 @@
-// Qué hijos de la cuenta se precargan en /empezar ("Ya tengo cuenta"): solo
-// los que se pueden usar tal cual (colegio con la lista de ese grado
-// verificada), hasta el tope del formulario, y por qué quedaron fuera los
-// demás.
-//
-// Runner nativo de Node sobre TypeScript. Correr: `node --test test/precarga-hijos.test.ts`.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { MAX_HIJOS, avisosDePrecarga, precargarHijos } from "../src/lib/precarga-hijos.ts";
@@ -12,7 +5,6 @@ import { MAX_HIJOS, avisosDePrecarga, precargarHijos } from "../src/lib/precarga
 const COLEGIOS = [
   { colegio_id: "san-pedro", nombre: "Colegio San Pedro", grados: ["Primero", "Tercero"] },
   { colegio_id: "agustiniano", nombre: "Colegio Agustiniano", grados: ["Jardin", "Tercero"] },
-  // Colegios de la cuenta sin lista verificada.
   { colegio_id: "cacs", nombre: "Colegio CACS", grados: [] },
   { colegio_id: "modelia", nombre: "Colegio Modelia", grados: [] },
 ];

@@ -1,12 +1,5 @@
 "use client";
 
-// Los enlaces del menu lateral a las secciones del MISMO panel. Un ancla pelada
-// salta de golpe y no se nota que el menu sirve para moverse dentro de la
-// pagina; aqui se baja con desplazamiento suave (sin animacion si el sistema
-// pide menos movimiento) y se resalta la seccion que esta a la vista. Vive
-// aparte para que el Sidebar siga siendo de servidor: los iconos son
-// componentes y no pueden cruzar como props de servidor a cliente.
-
 import { useEffect, useState, type MouseEvent } from "react";
 import { Users, Package, ClipboardList, LifeBuoy } from "lucide-react";
 import { prefiereMenosMovimiento } from "@tukit/contrato/motion";
@@ -27,8 +20,6 @@ export default function NavSecciones() {
       (el): el is HTMLElement => el !== null,
     );
     if (elementos.length === 0) return;
-    // La seccion "activa" es la que cruza la franja central de la ventana: asi
-    // una seccion corta al final de la pagina tambien llega a marcarse.
     const observador = new IntersectionObserver(
       (entradas) => {
         for (const entrada of entradas) {
@@ -49,8 +40,6 @@ export default function NavSecciones() {
       behavior: prefiereMenosMovimiento() ? "auto" : "smooth",
       block: "start",
     });
-    // Se deja el ancla en la URL sin el salto brusco del navegador, para que
-    // compartir o recargar caiga en la misma seccion.
     history.replaceState(null, "", `#${id}`);
     setActiva(id);
   }

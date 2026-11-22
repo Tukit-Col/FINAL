@@ -1,9 +1,3 @@
-// Los filtros de la pantalla de logistica: que se lee de la URL, como se busca
-// y filtra (codigo corto, estado, colegio, dia de Bogota, alerta) y los enlaces
-// que conservan los demas filtros.
-//
-// Correr:  node --test test/logistica-filtros.test.ts
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Pedido } from "@tukit/contrato";
@@ -44,7 +38,6 @@ const PEDIDOS = [
     pedido_id: "ffff0000-0000-4000-8000-000000000000",
     estado: "incidencia",
     colegios: ["Gimnasio Moderno"],
-    // 9 p. m. de Bogota del 1: en UTC ya es el 2.
     creado_en: "2026-10-02T02:00:00Z",
   }),
 ];
@@ -114,7 +107,6 @@ test("hrefConVista conserva los filtros y no escribe la vista por defecto", () =
   const f = leerFiltros({ alerta: "pago_atascado", vista: "tabla" });
   assert.equal(hrefConVista(f, "tablero"), "/logistica?alerta=pago_atascado");
   assert.equal(hrefConVista(leerFiltros({}), "tabla"), "/logistica?vista=tabla");
-  // Los chips de alerta, desde la tabla, siguen en la tabla.
   assert.equal(hrefConAlerta(f, ""), "/logistica?vista=tabla");
   assert.equal(hrefEtapaEnTabla(leerFiltros({}), "entregado"), "/logistica?estado=entregado&vista=tabla");
 });

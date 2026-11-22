@@ -1,11 +1,3 @@
-// `POST /api/logistica/{pedido}/avanzar` — el operador mueve un pedido un paso.
-//
-// El token de la cookie httpOnly se reenvia como Bearer: comercio valida la
-// sesion y el rol (operador/admin) y decide si la transicion procede. Aqui no
-// se reimplementa esa regla; solo se exige que haya sesion y un JSON legible.
-// La cookie es `sameSite=lax`, asi que otro sitio no puede disparar este POST
-// con ella.
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { SolicitudAvanceAdmin } from "@tukit/contrato";
 import { cuerpoJson, respuestaDeError } from "@/lib/respuesta";
@@ -43,7 +35,6 @@ export async function POST(
   try {
     return Response.json(await origenDeDatos().avanzarPedidoAdmin(token, pedido, cuerpo));
   } catch (causa) {
-    // 409/422 suben tal cual, con su `campo`: el formulario marca la entrada.
     return respuestaDeError(causa);
   }
 }

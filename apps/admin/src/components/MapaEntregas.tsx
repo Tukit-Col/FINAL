@@ -1,13 +1,5 @@
 "use client";
 
-// El mapa de entregas pendientes: OpenStreetMap con Leaflet. Se carga solo en el
-// navegador (lo importa `MapaEntregasCarga` con `ssr: false`) porque Leaflet toca
-// `window` al importarse. Los puntos ya vienen geocodificados del servidor: aqui
-// nunca se habla con Nominatim.
-//
-// Los marcadores son `divIcon` con el conteo de pedidos y no la imagen por
-// omision de Leaflet, cuyas rutas de PNG se rompen al empaquetar.
-
 import { useEffect } from "react";
 import Link from "next/link";
 import L from "leaflet";
@@ -17,7 +9,6 @@ import { ATRIBUCION } from "@/lib/geocodificador";
 import type { Marcador } from "@/lib/consolidado";
 import styles from "./MapaEntregas.module.css";
 
-// Bogota: el centro cuando aun no hay ningun punto.
 const CENTRO_POR_OMISION: [number, number] = [4.711, -74.0721];
 
 function icono(cantidad: number): L.DivIcon {

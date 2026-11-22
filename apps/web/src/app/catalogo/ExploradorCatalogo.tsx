@@ -15,8 +15,6 @@ import {
 import BloqueConcepto from "./BloqueConcepto";
 import estilos from "./Catalogo.module.css";
 
-// Centinelas de los selectores. Llevan guiones bajos para que no choquen con
-// un nombre de categoria, de personaje o de tienda que venga del catalogo.
 const TODOS = "__todos__";
 const SIN_PERSONAJE = "__sin_personaje__";
 
@@ -38,13 +36,8 @@ const SIN_FILTROS: Filtros = {
   soloHuecos: false,
 };
 
-// `NIVELES` es el conjunto y `ORDEN_NIVEL` es la escala. Se ordena por la
-// escala para que un reordenamiento del arreglo del contrato no cambie en
-// silencio la direccion en la que se lee la pantalla.
 const NIVELES_EN_ORDEN = [...NIVELES].sort((a, b) => ORDEN_NIVEL[a] - ORDEN_NIVEL[b]);
 
-// Buscar "lapiz" tiene que encontrar "lápiz": el corpus escribe los nombres
-// con tilde y nadie las teclea en un buscador.
 function normalizar(texto: string): string {
   return texto
     .toLowerCase()
@@ -55,9 +48,6 @@ function normalizar(texto: string): string {
 interface ConceptoIndexado {
   concepto: ConceptoCatalogo;
   cobertura: CoberturaConcepto;
-  // Todo el texto por el que se puede encontrar el concepto, ya normalizado.
-  // Se arma una vez porque la alternativa es recorrer 99 conceptos y 242
-  // productos en cada tecla pulsada.
   buscable: string;
 }
 
@@ -113,9 +103,6 @@ export default function ExploradorCatalogo({ catalogo }: Props) {
 
   const visibles = useMemo<ConceptoVisible[]>(() => {
     const consulta = normalizar(filtros.texto.trim());
-    // Nivel, personaje y tienda filtran PRODUCTOS; categoria, texto y huecos
-    // filtran CONCEPTOS. Saber si hay alguno del primer grupo puesto decide
-    // que hacer con un concepto que se queda sin productos.
     const filtraProductos =
       filtros.nivel !== TODOS || filtros.personaje !== TODOS || filtros.tienda !== TODOS;
 
@@ -130,10 +117,6 @@ export default function ExploradorCatalogo({ catalogo }: Props) {
         ? concepto.productos.filter((producto) => pasaProducto(producto, filtros))
         : concepto.productos;
 
-      // Con un filtro de producto puesto, un concepto sin coincidencias no
-      // dice nada y solo empuja hacia abajo lo que si coincide. Sin filtros de
-      // producto los conceptos vacios SI se listan: son la mitad de la
-      // informacion de esta pantalla.
       if (filtraProductos && productos.length === 0) continue;
 
       resultado.push({
@@ -197,10 +180,6 @@ export default function ExploradorCatalogo({ catalogo }: Props) {
             ))}
           </select>
 
-          {/* Dos selectores y no uno: el nivel de calidad y el personaje son
-              ejes ortogonales, asi que "premium" y "Spiderman" se pueden pedir
-              juntos. Fundirlos en una sola lista haria del personaje un cuarto
-              nivel, que es lo que la base prohibe con una restriccion. */}
           <select
             className={estilos.selector}
             aria-label="Filtrar por nivel de calidad"
@@ -323,10 +302,6 @@ function pasaProducto(producto: ProductoCatalogo, filtros: Filtros): boolean {
   ) {
     return false;
   }
-  // Un producto pasa el filtro de tienda si ALGUNA de sus ofertas es de esa
-  // tienda. Las ofertas que no lo son se siguen mostrando en la tarjeta: la
-  // pantalla existe para comparar precios entre tiendas, y esconder la
-  // competencia seria quitarle el sentido a la comparacion.
   if (filtros.tienda !== TODOS && !producto.ofertas.some((oferta) => oferta.tienda === filtros.tienda)) {
     return false;
   }

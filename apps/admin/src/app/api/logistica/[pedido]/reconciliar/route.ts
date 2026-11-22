@@ -1,6 +1,3 @@
-// `POST /api/logistica/{pedido}/reconciliar` — consulta a Wompi el pago de un pedido atascado.
-// Sin cuerpo: el servicio aplica lo que Wompi diga con el aplicador idempotente del webhook.
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import { respuestaDeError } from "@/lib/respuesta";
 import { tokenDeSesion } from "@/lib/sesion";

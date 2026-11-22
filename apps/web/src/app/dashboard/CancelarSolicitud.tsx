@@ -1,11 +1,5 @@
 "use client";
 
-// "Cancelar solicitud" en "Mis solicitudes": un botón discreto que pide
-// confirmación en la misma tarjeta. Un trabajo se cancela en Inteligencia, que
-// no deja cancelar un kit comprado ni uno con un pago pendiente (su mensaje se
-// muestra tal cual); una lista subida que aún no tiene kit deja de ser del
-// acudiente sin borrarse (ADR 0031).
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";

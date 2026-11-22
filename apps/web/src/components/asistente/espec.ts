@@ -1,10 +1,3 @@
-// La spec de interfaz que devuelve el asistente y su validador.
-//
-// El servidor compila la spec a partir de datos ya validados, pero el navegador
-// no confia en eso: antes de pintar, cada componente se revisa contra esta lista
-// blanca. Lo que no encaja se descarta entero. Nunca se pinta HTML recibido: los
-// textos entran a React como texto y las imagenes solo si son https.
-
 export type ClavePeso = "precio" | "marca_exigida" | "calidad" | "personaje";
 export const CLAVES_PESO: readonly ClavePeso[] = ["precio", "marca_exigida", "calidad", "personaje"];
 
@@ -60,7 +53,6 @@ export type Componente =
       };
     }
   | {
-      // El resumen de un pedido por categoria: el texto lo redacta el servidor.
       tipo: "ResumenLote";
       props: {
         accion: "mas_barato" | "mejor_calidad" | "variar";
@@ -96,7 +88,6 @@ export const TIPOS_PERMITIDOS = [
   "ExplicacionKit",
 ] as const;
 
-// Un resumen de lote más hasta 12 propuestas (MAX_PROPUESTAS_LOTE del servidor).
 const MAX_COMPONENTES = 13;
 const MAX_TEXTO = 160;
 
@@ -215,7 +206,6 @@ function componente(v: unknown): Componente | null {
   }
 }
 
-/** La spec si todos sus componentes son de la lista blanca y estan bien formados; si no, `null`. */
 export function validarEspec(v: unknown): EspecUi | null {
   if (!esObj(v) || v["version"] !== 1 || !Array.isArray(v["componentes"])) return null;
   if (v["componentes"].length > MAX_COMPONENTES) return null;
@@ -228,7 +218,6 @@ export function validarEspec(v: unknown): EspecUi | null {
   return { version: 1, componentes: salida };
 }
 
-/** Reparte los pesos originales (de mayor a menor) segun el nuevo orden de prioridad. */
 export function pesosDesdeOrden(
   originales: Record<ClavePeso, number>,
   orden: readonly ClavePeso[],
@@ -241,7 +230,6 @@ export function pesosDesdeOrden(
   return salida;
 }
 
-/** Los pesos de R que importan primero: el mayor da la prioridad que entiende el formulario. */
 export function prioridadDeOrden(orden: readonly ClavePeso[]): "precio" | "equilibrio" | "calidad" {
   const primera = orden[0];
   if (primera === "precio") return "precio";
@@ -258,13 +246,11 @@ export function textoDelta(delta: number): string {
   return delta < 0 ? `Ahorras ${formatearCop(-delta)}` : `Cuesta ${formatearCop(delta)} más`;
 }
 
-/** El pedido que el navegador recuerda para el turno siguiente ("y en colores también"). */
 export interface PedidoAnterior {
   accion: "mas_barato" | "mejor_calidad" | "variar";
   categoria: string;
 }
 
-/** Lo que el servidor devolvió como contexto, solo si es una acción de la lista y una palabra corta. */
 export function pedidoAnteriorSeguro(v: unknown): PedidoAnterior | null {
   if (!esObj(v)) return null;
   const { accion, categoria } = v;
@@ -273,7 +259,6 @@ export function pedidoAnteriorSeguro(v: unknown): PedidoAnterior | null {
   return { accion, categoria };
 }
 
-/** Los ejemplos tocables de la respuesta de ayuda: pocos, cortos y solo texto. */
 export function ejemplosSeguros(v: unknown): string[] {
   if (!Array.isArray(v)) return [];
   return v.filter((e): e is string => typeof e === "string" && e.length > 0 && e.length <= 60).slice(0, 6);

@@ -1,10 +1,3 @@
-// El orquestador de cliente de la SPA de catálogo (P4c). Dueño del estado de
-// filtros/paginación y de qué producto está abierto en el editor. El Server
-// Component hace la PRIMERA lectura (SSR, sin filtros) y la pasa como
-// `paginaInicial`; a partir de ahí toda búsqueda interactiva va por el Route
-// Handler GET (`api-catalogo`), para que la URL y el token del backend se
-// queden en el servidor.
-
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -24,7 +17,6 @@ import styles from "./CatalogoSpa.module.css";
 
 const POR_PAGINA = 24;
 
-// Filtros de tres estados (todos/sí/no) para las banderas booleanas.
 type TriEstado = "" | "si" | "no";
 
 function comoBandera(v: TriEstado): boolean | undefined {
@@ -45,7 +37,6 @@ export default function GestorCatalogo({ paginaInicial, conceptos, personajes }:
   const [errorBusqueda, setErrorBusqueda] = useState<string | null>(null);
   const [seleccionado, setSeleccionado] = useState<ProductoCatalogoDetalle | null>(null);
 
-  // Estado del formulario de búsqueda.
   const [busqueda, setBusqueda] = useState("");
   const [concepto, setConcepto] = useState("");
   const [nivel, setNivel] = useState<Nivel | "">("");
@@ -55,7 +46,6 @@ export default function GestorCatalogo({ paginaInicial, conceptos, personajes }:
   const [conOfertas, setConOfertas] = useState<TriEstado>("");
   const [pagina, setPagina] = useState(paginaInicial.pagina);
 
-  // Evita disparar la búsqueda por HTTP en el primer render: ya vino del SSR.
   const primerRender = useRef(true);
 
   const ejecutar = useCallback(
@@ -88,7 +78,6 @@ export default function GestorCatalogo({ paginaInicial, conceptos, personajes }:
     [busqueda, concepto, nivel, personaje, conPersonaje, conPrecio, conOfertas],
   );
 
-  // Debounce: cualquier cambio de filtro re-busca desde la página 1.
   useEffect(() => {
     if (primerRender.current) {
       primerRender.current = false;

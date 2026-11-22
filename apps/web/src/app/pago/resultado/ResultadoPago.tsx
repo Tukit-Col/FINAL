@@ -26,7 +26,6 @@ import styles from "../Pago.module.css";
 const INTERVALO_MS = 3000;
 const MAX_INTENTOS = 20;
 const ESTADOS_REINTENTABLES = [502, 503, 504];
-// Cuantos productos se ven antes de "Ver todos": un kit trae decenas.
 const PRODUCTOS_VISIBLES = 5;
 
 type Vista =
@@ -80,8 +79,6 @@ export default function ResultadoPago({ id }: { id: string | undefined }) {
     };
   }, [id]);
 
-  // El detalle (productos, medio, entrega) se pide una vez que el pago tiene
-  // desenlace. Es un adorno: si falla, la pantalla se muestra sin el.
   const pedidoId =
     vista.tipo === "resultado" && vista.datos.estado_pago !== "iniciado"
       ? vista.datos.pedido_id
@@ -145,8 +142,6 @@ export default function ResultadoPago({ id }: { id: string | undefined }) {
   );
 }
 
-// ---------------------------------------------------------------- Aprobado
-
 function Aprobado({ datos, pedido }: { datos: Resultado; pedido: Pedido | null }) {
   return (
     <>
@@ -167,7 +162,6 @@ function Aprobado({ datos, pedido }: { datos: Resultado; pedido: Pedido | null }
       {pedido?.envio && <EntregaPedido envio={pedido.envio} />}
 
       <div className={styles.acciones}>
-        {/* El panel del acudiente: ahi ve este pedido y los demas. */}
         <Link href="/dashboard" className={styles.boton}>
           <Package size={18} aria-hidden /> Ir a mis pedidos
         </Link>
@@ -180,7 +174,6 @@ function Aprobado({ datos, pedido }: { datos: Resultado; pedido: Pedido | null }
   );
 }
 
-// Los pasos que siguen al pago, con "Pagado" ya cumplido.
 function Pasos() {
   const pasos = [
     { nombre: "Pagado", Icono: Check },
@@ -205,11 +198,7 @@ function Pasos() {
   );
 }
 
-// ---------------------------------------------------------------- Rechazado
-
 function Rechazado({ datos, pedido }: { datos: Resultado; pedido: Pedido | null }) {
-  // Vuelve al kit con la entrega ya abierta y llena (la del pedido pendiente):
-  // reintentar no obliga a escribir otra vez la direccion.
   const reintentar = datos.trabajo_id ? `/kits/${datos.trabajo_id}?pagar=1` : null;
   return (
     <>
@@ -240,7 +229,6 @@ function Rechazado({ datos, pedido }: { datos: Resultado; pedido: Pedido | null 
             Intentar de nuevo
           </Link>
         )}
-        {/* El pedido sigue pendiente: desde su pagina se paga otra vez o se cancela. */}
         <Link
           href={`/pedidos/${datos.pedido_id}`}
           className={reintentar ? `${styles.boton} ${styles.secundario}` : styles.boton}
@@ -252,9 +240,6 @@ function Rechazado({ datos, pedido }: { datos: Resultado; pedido: Pedido | null 
   );
 }
 
-// ------------------------------------------------------------ Piezas comunes
-
-// Total, medio de pago, fecha y numero de pedido, en una franja.
 function Franja({ datos, pedido }: { datos: Resultado; pedido: Pedido | null }) {
   const medio = pedido?.pago ? MEDIOS_PAGO[pedido.pago.metodo] : null;
   const fecha = pedido

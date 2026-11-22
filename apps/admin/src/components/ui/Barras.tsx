@@ -1,9 +1,3 @@
-// Barras horizontales (equivalente ligero de `chart-area` para conteos sin
-// serie temporal): el largo compara los valores y el color dice la gravedad.
-// Cada fila es un enlace a su vista filtrada. La barra crece una vez (CSS).
-// `fina` baja el peso visual cuando todas valen casi lo mismo (no es ranking);
-// `nota` es una marca corta junto a la etiqueta (p. ej. "acudiente esperando").
-
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { proporcion } from "@/lib/graficos";
@@ -15,7 +9,6 @@ export interface FilaBarra {
   valor: number;
   href: string;
   tono?: "normal" | "critico" | "aviso" | "suave";
-  /** Texto del valor si no es solo la cifra ("3 listas"). */
   valorTexto?: string;
   nota?: ReactNode;
 }

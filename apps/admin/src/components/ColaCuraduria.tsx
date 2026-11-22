@@ -1,19 +1,3 @@
-// La cola de curaduría proactiva del catálogo (P4c bis). Lista las propuestas
-// pendientes (útiles y libros que alguien encoló) y deja aprobarlas —eligiendo
-// el nivel y, si hace falta, corrigiendo marca/imagen/personaje/atributos ANTES
-// de aprobar, con el mismo formulario del editor de catálogo— o rechazarlas
-// —con motivo y, opcional, `no_surtir`—.
-//
-// Leaf de cliente: pide `colaPropuestas()` por el Route Handler (la URL del
-// backend se queda en el servidor) y refresca tras cada acción. El mensaje de
-// error que muestra es el del backend tal cual, nunca uno inventado aquí.
-//
-// Las correcciones a mano viajan en el cuerpo de `aprobarPropuesta`: SOLO se
-// mandan las claves que la persona cambió, para que el backend conserve su
-// derivación automática (marca de la ficha, personaje del nombre, atributos de
-// las especificaciones) en las que no tocó. Aprobar sin abrir el editor es
-// idéntico a como era: solo `{ nivel }`.
-
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -51,7 +35,7 @@ function precioTexto(precio: number | null): string {
 }
 
 function pareceUrl(texto: string): boolean {
-  if (!texto.trim()) return true; // vacío = sin imagen, válido
+  if (!texto.trim()) return true;
   try {
     const u = new URL(texto);
     return u.protocol === "http:" || u.protocol === "https:";
@@ -64,7 +48,6 @@ export default function ColaCuraduria({ conceptos, personajes }: Props) {
   const [propuestas, setPropuestas] = useState<PropuestaCola[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // La fila que está en medio de una acción (aprobar/rechazar), por `id`.
   const [ocupada, setOcupada] = useState<string | null>(null);
 
   const recargar = useCallback(async () => {
@@ -79,9 +62,6 @@ export default function ColaCuraduria({ conceptos, personajes }: Props) {
     }
   }, []);
 
-  // La carga inicial se difiere con un `setTimeout` (mismo patrón que
-  // `GestorCatalogo`) para no llamar a `setState` en el cuerpo síncrono del
-  // efecto: la lectura es un `fetch`, no hay razón de bloquear el render.
   useEffect(() => {
     const t = setTimeout(() => void recargar(), 0);
     return () => clearTimeout(t);
@@ -160,12 +140,6 @@ export default function ColaCuraduria({ conceptos, personajes }: Props) {
   );
 }
 
-// -------------------------------------------------------------- Una propuesta
-//
-// Cada fila lleva su propio estado de edición (nivel, corrección de campos,
-// atributos, formulario de rechazo). Es un `key={p.id}` en el padre, así que
-// cambiar la lista la remonta y arranca de los valores de la propuesta.
-
 interface FilaProps {
   p: PropuestaCola;
   conceptos: OpcionConcepto[];
@@ -178,20 +152,12 @@ interface FilaProps {
 function FilaPropuesta({ p, conceptos, personajes, ocupada, onAprobar, onRechazar }: FilaProps) {
   const [nivel, setNivel] = useState<Nivel>((p.nivel_sugerido as Nivel) ?? "confiable");
 
-  // Editor de detalles, plegado por defecto para que la cola siga siendo
-  // escaneable. Al abrirlo se corrigen los mismos campos que el editor de
-  // catálogo; lo que no se toca conserva la derivación automática del backend.
   const [editando, setEditando] = useState(false);
   const [nombre, setNombre] = useState(p.nombre);
   const [marca, setMarca] = useState(p.marca ?? "");
   const [personaje, setPersonaje] = useState("");
   const [imagenUrl, setImagenUrl] = useState(p.imagen_url ?? "");
 
-  // Los atributos arrancan de las claves que el CONCEPTO declara (igual que el
-  // editor de catálogo), llenas con lo que el producto tendría si se aprueba tal
-  // cual (`atributos_al_aprobar`: la ficha, el nombre y lo verificado). Así lo
-  // que se ve es lo que queda. Si no se cambia nada, NO se manda `atributos` y
-  // el backend aplica esa misma derivación.
   const conceptoDeLaPropuesta = useMemo(
     () => conceptos.find((c) => c.codigo === codigoConcepto(p)),
     [conceptos, p],
@@ -218,9 +184,6 @@ function FilaPropuesta({ p, conceptos, personajes, ocupada, onAprobar, onRechaza
   const urlValida = useMemo(() => pareceUrl(imagenUrl), [imagenUrl]);
   const puedeAprobar = !ocupada && nombre.trim().length > 0 && urlValida;
 
-  // Arma el cuerpo de aprobación: `nivel` siempre; las correcciones SOLO si el
-  // editor está abierto y el valor cambió respecto de la propuesta. Así aprobar
-  // sin abrir el editor manda `{ nivel }` y todo lo demás lo pone el backend.
   function construirCuerpo(): AprobarPropuesta {
     const cuerpo: AprobarPropuesta = { nivel };
     if (!editando) return cuerpo;
@@ -234,21 +197,14 @@ function FilaPropuesta({ p, conceptos, personajes, ocupada, onAprobar, onRechaza
     const imagenLimpia = imagenUrl.trim() ? imagenUrl.trim() : null;
     if (imagenLimpia !== (p.imagen_url ?? null)) cuerpo.imagen_url = imagenLimpia;
 
-    // La propuesta no trae personaje (el backend lo saca del nombre): solo se
-    // manda si la persona escribió uno, para pisar esa derivación.
     if (personaje.trim()) cuerpo.personaje = personaje.trim();
 
-    // `serializarAtributos` tipa y descarta filas vacías. Solo se manda el mapa
-    // si quedó algo: un mapa vacío REEMPLAZARÍA la derivación automática por
-    // nada, que no es lo que se quiere al no tocar los atributos.
     const mapa = serializarAtributos([...discriminantes, ...descriptivos, ...libres]);
     const inicial = serializarAtributos([
       ...gruposIniciales.discriminantes,
       ...gruposIniciales.descriptivos,
       ...gruposIniciales.libres,
     ]);
-    // Solo si la persona cambió algo: lo que arrancó lleno ya lo aplica el
-    // backend, y mandarlo tal cual pisaría lo que él lee del nombre.
     if (Object.keys(mapa).length > 0 && JSON.stringify(mapa) !== JSON.stringify(inicial)) {
       cuerpo.atributos = mapa;
     }

@@ -1,7 +1,3 @@
-// La pantalla de espera (`/esperando`): qué paso ya hizo el backend, cuándo la
-// cortesía visual avanza el paso que se ve, y con qué token se sondea el trabajo.
-// Correr: `node --test test/espera.test.ts`.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -17,10 +13,8 @@ const ok = (nombre: string) => ({ nombre, estado: "ok" });
 test("el backend cuenta pasos completos desde el primero", () => {
   assert.equal(pasosHechosPorBackend([], false), 0);
   assert.equal(pasosHechosPorBackend([ok("percepcion")], false), 1);
-  // Buscar necesita normalizacion Y resolucion.
   assert.equal(pasosHechosPorBackend([ok("percepcion"), ok("normalizacion")], false), 1);
   assert.equal(pasosHechosPorBackend([ok("percepcion"), ok("normalizacion"), ok("resolucion")], false), 2);
-  // Un hueco corta la cuenta aunque haya etapas posteriores.
   assert.equal(pasosHechosPorBackend([ok("resolucion"), ok("optimizacion")], false), 0);
 });
 
@@ -48,7 +42,7 @@ test("si el backend ya terminó, el recorrido entero cabe en ~6 s", () => {
     const m = siguienteMovimiento(visibles, PASOS.length, desde);
     if (m.enMs === null) break;
     total += m.enMs;
-    desde = DURACION_PASO_MS; // el reloj ya cumplió
+    desde = DURACION_PASO_MS;
     const hecho = siguienteMovimiento(visibles, PASOS.length, desde);
     visibles = hecho.visibles;
     desde = 0;
@@ -56,8 +50,6 @@ test("si el backend ya terminó, el recorrido entero cabe en ~6 s", () => {
   assert.equal(visibles, PASOS.length);
   assert.ok(total <= 6000);
 });
-
-// --- sondeo: la consulta del trabajo lleva el token de la sesion (ADR 0047) ----
 
 function origenQueAnota() {
   const llamadas: { trabajoId: string; token: string | undefined }[] = [];

@@ -25,7 +25,7 @@
   margin-top: var(--espacio-2);
   display: inline-flex;
   align-items: center;
-  /* 44 px de alto: antes 34 px, corto para el pulgar. */
+
   min-height: 44px;
   padding: 0 18px;
   border-radius: var(--radius-full);
@@ -36,7 +36,6 @@
   box-shadow: var(--clay-shadow-primary);
 }
 
-/* En el celular el relleno de 32 px laterales le quita casi un tercio al texto. */
 @media (max-width: 480px) {
   .aviso {
     padding: var(--espacio-4);

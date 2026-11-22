@@ -1,17 +1,7 @@
-// Las firmas de lectura y escritura de `OrigenDatos` que usan las pantallas del
-// acudiente y del admin: alta de cuenta, solicitudes del acudiente, acudientes
-// por colegio y subida de listas. Cada doble es un `Pick<OrigenDatos, ...>`:
-// fija la forma que la pantalla espera sin stubear el origen entero. El
-// cliente HTTP real lo cubre `npm run typecheck`.
-//
-// Runner nativo de Node sobre TypeScript. Correr: `node --test test/origen.test.ts`.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { AcudienteResumen, NuevaCuenta, OrigenDatos, Sesion } from "../src/origen.ts";
 import type { SubidaHecha, SubidaListas, TrabajoResumen } from "../src/contrato.ts";
-
-// --- crearCuenta ---------------------------------------------------------------
 
 const origenDeAlta: Pick<OrigenDatos, "crearCuenta"> = {
   async crearCuenta(cuenta: NuevaCuenta): Promise<{ sesion: Sesion; token: string }> {
@@ -38,8 +28,6 @@ test("crearCuenta devuelve sesion y token, como iniciarSesion", async () => {
   assert.ok(token.length > 0);
 });
 
-// --- misTrabajos -----------------------------------------------------------------
-
 const origenDelAcudiente: Pick<OrigenDatos, "misTrabajos"> = {
   async misTrabajos(_token?: string): Promise<TrabajoResumen[]> {
     return [
@@ -59,11 +47,8 @@ test("misTrabajos devuelve las solicitudes del acudiente", async () => {
   assert.equal(filas.length, 1);
   assert.equal(filas[0]!.estado, "encolado");
   assert.equal(filas[0]!.hijos[0]!.grado, "Cuarto");
-  // Sin nombre de menor: la referencia es sintética (`hijo-0`).
   assert.equal(filas[0]!.hijos[0]!.referencia, "hijo-0");
 });
-
-// --- acudientesDeColegio (admin) -------------------------------------------------
 
 const origenDelAdmin: Pick<OrigenDatos, "acudientesDeColegio"> = {
   async acudientesDeColegio(_colegioId: string): Promise<AcudienteResumen[]> {
@@ -79,7 +64,6 @@ test("acudientesDeColegio devuelve resúmenes con estado y sin datos de menores"
   assert.equal(filas.length, 2);
   assert.equal(filas[0]!.estado, "procesando");
   assert.equal(filas[1]!.usuario_id, "u2");
-  // Solo el identificador del acudiente y el estado.
   assert.deepEqual(Object.keys(filas[0]!).sort(), [
     "actualizado_en",
     "estado",
@@ -87,8 +71,6 @@ test("acudientesDeColegio devuelve resúmenes con estado y sin datos de menores"
     "usuario_id",
   ]);
 });
-
-// --- subirListas (POST /v1/listas/subir, ADR 0040) ------------------------------
 
 function origenQueSube(subidas: SubidaHecha[]): Pick<OrigenDatos, "subirListas"> {
   return {

@@ -1,13 +1,3 @@
-// `PATCH /api/colegios/{colegio}` — P4/P1b, edición del perfil de un colegio.
-//
-// El administrador reescribe la identidad/marca del colegio (logo, sitio web,
-// contactos de la secretaría académica). El cuerpo es un `ColegioEditable` con
-// solo lo que cambió; `null` limpia un campo. NO edita `nombre` ni `sedes`. La
-// respuesta es el `ColegioDetalle` ya actualizado, para que el formulario
-// re-pinte sin una segunda lectura. Los contactos son del colegio, nunca de un
-// menor (§12.4). Las guardas las impone el backend; aquí solo se traduce el
-// error tal cual (§11), sin devolver lo que el cliente mandó.
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { ColegioEditable } from "@tukit/contrato";
 import { cuerpoJson, respuestaDeError } from "@/lib/respuesta";

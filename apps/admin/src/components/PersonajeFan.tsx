@@ -1,15 +1,5 @@
 "use client";
 
-// El interruptor de personaje del kit Fan (rediseño §7, 2d).
-//
-// El Fan es el kit "con licencia": sus cuatro anclas —cuaderno, cartuchera,
-// carpeta, maleta— llevan el personaje que el niño pidió. El optimizador NO las
-// elige de una franquicia (deprioriza los productos con personaje, consulta.py),
-// así que aplicar un personaje es una BÚSQUEDA determinista, no un re-ranking:
-// se piden los 4 anclas de esa franquicia al catálogo y se fija cada uno en su
-// línea del kit Fan con la ruta por-nivel (`fijarProductoLinea`), la misma que
-// usa el swap. Sin NSGA, sin tocar los otros dos kits.
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkles } from "lucide-react";
@@ -19,16 +9,10 @@ import { buscarProductos, FalloCatalogo } from "@/lib/api-catalogo";
 import { FalloApi, fijarProductoLinea } from "@/lib/api-navegador";
 import styles from "./Revision.module.css";
 
-// Los conceptos ancla, espejo de `CONCEPTOS_ANCLA` en optimizador.py:91
-// (cuaderno / cartuchera / carpeta / maleta). Es el único acoplamiento: si allá
-// cambian, cambia aquí. No hay un contrato que los exponga y no vale inventarlo
-// para cuatro códigos estables.
 const CONCEPTOS_ANCLA = ["C001", "C009", "C011", "C086"] as const;
 
 interface Props {
   trabajoId: string;
-  // El kit Fan. Sus líneas dan qué anclas existen de verdad en este trabajo
-  // (una lista puede no pedir maleta) y el item_id sobre el que escribir.
   fan: Kit;
   personajes: string[];
 }
@@ -49,7 +33,6 @@ export default function PersonajeFan({ trabajoId, fan, personajes }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
 
-  // Las anclas que este kit Fan sí tiene, en el orden canónico.
   const anclas: Ancla[] = CONCEPTOS_ANCLA.flatMap((concepto) => {
     const linea = fan.lineas.find((l) => l.concepto === concepto);
     return linea
@@ -74,11 +57,6 @@ export default function PersonajeFan({ trabajoId, fan, personajes }: Props) {
     if (!personaje) return;
     setCargando(true);
     try {
-      // Una llamada por ancla: el catálogo filtra por concepto+personaje y
-      // devuelve el/los producto(s) de esa franquicia para ese concepto. Se
-      // toma el primero (el mejor por quality_score, como los ordena el
-      // catálogo). ponytail: 4 llamadas; un endpoint de conveniencia solo si
-      // el chatter molesta de verdad.
       const encontrados = new Map<string, ProductoCatalogoDetalle>();
       await Promise.all(
         anclas.map(async (ancla) => {
@@ -110,9 +88,6 @@ export default function PersonajeFan({ trabajoId, fan, personajes }: Props) {
     setAplicando(true);
     let hechas = 0;
     try {
-      // En secuencia: cada `fijarProductoLinea` recalcula el total del kit Fan,
-      // y una ráfaga simultánea pelearía por ese recálculo (igual que el lote
-      // de validación). Solo las anclas para las que hubo producto.
       for (const ancla of anclas) {
         const producto = previos.get(ancla.concepto);
         if (!producto) continue;

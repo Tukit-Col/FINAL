@@ -1,6 +1,3 @@
-// Filtros y textos de la pantalla de correos enviados.
-// Correr: `node --test test/correos.test.ts`.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { explicarDetalle, hrefCorreos, leerFiltrosCorreos } from "../src/lib/correos.ts";

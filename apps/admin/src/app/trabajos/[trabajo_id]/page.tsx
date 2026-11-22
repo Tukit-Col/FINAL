@@ -1,9 +1,3 @@
-// `/trabajos/{id}` — el detalle y la revision (AD-02 a AD-07).
-//
-// Server Component para leer: `trabajoAdmin()` sale del origen directamente,
-// sin pasar por el navegador. Las escrituras si van por Route Handlers, que
-// es donde la bandera y la URL del backend se quedan del lado del servidor.
-
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
@@ -24,9 +18,6 @@ import styles from "./Detalle.module.css";
 
 export const dynamic = "force-dynamic";
 
-// Los 4 conceptos ancla del kit Fan (cuaderno/cartuchera/carpeta/maleta),
-// espejo de CONCEPTOS_ANCLA en optimizador.py:91 y PersonajeFan.tsx:26. Una
-// franquicia solo es "validada" si tiene producto para las cuatro.
 const ANCLAS_FAN = ["C001", "C009", "C011", "C086"] as const;
 
 interface Props {
@@ -46,8 +37,6 @@ export default async function PaginaTrabajo({ params }: Props) {
     throw causa;
   }
 
-  // Un borrador de la versión siguiente de kits ya publicados (`basado_en`):
-  // al publicarlo o descartarlo se vuelve a la página de su colegio y grado.
   const hijo = trabajo.hijos?.[0];
   const edicion =
     trabajo.origen === "canonico_lista" && hijo?.basado_en && hijo.colegio_id && hijo.grado
@@ -56,13 +45,6 @@ export default async function PaginaTrabajo({ params }: Props) {
         }
       : undefined;
 
-  // Las franquicias del catálogo para el interruptor de personaje del kit Fan
-  // (§7, 2d). Se lee aquí —Server Component— y se pasa como nombres; si el
-  // catálogo está caído, se degrada a lista vacía (el interruptor no aparece).
-  //
-  // Solo las franquicias VALIDADAS: las que tienen producto para las 4 anclas.
-  // El endpoint devuelve `conceptos` justo para que la UI calcule este gate (el
-  // catálogo no lo calcula). Sin las 4, el switch dejaría anclas sin cambiar.
   const personajes = await origenDeDatos()
     .personajes()
     .then((lista) =>
@@ -70,15 +52,9 @@ export default async function PaginaTrabajo({ params }: Props) {
     )
     .catch(() => [] as string[]);
 
-  // El reloj de la peticion. `react-hooks/purity` lo marca porque en un
-  // componente de cliente daria un render inestable; este es un Server
-  // Component con `force-dynamic`, se renderiza una vez por peticion y no se
-  // hidrata, asi que el valor no puede cambiar bajo los pies de nadie.
   // eslint-disable-next-line react-hooks/purity
   const ahora = Date.now();
 
-  // Los hijos no vienen sueltos en `TrabajoAdmin`: se derivan de las lineas,
-  // que es donde el contrato pone la referencia de cada hijo.
   const hijos = [
     ...new Set(
       (trabajo.kits[0]?.lineas ?? []).flatMap((linea) => (linea.hijo ? [linea.hijo] : [])),
@@ -121,10 +97,6 @@ export default async function PaginaTrabajo({ params }: Props) {
             </span>
           </div>
 
-          {/* Nunca el correo ni el celular: la notificacion referencia al
-              acudiente por identificador, y por eso el tipo trae `contacto_id`
-              y no el correo. Mostrarlo aqui seria reintroducir a mano la
-              deuda que el manifiesto documenta en `operacion.notificacion`. */}
           <p className={styles.contacto}>
             Acudiente <code>{trabajo.contacto_id}</code>
             <span className={styles.contactoNota}>

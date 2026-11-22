@@ -1,7 +1,3 @@
-// `POST /api/asistente/kits/{trabajo_id}/proponer`: un pedido sobre un kit
-// publicado -> propuestas de cambio. Nunca aplica: aplicar es una accion del
-// acudiente por la ruta de siempre (`PUT .../lineas/{item}/producto`).
-
 import { ErrorTukit } from "@tukit/contrato/servidor";
 import { respuestaDeError } from "@/lib/respuesta";
 import { NO_DISPONIBLE, especSegura, reenviar } from "@/components/asistente/servidor";
@@ -21,7 +17,6 @@ export async function POST(
   try {
     cuerpo = (await peticion.json()) as typeof cuerpo;
   } catch {
-    /* validado abajo */
   }
   const { texto, perfil } = cuerpo;
   if (
@@ -35,7 +30,6 @@ export async function POST(
     return respuestaDeError(new ErrorTukit(400, "peticion_invalida", "Cuéntanos qué quieres cambiar de tu kit."));
   }
 
-  // El pedido anterior solo viaja si es una acción de la lista y una palabra corta; si no, se omite.
   const anterior = pedidoAnteriorSeguro(cuerpo.anterior);
   const { estado, cuerpo: respuesta } = await reenviar(`/v1/kits/${trabajo_id}/asistente/proponer`, {
     texto,
@@ -43,7 +37,6 @@ export async function POST(
     ...(anterior ? { anterior } : {}),
   });
   if (estado === 200 && respuesta["estado"] === "ayuda") {
-    // Capacidades: texto del servidor y ejemplos tocables, filtrados antes de llegar al navegador.
     return Response.json({
       estado: "ayuda",
       mensaje: typeof respuesta["mensaje"] === "string" ? respuesta["mensaje"] : "",

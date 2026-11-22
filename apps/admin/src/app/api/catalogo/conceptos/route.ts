@@ -1,11 +1,3 @@
-// `POST /api/catalogo/conceptos` — crea un concepto nuevo (P4c bis).
-//
-// El otro brazo de la curación: en vez de encolar un producto bajo un concepto
-// que ya existe, nace el concepto (el código C0NN lo autogenera el backend) y
-// después se le encolan sus niveles con `altaUtil`/`altaLibro`. Así crece la BD
-// a medida que se revisa cada lista subida. Un nombre duplicado (409) o faltar
-// nombre/categoría (422) los rechaza el backend; aquí solo se exige que vengan.
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { CrearConcepto } from "@tukit/contrato";
 import { cuerpoJson, respuestaDeError } from "@/lib/respuesta";

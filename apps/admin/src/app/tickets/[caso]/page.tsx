@@ -1,11 +1,3 @@
-// `/tickets/[caso]` — un ticket con su conversacion.
-//
-// Muestra el cuerpo de la PQRS, la historia (respuestas del equipo, cambios de
-// estado, vinculos) y deja responder al acudiente, mover el estado y ligar el
-// ticket a un pedido. Solo staff: operacion responde 401/403 a cualquier otro y
-// aqui eso se vuelve el mismo aviso de la bandeja. El correo del acudiente sale
-// enmascarado del padron de identidad; el contacto nunca se guardo en operacion.
-
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { CasoDetalleAdmin, EstadoCaso, Prioridad } from "@tukit/contrato";
@@ -34,8 +26,6 @@ function Migas() {
   );
 }
 
-/** El correo del titular, del padron de identidad. Es un adorno: si identidad no
- *  responde, el ticket se muestra con el id de la cuenta. */
 async function correoDelTitular(token: string, usuarioId: string | null): Promise<string | null> {
   if (!usuarioId) return null;
   try {
@@ -47,7 +37,6 @@ async function correoDelTitular(token: string, usuarioId: string | null): Promis
 }
 
 async function nombresDeActores(caso: CasoDetalleAdmin, token: string): Promise<Record<string, string>> {
-  // Los actores y los dueños de las asignaciones (`datos.desde/hacia` son ids de usuario).
   const referidos = caso.eventos.flatMap((e) =>
     e.tipo === "asignacion" ? [e.datos["desde"], e.datos["hacia"]] : [],
   );
@@ -170,7 +159,6 @@ export default async function DetalleTicket({ params }: Props) {
             <p>{caso.descripcion || "Sin descripción."}</p>
           </li>
           {caso.eventos.map((e, i) => {
-            // Lo que el acudiente agrego desde su panel (/dashboard, mis casos).
             if (e.tipo === "comentario_acudiente") {
               return (
                 <li key={i} className={styles.mensajeAcudiente}>

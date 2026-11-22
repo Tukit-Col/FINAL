@@ -1,22 +1,5 @@
 "use client";
 
-// Región del revisor (P4/E4): completar el perfil del colegio NUEVO antes de
-// aprobar. Solo aparece cuando la versión trae `colegio_datos` — es decir, la
-// subió un acudiente para un colegio que aún no existe en Tukit (lo eligió del
-// directorio de Bogotá o lo escribió a mano). Para un colegio ya aliado no hay
-// nada que crear y esta región no se pinta.
-//
-// El `nombre` y el `dane` los fijó la subida y el `dane` no se edita (deriva el
-// `colegio_id`; cambiarlo desligaría la lista del colegio), así que se muestran
-// como contexto de solo lectura. El resto —logo, sitio, dirección, contacto de
-// la institución— son datos de la INSTITUCIÓN, no del menor: no son PII, y se
-// completan aquí para que la aprobación cree la identidad completa. El poller de
-// Identidad hace el upsert al cerrar la versión sin pisar lo que ya se editó.
-//
-// Guarda con `completarColegioDeVersion` (merge en el backend); tras guardar,
-// `router.refresh` re-lee la revisión con los datos ya combinados. Deshabilitado
-// cuando la versión ya está revisada: no se edita un colegio de una lista cerrada.
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { DatosColegioNuevo } from "@tukit/contrato";
@@ -29,9 +12,6 @@ interface Props {
   revisada: boolean;
 }
 
-// Los campos editables, en el orden en que se muestran. `dane` y `nombre` van
-// aparte: el DANE es de solo lectura y el nombre se edita como los demás pero se
-// separa arriba porque es el que la subida ya trajo.
 const CAMPOS: { clave: keyof DatosColegioNuevo; etiqueta: string; tipo: string }[] = [
   { clave: "logo_url", etiqueta: "Logo (URL)", tipo: "url" },
   { clave: "sitio_web", etiqueta: "Sitio web", tipo: "url" },
@@ -65,8 +45,6 @@ export default function CompletarColegio({ versionId, datos, revisada }: Props) 
     setGuardando(true);
     setError(null);
     try {
-      // Se manda solo lo que tiene texto: el backend hace merge y no queremos
-      // pisar un dato con una cadena vacía. El `dane` nunca viaja (no editable).
       const cambios: Record<string, string> = {};
       cambios.nombre = valores.nombre?.trim() ?? "";
       for (const { clave } of CAMPOS) {

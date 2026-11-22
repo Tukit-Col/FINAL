@@ -1,6 +1,3 @@
-// `POST /api/solicitudes/{trabajo_id}/cancelar`: el acudiente cancela una
-// solicitud suya. Inteligencia exige que sea del portador y que el kit no se
-// haya comprado ni tenga un pago pendiente (ADR 0031).
 import { cookies } from "next/headers";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import { respuestaDeError } from "@/lib/respuesta";

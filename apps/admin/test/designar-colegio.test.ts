@@ -1,8 +1,3 @@
-// La designación del colegio en `POST /api/onboarding` (subir lista desde la
-// cola). Lógica pura, corrida con `node --test`.
-//
-// Correr:  node --test test/designar-colegio.test.ts
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { designarColegio } from "../src/lib/designar-colegio.ts";

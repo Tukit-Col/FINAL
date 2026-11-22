@@ -1,6 +1,3 @@
-// `GET|POST /api/casos/{caso_id}` — ver uno de mis casos y agregarle un mensaje.
-// Operación decide el dueño con la sesión: un caso ajeno responde 403.
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import { respuestaDeError } from "@/lib/respuesta";
 import { tokenDeSesion } from "@/lib/sesion";

@@ -1,6 +1,3 @@
-// `GET /api/cuenta/mis-datos/exportar`: la copia completa de los datos del
-// titular (Ley 1581, art. 8), como archivo. El token sale de la cookie httpOnly
-// aqui, en el servidor; el navegador solo recibe el adjunto.
 import { cookies } from "next/headers";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import { respuestaDeError } from "@/lib/respuesta";

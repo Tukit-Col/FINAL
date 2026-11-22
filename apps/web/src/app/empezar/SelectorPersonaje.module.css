@@ -1,10 +1,3 @@
-/* Selector de personajes gamificado.
- *
- * Fichas grandes tipo sticker de plastilina para que un niño (o un papá con
- * prisa) las toque de un vistazo. El color base es `--color-personaje`, el
- * mismo token con el que el catálogo pinta el eje personaje, para no tratarlo
- * como un nivel de calidad. */
-
 .selector {
   display: grid;
   gap: var(--espacio-4);
@@ -42,12 +35,9 @@
   max-width: 58ch;
 }
 
-/* ------------------------------------------------------------- Rejilla */
-
 .rejilla {
   display: grid;
-  /* Exactamente cuatro columnas: la rejilla queda pareja y las fichas no
-   * "bailan" de tamaño entre filas. En pantallas muy angostas baja a dos. */
+
   grid-template-columns: repeat(4, 1fr);
   gap: var(--espacio-3);
 }
@@ -87,8 +77,6 @@
   animation: fichaElegida var(--dur-lento) var(--ease-clay);
 }
 
-/* Feedback de seleccion: la ficha "se hunde" y rebota, el icono da un saltito
- * y la marca entra con escala. Corre una vez al elegir; al quitar no hay nada. */
 .fichaActiva .icono {
   animation: iconoElegido var(--dur-lento) var(--ease-clay);
 }
@@ -138,9 +126,7 @@
 .icono {
   width: 42px;
   height: 42px;
-  /* La sombra difusa da el "tacto de plastilina" a la pieza SVG; el mismo
-   * truco que usan las piezas de UtilesFlotantes. El nombre lleva el
-   * significado accesible, la pieza es decorativa. */
+
   filter: drop-shadow(0 3px 5px rgba(30, 42, 74, 0.16));
 }
 
@@ -170,10 +156,6 @@
   box-shadow: var(--clay-shadow-sm);
 }
 
-/* --------------------------------------------------------- Campo libre */
-
-/* El campo libre es un PEDIDO, no una ficha en stock: se ve distinto a
- * proposito. Un rotulo tenue lo separa de la rejilla de personajes surtidos. */
 .rotuloLibre {
   font-size: 12.5px;
   font-weight: 700;
@@ -215,8 +197,6 @@
   box-shadow: var(--clay-shadow-inset), 0 0 0 3px var(--color-personaje-bg);
 }
 
-/* --------------------------------------------------- Personajes propios */
-
 .propios {
   display: flex;
   flex-wrap: wrap;
@@ -244,7 +224,6 @@
   transform: translateY(-1px);
 }
 
-/* Marca de "no obligatorio": neutra, sin asterisco ni énfasis de campo requerido. */
 .opcional {
   margin-left: var(--espacio-2);
   padding: 2px 9px;

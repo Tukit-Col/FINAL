@@ -1,14 +1,5 @@
 "use client";
 
-// AD-07 — alta manual de un producto con precio e imagen, y su asignacion a
-// la linea que se esta revisando.
-//
-// Es la salida para los libros: el catalogo automatico no los cubre bien
-// (edicion, editorial y ano no salen de una busqueda por texto) y el admin
-// los tiene que teclear. Tecleando es justo donde se cuela un flotante en un
-// sistema cuyo dinero es entero (§1.4), asi que el precio se valida aqui, en
-// el Route Handler y en el origen: tres veces a proposito.
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { LineaKit, Nivel } from "@tukit/contrato";
@@ -33,14 +24,6 @@ function malo(error: string): Lectura {
   return { valor: null, error };
 }
 
-/**
- * Lee el precio tecleado como pesos enteros.
- *
- * Rechaza el punto y la coma en vez de intentar adivinar: en Colombia
- * `18.900` son dieciocho mil novecientos pesos y en el resto del mundo son
- * dieciocho pesos con nueve, y una pantalla que elige por su cuenta se
- * equivoca por un factor de mil sin avisar.
- */
 export function leerPesos(crudo: string): Lectura {
   const limpio = crudo.trim().replace(/[\s$]/g, "");
   if (!limpio) return malo("Escribe el precio.");
@@ -100,8 +83,6 @@ export default function AltaProducto({ trabajoId, linea, alTerminar }: Props) {
         tienda: tienda.trim(),
         precio,
         ...(url.trim() ? { url: url.trim() } : {}),
-        // Con trabajo y linea el alta ademas resuelve la linea; sin ellos
-        // solo agrega el producto al catalogo.
         trabajo_id: trabajoId,
         item_id: linea.item_id,
       });

@@ -1,10 +1,3 @@
-// `/correos` — lo que el sistema avisó y qué pasó con cada aviso.
-//
-// Consume `origenDeDatos().correos()` (`GET /v1/operacion/correos`). Sirve para
-// ver si un aviso salió, a qué dominio, con qué asunto y por qué falló o se
-// omitió, sin abrir el buzón del remitente. Nunca muestra la dirección del
-// destinatario: operacion solo guarda su dominio. Solo operador y admin.
-
 import Form from "next/form";
 import Link from "next/link";
 import type { BandejaCorreos, EstadoCorreo } from "@tukit/contrato";
@@ -95,7 +88,6 @@ export default async function PaginaCorreos({ searchParams }: Props) {
         ))}
       </Chips>
 
-      {/* El `key` remonta el formulario al cambiar los filtros (atrás/adelante, "Limpiar"). */}
       <Form action="/correos" className={styles.filtros} aria-label="Buscar avisos" key={JSON.stringify(filtros)}>
         {filtros.estado && <input type="hidden" name="estado" value={filtros.estado} />}
         <div className={styles.campoFiltro}>

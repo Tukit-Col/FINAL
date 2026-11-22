@@ -1,11 +1,3 @@
-// "Privacidad y mis datos": los derechos del titular (Ley 1581 de 2012, art. 8;
-// Decreto 1377 de 2013) en una pantalla. Lee el inventario de Identidad
-// (`/v1/cuenta/mis-datos`), que junta la cuenta, los hijos, los consentimientos
-// y los punteros a pedidos, casos y solicitudes de kit de los demas servicios.
-//
-// Server Component: lee la sesion de la cookie httpOnly. Sin sesion, a
-// /ingresar. Si el inventario falla, se avisa y quedan los enlaces para escribir
-// al responsable, que es el otro canal de la politica.
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { origenDeDatos } from "@tukit/contrato/servidor";

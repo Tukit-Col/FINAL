@@ -1,20 +1,3 @@
-// "Para revisar" — los avisos de la lista verificada de un grado.
-//
-// La revision automatica deja decisiones que solo una persona puede tomar: un
-// renglon que parece repetir a otro, uno que nombra varios valores de un
-// atributo (y por eso no se exigio ninguno) y uno que pide algo que ningun
-// producto del catalogo cumple. Cada aviso trae su accion:
-//
-//  - Posible repetido: «Es el mismo: no comprar» publica una version nueva con
-//    ese renglon como "no se compra" (los kits se rearman); «Son distintos» lo
-//    descarta y no vuelve a salir.
-//  - Revisar atributo: lleva a la linea; «Está bien así» lo descarta.
-//  - Sin producto: «Agregar útil» abre el alta del catálogo con el concepto y
-//    el texto ya puestos; «Ocultar» lo descarta.
-//
-// Cliente porque las acciones son interactivas; tras cada una se refresca la
-// pagina (Server Component) para que los avisos y los kits salgan del backend.
-
 "use client";
 
 import { useState } from "react";
@@ -40,7 +23,6 @@ function exigeComoTexto(exige: Record<string, unknown>): string {
   return partes.length ? partes.join(", ") : "el concepto no tiene productos";
 }
 
-/** El alta de un útil con el concepto y la búsqueda ya puestos. */
 function enlaceAgregarUtil(aviso: AvisoLista): string {
   const parametros = new URLSearchParams({ pestana: "util", consulta: aviso.texto });
   if (aviso.concepto_codigo) parametros.set("concepto", aviso.concepto_codigo);

@@ -1,5 +1,3 @@
-// 404 del sitio. Va dentro del layout: la cabecera con el logo ya está arriba.
-
 import Link from "next/link";
 
 export default function NoEncontrada() {

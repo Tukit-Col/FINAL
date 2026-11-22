@@ -1,5 +1,3 @@
-// Localidades de Bogota y el enlace a Google Maps del envio. Puro, con `node --test`.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -29,7 +27,6 @@ test("la comparacion ignora acentos, mayusculas, espacios y 'Localidad de'", () 
 });
 
 test("enlace a Maps: busca por el texto de la direccion", () => {
-  // Escrita a mano sin la ciudad: se le agrega para que Maps no busque en otro pais.
   assert.equal(
     enlaceGoogleMaps({ direccion: "Cra 7 # 45-10", ciudad: "Bogotá" }),
     "https://www.google.com/maps/search/?api=1&query=Cra%207%20%23%2045-10%2C%20Bogot%C3%A1",
@@ -45,6 +42,5 @@ test("con el pin confirmado en OpenStreetMap el enlace abre ese punto exacto", (
     enlaceGoogleMaps({ direccion: "Calle 72 #10-34", ciudad: "Bogotá", latitud: 4.6518, longitud: -74.051 }),
     "https://www.google.com/maps/search/?api=1&query=4.6518,-74.051",
   );
-  // Una sola coordenada no sirve: cae a la búsqueda por texto.
   assert.match(enlaceGoogleMaps({ direccion: "Calle 72 #10-34", latitud: 4.65 }), /query=Calle%2072/);
 });

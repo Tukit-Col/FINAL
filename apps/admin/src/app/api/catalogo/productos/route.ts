@@ -1,11 +1,3 @@
-// `GET /api/catalogo/productos` — la búsqueda paginada de la SPA (P4c).
-//
-// El navegador no habla con el backend: manda el querystring aquí y este
-// handler lo traduce a `buscarProductos(filtros)` contra el origen del
-// servidor, donde la URL y el token del backend se quedan. Solo lectura, pero
-// vive como Route Handler (y no como Server Component) porque la SPA re-busca
-// de forma interactiva sin recargar la página.
-
 import { origenDeDatos } from "@tukit/contrato/servidor";
 import type { FiltrosProductos, Nivel } from "@tukit/contrato";
 import { NIVELES } from "@tukit/contrato";

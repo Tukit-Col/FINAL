@@ -1,8 +1,3 @@
-// Lo que muestra un renglón del kit fuera del precio: su categoría, el orden de
-// las secciones, las anclas para enlazarlo, en qué tienda está y la nota cuando
-// no hubo producto del personaje.
-// Correr: `node --test test/kit-vista-renglon.test.ts`.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {

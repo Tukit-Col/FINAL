@@ -1,6 +1,3 @@
-/* Fases de un pedido en "Mis pedidos". Escritorio: cinco columnas unidas por un
-   trazo horizontal. Movil: una columna con trazo vertical. */
-
 .seguimiento {
   display: grid;
   gap: var(--espacio-3);
@@ -41,7 +38,6 @@
   text-align: center;
 }
 
-/* Trazo hacia la fase siguiente, de centro a centro. */
 .fase:not(:last-child)::after {
   content: "";
   position: absolute;
@@ -81,7 +77,6 @@
   color: var(--color-white);
 }
 
-/* Pulso suave de la fase en curso. */
 .actual .marca::before {
   content: "";
   position: absolute;
@@ -116,7 +111,6 @@
   border: 2px solid var(--color-success);
 }
 
-/* Incidencia: la fase en curso se tine de aviso, no de azul. */
 .conIncidencia .actual .marca {
   background: var(--color-aviso);
   border-color: var(--color-aviso);

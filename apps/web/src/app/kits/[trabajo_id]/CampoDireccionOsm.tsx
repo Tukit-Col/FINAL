@@ -1,19 +1,14 @@
-"use client";
+// La dirección del checkout: búsqueda en OpenStreetMap y pin en un mapa.
+//
+// Decisiones:
+// - Sin resultados, o si el servicio falla, el campo sigue siendo texto libre: el mapa nunca bloquea el
+//   pago.
+// - La búsqueda sale con el botón Buscar, con Enter o tras una pausa larga al escribir, nunca por tecla:
+//   la política del Nominatim público no admite el autocompletado (ver `lib/direccion-osm.ts`).
+// - La entrega es solo en Bogotá: el servidor limita siempre la búsqueda a Bogotá.
+// - Es un combobox ARIA: el foco se queda en el campo y las flechas mueven la opción activa.
 
-// La dirección del checkout (ADR 0049): el
-// acudiente busca su dirección en OpenStreetMap, elige un resultado y confirma
-// el punto en un mapa moviendo el pin. Sin resultados, o si el servicio falla,
-// el campo sigue siendo texto libre: el mapa jamás bloquea el pago.
-//
-// La búsqueda sale con el botón Buscar, con Enter o tras una pausa larga al
-// escribir (nunca por tecla: la política del Nominatim público no admite el
-// autocompletado, ver `lib/direccion-osm.ts`). Se cancela la anterior si el
-// acudiente lanza otra o edita el texto.
-// La entrega es solo en Bogotá: el servidor limita siempre la búsqueda a Bogotá.
-//
-// Combobox ARIA como el buscador de colegio de `/empezar`: el foco
-// se queda en el campo, las flechas mueven la opción activa
-// (`aria-activedescendant`), Enter elige y Escape cierra la lista.
+"use client";
 
 import { useEffect, useId, useRef, useState } from "react";
 import { MapPin, Pencil, Search } from "lucide-react";
@@ -37,18 +32,13 @@ type Estado =
 
 interface Props {
   valor: string;
-  // El punto confirmado hasta ahora (o `null` si la dirección está sin confirmar).
   latitud: number | null;
   longitud: number | null;
-  // Texto escrito a mano: quien lo recibe descarta el pin anterior.
   onEscribir: (texto: string) => void;
   onElegir: (lugar: LugarElegido) => void;
-  // El acudiente movió el pin; el texto de la dirección no cambia.
   onMoverPin: (latitud: number, longitud: number) => void;
 }
 
-// Pausa al escribir antes de buscar sola. Larga a propósito: Nominatim no admite
-// autocompletado por tecla, y el servidor ya limita a 1 petición por segundo.
 const PAUSA_BUSQUEDA_MS = 1200;
 const MINIMO_AUTOMATICA = 8;
 
@@ -60,7 +50,6 @@ export default function CampoDireccionOsm({ valor, latitud, longitud, onEscribir
   const [abierta, setAbierta] = useState(false);
   const [activa, setActiva] = useState(0);
   const [estado, setEstado] = useState<Estado>({ tipo: "reposo" });
-  // El resultado elegido: se muestra como tarjeta de confirmación hasta "Editar".
   const [elegido, setElegido] = useState<Candidato | null>(null);
   const control = useRef<AbortController | null>(null);
   const campo = useRef<HTMLInputElement>(null);
@@ -125,7 +114,6 @@ export default function CampoDireccionOsm({ valor, latitud, longitud, onEscribir
   }
 
   function escribir(texto: string) {
-    // Editar descarta la búsqueda en curso y la lista: ya no corresponden.
     control.current?.abort();
     if (pausa.current) clearTimeout(pausa.current);
     setElegido(null);
@@ -133,15 +121,11 @@ export default function CampoDireccionOsm({ valor, latitud, longitud, onEscribir
     setCandidatos([]);
     setAbierta(false);
     setEstado({ tipo: "reposo" });
-    // Búsqueda por pausa: solo si hay una dirección con cuerpo y todavía no se
-    // confirmó un punto. Las teclas intermedias no consultan nada.
     if (texto.trim().length >= MINIMO_AUTOMATICA && !confirmada) {
       pausa.current = setTimeout(() => void buscar(texto), PAUSA_BUSQUEDA_MS);
     }
   }
 
-  // "Editar": vuelve al campo con el texto actual para corregirlo (descarta el pin
-  // igual que escribir a mano) y deja el foco listo.
   function editar() {
     setElegido(null);
     onEscribir(valor);
@@ -159,7 +143,6 @@ export default function CampoDireccionOsm({ valor, latitud, longitud, onEscribir
         const paso = evento.key === "ArrowDown" ? 1 : -1;
         setActiva((indiceActivo + paso + candidatos.length) % candidatos.length);
       } else if (evento.key === "Enter") {
-        // Enter con la lista abierta elige; nunca manda el pago a medias.
         evento.preventDefault();
         elegir(candidatos[indiceActivo]);
       } else if (evento.key === "Escape") {
@@ -168,8 +151,6 @@ export default function CampoDireccionOsm({ valor, latitud, longitud, onEscribir
       }
       return;
     }
-    // Con la dirección ya confirmada, Enter es enviar el formulario como siempre;
-    // sin confirmar, Enter busca.
     if (evento.key === "Enter" && !confirmada && puedeBuscar) {
       evento.preventDefault();
       void buscar();
@@ -191,8 +172,6 @@ export default function CampoDireccionOsm({ valor, latitud, longitud, onEscribir
 
   return (
     <div className={styles.campoDireccion}>
-      {/* Rótulo explícito y no envolvente: la lista de resultados no puede
-          formar parte del nombre accesible del campo. */}
       <label htmlFor={`${idBase}-campo`}>Dirección</label>
       {tarjeta && elegido && (
         <div className={styles.tarjetaDireccion}>
@@ -216,9 +195,6 @@ export default function CampoDireccionOsm({ valor, latitud, longitud, onEscribir
           </button>
         </div>
       )}
-      {/* La lista cuelga de ESTE ancla (campo + botón) y no de todo el bloque: el
-          bloque también lleva el aviso y el mapa, y con el pin ya puesto la lista
-          caería debajo del mapa, lejos del campo. */}
       <div className={styles.anclaListaDireccion} hidden={tarjeta}>
         <div className={styles.filaBuscarDireccion}>
           <input
@@ -258,8 +234,6 @@ export default function CampoDireccionOsm({ valor, latitud, longitud, onEscribir
                 role="option"
                 aria-selected={i === indiceActivo}
                 className={`${styles.sugerenciaDireccion} ${i === indiceActivo ? styles.sugerenciaActiva : ""}`}
-                // `mousedown` y no `click`: el `blur` del campo cerraría la lista
-                // antes de que el clic llegue a la opción.
                 onMouseDown={(e) => {
                   e.preventDefault();
                   elegir(c);

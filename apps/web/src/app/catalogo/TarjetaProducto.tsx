@@ -7,16 +7,8 @@ import {
 } from "@tukit/contrato";
 import estilos from "./Catalogo.module.css";
 
-// El mismo umbral con el que el resumen cuenta los `productos_sin_revisar`. Si
-// las dos cifras no salieran del mismo numero, la pantalla se contradiria con
-// su propio encabezado y no habria forma de saber cual de las dos miente.
-// Es la calidad mas baja que asigna la curaduria (economico, 0,40): con 0,5 cada
-// producto economico curado a mano salia con la etiqueta «sin revisar».
 const UMBRAL_SIN_REVISAR = 0.4;
 
-// Los tres estados de `disponible` son tres, no dos. `null` es el caso normal
-// del canal mayorista, que no publica stock; leerlo como "agotado" borraria de
-// la comparacion a una tienda entera.
 const ESTADO_STOCK = {
   hay: { texto: "en stock", titulo: "La tienda reporta unidades disponibles.", clase: estilos.stockHay },
   agotado: { texto: "agotado", titulo: "La tienda reporta que no le quedan unidades.", clase: estilos.stockAgotado },
@@ -33,10 +25,6 @@ function estadoDe(disponible: boolean | null): (typeof ESTADO_STOCK)[keyof typeo
   return ESTADO_STOCK.sinDato;
 }
 
-// `visto_en` llega en ISO con el desplazamiento de Bogota. Se recorta en vez de
-// pasarlo por `Date`, porque formatear con la zona del navegador haria que el
-// servidor y el cliente pintaran dias distintos y React lo reportaria como una
-// discrepancia de hidratacion.
 function fechaCorta(iso: string): string {
   const [anio, mes, dia] = iso.slice(0, 10).split("-");
   return dia && mes && anio ? `${dia}/${mes}/${anio}` : iso;
@@ -57,8 +45,6 @@ export default function TarjetaProducto({ producto }: Props) {
   const ofertas = [...producto.ofertas].sort(porPrecio);
   const enlace = ofertas.find((oferta) => oferta.url)?.url ?? null;
   const conPrecio = ofertas.filter((oferta) => oferta.precio !== null).length;
-  // `precio: null` es "no se conoce el precio", que no es lo mismo que cero ni
-  // que gratis, asi que la nota lo dice con palabras en vez de mostrar un $ 0.
   const notaPrecio =
     barato === null
       ? "ninguna tienda reporta precio"
@@ -69,8 +55,6 @@ export default function TarjetaProducto({ producto }: Props) {
   return (
     <article className={estilos.producto}>
       {producto.imagen_url ? (
-        // Las fotos son de las tiendas y sus dominios no estan declarados en
-        // `next.config.ts`; `next/image` los rechazaria en tiempo de peticion.
         // eslint-disable-next-line @next/next/no-img-element
         <img className={estilos.foto} src={producto.imagen_url} alt="" loading="lazy" />
       ) : (
@@ -89,10 +73,6 @@ export default function TarjetaProducto({ producto }: Props) {
 
       {producto.marca && <p className={estilos.marcaProducto}>{producto.marca}</p>}
 
-      {/* Nivel y personaje van en dos etiquetas separadas y con colores de
-          familias distintas: un cuaderno de Spiderman tiene personaje Y
-          ADEMAS nivel de calidad. Pintarlos juntos haria del personaje un
-          cuarto nivel y dejaria al optimizador sin con que comparar. */}
       <div className={estilos.etiquetasProducto}>
         <span className={estilos.chipNivel} data-nivel={producto.nivel}>
           {ETIQUETA_NIVEL[producto.nivel]}
@@ -117,9 +97,6 @@ export default function TarjetaProducto({ producto }: Props) {
           <span className={estilos.precioNota}>{notaPrecio}</span>
         </p>
 
-        {/* Todas las ofertas, y no solo la ganadora: comparar el precio entre
-            tiendas es el nucleo de la propuesta, y el modelo de datos se
-            rediseno justamente para poder expresarlo. */}
         <ul className={estilos.ofertas}>
           {ofertas.map((oferta) => {
             const estado = estadoDe(oferta.disponible);
@@ -134,9 +111,6 @@ export default function TarjetaProducto({ producto }: Props) {
                   <span className={`${estilos.stockPunto} ${estado.clase}`} aria-hidden="true" />
                   {estado.texto}
                 </span>
-                {/* Con una sola tienda el precio de la fila seria el mismo de
-                    arriba, y repetirlo solo gasta el ancho que necesita el
-                    nombre de la tienda. */}
                 {ofertas.length > 1 && (
                   <span
                     className={`${estilos.precioTienda} cifra`}

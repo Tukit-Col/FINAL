@@ -1,7 +1,3 @@
-// `POST /api/asistente/interpretar`: texto libre del acudiente -> propuesta de
-// restricciones y spec de interfaz. No escribe nada: el formulario solo se llena
-// cuando el acudiente confirma en el navegador.
-
 import { ErrorTukit } from "@tukit/contrato/servidor";
 import { respuestaDeError } from "@/lib/respuesta";
 import { NO_DISPONIBLE, especSegura, imagenDePersonaje, reenviar } from "@/components/asistente/servidor";
@@ -26,7 +22,6 @@ export async function POST(peticion: Request): Promise<Response> {
   const ui = especSegura(cuerpo["ui"]);
   if (!ui) return Response.json(NO_DISPONIBLE.cuerpo, { status: NO_DISPONIBLE.estado });
 
-  // Las fotos salen del catalogo propio, no del modelo.
   for (const c of ui.componentes) {
     if (c.tipo === "TarjetaPersonaje") c.props.imagen_url = await imagenDePersonaje(c.props.nombre);
   }

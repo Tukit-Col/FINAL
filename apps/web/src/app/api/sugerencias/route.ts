@@ -1,13 +1,3 @@
-// `POST /api/sugerencias` — un acudiente sugiere su (colegio, grado) cuando no
-// hay lista verificada todavía (P3c).
-//
-// Misma frontera que `/api/trabajos` y `/api/casos`: el navegador nunca habla
-// con el backend, aquí se habla con él, y la URL del backend se queda en el
-// servidor. El PDF que el acudiente subió es la mejor semilla de
-// onboarding que podríamos tener, así que en vez de descartarlo lo mandamos al
-// backlog del administrador. La ÚNICA traza al acudiente es
-// `contacto_referencia`: el correo y el celular nunca cruzan por aquí.
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import { respuestaDeError } from "@/lib/respuesta";
 import { cuerpoDemasiadoGrande, motivoDeRechazo } from "@/lib/subida";

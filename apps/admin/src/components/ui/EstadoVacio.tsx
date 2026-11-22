@@ -1,6 +1,3 @@
-// Estado vacio: dice que pasa, por que y que hacer. Un solo patron para cola,
-// clientes, tickets y logistica.
-
 import type { ReactNode } from "react";
 import { Inbox } from "lucide-react";
 import styles from "./ui.module.css";

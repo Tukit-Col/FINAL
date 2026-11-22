@@ -1,12 +1,3 @@
-// Alta de un libro manual por ISBN (P4c bis). Buscalibre no expone búsqueda en
-// vivo (su API VTEX responde 404), así que el flujo es: el personal abre el
-// link a Buscalibre (requisito FIJO, se mantiene siempre), copia ISBN/título/
-// precio y los pega aquí. `altaLibro` lo ENCOLA (no lo aprueba): cae en la cola.
-//
-// Precio en PESOS enteros y > 0, validado aquí (además del Route Handler y el
-// origen: tres veces a propósito, §1.4). El ISBN lo valida el backend
-// (`isbn_invalido`); el mensaje que se muestra es el suyo, tal cual.
-
 "use client";
 
 import { useMemo, useState } from "react";
@@ -20,9 +11,6 @@ import styles from "./CatalogoSpa.module.css";
 
 interface Props {
   conceptos: OpcionConcepto[];
-  // Las tiendas registradas: se puede elegir una del listado o escribir otro
-  // slug (el backend valida contra la BD y responde `tienda_desconocida` si no
-  // existe). Buscalibre no surte en vivo, pero sí está registrada como tienda.
   tiendas: OpcionTienda[];
   onEncolado: () => void;
 }
@@ -42,8 +30,6 @@ export default function AltaLibro({ conceptos, tiendas, onEncolado }: Props) {
   const precioNum = Number(precio);
   const precioValido = Number.isInteger(precioNum) && precioNum > 0;
 
-  // El link a Buscalibre siempre se ofrece; apunta al ISBN si ya se escribió, o
-  // al título como respaldo. Requisito fijo del diseño.
   const enlaceBuscalibre = useMemo(() => {
     const q = (isbn.trim() || titulo.trim()) ?? "";
     return `https://www.buscalibre.com.co/libros/search?q=${encodeURIComponent(q)}`;

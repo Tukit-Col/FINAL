@@ -1,7 +1,3 @@
-// La lista blanca de componentes del asistente: lo que no encaja no se pinta.
-//
-// Correr: `node --test test/asistente-espec.test.ts`.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -108,7 +104,6 @@ test("el texto del delta distingue ahorro, igual y aumento", () => {
   const igual = textoDelta(0);
   const aumento = textoDelta(3000);
   assert.equal(new Set([ahorro, igual, aumento]).size, 3);
-  // El ahorro y el aumento dicen el monto, sin signo; lo igual no inventa uno.
   assert.match(ahorro, /Ahorras/);
   assert.match(ahorro, /8\.000/);
   assert.match(aumento, /3\.000/);

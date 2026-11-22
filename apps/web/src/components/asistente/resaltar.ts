@@ -1,13 +1,8 @@
-// El asistente señala en la pagina del kit los renglones que esta proponiendo cambiar.
-// No toca React: marca el <li> del renglon (`idAnclaLinea`) con `data-asistente` y el CSS
-// del kit lo ilumina. Si un `router.refresh()` vuelve a montar un renglon, se vuelve a marcar.
-
 import { prefiereMenosMovimiento } from "@tukit/contrato/motion";
 import { idAnclaLinea } from "@/lib/kit-vista";
 
 const ATRIBUTO = "data-asistente";
 
-/** Ilumina los renglones de `itemIds` y apaga los demas. Devuelve la funcion que los apaga. */
 export function iluminarRenglones(itemIds: readonly string[]): () => void {
   const ids = new Set(itemIds.map(idAnclaLinea));
   const aplicar = () => {
@@ -29,7 +24,6 @@ export function iluminarRenglones(itemIds: readonly string[]): () => void {
   };
 }
 
-/** Lleva la pagina al renglon y lo hace destellar una vez. */
 export function irARenglon(itemId: string): void {
   const el = document.getElementById(idAnclaLinea(itemId));
   if (!el) return;

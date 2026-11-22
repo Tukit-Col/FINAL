@@ -1,6 +1,3 @@
-// `POST /api/tickets/{caso}/nota` — el operador deja una nota interna en el ticket.
-// Operacion decide la regla (403/409/422); aqui solo se exige sesion y la forma del cuerpo.
-
 import { origenDeDatos } from "@tukit/contrato/servidor";
 import { validarNota } from "@/lib/cuerpos-admin";
 import { ejecutarPost } from "@/lib/ruta-admin";

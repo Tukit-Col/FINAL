@@ -1,6 +1,3 @@
-// Las fases de "Mis pedidos": que se muestra hecho, actual y futuro, y los
-// desvios. Correr: `node --test test/fases-pedido.test.ts`.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { LineaDeTiempoPedido, PasoLineaDeTiempo, PasoPedido, SituacionPaso } from "@tukit/contrato";

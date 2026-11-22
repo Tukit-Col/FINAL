@@ -1,10 +1,3 @@
-// Los filtros del tablero de logistica, como formulario GET.
-//
-// `next/form` con `action` de texto: los filtros viven en la URL (se pueden
-// compartir y recargar), funciona sin JS (es un `<form>` nativo) y con JS
-// navega del lado del cliente. "Limpiar" es un enlace a la ruta pelada, no un
-// reset: un reset solo vaciaria las entradas, no la URL que manda la tabla.
-
 import Form from "next/form";
 import Link from "next/link";
 import type { EstadoPedido } from "@tukit/contrato";
@@ -14,14 +7,12 @@ import styles from "./FiltrosLogistica.module.css";
 
 interface Props {
   filtros: Filtros;
-  // El filtro compara por id (lo que guarda el pedido); se muestra el nombre.
   colegios: readonly { id: string; nombre: string }[];
 }
 
 export default function FiltrosLogistica({ filtros, colegios }: Props) {
   return (
     <Form action="/logistica" className={styles.filtros} aria-label="Filtrar pedidos">
-      {/* Filtrar no cambia de vista: la tabla sigue en tabla. */}
       {filtros.vista !== VISTA_POR_DEFECTO ? <input type="hidden" name="vista" value={filtros.vista} /> : null}
       <div className={`${styles.campo} ${styles.busqueda}`}>
         <label htmlFor="filtro-q">Código del pedido</label>
