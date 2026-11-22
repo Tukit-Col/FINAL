@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import uuid
 from pathlib import Path
 from typing import Any
@@ -99,6 +100,9 @@ async def _huella_del_catalogo() -> dict[str, int]:
     }
 
 
+_RENGLON_CON_EL_NOMBRE = re.compile(r"^\s*(estudiante|alumn[oa]|nombre( del (estudiante|alumn[oa]))?)\s*:", re.I)
+
+
 @pytest.fixture(scope="module")
 def mama(http_flujo: httpx.Client, colegio_aliado: str) -> dict[str, Any]:
     return registrar_acudiente(http_flujo, colegio_aliado)
@@ -154,7 +158,9 @@ class TestNadaHostilSePublica:
             ),
         )
         assert vista["revisada"] is False
-        assert [i["texto_original"] for i in items] == _items(fixture_id)
+        # El renglon que rotula al menor («Estudiante: ...») ya no se importa al catalogo (H-C-15).
+        esperados = [t for t in _items(fixture_id) if not _RENGLON_CON_EL_NOMBRE.match(t)]
+        assert [i["texto_original"] for i in items] == esperados
 
     def test_las_listas_hostiles_no_mueven_precios_ni_listas_revisadas(self, subidas, record_property):
         record_property("caso_adv", "ADV-06")
@@ -240,12 +246,7 @@ class TestLaSubidaNoDesplazaLaListaRevisada:
         assert por_id[desplazada["revisada"]][3] is True
         assert por_id[desplazada["hostil"]][3] is False
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="H-A-52: `POST /v1/admin/listas/importar` le quita la vigencia a la version revisada "
-        "antes de crear la nueva; la subida sin revisar de cualquier acudiente pasa a ser la lista vigente "
-        "del colegio y es la que sirve GET /v1/listas/{id}",
-    )
+    # H-A-52: corregido en fix/hallazgos-qa; sale XPASS(strict) en la corrida del Mac y se quita el xfail.
     def test_la_lista_vigente_sigue_siendo_la_revisada(self, desplazada, record_property):
         record_property("caso_adv", "ADV-06")
         vigentes = [v[0] for v in desplazada["versiones"] if v[2]]
@@ -307,11 +308,7 @@ class TestNadaSeFiltra:
         record_property("logs_con_nombre", len(con_nombre))
         assert con_nombre == []
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="H-C-15: el nombre del menor que el modelo transcribe entra al catalogo tal cual, en el "
-        "renglon y en la percepcion cruda, sin depurar",
-    )
+    # H-C-15 (catalogo): corregido en fix/hallazgos-qa; sale XPASS(strict) en la corrida del Mac y se quita el xfail.
     def test_el_nombre_del_menor_no_entra_al_catalogo(self, http_flujo, admin, subidas, record_property):
         record_property("caso_adv", "ADV-05")
         version_id = _version(subidas, "ADV-05-p1")

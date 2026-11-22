@@ -261,25 +261,13 @@ class TestElTrabajoQueFalla:
         assert (fallido["estado"], fallido["error"]) != ("fallido", "error_interno")
 
     @pytest.mark.nfr("NFR-REN-03")
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "H-A-41: el trabajo fallido deja en `pendiente` la etapa en la que fallo (optimizacion): "
-            "ninguna dice que fallo"
-        ),
-    )
+    # H-A-41: corregido en fix/hallazgos-qa; sale XPASS(strict) en la corrida del Mac y se quita el xfail.
     def test_si_falla_el_sondeo_dice_en_que_etapa(self, fallido, record_property):
         record_property("etapas", ",".join(f"{e['nombre']}:{e['estado']}" for e in fallido["etapas"]))
         assert fallido["estado"] == "fallido"
         assert any(e["estado"] not in ("pendiente", "ok") for e in fallido["etapas"])
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "H-A-43: el `mensaje` del trabajo fallido trae la sentencia SQL y sus parametros "
-            "y sale por GET /v1/trabajos/{id}, que no pide sesion"
-        ),
-    )
+    # H-A-43: corregido en fix/hallazgos-qa; sale XPASS(strict) en la corrida del Mac y se quita el xfail.
     def test_el_error_no_expone_la_base(self, fallido, record_property):
         mensaje = fallido["mensaje"] or ""
         record_property("mensaje_inicio", mensaje[:120])
@@ -398,13 +386,7 @@ class TestNingunProductoFueraDelCatalogo:
 
 @pytest.mark.nfr("NFR-PRE-04")
 class TestLoQueNoSeCompra:
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "H-A-42: la ruta rapida no corre el parseo: la licencia, el uniforme y el diccionario "
-            "«disponible en casa» salen como utiles comprables"
-        ),
-    )
+    # H-A-42 (informativos): corregido en fix/hallazgos-qa; sale XPASS(strict) en la corrida del Mac y se quita el xfail.
     def test_los_informativos_salen_como_informativos(self, corregido, record_property):
         informativos = ordenes("G01", "informativo")
         kit = corregido["vista"]["kits"][0]

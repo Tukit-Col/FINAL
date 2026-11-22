@@ -321,10 +321,7 @@ def test_la_subida_llega_hasta_el_lector_y_el_catalogo(subida_grabada: dict[str,
 
 
 @pytest.mark.nfr("NFR-SEG-07")
-@pytest.mark.xfail(
-    strict=True,
-    reason="H-C-15: la pagina sale hacia el proveedor de IA tal como se subio, con el nombre del menor",
-)
+# H-C-15 (pagina hacia el modelo): corregido en fix/hallazgos-qa; sale XPASS(strict) en la corrida del Mac y se quita el xfail.
 def test_la_pagina_que_sale_hacia_el_modelo_va_sin_el_nombre(subida_grabada: dict[str, Any]):
     salida = subida_grabada["salida"]
 
@@ -334,10 +331,7 @@ def test_la_pagina_que_sale_hacia_el_modelo_va_sin_el_nombre(subida_grabada: dic
 
 
 @pytest.mark.nfr("NFR-SEG-07")
-@pytest.mark.xfail(
-    strict=True,
-    reason="H-C-15: catalogo.tarea_importacion.documento guarda el archivo original con el nombre del menor",
-)
+# H-C-15 (catalogo): corregido en fix/hallazgos-qa; sale XPASS(strict) en la corrida del Mac y se quita el xfail.
 async def test_el_catalogo_no_guarda_el_nombre_del_menor(subida_grabada: dict[str, Any], record_property):
     version_id = subida_grabada["respuesta"].json()["subidas"][0]["version_id"]
     async with conexion_a("catalogo") as conexion:

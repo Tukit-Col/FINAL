@@ -253,13 +253,7 @@ def test_los_demas_servicios_siguen_atendiendo_con_uno_caido(puerta_con_comercio
 
 
 @pytest.mark.nfr("NFR-DIS-05")
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "H-A-33: la puerta no tiene disyuntor; cada peticion a un destino que corta la conexion "
-        "vuelve a tocarlo"
-    ),
-)
+# H-A-33 (disyuntor): corregido en fix/hallazgos-qa; sale XPASS(strict) en la corrida del Mac y se quita el xfail.
 def test_tras_cinco_fallos_la_puerta_deja_de_tocar_el_destino(puerta_con_comercio_en):
     """Con el umbral del disyuntor de FINAL (5, `resiliencia.py:33`), la sexta no conecta."""
     with _Servidor("corta") as servidor, puerta_con_comercio_en(servidor.puerto) as base:
@@ -281,10 +275,7 @@ def servidor_mudo() -> Iterator[_Servidor]:
 
 
 @pytest.mark.nfr("NFR-DIS-05")
-@pytest.mark.xfail(
-    strict=True,
-    reason="H-A-33: la puerta espera 300 s (ESPERA_SEGUNDOS) a un destino que no contesta",
-)
+# H-A-33 (espera corta): corregido en fix/hallazgos-qa; sale XPASS(strict) en la corrida del Mac y se quita el xfail.
 def test_un_destino_que_no_contesta_se_corta_antes_del_tope_de_esc_r2(puerta_con_comercio_en, servidor_mudo):
     with puerta_con_comercio_en(servidor_mudo.puerto) as base:
         inicio = time.monotonic()
