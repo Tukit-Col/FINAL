@@ -22,7 +22,7 @@ import numpy as np
 RAIZ = Path(__file__).resolve().parents[2]
 for r in (RAIZ / "servicios" / "catalogo", RAIZ / "libs" / "py" / "tukit_comun"):
     sys.path.insert(0, str(r))
-from tukit_catalogo import descubrir as D  # noqa: E402
+from tukit_catalogo import clasificacion as D  # noqa: E402
 from tukit_catalogo.transcripcion import corregir, lexico_de  # noqa: E402
 
 DATOS = Path(__file__).resolve().parent / "datos"

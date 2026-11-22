@@ -34,7 +34,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from .enriquecer import extraer_atributos
+from .extraccion import extraer_atributos
 
 RAIZ = Path(__file__).resolve().parents[3]
 CONCEPTOS = RAIZ / "datos" / "catalogo" / "conceptos.csv"
@@ -65,7 +65,7 @@ def medir(conceptos: list[dict[str, Any]]) -> collections.Counter:
     solo de archivos versionados: el corpus, el catalogo y este codigo. Una
     medicion que dependa del estado de una base no se puede repetir.
     """
-    from .descubrir import clasificar
+    from .clasificacion import clasificar
 
     para_clasificar = [
         {

@@ -107,7 +107,7 @@ class TestLaCorreccionVuelveAlCatalogo:
     """Lo que el equipo corrige en la cola no vuelve a fallar en la lista siguiente (13-nov)."""
 
     async def test_corregir_el_concepto_lo_aprende_como_sinonimo(self, cliente):
-        from tukit_catalogo.descubrir import clasificar
+        from tukit_catalogo.clasificacion import clasificar
 
         vid = cliente.ids["abierta"]
         revision = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()

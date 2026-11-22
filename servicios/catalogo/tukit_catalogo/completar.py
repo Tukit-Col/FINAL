@@ -243,7 +243,7 @@ SURTIDO: dict[str, list[tuple[str, int, int]]] = {
 # Conceptos cuyo generico honesto es un PAQUETE, no una unidad suelta. El papa no
 # compra "una cartulina": compra el paquete x10. Cuando una consulta trae sueltos
 # y paquetes mezclados, para estos conceptos se prefiere el paquete (unidades>1).
-# Se apoya en `enriquecer.extraer_empaque`, que ya sabe leer "x12 unidades" como
+# Se apoya en `extraccion.extraer_empaque`, que ya sabe leer "x12 unidades" como
 # conteo y "100 hojas"/"250 g" como medida, y es consciente del concepto.
 CONCEPTOS_PAQUETE = frozenset({"C010", "C051", "C020", "C029", "C022", "C038", "C014"})
 
@@ -616,7 +616,7 @@ def _preferir_paquetes(candidatos: list[Candidato], attrs: tuple[str, ...]) -> l
     mejor mostrar una unidad que dejar el renglon vacio. Orden final: paquete mas
     grande primero, y a igual tamano el mas barato.
     """
-    from .enriquecer import extraer_empaque
+    from .extraccion import extraer_empaque
 
     con_empaque = [(extraer_empaque(c.nombre, attrs).unidades, c) for c in candidatos]
     paquetes = [par for par in con_empaque if par[0] > 1]

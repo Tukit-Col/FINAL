@@ -47,8 +47,8 @@ for r in ("servicios/catalogo", "servicios/inteligencia", "libs/py/tukit_comun",
     sys.path.insert(0, str(RAIZ / r))
 
 import clasificacion as CL  # noqa: E402
+from tukit_catalogo import clasificacion as D  # noqa: E402
 from tukit_catalogo import consulta as C  # noqa: E402
-from tukit_catalogo import descubrir as D  # noqa: E402
 from tukit_inteligencia.dominio.pipeline import estado_desde_emparejamiento  # noqa: E402
 from tukit_inteligencia.parseo import BUSCA_EN_CATALOGO, parsear_renglon  # noqa: E402
 

@@ -20,9 +20,9 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 from .cache_vectores import vectores_guardados
-from .descubrir import clasificar
+from .clasificacion import clasificar
 from .embeddings import Embeder, promedio
-from .enriquecer import extraer_atributos
+from .extraccion import extraer_atributos
 from .transcripcion import corregir, lexico_de
 
 _ORDEN_NIVEL = ("economico", "confiable", "premium")

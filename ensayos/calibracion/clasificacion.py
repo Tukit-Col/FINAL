@@ -33,7 +33,7 @@ for ruta in (str(RAIZ / "servicios" / "catalogo"), str(RAIZ / "libs" / "py" / "t
     if ruta not in sys.path:
         sys.path.insert(0, ruta)
 
-from tukit_catalogo import descubrir as D  # noqa: E402
+from tukit_catalogo import clasificacion as D  # noqa: E402
 from tukit_catalogo.routers.admin import sinonimo_de_renglon  # noqa: E402
 from tukit_catalogo.transcripcion import corregir, lexico_de  # noqa: E402
 
