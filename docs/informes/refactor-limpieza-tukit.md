@@ -1,6 +1,6 @@
 # Informe técnico: intervención de calidad sobre Tukit (RCTCO)
 
-Rama de trabajo: `refactor/limpieza-tukit` (desde `main` @ `11c3f10`). Sin commits, push ni merge.
+Rama de trabajo: `refactor/limpieza-tukit` (desde `main` @ `11c3f10`). Ocho commits convencionales locales; sin push ni merge.
 
 ## 1. Diagnóstico inicial
 
@@ -108,6 +108,5 @@ Recomendaciones futuras, sin hacer en esta intervención por riesgo o falta de p
 
 ## 8. Estado final
 
-- Rama: `refactor/limpieza-tukit`, con cambios sin commitear. 40 archivos modificados o eliminados respecto a `HEAD`, más 24 nuevos sin seguimiento. `main` y `origin/validacion/oe5` intactas.
-- Cambios sin commit: `optimizador.py` y `trabajos.py` figuran como borrados en el índice.
+- Rama: `refactor/limpieza-tukit`, 8 commits sobre `main` (`11c3f10`), árbol limpio. `main` y `origin/validacion/oe5` intactas; nada publicado.
 - Funcionamiento: las suites ejecutables dan los mismos resultados que antes, salvo los preexistentes listados arriba. El comportamiento de los algoritmos se conserva según la comparación del optimizador.
