@@ -1,5 +1,3 @@
-"""La decision de crear/promover/conflicto y la validacion de clave, puras."""
-
 from __future__ import annotations
 
 import pytest
@@ -31,5 +29,4 @@ def test_clave_corta_se_rechaza():
 
 @pytest.mark.parametrize("largo", [CLAVE_MINIMA, CLAVE_MINIMA + 24])
 def test_una_clave_del_largo_minimo_o_mas_es_valida(largo):
-    """El limite es inclusivo: `CLAVE_MINIMA` caracteres ya bastan."""
     assert validar_clave("x" * largo) is None

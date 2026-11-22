@@ -1,12 +1,3 @@
-"""El cierre de la solicitud de supresion (Ley 1581, ADR 0048).
-
-Cada servicio confirma con `supresion_confirmada` por `identidad.supresion`. La
-solicitud sale de `propagando` solo cuando confirmaron los tres; una
-confirmacion repetida no cambia nada, y una que llega con la solicitud ya
-cerrada tampoco. Y `titular_suprimido`, como lo escribe `suprimir_titular`, sale
-por el publicador comun.
-"""
-
 from __future__ import annotations
 
 import uuid

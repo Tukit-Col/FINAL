@@ -1,5 +1,3 @@
-"""La cuenta del acudiente: crear, promover al invitado, y registrar hijos."""
-
 from __future__ import annotations
 
 import pytest
@@ -29,7 +27,6 @@ async def test_crear_cuenta_devuelve_sesion_y_token(cliente):
     assert r.status_code == 201
     cuerpo = r.json()
     assert cuerpo["sesion"]["correo"] == "nueva@ejemplo.com"
-    # El token devuelto abre la sesion de la cuenta recien creada.
     actual = await cliente.get("/v1/sesiones/actual", headers=bearer(cuerpo["token"]))
     assert actual.json()["correo"] == "nueva@ejemplo.com"
 
@@ -39,7 +36,6 @@ async def test_crear_cuenta_sin_aceptar_terminos_es_422_y_no_crea_nada(cliente):
     r = await cliente.post("/v1/cuenta", json=datos)
     assert r.status_code == 422
     assert r.json()["error"] == "consentimiento_requerido"
-    # La cuenta no nacio: aceptando ahora el correo se crea (no es un 409).
     aceptando = await cliente.post("/v1/cuenta", json={**datos, "acepta_terminos": True})
     assert aceptando.status_code == 201
     assert aceptando.json()["sesion"]["correo"] == "sin@ejemplo.com"

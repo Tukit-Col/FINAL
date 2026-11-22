@@ -1,11 +1,3 @@
-"""Consentimiento, perfil socioeconomico y supresion.
-
-Estas cuatro tablas son la razon por la que Identidad es una frontera de
-cumplimiento y no un servicio mas. Cada una corrige un defecto concreto que el
-Anexo M documento sobre el modelo anterior, y los cuatro defectos tienen la
-misma forma: la politica existia en el documento y el esquema no la soportaba.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -40,18 +32,6 @@ _LISTA_ESTADOS = ", ".join(f"'{e}'" for e in ESTADOS_SUPRESION)
 
 
 class PerfilSocioeconomico(Base):
-    """La encuesta P1 a P9, en un contenedor cifrado.
-
-    Los nueve atributos NO son columnas: viven dentro de `datos_cifrados` y se
-    descifran en la aplicacion. Uno de ellos, el numero de hijos escolarizados,
-    esta clasificado como dato de menor.
-
-    Se queda en Identidad por frontera de cumplimiento, y eso deja abierto un
-    problema que el esquema no puede cerrar solo: sus derivados
-    (`kit.perfil` y `kit.pesos_usados`) viven en claro en la base de
-    Inteligencia. Cifrar el origen y dejar el derivado en claro no protege
-    nada. Se resuelve en el porte de Inteligencia, no aqui.
-    """
 
     __tablename__ = "perfil_socioeconomico"
 
@@ -63,25 +43,12 @@ class PerfilSocioeconomico(Base):
     creado_en: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    # Sin esta columna la retencion de 24 meses que fija el Anexo M es
-    # inejecutable: no habria desde donde contarlos. Mismo caso que
-    # `matricula.cerrado_en`.
     actualizado_en: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
 
 class Consentimiento(Base):
-    """Aceptacion de un texto legal, con regimen y version.
-
-    Fusiona las dos tablas anteriores bajo un discriminador, y agrega la
-    columna que corrige el defecto mas concreto del modelo previo:
-    `consentimientos_menor_registro` registraba que un acudiente autorizo el
-    tratamiento del dato de UN hijo pero no decia de cual. Con dos hijos, una
-    sola fila cubria a ambos de forma indistinguible, lo que hace imposible
-    revocar el consentimiento de uno solo y hace imposible responderle a un
-    regulador que autorizo exactamente el titular.
-    """
 
     __tablename__ = "consentimiento"
 
@@ -91,16 +58,12 @@ class Consentimiento(Base):
     )
     regimen: Mapped[str] = mapped_column(String(32), nullable=False)
     version: Mapped[str] = mapped_column(String(32), nullable=False)
-    # De cual menor se autoriza el tratamiento. Nulo solo para el regimen del
-    # titular, y el CHECK lo impone.
     matricula_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("matricula.id", ondelete="RESTRICT"), nullable=True
     )
     aceptado_en: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    # Una revocatoria que sobreescribe la fila borra la evidencia de lo que se
-    # revoco, y con eso no sirve ni al titular ni a la prueba de cumplimiento.
     revocado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
@@ -121,19 +84,6 @@ class Consentimiento(Base):
 
 
 class ConsentimientoFinalidad(Base):
-    """Decision del titular sobre una finalidad concreta, versionada y con historial.
-
-    El esquema anterior tenia clave primaria compuesta `(usuario_id, finalidad)`,
-    asi que un `PUT` sobreescribia la fila: no habia version ni historico. Se
-    corrige con clave sustituta mas indice unico parcial sobre la fila vigente,
-    el mismo patron que usa `asignacion_rol` para el mismo problema.
-
-    Arreglar la forma NO arregla el hallazgo de fondo: esta tabla no se
-    consulta desde ningun punto del sistema antes de tratar un dato, asi que la
-    revocacion es hoy un interruptor sin efecto. Un consentimiento que no se
-    consulta no es un consentimiento, es un formulario. El esquema habilita el
-    control; imponerlo es trabajo del codigo que trata el dato.
-    """
 
     __tablename__ = "consentimiento_finalidad"
 
@@ -170,17 +120,6 @@ class ConsentimientoFinalidad(Base):
 
 
 class SolicitudSupresion(Base):
-    """Ejercicio del derecho de supresion, con confirmacion de todos los servicios.
-
-    El estado `propagando` y la columna `suscriptores_confirmados` existen para
-    volver verdadero el estado `completada`. El worker anterior marcaba la
-    solicitud como completada inmediatamente despues de anonimizar la fila
-    local, sin esperar confirmacion de nadie, y la publicacion del evento hacia
-    los demas servicios se tragaba el fallo sin reintento.
-
-    El sistema le respondia al titular que su dato fue suprimido cuando, en el
-    mejor de los casos, lo habia sido en una de las cinco bases.
-    """
 
     __tablename__ = "solicitud_supresion"
 
@@ -200,9 +139,6 @@ class SolicitudSupresion(Base):
 
     __table_args__ = (
         CheckConstraint(f"estado IN ({_LISTA_ESTADOS})", name="supresion_estado_valido"),
-        # `completada` y `fallida` son terminales y exigen fecha de resolucion:
-        # es lo que impide volver a marcar completada una solicitud que nadie
-        # confirmo.
         CheckConstraint(
             "(estado IN ('completada', 'fallida')) = (resuelto_en IS NOT NULL)",
             name="supresion_resolucion_coherente",
@@ -212,13 +148,6 @@ class SolicitudSupresion(Base):
     )
 
     def confirmar(self, servicio: str, suscriptores_requeridos: frozenset[str]) -> bool:
-        """Registra la confirmacion de un servicio. Devuelve si ya estan todas.
-
-        Vive en el modelo y no en el worker porque la regla que hay que
-        sostener es precisamente que `completada` signifique lo que dice, y
-        dejarla en el llamador es como el worker anterior termino marcando
-        completada una supresion que solo habia ocurrido localmente.
-        """
         if servicio not in self.suscriptores_confirmados:
             self.suscriptores_confirmados = [*self.suscriptores_confirmados, servicio]
         return suscriptores_requeridos.issubset(set(self.suscriptores_confirmados))

@@ -1,9 +1,3 @@
-"""`/v1/cuenta/matriculas`: los hijos del portador, y solo los suyos.
-
-Listar, agregar, quitar y cambiar de colegio. Todo exige el token y filtra
-por `usuario_id`, asi que un padre solo alcanza a SUS hijos.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -15,7 +9,6 @@ from tukit_identidad.modelos import Sede
 
 class TestMisMatriculasExigenToken:
     async def test_solo_devuelve_lo_del_portador(self, cliente):
-        """Otro acudiente no ve las matriculas ajenas ni con token valido."""
         colegio_id = str(derivar("colegio", "2.4"))
         await cliente.post(
             "/v1/registro",
@@ -41,7 +34,6 @@ class TestMisMatriculasExigenToken:
 
 
 class TestGuardarMatriculasConSesion:
-    """`POST /v1/cuenta/matriculas`: un acudiente autenticado agrega a sus hijos."""
 
     async def _token(self, cliente, correo: str) -> str:
         await cliente.post(
@@ -65,7 +57,6 @@ class TestGuardarMatriculasConSesion:
 
     async def test_colegio_sin_sede_es_422(self, cliente):
         token = await self._token(cliente, "sinsede-sesion@ejemplo.com")
-        # El colegio "9.9" existe pero no tiene sede activa (fixture `cliente`).
         colegio_id = str(derivar("colegio", "9.9"))
         respuesta = await cliente.post(
             "/v1/cuenta/matriculas",
@@ -76,7 +67,6 @@ class TestGuardarMatriculasConSesion:
         assert respuesta.json()["campo"] == "colegio_id"
 
     async def test_solo_escribe_al_portador(self, cliente):
-        """El hijo queda en la cuenta de quien porta el token, no en otra."""
         colegio_id = str(derivar("colegio", "2.4"))
         token_a = await self._token(cliente, "porta-a@ejemplo.com")
         token_b = await self._token(cliente, "porta-b@ejemplo.com")
@@ -100,9 +90,6 @@ class TestGuardarMatriculasConSesion:
         assert cuenta_a["matriculas"][0]["apodo"] == "Pipe"
 
     async def test_reenviar_agrega_otro_hijo(self, cliente):
-        """El endpoint NO es idempotente por diseno: cada POST AGREGA. Reenviar el
-        mismo cuerpo crea otra matricula (la proteccion de reenvios vive en la firma
-        del formulario, no aqui), asi que no colapsa en una sola fila."""
         colegio_id = str(derivar("colegio", "2.4"))
         token = await self._token(cliente, "reenvio-sesion@ejemplo.com")
         cuerpo = {"hijos": [{"colegio_id": colegio_id, "grado": "Quinto"}]}
@@ -110,13 +97,11 @@ class TestGuardarMatriculasConSesion:
         primero = await cliente.post("/v1/cuenta/matriculas", json=cuerpo, headers=cabecera)
         assert primero.json()["total"] == 1
         segundo = await cliente.post("/v1/cuenta/matriculas", json=cuerpo, headers=cabecera)
-        assert segundo.json()["total"] == 1  # uno mas, realmente creado
+        assert segundo.json()["total"] == 1
         cuenta = (await cliente.get("/v1/cuenta/matriculas", headers=cabecera)).json()
         assert cuenta["total"] == 2
 
     async def test_reenviar_gemelos_agrega_mas(self, cliente):
-        """Reenviar dos gemelos agrega dos mas (endpoint aditivo por diseno): 2 -> 4.
-        La firma del formulario es lo que evita el reenvio accidental."""
         colegio_id = str(derivar("colegio", "2.4"))
         token = await self._token(cliente, "gemelos-sesion@ejemplo.com")
         cuerpo = {
@@ -134,10 +119,6 @@ class TestGuardarMatriculasConSesion:
         assert cuenta["total"] == 4
 
     async def test_agregar_otro_hijo_en_mismo_colegio_y_grado(self, cliente):
-        """El portador YA tiene un hijo en (colegio, grado) por el registro;
-        agregar OTRO en el mismo par con otro apodo debe crear una matricula NUEVA (no
-        colapsar en la existente ni perder el apodo). Fija tambien la casacion de tipo
-        de la clave del conteo: si fallara, colapsaria a 1 y esta prueba caeria."""
         colegio_id = str(derivar("colegio", "2.4"))
         await cliente.post(
             "/v1/registro",
@@ -158,14 +139,12 @@ class TestGuardarMatriculasConSesion:
             headers=cabecera,
         )
         assert respuesta.status_code == 201
-        assert respuesta.json()["total"] == 1  # uno realmente creado
+        assert respuesta.json()["total"] == 1
         cuenta = (await cliente.get("/v1/cuenta/matriculas", headers=cabecera)).json()
         assert cuenta["total"] == 2
         assert {m["apodo"] for m in cuenta["matriculas"]} == {"Pipe", "Sofi"}
 
     async def test_un_tercero_tras_gemelos_del_registro_son_tres(self, cliente):
-        """Registro con gemelos (2 en el mismo par) y luego un POST con un tercero en
-        ese par: 3 matriculas distintas, no colapsar."""
         colegio_id = str(derivar("colegio", "2.4"))
         await cliente.post(
             "/v1/registro",
@@ -195,12 +174,6 @@ class TestGuardarMatriculasConSesion:
 
 
 class TestQuitarYCambiarHijos:
-    """El acudiente quita a un hijo o lo cambia de colegio desde su panel.
-
-    Quitar no borra: cierra el vinculo (`vigente_hasta`) y retira la matricula,
-    que es lo que la retencion de datos de menores exige conservar. Cambiar de
-    colegio retira la matricula vieja y crea la nueva con el mismo apodo.
-    """
 
     async def _cuenta_con_hijo(self, cliente, correo: str, apodo: str = "Pipe") -> tuple[dict, str]:
         await cliente.post(
@@ -243,7 +216,6 @@ class TestQuitarYCambiarHijos:
         assert (await cliente.delete(f"/v1/cuenta/matriculas/{matricula_id}")).status_code == 401
 
     async def test_un_hijo_quitado_se_puede_volver_a_agregar(self, cliente):
-        """La derivacion cae en la misma matricula retirada: se reactiva."""
         cabecera, matricula_id = await self._cuenta_con_hijo(cliente, "volver@ejemplo.com")
         await cliente.delete(f"/v1/cuenta/matriculas/{matricula_id}", headers=cabecera)
         respuesta = await cliente.post(
@@ -260,7 +232,6 @@ class TestQuitarYCambiarHijos:
         assert [h["apodo"] for h in hijos] == ["Pipe 2"]
 
     async def test_cambiar_de_colegio_conserva_el_apodo(self, cliente):
-        # El colegio "9.9" del fixture no tiene sede: se le da una para recibirlo.
         async with app.state.motor.sesion() as sesion:
             sesion.add(
                 Sede(

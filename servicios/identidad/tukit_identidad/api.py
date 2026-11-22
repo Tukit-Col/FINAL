@@ -1,15 +1,3 @@
-"""La superficie minima de Identidad: monta el router y ata el motor.
-
-Identidad es la frontera de cumplimiento del sistema: aqui viven los datos de
-menores, asi que cada ruta que se abre hay que poder defenderla (Anexo M). Las
-rutas — colegios/sedes/grados, contacto, sesiones y "mi cuenta" — viven en
-`routers/identidad.py`; el SQL en `repositorios/identidad.py`; las reglas puras
-(token, autorizacion, directorio) en `dominio/`. Este modulo solo ensambla
-(ADR 0019).
-
-    python -m tukit_identidad.api            # localhost:8011
-"""
-
 from __future__ import annotations
 
 import argparse

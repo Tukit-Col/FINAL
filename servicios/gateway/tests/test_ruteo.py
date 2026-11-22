@@ -1,12 +1,3 @@
-"""La puerta rutea por prefijo y no adivina.
-
-El caso que estas pruebas fijan es el de una ruta desconocida. Un proxy con
-comodin la reenviaria a algun servicio y el error saldria seis capas mas
-abajo, con el mensaje del servicio equivocado; aqui se responde 404 con la
-lista de prefijos que si existen, que es lo que le sirve a quien esta
-integrando.
-"""
-
 from __future__ import annotations
 
 import httpx
@@ -21,61 +12,33 @@ class TestElPrefijoMasLargoGana:
             ("/v1/catalogo/conceptos", "catalogo"),
             ("/v1/catalogo", "catalogo"),
             ("/v1/listas/abc", "catalogo"),
-            # La subida de listas la sirve inteligencia (percepcion + version
-            # pendiente), no catalogo: su prefijo mas largo gana a `/v1/listas`.
-            # Un `/v1/listas/<id>` cualquiera sigue en catalogo (la linea de arriba).
             ("/v1/listas/subir", "inteligencia"),
             ("/v1/colegios", "identidad"),
             ("/v1/contactos", "identidad"),
             ("/v1/trabajos/abc", "inteligencia"),
-            # "Mis solicitudes" del acudiente: prefijo propio para no chocar con
-            # `/v1/trabajos/{trabajo_id}`; la sirve inteligencia.
             ("/v1/mis-solicitudes", "inteligencia"),
-            # `/v1/admin` esta declarado aparte y no cae en `/v1/trabajos`
-            # por parecido: si un dia admin vive en otro servicio, cambia una
-            # linea del mapa y nada mas.
             ("/v1/admin/cola", "inteligencia"),
-            # La revision de listas la sirve catalogo; la ingesta de PDF,
-            # inteligencia. Ambas bajo `/v1/admin`, distinguidas por el prefijo
-            # mas largo: `/v1/admin/listas` gana a `/v1/admin`.
             ("/v1/admin/listas", "catalogo"),
             ("/v1/admin/listas/abc/revision", "catalogo"),
             ("/v1/admin/propuestas/abc/rechazar", "catalogo"),
-            # La curaduria proactiva del catalogo (cola, alta de util/libro,
-            # buscar en tienda, aprobar) cuelga de `/v1/admin/catalogo`: su
-            # prefijo mas largo gana a `/v1/admin` -> inteligencia. `rechazar`
-            # sigue yendo a catalogo por su propio prefijo `/v1/admin/propuestas`.
             ("/v1/admin/catalogo/propuestas", "catalogo"),
             ("/v1/admin/catalogo/tiendas/exito/buscar", "catalogo"),
             ("/v1/admin/onboarding", "inteligencia"),
-            # Importar una lista, su documento y su percepcion cuelgan de
-            # `/v1/admin/listas`, asi que van a catalogo por el prefijo mas
-            # largo; el onboarding no tiene ese prefijo y cae en `/v1/admin`.
             ("/v1/admin/listas/importar", "catalogo"),
             ("/v1/admin/listas/abc/documento", "catalogo"),
             ("/v1/admin/listas/abc/percepcion", "catalogo"),
-            # El backlog de sugerencias de padres cuelga de `/v1/admin` pero lo
-            # sirve catalogo: su prefijo mas largo gana a `/v1/admin` y evita
-            # que caiga en inteligencia.
             ("/v1/admin/sugerencias", "catalogo"),
-            # El padron de acudientes lo sirve identidad (es su dato personal),
-            # no inteligencia: su prefijo mas largo gana a `/v1/admin`.
             ("/v1/admin/acudientes", "identidad"),
             ("/v1/admin/acudientes/abc", "identidad"),
-            # El tablero de logistica y la bandeja de casos: comercio y operacion.
             ("/v1/comercio/pedidos", "comercio"),
             ("/v1/comercio/pedidos/abc", "comercio"),
             ("/v1/comercio/mis-pedidos", "comercio"),
-            # "Mi cuenta" del acudiente y su libreta de direcciones: identidad.
             ("/v1/cuenta", "identidad"),
             ("/v1/cuenta/direcciones", "identidad"),
             ("/v1/cuenta/direcciones/abc", "identidad"),
-            # El panel del colegio (kits, cobertura, ahorro) lo calcula
-            # inteligencia; cuelga de `/v1/metricas`, no de `/v1/colegios`.
             ("/v1/metricas/colegios/abc", "inteligencia"),
             ("/v1/operacion/casos", "operacion"),
             ("/v1/operacion/casos/abc", "operacion"),
-            # El checkout y el webhook de la pasarela los sirve comercio (§9).
             ("/v1/ordenes", "comercio"),
             ("/v1/ordenes/abc/pago", "comercio"),
             ("/v1/ordenes/abc/retracto", "comercio"),
@@ -87,26 +50,14 @@ class TestElPrefijoMasLargoGana:
         assert destino(ruta) == esperado
 
     def test_sugerencias_no_cae_en_inteligencia(self):
-        """`/v1/admin/sugerencias` NO debe sombrearse a `/v1/admin` (inteligencia).
-
-        Sin el prefijo propio la sugerencia iria al servicio equivocado y el
-        backlog nunca se escribiria; el fallo saldria capas mas abajo.
-        """
         assert destino("/v1/admin/sugerencias") == "catalogo"
         assert destino("/v1/admin/sugerencias/abc") == "catalogo"
 
     def test_acudientes_no_cae_en_inteligencia(self):
-        """`/v1/admin/acudientes` NO debe sombrearse a `/v1/admin` (inteligencia).
-
-        Sin el prefijo propio el padron iria al servicio equivocado y nunca
-        llegaria a identidad, que es quien tiene el dato del acudiente.
-        """
         assert destino("/v1/admin/acudientes") == "identidad"
         assert destino("/v1/admin/acudientes/abc") == "identidad"
 
     def test_un_prefijo_parecido_pero_distinto_no_cuela(self):
-        """`/v1/listasbla` no es `/v1/listas`. Sin la comprobacion del
-        separador, un endpoint mal escrito se reenviaria en silencio."""
         assert destino("/v1/listasbla") is None
 
     @pytest.mark.parametrize("ruta", ["/", "/v1", "/v2/catalogo", "/v1/inventado"])
@@ -115,12 +66,6 @@ class TestElPrefijoMasLargoGana:
 
 
 class TestNingunaRutaSeAnunciaComoPendiente:
-    """Ninguna ruta responde 501 "pendiente": todo lo declarado tiene servicio.
-
-    `PENDIENTES` es el mapa de rutas del contrato sin servicio detras (la puerta
-    les responderia 501 con la seccion del contrato). Esta vacio: el checkout y
-    el webhook del §9 los sirve comercio y rutean como cualquier otra.
-    """
 
     def test_el_checkout_y_el_webhook_no_estan_pendientes(self):
         from tukit_gateway.api import PENDIENTES, pendiente
@@ -131,27 +76,15 @@ class TestNingunaRutaSeAnunciaComoPendiente:
 
 
 class TestLasRutasInternasNoSeExponen:
-    """`/v1/comercio/pedidos-pagados` y todo `/v1/ordenes` salvo el avance son
-    servicio-a-servicio (inteligencia le pega directo a comercio por
-    `TUKIT_COMERCIO_URL`), y desde fuera deben verse como INEXISTENTES, no como
-    prohibidas: revelar que hay una superficie interna es informacion que no le
-    hace falta a nadie de fuera.
-    """
 
     def test_pedidos_pagados_esta_bloqueada(self):
         assert bloqueada("/v1/comercio/pedidos-pagados") is True
 
     def test_leer_un_contacto_esta_bloqueado(self):
-        # `GET /v1/contactos/{usuario_id}` devuelve correo y celular. Lo usan
-        # comercio y operacion directo contra identidad; por la puerta lo leia
-        # cualquiera, y el usuario_id es un uuid5 que se calcula desde el correo.
         assert bloqueada("/v1/contactos/e1b0fb96-a9ee-5bb0-b0be-c2c88ace6b62") is True
-        # El alta (`POST /v1/contactos`) sigue expuesta, como dice el contrato.
         assert bloqueada("/v1/contactos") is False
 
     def test_el_resto_de_comercio_no_esta_bloqueado(self):
-        # El bloqueo es exacto sobre pedidos-pagados: el tablero de pedidos y lo
-        # demas de comercio siguen ruteando.
         assert bloqueada("/v1/comercio/pedidos") is False
         assert bloqueada("/v1/comercio/mis-pedidos") is False
         assert destino("/v1/comercio/pedidos") == "comercio"
@@ -161,7 +94,6 @@ class TestLasRutasInternasNoSeExponen:
         [
             ("/v1/comercio/mis-pedidos/abc/retracto", "comercio"),
             ("/v1/operacion/mis-casos", "operacion"),
-            # El panel de privacidad del titular (Ley 1581) vive en Identidad.
             ("/v1/cuenta/mis-datos", "identidad"),
             ("/v1/cuenta/mis-datos/exportar", "identidad"),
             ("/v1/cuenta/supresion", "identidad"),
@@ -172,15 +104,10 @@ class TestLasRutasInternasNoSeExponen:
         ],
     )
     def test_las_rutas_del_acudiente_pasan_por_la_puerta(self, ruta, servicio):
-        # Retracto, casos propios y cambios del kit: el dueno lo decide cada
-        # servicio con el token, la puerta solo las rutea.
         assert bloqueada(ruta) is False
         assert destino(ruta) == servicio
 
     async def test_responde_404_indistinguible_de_ruta_desconocida(self):
-        """El 404 de la ruta interna es identico al de una ruta que no existe, y
-        la ruta bloqueada NO aparece en la lista de rutas: desde fuera no hay
-        forma de saber que existe una superficie interna detras."""
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://prueba"
         ) as cliente:
@@ -194,12 +121,6 @@ class TestLasRutasInternasNoSeExponen:
 
 
 async def _respuesta_cruda(ruta: str) -> tuple[int, bytes]:
-    """Llama a la puerta con la ruta TAL CUAL, sin pasar por httpx.
-
-    httpx normaliza `x/../` antes de enviar, asi que una prueba con su cliente
-    nunca ve el caso que importa: lo que un `curl --path-as-is` si manda. Se
-    arma el scope ASGI a mano, decodificando como lo hace el servidor real.
-    """
     from urllib.parse import unquote
 
     mensajes: list[dict] = []
@@ -231,9 +152,6 @@ async def _respuesta_cruda(ruta: str) -> tuple[int, bytes]:
 
 
 class TestLosSegmentosPuntoNoSaltanElBloqueo:
-    """httpx normaliza la ruta al reenviar: sin este chequeo,
-    `/v1/comercio/x/../pedidos-pagados` pasaba como una ruta de comercio
-    cualquiera y llegaba al servicio como la ruta interna."""
 
     @pytest.mark.parametrize(
         "ruta",
@@ -249,7 +167,6 @@ class TestLosSegmentosPuntoNoSaltanElBloqueo:
         assert bloqueada(ruta) is True
 
     def test_un_punto_dentro_de_un_segmento_no_es_ambiguo(self):
-        # `.` como parte de un nombre (un archivo, una version) es legitimo.
         assert bloqueada("/v1/catalogo/imagen.png") is False
         assert bloqueada("/v1/catalogo/v1..2") is False
 
@@ -270,11 +187,6 @@ class TestLosSegmentosPuntoNoSaltanElBloqueo:
 
 
 class TestElEndpointInternoDeCatalogoNoSeExpone:
-    """`/interno/listas-por-contacto/{usuario_id}` es servicio-a-servicio
-    (inteligencia le pega directo a catalogo por `TUKIT_CATALOGO_URL`) y, como no
-    esta en `RUTAS`, la puerta ni siquiera lo conoce: `destino` es `None` y la
-    peticion recibe el mismo 404 de "ruta desconocida" que cualquier otra. Asi la
-    superficie interna del catalogo no existe hacia el navegador."""
 
     RUTA = "/interno/listas-por-contacto/aaaaaaaa-aaaa-5aaa-8aaa-aaaaaaaaaaaa"
 
@@ -290,7 +202,6 @@ class TestElEndpointInternoDeCatalogoNoSeExpone:
         assert respuesta.status_code == 404
         cuerpo = respuesta.json()
         assert cuerpo["error"] == "ruta_desconocida"
-        # El prefijo interno no aparece en la lista de rutas que si existen.
         assert not any(r.startswith("/interno") for r in cuerpo["rutas"])
 
 
@@ -307,13 +218,6 @@ class TestLaRespuestaCuandoNoSabe:
         assert cuerpo["rutas"] == sorted(RUTAS)
 
     async def test_un_servicio_apagado_da_503_y_no_502(self, monkeypatch):
-        """El de atras no fallo, no esta. La distincion le dice a quien opera
-        si hay que mirar un log o levantar un proceso.
-
-        El destino se fija a un puerto cerrado en vez de confiar en que el
-        servicio real no este levantado: si alguien corre la suite con el
-        backend arriba, la prueba pasaria por la razon equivocada.
-        """
         monkeypatch.setenv("TUKIT_CATALOGO_URL", "http://127.0.0.1:1")
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://prueba"
@@ -325,11 +229,6 @@ class TestLaRespuestaCuandoNoSabe:
 
 
 class TestElCuerpoMultipartViajaIntacto:
-    """La ingesta de PDF sube un multipart; si la puerta tocara el cuerpo o
-    perdiera el `content-type` con su boundary, el de atras no podria parsear
-    los campos. La puerta lee `body()` crudo y lo pasa tal cual con el
-    `content-type` original —que no esta en CABECERAS_SALTADAS—.
-    """
 
     def test_content_type_no_se_salta(self):
         assert "content-type" not in CABECERAS_SALTADAS
@@ -342,7 +241,6 @@ class TestElCuerpoMultipartViajaIntacto:
                 return None
 
             async def get(self, url, **_kwargs):
-                # La validacion de la sesion de la consola: un operador.
                 return httpx.Response(200, json={"usuario_id": "u", "roles": [{"rol": "operador"}]})
 
             async def request(self, metodo, url, *, params, headers, content):
@@ -352,12 +250,8 @@ class TestElCuerpoMultipartViajaIntacto:
                 capturado["content"] = content
                 return httpx.Response(200, content=b"ok")
 
-        # Se sustituye el cliente compartido de la puerta (el que crea el
-        # arranque) por el espia; la limpieza del conftest lo retira al final.
         app.state.cliente = ClienteEspia()
 
-        # Un multipart armado a mano con un boundary explicito, para poder
-        # verificar byte a byte que llega igual y que el boundary sobrevive.
         boundary = "----tukitBoundary123"
         cuerpo = (
             f"--{boundary}\r\n"
@@ -385,8 +279,6 @@ class TestElCuerpoMultipartViajaIntacto:
 
 class TestLaSondaDiceLaVerdadSobreLosTres:
     async def test_no_responde_ok_con_los_tres_caidos(self, monkeypatch):
-        """`GET /salud` en la puerta responde `ok` aunque no haya nada
-        detras. Sin `/v1/servicios`, eso hace perder una tarde."""
         for variable in (
             "TUKIT_CATALOGO_URL",
             "TUKIT_IDENTIDAD_URL",
@@ -424,7 +316,6 @@ class TestLaSondaDiceLaVerdadSobreLosTres:
         assert bloqueada(ruta) is True
 
     def test_el_avance_de_ordenes_si_pasa(self):
-        # Es back-office: la puerta lo deja pasar y comercio exige el rol.
         assert bloqueada("/v1/ordenes/abc/avanzar") is False
         assert destino("/v1/ordenes/abc/avanzar") == "comercio"
 

@@ -1,11 +1,3 @@
-"""Dos puertas con su propia conexion comparten el contador (ADR 0047).
-
-Es lo que el conteo en memoria no da: con dos replicas del gateway, cada una
-contaria su mitad y el cupo real seria el doble. Aqui las dos tienen su
-`ClienteRedis` contra el Redis de `TUKIT_PRUEBAS_REDIS_URL`, y las peticiones se
-alternan entre ellas.
-"""
-
 from __future__ import annotations
 
 import httpx
@@ -33,7 +25,6 @@ async def test_dos_puertas_comparten_el_contador(monkeypatch):
         assert not una.degradado and not otra.degradado
         guardado = await lo_guardado(una.prefijo)
 
-    # Cada puerta vio tres peticiones, por debajo del tope de cuatro; juntas, seis.
     assert estados == [404, 404, 404, 404, 429, 429]
     assert ultima.status_code == 429
     assert 1 <= int(ultima.headers["Retry-After"]) <= 60

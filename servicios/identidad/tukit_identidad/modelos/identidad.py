@@ -1,5 +1,3 @@
-"""Usuario y la bandeja de salida local."""
-
 from __future__ import annotations
 
 import uuid
@@ -33,22 +31,9 @@ class Usuario(Base):
     correo: Mapped[str] = mapped_column(String(320), nullable=False, unique=True)
     clave_hash: Mapped[str] = mapped_column(String(256), nullable=False)
     nombre_cifrado: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
-    # El celular del titular, para el aviso por wa-link cuando el trabajo
-    # termine. Nulable: una cuenta puede nacer solo con correo (el contacto sin
-    # credencial). Va en claro (dato del adulto, no del menor); no es PII de
-    # menor del Anexo M.
     celular: Mapped[str | None] = mapped_column(String(32), nullable=True)
     activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
-    # Lo que arregla la revocacion de sesion. Hoy la cadena `jti` solo existe
-    # en MS-Cuentas: `deps.py` valida firma, tipo y expiracion y nada mas, asi
-    # que inhabilitar una cuenta no surte efecto en los otros seis servicios
-    # hasta que el token expire, y el de un acudiente dura 30 dias.
-    #
-    # Con esto, el token lleva la version con la que se emitio y cualquier
-    # servicio la compara contra la vigente. Revocar es incrementar el numero:
-    # no requiere que los demas servicios consulten una lista de revocacion en
-    # cada peticion, que es lo que haria inviable el control.
     version_permisos: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))
 
     creado_en: Mapped[datetime] = mapped_column(
@@ -58,25 +43,6 @@ class Usuario(Base):
 
 
 class Direccion(Base):
-    """Libreta de direcciones del acudiente.
-
-    No existia NINGUNA direccion de entrega en todo el sistema anterior, en un
-    negocio que entrega a domicilio. Tampoco estaba en el esquema objetivo, asi
-    que el hueco se arrastraba del modelo al diseno.
-
-    Vive en Identidad y no en Comercio porque es dato personal de una familia
-    con menores, y la supresion tiene que alcanzarla. Pero la direccion a la
-    que SE ENTREGO un pedido no es esta fila: es una copia congelada en el
-    envio, en Comercio. Si el envio apuntara aqui con una llave foranea,
-    corregir un numero de apartamento reescribiria el historial de entregas y
-    dejaria sin sustento cualquier reclamo. Es el mismo razonamiento por el
-    que el precio se congela en la linea del pedido. Ver ADR 0015.
-
-    La division de columnas es minimizacion, no capricho. Repartir una ruta
-    necesita saber la zona, no el apartamento: `ciudad` y `localidad` quedan en
-    claro porque de ellas depende la asignacion de zona, y la parte que
-    identifica el hogar va cifrada.
-    """
 
     __tablename__ = "direccion"
 
@@ -89,18 +55,13 @@ class Direccion(Base):
     ciudad: Mapped[str] = mapped_column(String(128), nullable=False)
     localidad: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
-    # Calle, numero, apartamento y punto de referencia. Cifrado en la
-    # aplicacion: es lo que localiza fisicamente a un hogar con menores.
     linea_cifrada: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
-    # Telefono de contacto para la entrega, tambien cifrado.
     contacto_cifrado: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
 
     predeterminada: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     creado_en: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    # Baja logica y no borrado: un envio en curso sigue necesitando que la
-    # direccion exista mientras se entrega.
     archivada_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
@@ -120,31 +81,14 @@ class Direccion(Base):
 
 
 class BandejaSalida(Base):
-    """Bandeja de salida local. Una por base, y eso es deliberado.
-
-    El evento se escribe en la MISMA transaccion que el cambio que lo origina.
-    Si viviera en otra base, volveria a ser una escritura a dos sistemas sin
-    garantia, que es exactamente el problema que el patron resuelve.
-
-    OJO con la deuda que se hereda: en `Tukit-Auditoria`, `registrar_evento`
-    solo hacia `session.add` y NO existia ningun repartidor que publicara,
-    pese a que el docstring decia "outbox real". La mitad transaccional estaba
-    bien y la mitad de entrega no existia. El repartidor va en `libs/` y tiene
-    que estar andando antes de que los Casos se apoyen en esto.
-    """
 
     __tablename__ = "bandeja_salida"
 
     id: Mapped[int] = mapped_column(
-        # `Integer` en SQLite: solo autoincrementa un INTEGER PRIMARY KEY (como en Comercio).
         BigInteger().with_variant(Integer, "sqlite"),
         primary_key=True,
         autoincrement=True,
     )
-    # La misma forma que las bandejas de Comercio, Catalogo e Inteligencia
-    # (`tukit_comun.bandeja.bandeja_reflejada`), para que `tukit_comun.publicador`
-    # la lleve a RabbitMQ sin traduccion. Nacio como `tipo_evento`/`clave_agregado`
-    # y sin `agregado_tipo`; la revision `b7d4e1f20a93` la alinea (ADR 0048).
     tipo: Mapped[str] = mapped_column(String(128), nullable=False)
     agregado_tipo: Mapped[str] = mapped_column(String(64), nullable=False)
     agregado_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
@@ -156,8 +100,6 @@ class BandejaSalida(Base):
     intentos: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
 
     __table_args__ = (
-        # El repartidor solo mira lo no publicado; el indice parcial evita que
-        # el barrido crezca con el historial.
         Index(
             "ix_bandeja_pendiente",
             "creado_en",

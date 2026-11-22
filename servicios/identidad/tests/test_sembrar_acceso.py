@@ -1,5 +1,3 @@
-"""Los permisos de campo que habilitan el panel admin de acudientes."""
-
 from __future__ import annotations
 
 from tukit_identidad.sembrar_acceso import PERMISOS, ROL_PERMISO
@@ -12,7 +10,6 @@ def test_el_permiso_de_apodo_es_de_menor():
 
 
 def test_el_permiso_de_nombre_es_personal_no_menor():
-    # Un adulto no es un menor: su nombre es PERSONAL, no MENOR.
     nombre = next(p for p in PERMISOS if p["codigo"] == "usuario:leer:nombre")
     assert nombre["campo"] == "nombre"
     assert nombre["clasificacion_minima"] == "personal"

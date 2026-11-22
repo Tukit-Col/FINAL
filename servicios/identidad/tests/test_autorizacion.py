@@ -1,10 +1,3 @@
-"""Pruebas del modelo de roles con ambito.
-
-Cada una reproduce un caso REAL: o un defecto que la auditoria de autorizacion
-encontro en el sistema anterior, o una regla de negocio que el modelo plano no
-sabia expresar.
-"""
-
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
@@ -61,15 +54,7 @@ async def _rol_rector(db):
     )
 
 
-# --------------------------------------------------------------------------
-# El defecto original: el rol plano no distinguia colegios
-# --------------------------------------------------------------------------
-
-
 async def test_el_rector_de_un_colegio_no_manda_en_el_otro(db):
-    """`require_rol("rector")` dejaba pasar igual al rector del colegio A y al
-    del B. La unica defensa era que cada endpoint se acordara de comparar, y la
-    auditoria encontro 22 endpoints donde no se acordaba."""
     await _rol_rector(db)
     rector = await crear_usuario(db, "rector@a.edu.co")
     colegio_a, _ = await crear_colegio_con_sede(db, "Colegio A")
@@ -81,9 +66,6 @@ async def test_el_rector_de_un_colegio_no_manda_en_el_otro(db):
 
 
 async def test_sin_asignacion_no_puede_nada(db):
-    """Falla CERRADA. Las politicas de fila anteriores hacian lo contrario:
-    su condicion base era `current_setting(...) IS NULL`, asi que una conexion
-    sin contexto veia la tabla completa."""
     await _rol_rector(db)
     nadie = await crear_usuario(db, "nadie@x.com")
     colegio, _ = await crear_colegio_con_sede(db, "Colegio A")
@@ -101,14 +83,7 @@ async def test_un_permiso_que_el_rol_no_tiene_se_niega(db):
     assert not await puede(db, rector.id, "pedido:reembolsar", Ambito.colegio(colegio.id))
 
 
-# --------------------------------------------------------------------------
-# Jerarquia de ambitos
-# --------------------------------------------------------------------------
-
-
 async def test_el_ambito_de_colegio_alcanza_sus_sedes_y_matriculas(db):
-    """Sin esto habria que duplicar la asignacion en cada nivel, y el dia que
-    el colegio abra una sede nueva su rector se queda sin acceso a ella."""
     await _rol_rector(db)
     rector = await crear_usuario(db, "rector@a.edu.co")
     colegio, sede = await crear_colegio_con_sede(db, "Colegio A")
@@ -120,9 +95,6 @@ async def test_el_ambito_de_colegio_alcanza_sus_sedes_y_matriculas(db):
 
 
 async def test_el_ambito_de_matricula_no_sube_a_la_sede(db):
-    """La contencion es en un solo sentido. Ser acudiente de una matricula no
-    da autoridad sobre la sede, que es lo que permitiria a un padre ver las
-    listas de los demas."""
     await _rol_rector(db)
     padre = await crear_usuario(db, "padre@x.com")
     _colegio, sede = await crear_colegio_con_sede(db, "Colegio A")
@@ -147,11 +119,6 @@ async def test_el_ambito_global_alcanza_todo(db):
         Ambito.matricula(matricula.id),
     ):
         assert await puede(db, admin.id, "lista_oficial:publicar", ambito)
-
-
-# --------------------------------------------------------------------------
-# Vigencia y revocacion
-# --------------------------------------------------------------------------
 
 
 async def test_una_asignacion_revocada_deja_de_conceder(db):
@@ -189,9 +156,6 @@ async def test_una_asignacion_futura_todavia_no_concede(db):
 
 
 async def test_se_puede_revocar_y_volver_a_conceder_conservando_el_historial(db):
-    """`pertenencias_institucion` tenia `UniqueConstraint(usuario_id, institucion_id)`,
-    que obliga a BORRAR la fila para revocar, y con eso se pierde la evidencia
-    de quien tuvo acceso a que y cuando. El indice unico parcial lo resuelve."""
     await _rol_rector(db)
     rector = await crear_usuario(db, "rector@a.edu.co")
     colegio, _ = await crear_colegio_con_sede(db, "Colegio A")
@@ -222,15 +186,7 @@ async def test_no_se_permiten_dos_asignaciones_vigentes_identicas(db):
         await asignar(db, rector, "rector", AmbitoTipo.COLEGIO, colegio.id)
 
 
-# --------------------------------------------------------------------------
-# Matriculas visibles: el caso que invalida `colegio_id` en el usuario
-# --------------------------------------------------------------------------
-
-
 async def test_un_acudiente_con_hijos_en_dos_colegios_ve_los_dos(db):
-    """Es la razon por la que la tenencia no puede vivir en la persona. Si el
-    usuario tuviera un `colegio_id`, este acudiente perderia a uno de sus dos
-    hijos."""
     padre = await crear_usuario(db, "padre@x.com")
     _a, sede_a = await crear_colegio_con_sede(db, "Colegio A")
     _b, sede_b = await crear_colegio_con_sede(db, "Colegio B")
@@ -255,9 +211,6 @@ async def test_un_acudiente_no_ve_la_matricula_de_otra_familia(db):
 
 
 async def test_un_vinculo_terminado_deja_de_dar_visibilidad(db):
-    """Lo que permite distinguir "se fue" de "nunca estuvo", que es lo que
-    necesita la regla de supresion: suprimir a un acudiente elimina SU
-    vinculo, no el del otro padre."""
     padre = await crear_usuario(db, "padre@x.com")
     _colegio, sede = await crear_colegio_con_sede(db, "Colegio A")
     matricula = await crear_matricula(db, sede)
@@ -282,16 +235,7 @@ async def test_el_rol_sobre_el_colegio_hace_visibles_sus_matriculas(db):
     assert await matriculas_visibles(db, rector.id) == {uno.id, dos.id}
 
 
-# --------------------------------------------------------------------------
-# Seguridad a nivel de campo: dos ejes, no uno
-# --------------------------------------------------------------------------
-
-
 async def test_un_permiso_interno_no_alcanza_un_campo_de_menor(db):
-    """El rediseno afirmaba que los permisos de campo se derivan
-    "automaticamente" de la clasificacion. El Anexo M demostro que no: la
-    clasificacion mide sensibilidad y el permiso expresa quien ve que.
-    """
     await crear_rol_con_permisos(
         db,
         "analista",
@@ -349,8 +293,6 @@ async def test_un_permiso_de_campo_concede_solo_ese_campo(db):
     }
     visibles = await campos_visibles(db, docente.id, "estudiante", Ambito.colegio(colegio.id), clasificacion)
 
-    # Ve el nombre porque tiene el permiso de ese campo, y NO ve `id` aunque
-    # tenga la misma clasificacion: el permiso es por campo, no por nivel.
     assert visibles == {"nombre_cifrado", "grado"}
 
 

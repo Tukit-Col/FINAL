@@ -1,19 +1,12 @@
-"""El cierre de la solicitud de supresion (Ley 1581, ADR 0048).
+"""Cierre de la solicitud de supresion del titular (Ley 1581).
 
-`suprimir_titular` anonimiza lo de Identidad, deja la solicitud en `propagando`
-y escribe `titular_suprimido` en la bandeja. El publicador de Identidad la lleva
-a las colas de supresion de Comercio, Operacion e Inteligencia; cada uno borra
-lo suyo y responde `supresion_confirmada`. Este proceso consume esas respuestas
-de `identidad.supresion` y aplica `SolicitudSupresion.confirmar`: la solicitud
-pasa a `completada` (con `resuelto_en`) solo cuando estan las tres.
-
-Idempotente: `confirmar` no repite un servicio ya anotado, y una solicitud ya
-cerrada no se toca (una confirmacion tardia no la reabre ni le cambia la fecha).
-Una confirmacion de un servicio que no es suscriptor, o de una solicitud que no
-existe, se omite: reintentarla no la arreglaria.
-
-    python -m tukit_identidad.supresion           # lo que hay en la cola
-    python -m tukit_identidad.supresion --seguir  # escucha
+Decisiones:
+- `suprimir_titular` anonimiza lo de Identidad, deja la solicitud en `propagando` y escribe
+  `titular_suprimido` en la bandeja. Comercio, Operacion e Inteligencia borran lo suyo y responden
+  `supresion_confirmada`; la solicitud pasa a `completada` solo cuando estan las tres.
+- Es idempotente: `confirmar` no repite un servicio ya anotado y una solicitud cerrada no se
+  reabre. Una confirmacion de un servicio que no es suscriptor o de una solicitud inexistente se
+  omite, porque reintentarla no la arregla.
 """
 
 from __future__ import annotations
@@ -41,7 +34,6 @@ _ABIERTAS = ("pendiente", "propagando")
 
 @dataclass
 class Cierre:
-    """Anota cada confirmacion y cierra la solicitud cuando estan todas."""
 
     motor: MotorServicio
 
@@ -73,7 +65,6 @@ class Cierre:
 
 
 async def escuchar_cola(url: str, *, seguir: bool, intervalo: float = 5.0) -> int:
-    """Consume `identidad.supresion`. Solo abre la base de Identidad."""
     motor = crear_motor("identidad")
     try:
         return await consumir(

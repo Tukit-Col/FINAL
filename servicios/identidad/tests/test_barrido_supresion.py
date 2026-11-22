@@ -1,10 +1,3 @@
-"""El barrido de supresiones atascadas en `propagando` (ADR 0048, Ley 1581 art. 15).
-
-Lo que no puede romperse en silencio: que una solicitud atascada se reenvie y se
-avise, que reenviar no duplique ni inunde la bandeja, y que una solicitud ya
-cerrada no se toque nunca.
-"""
-
 from __future__ import annotations
 
 import logging
@@ -18,12 +11,10 @@ from tukit_identidad.modelos import BandejaSalida, SolicitudSupresion, Usuario
 from tukit_identidad.repositorios import RepoIdentidad
 
 TITULAR = uuid.uuid4()
-# Un lunes, para que los plazos en dias habiles se lean sin calendario a mano.
 RECIBIDA = datetime(2026, 10, 5, 15, 0, tzinfo=UTC)
 
 
 async def _solicitud(motor: MotorServicio, *, confirmados: tuple[str, ...] = ()) -> uuid.UUID:
-    """Una solicitud real (por `suprimir_titular`), fechada en RECIBIDA y con su envio ya publicado."""
     async with motor.sesion() as db:
         db.add(Usuario(id=TITULAR, correo="ana@ejemplo.com", clave_hash="x"))
     async with motor.engine.begin() as conexion:
@@ -46,14 +37,11 @@ async def _envios(motor: MotorServicio) -> list[BandejaSalida]:
 
 
 def test_el_plazo_son_quince_dias_habiles_sin_contar_el_dia_del_recibo():
-    # Lunes 5 oct: el dia 1 es el martes 6; 15 dias habiles caen el lunes 26.
     assert vence_el(RECIBIDA) == date(2026, 10, 26)
-    # Un sabado: el primer dia habil es el lunes siguiente.
     assert vence_el(datetime(2026, 10, 10, 12, 0, tzinfo=UTC)) == date(2026, 10, 30)
 
 
 def test_el_plazo_cuenta_con_la_hora_de_bogota():
-    # 03:00 UTC del martes es todavia el lunes 5 en Bogota (UTC-5).
     assert vence_el(datetime(2026, 10, 6, 3, 0, tzinfo=UTC)) == date(2026, 10, 26)
 
 
@@ -107,7 +95,7 @@ async def test_vuelve_a_reenviar_cuando_el_envio_anterior_ya_salio_y_paso_el_int
 
 async def test_avisa_la_solicitud_vencida_con_nivel_error(motor, caplog):
     solicitud = await _solicitud(motor, confirmados=("comercio", "operacion"))
-    despues_del_plazo = datetime(2026, 10, 27, 15, 0, tzinfo=UTC)  # martes 27, un dia habil tarde
+    despues_del_plazo = datetime(2026, 10, 27, 15, 0, tzinfo=UTC)
 
     with caplog.at_level(logging.WARNING):
         reporte = await barrer(motor, ahora=despues_del_plazo)
@@ -126,7 +114,6 @@ async def test_la_vencida_se_avisa_una_sola_vez_en_el_bucle(motor, caplog):
         primera = await barrer(motor, ahora=despues_del_plazo, ya_avisadas=avisadas)
         segunda = await barrer(motor, ahora=despues_del_plazo + timedelta(minutes=15), ya_avisadas=avisadas)
 
-    # El reporte sigue listandola (esta vencida), pero el ERROR sale una vez.
     assert primera.vencidas == segunda.vencidas == [str(solicitud)]
     errores = [r for r in caplog.records if r.levelno == logging.ERROR and "vencida" in r.getMessage()]
     assert len(errores) == 1

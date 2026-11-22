@@ -1,10 +1,3 @@
-"""La revision que alinea la bandeja de Identidad va y vuelve en SQLite (ADR 0048).
-
-La suite crea las tablas con `create_all`; esta prueba ejerce el par
-upgrade/downgrade sobre la `bandeja_salida` PREVIA, con una fila de antes, y
-fija que el id de usuario de `clave_agregado` sobrevive en `agregado_id`.
-"""
-
 from __future__ import annotations
 
 import importlib.util

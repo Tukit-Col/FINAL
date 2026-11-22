@@ -1,13 +1,3 @@
-"""La puerta reusa UN cliente httpx para todo el proceso.
-
-El defecto que esto fija: `reenviar` y `/v1/servicios` abrian un
-`httpx.AsyncClient` por peticion. Construirlo arma un `SSLContext` de forma
-sincrona (~480 ms en Windows), con el bucle congelado mientras tanto: cada
-peticion por la puerta tardaba ~500 ms aunque el servicio respondiera en 9, 20
-concurrentes tardaban 10 s, y las esperas de Redis del limite vencian y la
-puerta contaba en memoria. El cliente se crea al arrancar y se cierra al apagar.
-"""
-
 from __future__ import annotations
 
 import httpx
@@ -23,9 +13,6 @@ class TestUnSoloClientePorProceso:
         assert cliente.is_closed
 
     async def test_reenvio_y_sonda_salen_por_el_cliente_compartido(self):
-        # El cliente compartido es un httpx de verdad con un transporte que anota
-        # cada salida. Si la puerta construyera otro cliente por peticion, esas
-        # salidas no pasarian por aqui y la cuenta no cuadraria.
         salidas: list[str] = []
 
         def anotar(peticion: httpx.Request) -> httpx.Response:
