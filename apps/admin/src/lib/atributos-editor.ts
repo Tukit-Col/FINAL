@@ -37,3 +37,26 @@ export function filasDeAtributos(
     libres,
   };
 }
+
+export function pareceUrl(texto: string): boolean {
+  if (!texto.trim()) return true;
+  try {
+    const u = new URL(texto);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+export function conValor(filas: readonly ParAtributo[], indice: number, valor: string): ParAtributo[] {
+  return filas.map((par, i) => (i === indice ? { ...par, valor } : par));
+}
+
+export function conCampo(
+  filas: readonly ParAtributo[],
+  indice: number,
+  campo: keyof ParAtributo,
+  valor: string,
+): ParAtributo[] {
+  return filas.map((par, i) => (i === indice ? { ...par, [campo]: valor } : par));
+}

@@ -1,21 +1,23 @@
 "use client";
 
-import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useMemo, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { NIVELES, ETIQUETA_NIVEL, serializarAtributos } from "@tukit/contrato";
-import type {
-  Nivel,
-  ProductoCatalogoDetalle,
-  ProductoEditable,
-  UnidadBase,
-} from "@tukit/contrato";
+import type { Nivel, ProductoCatalogoDetalle, ProductoEditable, UnidadBase } from "@tukit/contrato";
 import {
   editarProducto,
   eliminarProducto,
   reclasificarProducto,
   FalloCatalogo,
 } from "@/lib/api-catalogo";
-import { filasDeAtributos, type ParAtributo } from "@/lib/atributos-editor";
+import {
+  conCampo,
+  conValor,
+  filasDeAtributos,
+  pareceUrl,
+  type ParAtributo,
+} from "@/lib/atributos-editor";
+import GrupoAtributos from "./GrupoAtributos";
 import PanelReclasificar, { type OpcionConcepto } from "./PanelReclasificar";
 import Desplegable from "./Desplegable";
 import styles from "./CatalogoSpa.module.css";
@@ -36,16 +38,6 @@ interface Props {
   onGuardado: (producto: ProductoCatalogoDetalle) => void;
   onEliminado: (sku: string) => void;
   onCerrar: () => void;
-}
-
-function pareceUrl(texto: string): boolean {
-  if (!texto.trim()) return true;
-  try {
-    const u = new URL(texto);
-    return u.protocol === "http:" || u.protocol === "https:";
-  } catch {
-    return false;
-  }
 }
 
 export default function EditorProducto({
@@ -165,44 +157,8 @@ export default function EditorProducto({
     }
   }
 
-  function editarValor(
-    set: Dispatch<SetStateAction<ParAtributo[]>>,
-    indice: number,
-    valor: string,
-  ) {
-    set((prev) => prev.map((p, i) => (i === indice ? { ...p, valor } : p)));
-  }
-
-  function editarLibre(indice: number, campo: keyof ParAtributo, valor: string) {
-    setLibres((prev) => prev.map((p, i) => (i === indice ? { ...p, [campo]: valor } : p)));
-  }
-
-  function grupoDeclarado(
-    titulo: string,
-    nota: string,
-    filas: ParAtributo[],
-    set: Dispatch<SetStateAction<ParAtributo[]>>,
-  ) {
-    if (filas.length === 0) return null;
-    return (
-      <div className={styles.atributos}>
-        <span className={styles.ayuda}>
-          <strong>{titulo}</strong> — {nota}
-        </span>
-        {filas.map((par, i) => (
-          <div key={par.clave} className={styles.atributoFila}>
-            <input aria-label="Clave" value={par.clave} readOnly disabled />
-            <input
-              aria-label={`Valor de ${par.clave}`}
-              placeholder="(sin valor)"
-              value={par.valor}
-              onChange={(e) => editarValor(set, i, e.target.value)}
-            />
-          </div>
-        ))}
-      </div>
-    );
-  }
+  const editarLibre = (indice: number, campo: keyof ParAtributo, valor: string) =>
+    setLibres((prev) => conCampo(prev, indice, campo, valor));
 
   return (
     <section className={styles.panel} aria-label={`Editar ${producto.nombre}`}>
@@ -368,18 +324,18 @@ export default function EditorProducto({
 
         <span className={styles.subtitulo}>Atributos</span>
 
-        {grupoDeclarado(
-          "Filtra la búsqueda",
-          "estos atributos deciden qué candidatos entran a un kit.",
-          discriminantes,
-          setDiscriminantes,
-        )}
-        {grupoDeclarado(
-          "Solo informativo",
-          "se le muestran al acudiente pero no filtran.",
-          descriptivos,
-          setDescriptivos,
-        )}
+        <GrupoAtributos
+          titulo="Filtra la búsqueda"
+          nota="estos atributos deciden qué candidatos entran a un kit."
+          filas={discriminantes}
+          onEditar={(i, valor) => setDiscriminantes((prev) => conValor(prev, i, valor))}
+        />
+        <GrupoAtributos
+          titulo="Solo informativo"
+          nota="se le muestran al acudiente pero no filtran."
+          filas={descriptivos}
+          onEditar={(i, valor) => setDescriptivos((prev) => conValor(prev, i, valor))}
+        />
 
         <div className={styles.atributos}>
           {discriminantes.length === 0 && descriptivos.length === 0 && libres.length === 0 && (
