@@ -23,6 +23,7 @@ from tukit_comun.http import ErrorDominio
 
 from .. import api, apodos_subida, importaciones, metricas, trabajos
 from ..modelos import EstadoResolucion, EstadoTrabajo
+from ..paginas import quitar_metadatos
 from ..percepcion import Percepcion
 from ..remoto import RemotoCaido
 
@@ -615,18 +616,26 @@ def _leer_multipart(cuerpo: bytes, tipo_contenido: str) -> tuple[dict[str, str],
     return campos, archivos
 
 
+# Un renglon que solo rotula a quien pertenece la lista ("Estudiante: ...") no es un util: es el nombre del
+# menor, y no debe entrar al catalogo ni a la percepcion que se guarda (H-C-15).
+_RENGLON_CON_EL_NOMBRE = re.compile(
+    r"^\s*(estudiante|alumn[oa]|nombre( del (estudiante|alumn[oa]))?)\s*:", re.I
+)
+
+
 def _items_desde_percepcion(percepcion: Percepcion) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    leidos = [item for item in percepcion.items if not _RENGLON_CON_EL_NOMBRE.match(item.descripcion)]
     items = [
         {
             "texto_original": item.descripcion,
             "cantidad": item.cantidad or 1,
             "confianza": item.confianza,
         }
-        for item in percepcion.items
+        for item in leidos
     ]
     leido = "\n".join(
         f"{item.cantidad} {item.descripcion}".strip() if item.cantidad else item.descripcion
-        for item in percepcion.items
+        for item in leidos
     )
     percepcion_cruda = [
         {"pagina": numero, "crudo": leido if numero == 1 else ""}
@@ -835,7 +844,7 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
             campo="archivo",
         )
 
-    pdf_por_hijo = [_archivo_de(i, h.referencia) for i, h in enumerate(hijos)]
+    pdf_por_hijo = [quitar_metadatos(_archivo_de(i, h.referencia)) for i, h in enumerate(hijos)]
     for pdf in pdf_por_hijo:
         _exigir_tamano(pdf)
 
@@ -998,6 +1007,7 @@ async def onboarding(
             "archivo_faltante", "No llego ningun archivo en el campo `archivo`.", estado=422, campo="archivo"
         )
     _exigir_tamano(archivo)
+    archivo = quitar_metadatos(archivo)
     try:
         anio_lectivo = int(campos["anio_lectivo"])
     except ValueError as error:
