@@ -1,19 +1,3 @@
-"""Pruebas del front de administracion (`admin`).
-
-Dos clases de prueba conviven aqui, y por la misma razon que en
-`test_descubrir`: lo que toca la base corre contra Postgres real (via
-`crear_motor`), asi que no se ejerce con la sesion SQLite, se afirma leyendo el
-codigo fuente. Lo que es puro --pintar el HTML, formatear un precio, validar un
-EAN-- si se ejerce de verdad, con diccionarios armados a mano que imitan lo que
-`_leer` saca de la base.
-
-Lo que estas pruebas protegen, mas alla de que el HTML salga: que la curaduria
-por esta pantalla entre por los MISMOS seams que el resto del catalogo
-(`_encolar` + `resolver`), y que NO abra la puerta del acudiente. Un alta a mano
-no puede ser un atajo que se salte la cola de propuestas ni que le abra un
-camino a las tiendas al flujo del papa.
-"""
-
 from __future__ import annotations
 
 import ast
@@ -24,14 +8,6 @@ from tukit_catalogo import admin
 
 
 def _solo_codigo(funcion: Any) -> str:
-    """La fuente de una funcion sin su docstring y sin sus comentarios.
-
-    Afirmar sobre el codigo fuente es util cuando lo que se protege es una
-    decision de implementacion que no se puede ejercer sin Postgres, pero
-    tiene un modo de fallar propio: la prosa que EXPLICA la decision menciona
-    lo mismo que la prueba prohibe, y entonces la prueba castiga documentar.
-    Ya paso con `activo=False`.
-    """
     arbol = ast.parse(inspect.getsource(funcion))
     definicion = arbol.body[0]
     cuerpo = definicion.body[1:] if ast.get_docstring(definicion) else definicion.body
@@ -54,7 +30,7 @@ def _producto(**kw: Any) -> dict[str, Any]:
         "quality_score": 0.85,
         "tienda": "panamericana",
         "url": "https://ejemplo/producto",
-        "precio": 650000,  # centavos
+        "precio": 650000,
     }
     base.update(kw)
     return base
@@ -86,7 +62,6 @@ class TestElPrecioSeVeEnPesos:
 
 
 class TestLaPaginaPinta:
-    """`construir` arma la pagina entera desde los mismos dicts que `_leer` da."""
 
     def test_pinta_el_concepto_con_su_producto(self):
         html = admin.construir([_concepto()], _resumen())
@@ -95,17 +70,12 @@ class TestLaPaginaPinta:
         assert 'src="https://ejemplo/foto.jpg"' in html
 
     def test_cada_concepto_trae_sus_acciones_de_curaduria(self):
-        # +Util, +Libro y Descartar cuelgan del id del concepto: sin eso la
-        # pantalla seria de solo lectura, que es lo que `vista` ya hace.
         html = admin.construir([_concepto()], _resumen())
         assert 'data-util="22222222-2222-2222-2222-222222222222"' in html
         assert 'data-libro="22222222-2222-2222-2222-222222222222"' in html
         assert 'data-descartar="22222222-2222-2222-2222-222222222222"' in html
 
     def test_un_util_sin_los_tres_niveles_se_destaca(self):
-        # El objetivo de la pantalla es cerrar huecos; un comprable incompleto
-        # tiene que saltar a la vista. Se mira la clase del <section>, no la
-        # palabra suelta: `destacado` tambien vive en el CSS.
         html = admin.construir([_concepto()], _resumen())
         assert 'class="concepto destacado"' in html
 
@@ -121,8 +91,6 @@ class TestLaPaginaPinta:
         assert 'class="concepto destacado"' not in html
 
     def test_el_empaque_es_editable(self):
-        # El combo de 12 borradores vive aqui: unidades_por_empaque tiene que
-        # ser un input que se pueda corregir, no un texto.
         html = admin.construir([_concepto()], _resumen())
         assert 'data-empaque="11111111-1111-1111-1111-111111111111"' in html
 
@@ -131,28 +99,14 @@ class TestLaPaginaPinta:
         assert "no se surte" in html
 
     def test_escapa_lo_que_viene_de_la_base(self):
-        # Un nombre con < o " no puede romper el HTML: sale escapado. El
-        # <script> del guion es legitimo; lo que se afirma es que el nombre
-        # inyectado NO aparece crudo, sino con sus entidades.
         html = admin.construir([_concepto(nombre='cuaderno <malo>"x"')], _resumen())
         assert "<malo>" not in html
         assert "cuaderno &lt;malo&gt;" in html
 
 
 class TestLaCuraduriaNoAbreLaPuertaDelAcudiente:
-    """El alta a mano es curaduria proactiva, como `completar`: sin puerta.
-
-    Pero justo por eso no puede tocar el flujo del papa. Estas pruebas leen el
-    codigo: `admin` no importa la puerta ni la usa, y su alta pasa por los
-    mismos seams (`_encolar` + `resolver`) que aprueban lo que llega de una
-    lista, no por un insert propio a `producto_canonico`.
-    """
 
     def test_admin_no_importa_ni_usa_la_puerta(self):
-        # Se mira el codigo sin comentarios ni docstrings: la palabra
-        # `abrir_revision` aparece en el docstring del modulo explicando
-        # justamente por que NO se usa, y eso no es usarla. Lo que no puede
-        # pasar es importarla o llamarla.
         arbol = ast.parse(inspect.getsource(admin))
         nombres_puerta = {"abrir_revision", "exigir_sin_revisar", "PuertaCerrada"}
         importados = {
@@ -179,14 +133,11 @@ class TestLaCuraduriaNoAbreLaPuertaDelAcudiente:
         assert "producto_canonico" not in cuerpo
 
     def test_el_util_se_aprueba_por_el_sku_que_eligio_la_persona(self):
-        # `agregar_util` recibe una Oferta ya elegida, no un texto libre: el
-        # primer parametro es el concepto y el tercero la oferta.
         parametros = list(inspect.signature(admin.agregar_util).parameters)
         assert parametros[:3] == ["concepto_id", "slug", "oferta"]
 
 
 class TestElServidorNoSeCaeConUnError:
-    """Un fallo en un handler devuelve 500 JSON, no tumba el proceso."""
 
     def test_los_post_estan_envueltos_en_try(self):
         cuerpo = inspect.getsource(admin._Manejador.do_POST)
@@ -194,33 +145,18 @@ class TestElServidorNoSeCaeConUnError:
         assert "except" in cuerpo
 
     def test_el_handler_de_util_reconstruye_la_oferta_desde_la_tienda(self):
-        # No confia en la Oferta que arme el navegador: vuelve a buscar y toma
-        # la oferta por sku. Asi el precio y la ficha salen de la tienda.
         cuerpo = inspect.getsource(admin._Manejador._util)
         assert "buscar_candidatos" in cuerpo
         assert "o.sku == sku" in cuerpo
 
 
 class TestEditarYBorrarUnProductoSuelto:
-    """Curar duplicados y basura: editar un producto o quitarlo del catalogo.
-
-    La pantalla no era editable a nivel de producto --solo empaque y acciones de
-    concepto-- y por eso los duplicados (cuaderno x17) y la basura no-infantil
-    (morral universitario en un concepto de ninos) no se podian limpiar desde
-    aqui. Estas pruebas fijan el contrato: el producto trae los datos para
-    editarlo, hay boton de editar y de quitar, quitar es un DELETE en duro (no un
-    `activo=False`, porque `volcar` exporta todo `producto_canonico` sin mirar
-    `activo` y un desactivado ensuciaria el CSV curado), y ambos handlers estan
-    ruteados.
-    """
 
     def test_la_tarjeta_trae_los_datos_para_editar(self):
-        # El dialogo de editar se llena desde data-attributes de la tarjeta: sin
-        # ellos el navegador no sabe que nombre/precio/nivel/foto precargar.
         html = admin.construir([_concepto()], _resumen())
         assert 'data-pid="11111111-1111-1111-1111-111111111111"' in html
         assert 'data-pnivel="confiable"' in html
-        assert 'data-pprecio="6500"' in html  # 650000 centavos -> 6500 pesos
+        assert 'data-pprecio="6500"' in html
 
     def test_cada_producto_trae_editar_y_quitar(self):
         html = admin.construir([_concepto()], _resumen())
@@ -228,10 +164,6 @@ class TestEditarYBorrarUnProductoSuelto:
         assert 'data-borrar="11111111-1111-1111-1111-111111111111"' in html
 
     def test_borrar_es_un_delete_en_duro_de_las_tres_tablas(self):
-        # Quitar del catalogo BORRA en duro producto, oferta y precio: `volcar`
-        # exporta todo `producto_canonico` sin mirar `activo`, asi que un
-        # `activo=False` seguiria en el CSV curado. Para dejar el corpus limpio
-        # el producto tiene que desaparecer de la base, con sus hijos.
         cuerpo = inspect.getsource(admin._borrar_producto)
         assert "DELETE FROM producto_canonico" in cuerpo
         assert "DELETE FROM oferta_tienda" in cuerpo
@@ -239,11 +171,6 @@ class TestEditarYBorrarUnProductoSuelto:
         assert "activo=False" not in cuerpo
 
     def test_borrar_tambien_quita_la_propuesta_que_lo_materializo(self):
-        # Un producto que nacio de aprobar una propuesta deja esa fila
-        # apuntandolo. La FK la pondria en NULL al borrar el producto, pero el
-        # CHECK `propuesta_aprobada_tiene_producto` prohibe una propuesta
-        # aprobada sin producto: sin borrar la propuesta antes, el DELETE del
-        # producto revienta. Se borra la propuesta ANTES que el producto.
         cuerpo = inspect.getsource(admin._borrar_producto)
         assert "DELETE FROM propuesta_producto" in cuerpo
         pos_prop = cuerpo.index("DELETE FROM propuesta_producto")
@@ -251,29 +178,18 @@ class TestEditarYBorrarUnProductoSuelto:
         assert pos_prop < pos_prod, "la propuesta se borra antes que el producto"
 
     def test_la_tarjeta_trae_marca_concepto_y_atributos_para_editar(self):
-        # El diálogo ampliado precarga marca, el concepto actual y los atributos
-        # desde data-attributes de la tarjeta. Sin ellos no se pueden editar esas
-        # tres cosas ni preseleccionar el concepto al que mover el producto.
         html = admin.construir([_concepto()], _resumen())
         assert 'data-pmarca="Norma"' in html
         assert 'data-pconcepto="22222222-2222-2222-2222-222222222222"' in html
-        assert "data-pclaves=" in html  # las claves que el concepto declara
-        assert "data-pattrs=" in html  # los atributos que el producto ya tiene
+        assert "data-pclaves=" in html
+        assert "data-pattrs=" in html
 
     def test_el_dialogo_ofrece_mover_a_cualquier_concepto(self):
-        # El <select> de concepto lista todos los conceptos con su código, para
-        # mover una resma del concepto 'hojas' al concepto 'resma'. Se compara la
-        # opción por su value (el id) para no chocar con el nombre en la tarjeta.
         otro = _concepto(id="99999999-9999-9999-9999-999999999999", codigo="C031", nombre="resma")
         html = admin.construir([_concepto(), otro], _resumen())
         assert '<option value="99999999-9999-9999-9999-999999999999">C031 · resma</option>' in html
 
     def test_editar_actualiza_marca_concepto_y_atributos_en_el_producto(self):
-        # Marca, concepto y atributos viven en producto_canonico: editarlos es un
-        # UPDATE de esa tabla. Reasignar el concepto NO toca la llave sku ni borra
-        # ofertas -es solo cambiar la llave foránea-, por eso no aparece un DELETE.
-        # Se lee el código SIN la prosa: el docstring menciona lo que la prueba
-        # prohíbe (el mismo modo de fallar que ya documenta `_solo_codigo`).
         cuerpo = _solo_codigo(admin._editar_producto)
         assert '"marca"' in cuerpo
         assert '"concepto_id"' in cuerpo
@@ -282,8 +198,6 @@ class TestEditarYBorrarUnProductoSuelto:
         assert "DELETE" not in cuerpo
 
     def test_editar_valida_que_el_concepto_destino_exista(self):
-        # Mover a un concepto que no existe reventaría la llave foránea; se
-        # comprueba antes y se devuelve un error claro en vez de un 500.
         cuerpo = _solo_codigo(admin._editar_producto)
         assert "FROM concepto WHERE id" in cuerpo
 
@@ -294,8 +208,6 @@ class TestEditarYBorrarUnProductoSuelto:
         assert "atributos" in cuerpo
 
     def test_editar_precio_escribe_en_precio_oferta_no_en_el_producto(self):
-        # Nombre/nivel/foto viven en producto_canonico; el precio vive en
-        # precio_oferta. Editar el precio tiene que ir a esa tabla.
         cuerpo = inspect.getsource(admin._editar_producto)
         assert "precio_oferta" in cuerpo
         assert "valor_centavos" in cuerpo
@@ -306,7 +218,6 @@ class TestEditarYBorrarUnProductoSuelto:
         assert '"/borrar"' in cuerpo
 
     def test_el_handler_de_editar_pasa_pesos_a_centavos(self):
-        # El navegador manda pesos; la base guarda centavos. El handler multiplica.
         cuerpo = inspect.getsource(admin._Manejador._editar)
         assert "* 100" in cuerpo
 
@@ -345,7 +256,6 @@ def _grupo_cola(**kw: Any) -> dict[str, Any]:
 
 
 class TestLaColaDeRevisionPinta:
-    """`construir_cola` arma la cola desde los dicts que da `_leer_cola`."""
 
     def test_pinta_el_candidato_con_su_precio_y_foto(self):
         h = admin.construir_cola([_grupo_cola()], 1)
@@ -354,10 +264,6 @@ class TestLaColaDeRevisionPinta:
         assert 'src="https://ejemplo/flauta.jpg"' in h
 
     def test_muestra_lo_que_pidio_el_colegio_completo_y_el_isbn(self):
-        # Para un libro el nombre de la tienda suele empezar por la editorial y
-        # el formato ("Debolsillo, Rustica, 136 pags."), no por el titulo. La
-        # persona casa la edicion contra lo que pidio el colegio (`texto_origen`,
-        # completo, no recortado) y confirma con el ISBN: ambos tienen que verse.
         h = admin.construir_cola(
             [_grupo_cola(propuestas=[_propuesta_cola(texto_origen="Cronica de una muerte anunciada")])], 1
         )
@@ -370,8 +276,6 @@ class TestLaColaDeRevisionPinta:
         assert 'data-rechazar="aaaaaaaa"' in h
 
     def test_el_nivel_sugerido_viene_seleccionado(self):
-        # El candidato barato que la consulta puso en 'economico' llega con ese
-        # nivel preseleccionado, pero editable: la persona manda.
         h = admin.construir_cola([_grupo_cola()], 1)
         assert '<option value="economico" selected>' in h
 
@@ -380,14 +284,11 @@ class TestLaColaDeRevisionPinta:
         assert 'data-nosurtir="33333333-3333-3333-3333-333333333333"' in h
 
     def test_un_concepto_nuevo_se_marca_y_no_ofrece_no_surtir(self):
-        # Sin concepto_id no hay concepto que cerrar: el boton no aparece. Se
-        # compara contra el grupo con concepto real, que SI trae el boton, para
-        # no chocar con el `data-nosurtir` que vive tambien en el guion (JS).
         nuevo = admin.construir_cola([_grupo_cola(concepto_id=None, es_nuevo=True)], 1)
         real = admin.construir_cola([_grupo_cola()], 1)
         assert "concepto nuevo" in nuevo
-        assert 'data-nosurtir="' not in nuevo  # el boton del grupo no se pinta
-        assert 'data-nosurtir="' in real  # el del grupo con concepto real, si
+        assert 'data-nosurtir="' not in nuevo
+        assert 'data-nosurtir="' in real
 
     def test_cola_vacia_dice_que_hacer(self):
         h = admin.construir_cola([], 0)
@@ -401,13 +302,12 @@ class TestLaColaDeRevisionPinta:
 
 
 class TestAprobarYRechazarPasanPorResolver:
-    """La cola no reimplementa el alta: reusa `resolver`, el seam de siempre."""
 
     def test_aprobar_propuesta_llama_resolver_con_aprobar_true(self):
         cuerpo = inspect.getsource(admin.aprobar_propuesta)
         assert "resolver(" in cuerpo
         assert "aprobar=True" in cuerpo
-        assert "producto_canonico" not in cuerpo  # no inserta a mano
+        assert "producto_canonico" not in cuerpo
 
     def test_rechazar_propuesta_llama_resolver_con_aprobar_false(self):
         cuerpo = inspect.getsource(admin.rechazar_propuesta)
@@ -415,16 +315,12 @@ class TestAprobarYRechazarPasanPorResolver:
         assert "aprobar=False" in cuerpo
 
     def test_no_surtir_concepto_marca_no_comprar_y_descarta_pendientes(self):
-        # Cerrar un concepto y limpiar su cola van juntos: si el concepto no se
-        # surte, sus candidatos pendientes no pueden reaparecer.
         cuerpo = inspect.getsource(admin._no_surtir_concepto)
         assert 'tipo_item="no_comprar"' in cuerpo
         assert 'estado="rechazada"' in cuerpo
         assert 'estado == "pendiente"' in cuerpo
 
     def test_no_surtir_es_una_sola_transaccion(self):
-        # Marcar el concepto y descartar sus propuestas tiene que ser atomico:
-        # un concepto no_comprar con candidatos vivos es un estado a medias.
         cuerpo = inspect.getsource(admin._no_surtir_concepto)
         assert "async with motor.engine.begin() as conexion" in cuerpo
 

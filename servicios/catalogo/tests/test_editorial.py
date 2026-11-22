@@ -1,11 +1,3 @@
-"""El ciclo editorial, que entra a v1 por el encaje invertido del lienzo.
-
-Cada clase de abajo corresponde a uno de los tres dolores documentados del
-colegio. Si alguna de estas pruebas se cayera, el modulo dejaria de atacar el
-dolor por el que se trajo, y eso es mas util de saber que si una columna
-cambio de tipo.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -40,23 +32,15 @@ def _propuesta(sesion, edicion, **kw) -> PropuestaVersion:
 
 
 class TestVentanaDeDecision:
-    """Dolor 1: la ventana de tres dias entre que la editorial publica y que
-    el colegio tiene que decidir."""
 
     def test_el_colegio_fija_su_ventana_una_vez_en_vez_de_decidir_bajo_presion(self, sesion):
         config = ConfiguracionColegioEditorial(colegio_id=COLEGIO)
         sesion.add(config)
         sesion.flush()
 
-        # El valor por omision no es un numero redondo al azar: son los tres
-        # dias observados, explicitados para que el sistema pueda avisar
-        # cuando NO se cumplen.
         assert config.dias_ventana_decision == 3
 
     def test_el_silencio_conserva_la_edicion_vigente_y_no_acepta_la_nueva(self, sesion):
-        """Que el silencio signifique "conservar" y no "aceptar" es la
-        decision de negocio que protege al colegio que no alcanzo a revisar:
-        no queda comprometido con un cambio que nunca evaluo."""
         config = ConfiguracionColegioEditorial(colegio_id=COLEGIO)
         sesion.add(config)
         sesion.flush()
@@ -68,16 +52,11 @@ class TestVentanaDeDecision:
             _propuesta(sesion, edicion, vence_en=ahora() - timedelta(days=1))
 
     def test_las_propuestas_por_vencer_se_pueden_consultar(self, sesion):
-        """La consulta que hace util toda la tabla: que se me vence manana.
-        Por eso `vence_en` se materializa en columna en vez de derivarse."""
         manana = crear_edicion(sesion, "9789580000002")
         lejana = crear_edicion(sesion, "9789580000003")
         _propuesta(sesion, manana, vence_en=en_dias(1))
         _propuesta(sesion, lejana, vence_en=en_dias(20), grado="7")
 
-        # La comparacion va en SQL y no en Python, que es como corre en
-        # produccion y es lo que usa el indice parcial de propuestas
-        # pendientes.
         urgentes = (
             sesion.query(PropuestaVersion)
             .filter(PropuestaVersion.estado == "pendiente", PropuestaVersion.vence_en <= en_dias(2))
@@ -88,12 +67,8 @@ class TestVentanaDeDecision:
 
 
 class TestCostoDeEvaluar:
-    """Dolor 2: evaluar textos le cuesta al colegio mas que toda la
-    papeleria junta."""
 
     def test_la_propuesta_llega_con_la_comparacion_hecha(self, sesion):
-        """Estructurada y con el delta de precio calculado, en vez de como
-        un catalogo en PDF que alguien tiene que leer entero."""
         actual = crear_edicion(sesion, "9789580000010", anio_edicion=2023)
         nueva = crear_edicion(sesion, "9789580000011", anio_edicion=2026)
         p = _propuesta(
@@ -108,8 +83,6 @@ class TestCostoDeEvaluar:
         assert p.delta_precio_centavos == 12_000
 
     def test_una_propuesta_que_no_cambia_de_edicion_se_rechaza(self, sesion):
-        """Proponer la edicion que ya se usa es ruido que consume la ventana
-        de decision, que es justo el recurso escaso."""
         misma = crear_edicion(sesion, "9789580000012")
         with pytest.raises(IntegrityError):
             _propuesta(sesion, misma, edicion_actual_id=misma.id)
@@ -126,7 +99,6 @@ class TestCostoDeEvaluar:
         p.estado = "aceptada"
         p.resuelta_en = ahora()
 
-        # Falta quien: una aprobacion sin responsable no es trazable.
         with pytest.raises(IntegrityError):
             sesion.flush()
 
@@ -139,11 +111,8 @@ class TestCostoDeEvaluar:
 
 
 class TestBachilleratoInternacional:
-    """Dolor 3: la oferta editorial no cubre el Bachillerato Internacional."""
 
     def test_el_programa_es_columna_y_no_texto_suelto(self, sesion):
-        """Sin esta columna el sistema no puede siquiera REPORTAR que no
-        cubre algo, y una carencia que no se puede nombrar no se cierra."""
         bi = crear_edicion(sesion, "9789580000020", programa="bachillerato_internacional")
         assert bi.programa == "bachillerato_internacional"
 
@@ -182,8 +151,6 @@ class TestEdicionVigente:
             sesion.flush()
 
     def test_cerrar_la_vigencia_anterior_permite_la_nueva_y_conserva_el_historial(self, sesion):
-        """Saber que edicion se uso en 2025 es lo que permite explicarle a un
-        acudiente por que el libro de su hijo mayor no le sirve al menor."""
         vieja = crear_edicion(sesion, "9789580000060", anio_edicion=2023)
         nueva = crear_edicion(sesion, "9789580000061", anio_edicion=2026)
 
@@ -225,8 +192,6 @@ class TestEdicionVigente:
             sesion.flush()
 
     def test_una_edicion_descontinuada_apunta_a_su_reemplazo(self, sesion):
-        """Un texto se reemplaza; no se agota. El colegio necesita saberlo
-        antes de la ventana de decision, no durante."""
         vieja = crear_edicion(sesion, "9789580000090", anio_edicion=2023)
         nueva = crear_edicion(sesion, "9789580000091", anio_edicion=2026)
         vieja.descontinuada_en = ahora().date()

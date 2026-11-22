@@ -1,23 +1,11 @@
-"""Las rutas de lectura del catalogo y la escritura de un producto.
+"""Rutas de lectura del catalogo y escritura de un producto.
 
-Parsea la peticion, arma el repo sobre la conexion de la unidad de trabajo,
-pasa las filas por los shapers puros de `dominio/catalogo.py` y traduce el
-"no existe" a un `ErrorDominio` 404 (ADR 0019). El SQL vive en
-`repositorios/catalogo.py`; aqui no hay `select`/`update`.
-
-Tres superficies de la seccion 12 del contrato:
-
-- **Catalogo** (`/v1/catalogo/*`): conceptos, productos canonicos con su nivel y
-  personaje, ofertas por tienda con precio; mas la mano de la persona que cura
-  (editar, reclasificar, retirar un producto), que vive aqui y no en `/v1/admin`
-  porque el SPA lee y escribe el producto contra el mismo prefijo.
-- **Listas** (`/v1/listas*`): las listas oficiales publicadas, ya resueltas a
-  concepto.
-- **Interno** (`/interno/resolver-sku`): sku -> (id, precio) para Comercio, fuera
-  del prefijo publico a proposito (la puerta no la expone, RPO cero ADR 0017).
-
-`/v1/catalogo/emparejar` es el unico que no toca el repo: reusa `consulta` (el
-canal semantico de OE3) sobre la conexion, y no escribe nada.
+Decisiones:
+- Edicion, reclasificacion y retiro de un producto viven aqui y no en `/v1/admin` porque la app lee
+  y escribe el producto contra el mismo prefijo `/v1/catalogo`.
+- `/interno/resolver-sku` (sku a id y precio, para Comercio) queda fuera del prefijo publico: el
+  gateway no la expone.
+- `/v1/catalogo/emparejar` no escribe nada y reusa `consulta` sobre la conexion.
 """
 
 from __future__ import annotations
@@ -44,17 +32,8 @@ from ..repositorios import RepoCatalogo
 
 router = APIRouter()
 
-# Tope duro del tamano de pagina. No es una manía de rendimiento: sin el, un
-# cliente puede pedir las 261 filas con sus ofertas y sus precios en una sola
-# respuesta, y el dia que el catalogo tenga 26.000 la misma llamada tumba la
-# pantalla sin que nada haya cambiado en el codigo del frontend.
 POR_PAGINA_MAXIMO = 200
 POR_PAGINA_POR_OMISION = 50
-
-
-# ---------------------------------------------------------------------------
-# Conceptos
-# ---------------------------------------------------------------------------
 
 
 @router.get(
@@ -129,18 +108,10 @@ async def ver_concepto(peticion: Request, codigo: str) -> dict[str, Any]:
             estado=404,
         )
     elegidos = [_producto_publico(p) for p in productos]
-    # El orden del nivel es economico, confiable, premium y no el alfabetico
-    # que da la base (confiable, economico, premium). Es el eje con el que el
-    # acudiente compara, asi que verlo desordenado cuesta una lectura extra.
     elegidos.sort(
         key=lambda p: (_ORDEN_NIVEL.index(p["nivel"]) if p["nivel"] in _ORDEN_NIVEL else 9, p["nombre"])
     )
     return _concepto_publico(fila) | {"productos": elegidos}
-
-
-# ---------------------------------------------------------------------------
-# Productos y ofertas
-# ---------------------------------------------------------------------------
 
 
 @router.get("/v1/catalogo/productos", tags=["catalogo"], summary="Productos canonicos, paginados")
@@ -203,10 +174,6 @@ async def ver_producto(peticion: Request, sku: str) -> dict[str, Any]:
             "tienda_nombre": f.tienda_nombre,
             "tipo_tienda": f.tipo,
             "url": f.url,
-            # Tres valores y no dos: `null` es "la fuente no reporta
-            # existencias", que no es lo mismo que "no hay". El canal
-            # mayorista nunca las reporta, y forzar `false` descartaria
-            # ofertas legitimas por una observacion que nunca se hizo.
             "disponible": f.disponible,
             "precio": pesos(f.valor_centavos),
             "vigente_desde": f.vigente_desde.isoformat() if f.vigente_desde else None,
@@ -217,9 +184,6 @@ async def ver_producto(peticion: Request, sku: str) -> dict[str, Any]:
         }
         for f in ofertas
     ]
-    # Las que tienen precio primero y de menor a mayor; las que no lo tienen al
-    # final, porque una oferta sin precio no se puede comparar pero tampoco se
-    # esconde: existe y el acudiente puede ir a mirarla.
     detalle.sort(key=lambda o: (o["precio"] is None, o["precio"] or 0))
     return _producto_publico(fila) | {"ofertas": detalle}
 
@@ -269,9 +233,6 @@ async def listas_por_contacto(peticion: Request, contacto_referencia: uuid.UUID)
     async with peticion.app.state.motor.sesion() as db:
         filas = await RepoCatalogo(await db.connection()).tareas_por_contacto(contacto_referencia)
 
-    # Una sola fila por version (la tarea mas reciente ya viene primero por el
-    # orden). Las tareas sin version aun no comparten identidad: cada una es su
-    # propia solicitud, asi que se llavean por su id.
     vistas: set[str] = set()
     listas: list[dict[str, Any]] = []
     for f in filas:
@@ -284,8 +245,6 @@ async def listas_por_contacto(peticion: Request, contacto_referencia: uuid.UUID)
             nombre = dict(f.colegio_datos).get("nombre")
         listas.append(
             {
-                # La tarea mas reciente de la fila: es con lo que el acudiente
-                # cancela su solicitud (`retirar_de_contacto`).
                 "tarea_id": str(f.id),
                 "version_id": str(f.version_id) if f.version_id else None,
                 "colegio_id": str(f.colegio_id) if f.colegio_id else None,
@@ -300,7 +259,6 @@ async def listas_por_contacto(peticion: Request, contacto_referencia: uuid.UUID)
 
 
 class RetiroDeContacto(BaseModel):
-    """Que solicitud deja de ser del acudiente: una tarea o toda una version."""
 
     tarea_id: uuid.UUID | None = None
     version_id: uuid.UUID | None = None
@@ -332,23 +290,7 @@ async def retirar_de_contacto(
     return {"retiradas": retiradas}
 
 
-# ---------------------------------------------------------------------------
-# Escritura de productos (la mano de la persona que cura el catalogo)
-# ---------------------------------------------------------------------------
-#
-# Vive aqui y NO en `admin_http` a proposito, contra lo que hace la revision de
-# listas: los productos ya se leen por este prefijo, y el SPA lee y escribe
-# contra el mismo origen para reusar `_producto_publico`. La promesa de "solo
-# lectura" del modulo se refiere a que ninguna busqueda da de alta catalogo sin
-# una persona: estas rutas SON esa persona.
-
-
 async def _refrescar_producto(repo: RepoCatalogo, sku: str) -> dict[str, Any]:
-    """Re-lee el producto en su forma publica tras una escritura, o 404.
-
-    La misma consulta que la lectura, para que lo que devuelve una escritura
-    coincida clave por clave con lo que el SPA ya pinta.
-    """
     fila = await repo.producto_por_sku(sku)
     if fila is None:
         raise ErrorDominio("producto_no_existe", f"No hay ningun producto con el sku {sku}.", estado=404)
@@ -447,9 +389,6 @@ async def listar_personajes(peticion: Request) -> dict[str, Any]:
     """
     async with peticion.app.state.motor.sesion() as db:
         filas = await RepoCatalogo(await db.connection()).listar_personajes()
-    # Se agrupa por (personaje, concepto) en SQL y se pliega en Python: el
-    # conteo de productos del personaje es la suma sobre sus conceptos, y los
-    # codigos de concepto salen de las mismas filas sin una segunda consulta.
     por_personaje: dict[str, dict[str, Any]] = {}
     for fila in filas:
         entrada = por_personaje.setdefault(
@@ -476,11 +415,6 @@ async def listar_tiendas(peticion: Request) -> dict[str, Any]:
         for f in filas
     ]
     return {"total": len(datos), "tiendas": datos}
-
-
-# ---------------------------------------------------------------------------
-# Listas oficiales
-# ---------------------------------------------------------------------------
 
 
 @router.get(
@@ -519,9 +453,6 @@ async def listar_listas(
             "version_id": str(f.version_id),
             "version": int(f.numero),
             "publicada_en": f.publicada_en.isoformat() if f.publicada_en else None,
-            # Que este sin revisar no es un defecto: es la puerta que habilita
-            # salir a una tienda por lo que la lista pide y el catalogo no
-            # tiene. Una vez revisada, no se vuelve a abrir.
             "revisada": f.revisada_en is not None,
             "items": int(f.renglones),
         }
@@ -551,9 +482,6 @@ async def ver_lista(peticion: Request, lista_id: uuid.UUID) -> dict[str, Any]:
             "texto_original": f.texto_original,
             "cantidad": int(f.cantidad),
             "unidad": f.unidad,
-            # Nulo en el renglon significa "lo que diga el concepto", NO `util`.
-            # Se resuelve aqui para que el cliente no reimplemente la regla, y se
-            # conservan los dos campos para que se vea de donde salio.
             "tipo_item": f.tipo_item or f.concepto_tipo_item,
             "tipo_item_declarado": f.tipo_item,
             "modo_adquisicion": f.modo_adquisicion,
@@ -580,11 +508,6 @@ async def ver_lista(peticion: Request, lista_id: uuid.UUID) -> dict[str, Any]:
         "total_items": len(items),
         "items": items,
     }
-
-
-# ---------------------------------------------------------------------------
-# Emparejamiento
-# ---------------------------------------------------------------------------
 
 
 @router.post(
@@ -619,20 +542,11 @@ async def emparejar_renglones(peticion: Request, cuerpo: dict[str, Any]) -> dict
         )
 
     textos = [str(r) for r in renglones]
-    # El motor del servicio (su pool) trae la conexion; `cargar_indice` es la
-    # unica copia de la consulta y SI carga embeddings, asi que el canal
-    # semantico de OE3 corre aqui igual que en la CLI. El vector del renglon se
-    # calcula en un solo lote y degrada a lexico si no hay clave o el proveedor
-    # falla — mismo contrato que `emparejar_en_catalogo`.
     async with peticion.app.state.motor.sesion() as db:
         conceptos, productos = await cargar_indice(await db.connection())
-    # `conceptos` es opcional y va en paralelo a `renglones`: el codigo que una
-    # persona ya asigno a ese renglon (o null). Si no cuadra en largo, se ignora.
     asignados = cuerpo.get("conceptos")
     if not isinstance(asignados, list) or len(asignados) != len(textos):
         asignados = [None] * len(textos)
-    # `app.state.embeder` es la costura de las pruebas, como `app.state.motor`;
-    # sin ella se resuelve por entorno.
     embeder = getattr(peticion.app.state, "embeder", None) or _embeder_por_entorno()
     vectores = await calcular_vectores(textos, embeder)
     resultados = [

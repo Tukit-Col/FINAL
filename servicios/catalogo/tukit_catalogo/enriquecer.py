@@ -1,31 +1,14 @@
 """Saca empaque, atributos e imagenes de lo que ya se sabe de cada producto.
 
-Tres carencias del catalogo y tres fuentes distintas, ninguna nueva:
+Decisiones:
+- El empaque y los atributos ya estan escritos en el nombre del producto; hay que leerlos bien, no
+  salir a la red. La imagen sale de la ficha cuya direccion guarda `oferta_tienda.url`.
+- Un `xN` cuenta empaques salvo que lo siga una unidad de medida ("Tempera de 12 ml x 12 unidades"
+  tiene dos doces y solo el segundo multiplica), porque `unidades_a_comprar` es
+  techo(cantidad pedida / unidades por empaque).
+- Las reglas puras viven en `extraccion.py`; aqui solo se orquesta el lote.
 
-- El EMPAQUE y los ATRIBUTOS ya estan escritos en el nombre del producto. No
-  hacia falta salir a la red, hacia falta leerlo bien.
-- La IMAGEN esta en la ficha de la tienda, y la direccion de esa ficha ya la
-  guarda `oferta_tienda.url`.
-
-El empaque es el que rompia el carrito. `producto_canonico.unidades_por_empaque`
-estaba en 1 para los 260 productos, asi que pedir doce lapices sumaba doce
-cajas. El modelo ya preveia el arreglo:
-
-    unidades_a_comprar = techo(cantidad_pedida / unidades_por_empaque)
-
-pero con el divisor en 1 la formula no hace nada.
-
-La dificultad no es encontrar numeros en el nombre sino saber cual de ellos
-cuenta. `Tempera gouache de 12 ml x 12 unidades` tiene dos doces y solo el
-segundo multiplica. `Cinta 18mm X5 Metros X10 Unds` tiene tres numeros y solo
-el ultimo. La regla que los separa es simple y esta abajo: un `xN` cuenta
-empaques salvo que lo siga una unidad de medida.
-
-Uso:
-
-    python -m tukit_catalogo.enriquecer --solo-validar   # que haria
-    python -m tukit_catalogo.enriquecer                  # empaque y atributos
-    python -m tukit_catalogo.enriquecer --imagenes       # ademas, va a la red
+Uso:  python -m tukit_catalogo.enriquecer [--solo-validar] [--imagenes]
 """
 
 from __future__ import annotations
@@ -40,45 +23,13 @@ from . import tiendas
 from .embeddings import Embeder, texto_de_producto
 from .extraccion import Empaque, atributos_de_ficha, extraer_atributos, extraer_empaque, extraer_personaje
 
-# ---------------------------------------------------------------------------
-# Imagenes
-# ---------------------------------------------------------------------------
-
 
 def imagen_desde_ficha(url_oferta: str) -> str | None:
-    """Portada de la ficha que ya se conocia, sin buscar nada.
-
-    Se conserva como funcion propia porque es lo que usa la pasada de
-    imagenes, pero el trabajo lo hace `tiendas.ficha`, que exige que la
-    direccion devuelva UN producto. Una busqueda por nombre devolveria algo
-    parecido, y ponerle a un producto la foto de otro es peor que dejarlo sin
-    foto: el papa reconoce la imagen, pide confiado y recibe otra cosa.
-    """
     encontrada = tiendas.ficha(url_oferta)
     return encontrada.imagen_url if encontrada else None
 
 
-# ---------------------------------------------------------------------------
-# Embeddings (canal semantico de la busqueda hibrida, OE3)
-# ---------------------------------------------------------------------------
-
-
 def embeddings_a_actualizar(productos: list[dict[str, Any]], embeder: Embeder) -> list[dict[str, Any]]:
-    """Que embeddings hay que (re)calcular, y con que texto.
-
-    Es idempotente por diseno, que es lo que permite correr el backfill sobre
-    todo el corpus sin gastar una llamada por producto cada vez: se recalcula
-    solo cuando el TEXTO del que sale el vector cambio, o cuando no habia
-    vector. `texto_embedding` guardado es la huella; si coincide con el texto
-    de ahora, el vector sigue valiendo. Esto separa el QUE de la escritura a
-    base y del transporte, para poder probarlo sin red ni motor: se inyecta
-    `embeder` (el falso en pruebas, Gemini en produccion).
-
-    El embeder se llama UNA vez con todos los textos pendientes: los
-    proveedores cobran y tardan por peticion, no por vector, y un lote es una
-    peticion. La lista devuelta tiene la forma que `_guardar_embeddings`
-    espera (`pid`, `embedding`, `embedding_model`, `texto_embedding`).
-    """
     modelo = getattr(embeder, "modelo", None) or getattr(embeder, "__name__", "embeder")
     pendientes: list[tuple[dict[str, Any], str]] = []
     for p in productos:
@@ -100,11 +51,6 @@ def embeddings_a_actualizar(productos: list[dict[str, Any]], embeder: Embeder) -
         }
         for (p, texto), vector in zip(pendientes, vectores, strict=True)
     ]
-
-
-# ---------------------------------------------------------------------------
-# Aplicacion
-# ---------------------------------------------------------------------------
 
 
 async def _cargar_contexto() -> tuple[
@@ -134,9 +80,6 @@ async def _cargar_contexto() -> tuple[
                         producto.c.unidad_base,
                         producto.c.atributos,
                         producto.c.personaje,
-                        # La huella del embedding: con que texto y que modelo se
-                        # calculo el vector que ya esta en la fila. Es lo que
-                        # hace idempotente el backfill (ver embeddings_a_actualizar).
                         producto.c.texto_embedding,
                         producto.c.embedding_model,
                     )
@@ -154,10 +97,6 @@ async def _cargar_contexto() -> tuple[
                     concepto.c.atributos_descriptivos,
                 )
             ):
-                # Los DOS, discriminantes y descriptivos. El enriquecedor llena
-                # todo lo que se pueda leer: un descriptivo no filtra
-                # candidatos, pero si se le muestra al acudiente, y dejarlo
-                # vacio lo deja mirando una ficha en blanco.
                 requeridos[str(f.id)] = tuple(f.atributos_discriminantes or ()) + tuple(
                     f.atributos_descriptivos or ()
                 )
@@ -174,13 +113,6 @@ async def _cargar_contexto() -> tuple[
 
 
 async def _guardar_embeddings(cambios: list[dict[str, Any]]) -> None:
-    """Escribe los vectores calculados en `producto_canonico`.
-
-    Va en su propia transaccion, aparte de `_guardar` (empaque, atributos,
-    imagen), porque el embedding sale de un puerto externo que puede fallar o
-    no estar configurado: separarlo deja que el enriquecimiento del nombre —que
-    nunca sale a la red— se escriba aunque el canal semantico no corra.
-    """
     if not cambios:
         return
     from sqlalchemy import bindparam, update
@@ -229,12 +161,6 @@ async def _guardar(cambios: list[dict[str, Any]]) -> None:
             )
             await conexion.execute(sentencia, cambios)
 
-            # Un concepto admite personaje si de hecho existe uno con
-            # personaje. Se deduce del catalogo en vez de mantenerlo a mano:
-            # la marca decia que siete conceptos lo admitian y el catalogo ya
-            # traia reglas de Barbie, vasos de Spiderman y balones de
-            # Avengers. Una bandera que contradice a los datos que describe no
-            # sirve para decidir nada.
             concepto = Base.metadata.tables["concepto"]
             await conexion.execute(
                 update(concepto)
@@ -248,13 +174,6 @@ async def _guardar(cambios: list[dict[str, Any]]) -> None:
 
 
 def empaque_combinado(unidades_guardadas: int | None, unidad_guardada: str | None, leido: Empaque) -> Empaque:
-    """El empaque guardado gana sobre el leido del nombre, salvo que sea el 1 por omision.
-
-    Desde que el empaque es columna de `productos_canonicos.csv`, lo guardado
-    puede ser una correccion a mano (la UI de admin la permite), y una pasada
-    de `enriquecer` no puede deshacerla. Un 1 no se distingue del default, asi
-    que ahi si manda lo que dice el nombre.
-    """
     if unidades_guardadas and unidades_guardadas > 1:
         return Empaque(unidades_guardadas, unidad_guardada or leido.unidad_base)
     return leido
@@ -263,22 +182,11 @@ def empaque_combinado(unidades_guardadas: int | None, unidad_guardada: str | Non
 def atributos_combinados(
     guardados: dict[str, Any], leidos: dict[str, Any], reextraer: frozenset[str] = frozenset()
 ) -> dict[str, Any]:
-    """Lo guardado gana sobre lo leido, salvo en las claves que se piden releer.
-
-    Lo guardado gana porque puede ser curado a mano, y el juicio de una
-    persona vale mas que una expresion regular. Pero lo guardado tambien es lo
-    que una version vieja del vocabulario leyo mal (`punta=permanente` en un
-    marcador, `tipo=permanente` en un oleo verde permanente), y sin una forma
-    de releerlo ese error no se iba nunca. Releer es explicito y por clave:
-    en esas claves manda lo que el nombre dice HOY, y si hoy no dice nada, la
-    clave se va.
-    """
     conservados = {k: v for k, v in guardados.items() if k not in reextraer}
     return {**leidos, **conservados}
 
 
 def _leer_reextraer(pedidos: list[str]) -> dict[str, frozenset[str]]:
-    """`C006:tipo,punta` -> {"C006": {"tipo", "punta"}}."""
     salida: dict[str, set[str]] = {}
     for pedido in pedidos:
         codigo, _, claves = pedido.partition(":")
@@ -302,17 +210,9 @@ async def _principal(
     imagenes: dict[str, str] = {}
     de_ficha: dict[str, dict[str, Any]] = {}
     if con_imagenes or con_fichas:
-        # Una sola lectura por producto y de ahi sale todo lo que la tienda
-        # sabe: la portada, los atributos de la ficha tecnica y el personaje
-        # que la tienda declara. Leer la misma ficha tres veces, una por cada
-        # dato, multiplicaba por tres el tiempo y el riesgo de que la tienda
-        # cortara por exceso de peticiones.
         def le_falta_algo(p: dict[str, Any]) -> bool:
             if con_imagenes and (not p["imagen_url"] or not p["atributos"]):
                 return True
-            # `--fichas`: lo que el nombre no dijo puede estar en la ficha.
-            # Se pide solo para quien le falta un atributo de su concepto,
-            # para no leer 685 fichas cuando el nombre ya lo dijo todo.
             guardados = p["atributos"] or {}
             return con_fichas and any(a not in guardados for a in requeridos.get(str(p["concepto_id"]), ()))
 
@@ -349,11 +249,6 @@ async def _principal(
         empaque = extraer_empaque(p["nombre"], attrs_concepto)
         attrs = extraer_atributos(p["nombre"], attrs_concepto)
 
-        # La ficha de la tienda rellena lo que el nombre no dijo, y no al
-        # reves. El nombre es lo que el papa va a leer en el kit, asi que si
-        # los dos hablan del mismo atributo manda el nombre: un cuaderno que
-        # se llama "Media Carta" es de media carta aunque la ficha diga
-        # "Tamaño: Normal".
         ficha_p = de_ficha.get(str(p["id"]))
         if ficha_p:
             attrs = {**atributos_de_ficha(ficha_p["especificaciones"], attrs_concepto), **attrs}
@@ -369,8 +264,6 @@ async def _principal(
                 "pid": p["id"],
                 "unidades_por_empaque": empaque.unidades,
                 "unidad_base": empaque.unidad_base,
-                # Lo leido no pisa lo curado a mano: si alguien ya reviso este
-                # producto, su juicio vale mas que una expresion regular.
                 "atributos": atributos_combinados(
                     p["atributos"] or {},
                     attrs,
@@ -397,11 +290,6 @@ async def _principal(
     print(f"  productos con imagen               {con_img:5}/{total}")
     print(f"  productos con personaje            {con_personaje:5}/{total}")
 
-    # El canal semantico (OE3). El texto que se embebe se arma de lo YA
-    # enriquecido —nombre + concepto + atributos finales—, no del crudo, para
-    # que el vector situe al producto por lo que de verdad es. Se decide el
-    # embeder por el entorno: con GEMINI_API_KEY, el real; sin ella, ninguno,
-    # y se dice —no se inventa un vector falso en produccion—.
     plan_embeddings: list[dict[str, Any]] = []
     if con_embeddings:
         embeder = _embeder_por_entorno()
@@ -436,11 +324,6 @@ async def _principal(
 def _escribir_informe(
     ruta: str, productos: list[dict[str, Any]], cambios: list[dict[str, Any]], codigos: dict[str, str]
 ) -> None:
-    """Un CSV con cada atributo que esta pasada agrega, cambia o quita.
-
-    Es lo que se revisa antes de escribir: el resumen dice cuantos productos
-    tienen atributos, pero no si los que se leyeron son ciertos.
-    """
     import csv
 
     por_pid = {str(c["pid"]): c for c in cambios}
@@ -468,14 +351,6 @@ def _escribir_informe(
 
 
 def _embeder_por_entorno() -> Embeder | None:
-    """El embeder real si hay clave, ninguno si no.
-
-    Se elige por entorno y no por bandera para que el mismo comando haga lo
-    correcto en cada sitio: con clave (produccion, E2E) puebla el canal
-    semantico; sin ella (un dev sin credenciales) enriquece nombre e imagenes
-    y calla el vector, en vez de fallar o fingirlo. Las pruebas no pasan por
-    aqui: inyectan el embeder falso directo a `embeddings_a_actualizar`.
-    """
     import os
 
     from .embeddings import embeder_gemini

@@ -1,5 +1,3 @@
-"""Las 19 tablas del servicio de Catalogo."""
-
 from .base import (
     CALIDAD_POR_NIVEL,
     DIMENSION_EMBEDDING,

@@ -1,20 +1,3 @@
-"""Deja exactamente un representante por celda de util antes de exportar.
-
-Una celda es (concepto, nivel, personaje) y el kit toma de ella UN producto: el
-representante canonico (`test_una_celda_util_tiene_exactamente_un_representante`).
-Aprobar en la cola ya marca al primero de una celda nueva, pero reclasificar un
-producto lo lleva a otra celda con su marca puesta: la de destino queda con dos
-y la de origen, a veces, con ninguno. Esto se repara aqui y no a mano.
-
-A quien se elige, en orden: la semilla (`TK-C###-`, el producto que la
-curaduria original puso en esa celda y que `nivelar` ordena), y si no hay, el
-mas barato, que es el que el kit le ofreceria al acudiente de todas formas.
-Los libros no tienen representante por celda (son titulos distintos).
-
-    python -m tukit_catalogo.representantes            # cuenta lo que cambiaria
-    python -m tukit_catalogo.representantes --escribir
-"""
-
 from __future__ import annotations
 
 import argparse

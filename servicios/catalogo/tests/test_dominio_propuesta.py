@@ -1,12 +1,3 @@
-"""Los builders puros de propuesta que HTTP y el CLI comparten.
-
-`agregar_util`/`agregar_libro` construian su dict inline y lo encadenaban con
-`_encolar` + `resolver`. La SPA necesita ese MISMO dict para encolar sin
-aprobar (dos pasos), asi que el dict se extrae a una funcion pura --sin I/O, sin
-motor-- que las dos superficies llaman. Aqui se prueba que el dict que sale
-conserva lo que importa: precio en centavos, puntaje, origen y referencia.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -53,7 +44,6 @@ def test_libro_usa_isbn_como_referencia():
 
 
 def test_un_libro_por_isbn_puntua_mas_que_un_util_buscado_en_tienda():
-    # El ISBN identifica la edicion; la busqueda en tienda es una eleccion por nombre.
     o = tiendas.Oferta(
         tienda="exito",
         nombre="Cuaderno 100h",
@@ -80,15 +70,12 @@ def test_un_libro_por_isbn_puntua_mas_que_un_util_buscado_en_tienda():
     assert 0 < util["puntaje"] < libro["puntaje"] < 1
 
 
-# Hay dos copias del filtro de EAN: la del alta de `descubrir` y la del builder
-# de propuestas (que `admin` reexporta). Las dos tienen que decir lo mismo.
 _FILTROS_EAN = pytest.mark.parametrize(
     "ean_valido", [_ean_valido, descubrir._ean_valido], ids=["propuesta", "descubrir"]
 )
 
 
 class TestElEanQueTraeLaTiendaSoloEntraSiEsUno:
-    """Una tienda pone cualquier cosa en el campo EAN: un SKU, un vacio."""
 
     @_FILTROS_EAN
     @pytest.mark.parametrize("bueno", ["12345678", "123456789012", "1234567890123", "9781234567897"])
@@ -123,4 +110,4 @@ def test_id_estable_no_duplica_al_reencolar_el_mismo_candidato():
     )
     a = construir_propuesta_util(cid, "Cuaderno", "exito", tid, o, "confiable")
     b = construir_propuesta_util(cid, "Cuaderno", "exito", tid, o, "confiable")
-    assert a["id"] == b["id"]  # derivado de (slug, sku), no aleatorio
+    assert a["id"] == b["id"]

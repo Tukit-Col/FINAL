@@ -1,12 +1,3 @@
-"""El vector de cada renglon se guarda y se reaprovecha (ADR 0047).
-
-Se fija que un lote con renglones guardados y sin guardar le pide al proveedor
-solo los que faltan, en orden, y devuelve el resultado en el orden original;
-que un fallo del proveedor no guarda nada y baja la tanda entera a lexico; que
-con Redis caido o lento se calcula todo con el proveedor; la duracion de la clave; y que un embeder
-sin modelo declarado no se cachea.
-"""
-
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -33,7 +24,6 @@ from tukit_comun.pruebas_redis import RedisEnMemoria, cliente_en_memoria, client
 
 
 class Proveedor:
-    """Un embeder con modelo declarado que anota cada lote que recibe."""
 
     modelo = MODELO_FALSO
 
@@ -224,9 +214,6 @@ def test_otro_modelo_es_otra_clave():
     )
 
 
-# --- Por la ruta -----------------------------------------------------------
-
-
 @pytest.fixture()
 async def http(monkeypatch):
     engine = create_async_engine(
@@ -238,7 +225,6 @@ async def http(monkeypatch):
         servicio="prueba", engine=engine, _fabrica=async_sessionmaker(engine, expire_on_commit=False)
     )
     proveedor = Proveedor()
-    # La costura publica de la ruta, como `app.state.motor`; monkeypatch la quita al salir.
     monkeypatch.setattr(app.state, "embeder", proveedor, raising=False)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://prueba") as cliente:
         yield cliente, proveedor
@@ -267,12 +253,6 @@ async def test_por_la_ruta_con_redis_caido_responde_igual(http, redis):
     assert proveedor.lotes == [RENGLONES, RENGLONES]
 
 
-# --- Contra un Redis de verdad ----------------------------------------------
-#
-# La API que arranca `make arriba` no tiene embeder sin la clave de Gemini, asi
-# que se corre la app aqui, con el embeder falso y contra el Redis de
-# `TUKIT_PRUEBAS_REDIS_URL`. Se salta sola si no hay Redis.
-
 RENGLONES_REDIS = ["2 cuadernos cuadriculados", "1 caja de colores", "pegante en barra"]
 
 
@@ -294,7 +274,6 @@ async def test_la_segunda_lista_solo_calcula_el_renglon_nuevo_contra_redis(http)
         cliente.prefijo + cache_vectores.clave(MODELO_FALSO, texto): vector
         for texto, vector in zip(RENGLONES_REDIS, embeder_falso(RENGLONES_REDIS), strict=True)
     }
-    # En Redis quedan los vectores, con su vencimiento de un dia, y nada del texto.
     assert {c: cache_vectores.de_bytes(g.valor) for c, g in guardado.items()} == esperados
     assert all(len(g.valor) == 8 * DIMENSION_EMBEDDING for g in guardado.values())
     assert all((24 * 3600 - 60) * 1000 < g.vence_en_ms <= 24 * 3600 * 1000 for g in guardado.values())

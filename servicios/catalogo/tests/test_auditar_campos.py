@@ -1,5 +1,3 @@
-"""Pruebas del auditor de campos del catalogo."""
-
 from __future__ import annotations
 
 from tukit_catalogo.auditar_campos import (
@@ -28,11 +26,8 @@ def test_campo_vacio_se_reporta() -> None:
 
 
 def test_el_contrato_de_campos() -> None:
-    # `sku_interno` es la llave con que `consolidar` agrupa entre hermanos;
-    # `concepto_id` es lo que hace que el producto se ofrezca para un renglon.
     assert "sku_interno" in CAMPOS_OBLIGATORIOS
     assert "concepto_id" in CAMPOS_OBLIGATORIOS
-    # La imagen solo la pinta la ficha: no decide nada del NSGA.
     assert "imagen_url" not in CAMPOS_OBLIGATORIOS
     assert "imagen_url" in CAMPOS_RECOMENDADOS
 

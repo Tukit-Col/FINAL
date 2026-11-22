@@ -1,20 +1,3 @@
-"""El endpoint interno `GET /interno/listas-por-contacto/{usuario_id}`.
-
-Es la lectura servicio-a-servicio que alimenta "Mis solicitudes" del acudiente:
-Inteligencia le pega directo a Catalogo con el `usuario_id` de la sesion que ya
-valido. Vive fuera de `/v1/` A PROPOSITO —la puerta no rutea `/interno`—, asi
-que no existe hacia el navegador.
-
-Lo que protegen las pruebas: devuelve solo las tareas del contacto pedido (jamas
-las de otro), deduplica una version que tiene varias tareas en una sola fila
-(gana la mas reciente), saca `colegio_nombre` de `colegio_datos` (y es `None`
-para un colegio aliado), y expone `revisada_en` de la version unida para que
-Inteligencia distinga aprobada de recibida.
-
-Corre con `ASGITransport` y un SQLite inyectado por `app.state`, igual que
-`test_api_admin`.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -58,7 +41,6 @@ def _tarea(sesion, *, contacto, version_id=None, colegio_datos=None, grado="Quin
 
 
 def _version_revisada(sesion, revisada_en):
-    """Una version YA REVISADA (con su lista), para el caso `aprobada`."""
     lista = ListaOficial(colegio_id=COLEGIO, grado="Quinto", anio_lectivo=2026)
     sesion.add(lista)
     sesion.flush()
@@ -71,14 +53,11 @@ def _version_revisada(sesion, revisada_en):
 def _siembra(sesion) -> dict[str, uuid.UUID]:
     ids: dict[str, uuid.UUID] = {}
 
-    # Una version aprobada del padre, con dos tareas (dedup a una fila).
     version = _version_revisada(sesion, datetime(2026, 2, 1, 12, 0, tzinfo=UTC))
     ids["version"] = version.id
     _tarea(sesion, contacto=PADRE, version_id=version.id, creada_en=datetime(2026, 1, 1, 9, 0, tzinfo=UTC))
     _tarea(sesion, contacto=PADRE, version_id=version.id, creada_en=datetime(2026, 1, 2, 9, 0, tzinfo=UTC))
 
-    # Una tarea sin version (sugerencia aun pendiente), de colegio nuevo: sale
-    # con su `colegio_nombre` de `colegio_datos` y sin `version_id`.
     _tarea(
         sesion,
         contacto=PADRE,
@@ -87,7 +66,6 @@ def _siembra(sesion) -> dict[str, uuid.UUID]:
         colegio_datos={"nombre": "Colegio Nuevo", "dane": "123"},
     )
 
-    # Una tarea de OTRO contacto: nunca debe aparecer.
     _tarea(sesion, contacto=OTRO_PADRE, version_id=None, grado="Cuarto")
 
     return ids
@@ -114,8 +92,6 @@ async def cliente():
 
 async def test_devuelve_solo_las_del_contacto(cliente):
     cuerpo = (await cliente.get(f"/interno/listas-por-contacto/{PADRE}")).json()
-    # Dos versiones distintas del padre: la aprobada (deduplicada de dos tareas)
-    # y la sugerencia sin version. Nada del otro contacto.
     assert len(cuerpo["listas"]) == 2
     grados = {fila["grado"] for fila in cuerpo["listas"]}
     assert grados == {"Quinto", "Tercero"}
@@ -131,19 +107,15 @@ async def test_dedup_por_version_id(cliente):
     cuerpo = (await cliente.get(f"/interno/listas-por-contacto/{PADRE}")).json()
     version_id = str(cliente.ids["version"])
     de_version = [fila for fila in cuerpo["listas"] if fila["version_id"] == version_id]
-    assert len(de_version) == 1  # dos tareas, una sola fila
-    # La version esta revisada: `revisada_en` viaja para que Inteligencia la
-    # clasifique como aprobada.
+    assert len(de_version) == 1
     assert de_version[0]["revisada_en"] is not None
 
 
 async def test_colegio_nombre_de_colegio_datos(cliente):
     cuerpo = (await cliente.get(f"/interno/listas-por-contacto/{PADRE}")).json()
     por_grado = {fila["grado"]: fila for fila in cuerpo["listas"]}
-    # Colegio nuevo: el nombre viene de colegio_datos.
     assert por_grado["Tercero"]["colegio_nombre"] == "Colegio Nuevo"
     assert por_grado["Tercero"]["version_id"] is None
-    # Colegio aliado (sin colegio_datos): el nombre vive en identidad -> None.
     assert por_grado["Quinto"]["colegio_nombre"] is None
 
 
@@ -153,9 +125,6 @@ async def test_cada_fila_trae_su_tarea_para_poder_retirarla(cliente):
 
 
 async def test_retirar_desvincula_toda_la_version_y_solo_del_contacto(cliente):
-    """El acudiente cancela su solicitud: sus tareas de esa version dejan de ser
-    suyas (las dos, no solo la que se ve), la lista sigue siendo del colegio,
-    y las listas de otro acudiente no se tocan."""
     cuerpo = (await cliente.get(f"/interno/listas-por-contacto/{PADRE}")).json()
     version_id = str(cliente.ids["version"])
     fila = next(f for f in cuerpo["listas"] if f["version_id"] == version_id)

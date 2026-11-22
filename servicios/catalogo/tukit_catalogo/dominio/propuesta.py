@@ -1,16 +1,3 @@
-"""Los builders puros de una propuesta de curaduria (ADR 0019).
-
-Arman el dict que `_encolar` mete en la bandeja de propuestas, sin I/O ni
-motor, para que lo compartan las tres superficies: la SPA de revision
-(`admin_http`, que encola sin aprobar), el `http.server` de curaduria
-(`admin`, que encola y aprueba en el acto) y las CLIs. El id sale de
-`_uuid_estable` sobre la llave natural (slug + sku/isbn) para que reencolar el
-mismo candidato no lo duplique.
-
-`_uuid_estable` se reusa de `cargador` --es el mismo hash de contenido que usa
-la carga-- en vez de duplicarlo aqui.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -33,14 +20,6 @@ def construir_propuesta_util(
     oferta: tiendas.Oferta,
     nivel: str,
 ) -> dict[str, Any]:
-    """El dict de propuesta de un util elegido, listo para `_encolar`.
-
-    Funcion pura --sin I/O, sin motor-- para que la comparta el CLI (que encola
-    y aprueba en el acto) y la SPA (que solo encola, y una persona decide el
-    nivel al aprobar). El id sale de `_uuid_estable("util", slug, sku)` para que
-    reencolar el mismo candidato no lo duplique. Precio en CENTAVOS, puntaje 0.6
-    porque lo eligio una persona de una lista de candidatos reales.
-    """
     return {
         "id": _uuid_estable("util", slug, oferta.sku),
         "concepto_id": concepto_id,
@@ -75,14 +54,6 @@ def construir_propuesta_libro(
     precio_cop: int,
     nivel: str,
 ) -> dict[str, Any]:
-    """El dict de propuesta de un libro por ISBN, listo para `_encolar`.
-
-    Gemelo puro de `construir_propuesta_util` para libros: el ISBN es la
-    referencia (identifica la edicion, no un titulo) y va tambien en `ean` y en
-    `especificaciones`. Puntaje 0.9 porque un ISBN es un dato duro, no una
-    coincidencia de busqueda. Precio en CENTAVOS. `nombre_concepto` no se usa en
-    el dict pero se recibe por simetria con el util y para futuras trazas.
-    """
     return {
         "id": _uuid_estable("propuesta", slug, isbn),
         "concepto_id": concepto_id,

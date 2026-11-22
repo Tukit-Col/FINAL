@@ -1,12 +1,3 @@
-"""Audita los campos del catalogo que el kit y la ficha necesitan completos.
-
-Un producto con campo vacio no falla en ningun lado: el optimizador lo trata
-como un dato mas y la ficha muestra un hueco. Este auditor lo vuelve visible.
-Lee los CSV (la fuente que el cargador usa) y no escribe en ellos.
-
-`personaje` no se audita: los productos neutros no lo llevan.
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -18,29 +9,15 @@ from pathlib import Path
 DATOS = Path(__file__).resolve().parents[3] / "datos" / "catalogo"
 INFORME = Path(__file__).resolve().parents[3] / "ensayos" / "salidas" / "auditoria-campos-catalogo.md"
 
-# Un hueco en cualquiera de estos cambia el kit, no solo como se ve; por eso
-# fallan --estricto. Por que cada uno:
 CAMPOS_OBLIGATORIOS: tuple[str, ...] = (
-    # La llave del producto en el kit (`Candidato.sku`): `consolidar` junta las
-    # compras de dos hermanos por sku, y cambiar o fijar una linea lo busca por el.
     "sku_interno",
-    # Lo que lee el acudiente en la linea (`Candidato.nombre`).
     "nombre",
-    # `Candidato.marca`: la marca que pide la lista se cumple o no con esto.
     "marca",
-    # `Candidato.nivel`: decide en que perfil cae (Ahorrador, Premium...) y la fidelidad.
     "nivel",
-    # `Candidato.unidad_base` y `unidades_por_empaque`: cuantos empaques se
-    # compran para la cantidad pedida, y con eso el costo.
     "unidad_base",
     "unidades_por_empaque",
-    # No es campo de `Candidato`, pero sin el el producto no se ofrece: el
-    # catalogo entrega candidatos a un renglon por su concepto (`/resueltos`).
     "concepto_id",
 )
-# Los consume la ficha o la busqueda semantica, no el `Candidato` del NSGA:
-# un hueco aqui es una advertencia, no un fallo de --estricto. La imagen solo
-# la pinta la ficha.
 CAMPOS_RECOMENDADOS: tuple[str, ...] = ("imagen_url", "descripcion", "texto_embedding", "embedding_model")
 
 
@@ -64,7 +41,6 @@ def auditar(
     precios_por_producto: set[str],
     activos_solo: bool = True,
 ) -> list[Hallazgo]:
-    """Un hallazgo por campo vacio, mas `precio` si no hay oferta con precio."""
     salida: list[Hallazgo] = []
     for p in productos:
         if activos_solo and not _activo(p):
@@ -88,7 +64,6 @@ def _leer(datos: Path, nombre: str) -> list[dict[str, str]]:
 
 
 def productos_con_precio(datos: Path) -> set[str]:
-    """Ids de producto con al menos una oferta con precio > 0."""
     oferta_a_producto = {o["id"]: o["producto_canonico_id"] for o in _leer(datos, "ofertas_tienda")}
     con_precio: set[str] = set()
     for pr in _leer(datos, "precios_oferta"):

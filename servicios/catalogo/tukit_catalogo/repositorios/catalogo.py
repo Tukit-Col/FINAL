@@ -1,16 +1,3 @@
-"""El SQL de la lectura del catalogo y la escritura de un producto.
-
-Todo salio verbatim en la logica de `api.py`: eran funciones sueltas que abrian
-`motor.engine.begin()` en cada handler; aqui son metodos de `RepoCatalogo`,
-atado a una conexion, igual que `RepoPedidos`/`RepoIdentidad` en los otros
-servicios (ADR 0019). Los shapers de la respuesta publica y la validacion son
-puros y viven en `dominio/catalogo.py`; aqui solo el SQL que trae las filas.
-
-El repo devuelve **filas** (o cuenta, o un booleano de existencia); el router
-las pasa por los shapers de `dominio` para armar la respuesta. La unica
-excepcion es `resumen`, que es puro conteo agregado sin forma que shapear.
-"""
-
 from __future__ import annotations
 
 import re
@@ -36,23 +23,10 @@ TAREA = Base.metadata.tables["tarea_importacion"]
 
 _ORDEN_NIVEL = ("economico", "confiable", "premium")
 
-# Por debajo de esto un producto lo sugirio la busqueda y nadie lo confirmo.
-# Por debajo de la calidad mas baja que asigna la curaduria (economico, 0,40).
-# Con 0,5 el resumen contaba como «sin revisar» a todos los economicos curados
-# a mano: su puntaje sale del nivel, no de una revision pendiente. Lo que entra
-# por la cola de revision vale 0,85; sin revisar solo queda lo que una carga
-# automatica deje por debajo de cualquier nivel.
 UMBRAL_SIN_REVISAR = min(CALIDAD_POR_NIVEL.values())
 
 
 def _precio_minimo_vigente() -> Any:
-    """Subconsulta con el precio vigente mas bajo por producto.
-
-    Sale de la OFERTA y no del producto, porque el precio es propiedad de la
-    relacion entre un producto y una tienda: ese fue el defecto del esquema
-    anterior, donde `precio` era columna del producto y comparar dos tiendas
-    era inexpresable. Lo que se le muestra al acudiente es el menor vigente.
-    """
     return (
         select(
             OFERTA.c.producto_canonico_id.label("pid"),
@@ -102,13 +76,6 @@ def _consulta_productos(precio_min: Any) -> Select:
 
 
 def _consulta_ofertas(producto_ids: list[Any]) -> Select:
-    """Las ofertas vivas de un conjunto de productos, con su precio vigente.
-
-    Toma una lista de identificadores y no uno solo porque la pantalla de
-    catalogo necesita las ofertas de la pagina entera: pedirlas producto a
-    producto serian doscientas idas y vueltas para pintar una pagina, que es
-    el patron N+1 que el perfilado ya encontro una vez en la ingesta.
-    """
     return (
         select(
             OFERTA.c.producto_canonico_id.label("pid"),
@@ -138,15 +105,10 @@ _ACENTOS = {"á": "a", "é": "e", "í": "i", "ó": "o", "ú": "u", "ü": "u", "�
 
 
 def _normalizar_personaje(texto: str) -> str:
-    """Sin tildes, mayusculas, guiones ni espacios: "Spider-Man" == "spiderman".
-
-    Es la de `tukit_comun.texto`, la misma que usa Inteligencia en el Fan.
-    """
     return normalizar_personaje(texto)
 
 
 def _normalizado_sql(columna: Any) -> Any:
-    """La misma normalizacion en SQL, con replace anidado (vale en Postgres y SQLite)."""
     expr = func.lower(columna)
     for con, sin in {**_ACENTOS, **{k.upper(): v for k, v in _ACENTOS.items()}}.items():
         expr = func.replace(expr, con, sin)
@@ -156,17 +118,12 @@ def _normalizado_sql(columna: Any) -> Any:
 
 
 class RepoCatalogo:
-    """La lectura del catalogo y la escritura de un producto, atado a una
-    conexion de una unidad de trabajo. Se construye dentro del
-    `async with motor.sesion()` de quien lo use, con la conexion ya abierta."""
 
     def __init__(self, conexion: Any) -> None:
         self.conexion = conexion
 
     async def _total(self, consulta: Select) -> int:
         return int(await self.conexion.scalar(select(func.count()).select_from(consulta.subquery())) or 0)
-
-    # ------------------------------------------------------------------ resumen
 
     async def resumen(self) -> dict[str, Any]:
         productos_por_concepto = (
@@ -218,8 +175,6 @@ class RepoCatalogo:
             "tiendas": int(tiendas or 0),
             "productos_sin_revisar": int(productos.sin_revisar),
         }
-
-    # ------------------------------------------------------------------ conceptos
 
     async def categorias(self) -> list[Any]:
         return list(
@@ -284,9 +239,6 @@ class RepoCatalogo:
         elif con_producto is False:
             consulta = consulta.where(productos_por_concepto.c.productos.is_(None))
 
-        # Por demanda y no alfabetico: el orden por omision de una pantalla de
-        # catalogo tiene que ser el de lo que los colegios de verdad piden, que es
-        # lo que midio el corpus. Alfabetico pondria `abaco` antes que `cuaderno`.
         consulta = consulta.order_by(CONCEPTO.c.frecuencia_demanda.desc(), CONCEPTO.c.codigo)
 
         total = await self._total(consulta)
@@ -308,8 +260,6 @@ class RepoCatalogo:
             )
         )
         return fila, productos
-
-    # ------------------------------------------------------------------ productos
 
     async def listar_productos(
         self,
@@ -351,8 +301,6 @@ class RepoCatalogo:
         total = await self._total(consulta)
         filas = list(await self.conexion.execute(_paginar(consulta, pagina, por_pagina)))
 
-        # `con_ofertas` expande la pagina, no el catalogo. Devuelve las ofertas
-        # crudas por producto; el router las shapea y ordena con `dominio`.
         ofertas_por_pid: dict[Any, list[Any]] = {}
         if con_ofertas and filas:
             for oferta in await self.conexion.execute(_consulta_ofertas([f.id for f in filas])):
@@ -393,12 +341,6 @@ class RepoCatalogo:
         return fila, ofertas
 
     async def producto_por_sku(self, sku: str) -> Any | None:
-        """Re-lee el producto en su forma de fila, con precio y tiendas, o None.
-
-        La misma consulta que `ver_producto`/`listar_productos`, para que lo que
-        devuelve una escritura coincida clave por clave con lo que el SPA ya
-        pinta. El shaper `_producto_publico` lo aplica el router.
-        """
         precio_min = _precio_minimo_vigente()
         return (
             await self.conexion.execute(_consulta_productos(precio_min).where(PRODUCTO.c.sku_interno == sku))
@@ -417,7 +359,6 @@ class RepoCatalogo:
         return await self.conexion.scalar(select(CONCEPTO.c.id).where(CONCEPTO.c.codigo == codigo))
 
     async def reclasificar_producto(self, sku: str, concepto_id: Any, codigo: str) -> str:
-        """Mueve el producto de concepto y devuelve su sku (re-acunado si hizo falta)."""
         nuevo_sku = await self.sku_reacunado(sku, codigo)
         await self.conexion.execute(
             update(PRODUCTO)
@@ -427,11 +368,6 @@ class RepoCatalogo:
         return nuevo_sku
 
     async def sku_reacunado(self, sku: str, codigo: str) -> str:
-        """El SKU de una semilla (`TK-<concepto>-<nivel>[-<personaje>]`) nombra su
-        concepto; al moverla de concepto se re-acuna para que no mienta
-        (`test_el_sku_nombra_al_concepto_y_al_nivel_que_dice_la_fila`). Los demas
-        tiers (`TK-REV-`, `TK-LIB-`, `TK-SUG-`) nombran otra cosa y no se tocan.
-        Si el SKU nuevo ya existe se le agrega un sufijo numerico."""
         partes = sku.split("-")
         if (
             len(partes) < 3
@@ -450,8 +386,6 @@ class RepoCatalogo:
         await self.conexion.execute(
             update(PRODUCTO).where(PRODUCTO.c.sku_interno == sku).values(activo=False)
         )
-
-    # ------------------------------------------------------------------ personajes / tiendas
 
     async def listar_personajes(self) -> list[Any]:
         return list(
@@ -488,8 +422,6 @@ class RepoCatalogo:
             )
         )
 
-    # ------------------------------------------------------------------ listas
-
     async def listar_listas(
         self,
         *,
@@ -500,10 +432,6 @@ class RepoCatalogo:
         pagina: int,
         por_pagina: int,
     ) -> tuple[int, list[Any]]:
-        # La etiqueta es `renglones` y no `items` por una razon que cuesta media
-        # hora encontrar: `subconsulta.c.items` no devuelve la columna sino el
-        # metodo `items()` de la coleccion de columnas, y SQLAlchemy lo pasa como
-        # parametro al motor.
         items_por_version = (
             select(ITEM.c.version_id.label("vid"), func.count().label("renglones"))
             .group_by(ITEM.c.version_id)
@@ -588,12 +516,6 @@ class RepoCatalogo:
     async def retirar_de_contacto(
         self, contacto_referencia: uuid.UUID, tarea_id: uuid.UUID | None, version_id: uuid.UUID | None
     ) -> int:
-        """Desliga al acudiente de las tareas de una version (o de una tarea suelta).
-
-        Solo las suyas: una tarea de otro contacto no se toca aunque traigan su id.
-        Queda `retirada_en` para que la cola de verificacion la saque: sin
-        contacto ya nadie la espera, pero eso solo no la distingue del onboarding.
-        """
         if version_id is None and tarea_id is not None:
             fila = (
                 await self.conexion.execute(
@@ -619,12 +541,6 @@ class RepoCatalogo:
         return int(resultado.rowcount or 0)
 
     async def tareas_por_contacto(self, contacto_referencia: uuid.UUID) -> list[Any]:
-        """Las tareas de un acudiente, con la `revisada_en` de su version si la tiene.
-
-        Una fila por tarea (no por version): el router dedupica por version,
-        quedandose con la mas reciente, porque una version puede tener varias
-        tareas y aca solo se trae la materia prima ordenada.
-        """
         consulta = (
             select(
                 TAREA.c.id,

@@ -1,11 +1,3 @@
-"""Pruebas de la curaduria que viaja por git.
-
-Lo que puede salir mal aqui no se ve en el momento, se ve en la maquina de
-otro: una lista que llega sin su concepto, una importacion que duplica la
-version en cada `git pull`, o una exportacion que ensucia `conceptos.csv` con
-cambios que nadie hizo y entierra en el diff los que si.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -103,15 +95,11 @@ class TestExportar:
         assert filas[0]["atributos"] == '{"rayado": "cuadriculado"}'
 
     def test_una_version_sin_revisar_no_se_exporta(self, sesion: Session):
-        """Lo que no se ha curado no es curaduria: exportarlo mandaria a los
-        compañeros una lista a medias como si estuviera resuelta."""
         sembrar_lista(sesion, None, revisada=False)
 
         assert filas_de_listas(sesion.connection()) == []
 
     def test_volver_a_subir_la_lista_no_borra_la_curada(self, sesion: Session):
-        """Subir otra vez la lista deja vigente una version sin revisar. La
-        curada sigue siendo la ultima revisada y tiene que seguir viajando."""
         concepto = crear_concepto(sesion, "C001")
         lista_id = sembrar_lista(sesion, concepto.id)
         sesion.execute(update(VERSION).where(VERSION.c.lista_id == lista_id).values(vigente=False))
@@ -126,10 +114,6 @@ class TestExportar:
         assert [f["concepto"] for f in filas] == ["C001", ""]
 
     def test_la_vigente_revisada_gana_aunque_otra_tenga_fecha_mas_nueva(self, sesion: Session):
-        """`importar` fecha la version con el `revisada_en` del CSV, que puede
-        ser anterior a una edicion hecha en el admin. Si gana la fecha, la
-        exportacion devuelve la version reemplazada y la curaduria importada se
-        pierde en el siguiente viaje por git."""
         concepto = crear_concepto(sesion, "C001")
         lista_id = sembrar_lista(sesion, concepto.id)
         sesion.execute(
@@ -174,9 +158,6 @@ class TestImportar:
             assert filas_de_listas(otra.connection()) == exportadas
 
     def test_importar_dos_veces_no_crea_otra_version(self, sesion: Session):
-        """Cada `git pull` corre la importacion. Si no fuera idempotente, cada
-        uno agregaria una version identica y el historial dejaria de decir
-        cuando cambio la lista de verdad."""
         concepto = crear_concepto(sesion, "C001")
         sembrar_lista(sesion, concepto.id)
         exportadas = filas_de_listas(sesion.connection())
@@ -190,9 +171,6 @@ class TestImportar:
             assert otra.execute(select(func.count()).select_from(VERSION)).scalar_one() == 1
 
     def test_cada_lista_importada_pide_sus_kits_canonicos(self, sesion: Session):
-        """Los kits canonicos no viajan en el CSV (viven en Inteligencia). Importar
-        deja el mismo `lista_aprobada` que aprobar, para que el poller los arme
-        aqui; tambien al reimportar, por si la base tenia la lista sin sus kits."""
         concepto = crear_concepto(sesion, "C001")
         sembrar_lista(sesion, concepto.id)
         exportadas = filas_de_listas(sesion.connection())
@@ -226,8 +204,6 @@ class TestImportar:
             assert filas_de_listas(otra.connection()) == exportadas
 
     def test_un_concepto_que_no_existe_no_importa_la_lista(self, sesion: Session):
-        """El error barato es negarse y decir cual falta. El caro seria dejar
-        el renglon sin concepto: pasaria como no resuelto y volveria a la cola."""
         concepto = crear_concepto(sesion, "C101")
         sembrar_lista(sesion, concepto.id)
         exportadas = filas_de_listas(sesion.connection())
@@ -282,8 +258,6 @@ class TestFusionarConceptos:
         assert (fusion[0]["admite_personaje"], fusion[0]["frecuencia_demanda"]) == ("false", "1")
 
     def test_los_conceptos_de_libros_no_se_tocan(self):
-        """El cargador los reescribe en cada carga; si el volcado los siguiera,
-        cada exportacion marcaria C034 cambiado sin que nadie lo tocara."""
         en_csv = [fila_concepto("C034")]
         viva = {**en_csv[0], "tipo_item": "libro_libre"}
 
