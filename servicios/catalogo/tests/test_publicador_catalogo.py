@@ -13,8 +13,8 @@ import uuid
 from sqlalchemy import insert, select
 from sqlalchemy.ext.asyncio import create_async_engine
 from tukit_catalogo import publicador
-from tukit_catalogo.canonicos import BANDEJA
 from tukit_catalogo.modelos import Base
+from tukit_catalogo.repositorios.admin import BANDEJA
 from tukit_comun.publicador import vaciar
 
 
