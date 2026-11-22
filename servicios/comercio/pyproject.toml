@@ -8,7 +8,7 @@ dependencies = [
     "pydantic>=2.9",
     "tukit-comun",
     "fastapi>=0.115",
-    "uvicorn[standard]>=0.30",
+    "uvicorn[standard]>=0.54.0",
     # El checkout reverifica precio y existencias contra Catalogo por HTTP (no
     # por lectura entre bases), y el pago habla con la pasarela sandbox de Wompi.
     "httpx>=0.27",
