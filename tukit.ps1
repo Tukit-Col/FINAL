@@ -70,6 +70,15 @@ $trabajadores = [ordered]@{
     # sin pagar cuando vence la ventana de pago.
     'barredor'         = @('-m', 'tukit_comercio.barredor', '--seguir')
 }
+# Con RABBITMQ_URL los consumidores (el repartidor de avisos, los pollers)
+# escuchan colas y ya no leen las bandejas; alguien tiene que pasar cada
+# bandeja a RabbitMQ. Sin publicadores ningun evento sale y no llega ni un
+# correo de pedido pagado, despachado, etc.
+if ($env:RABBITMQ_URL) {
+    foreach ($s in 'catalogo', 'comercio', 'inteligencia', 'identidad') {
+        $trabajadores["publicador-$s"] = @('-m', "tukit_$s.publicador", '--seguir')
+    }
+}
 
 function Estado {
     try {
