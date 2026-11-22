@@ -32,6 +32,7 @@ let pagina;
 let intentos;
 let tokenAdmin;
 let trabajoId;
+let colegioDelTrabajo;
 
 function anotar(propiedades = {}) {
   const { annotations } = test.info();
@@ -110,6 +111,7 @@ test.beforeAll(async ({ browser }) => {
   const lista = await stack.listaSinRevisar(tokenAdmin);
   const trabajo = await stack.trabajoEnRevision(acudiente, lista.colegioId);
   trabajoId = trabajo.trabajo_id;
+  colegioDelTrabajo = lista.colegioId;
   if (trabajo.estado !== "espera_revision") {
     throw new Error(`el trabajo ${trabajoId} quedo en ${trabajo.estado}`);
   }
@@ -147,7 +149,9 @@ test("cola: el trabajo en espera aparece con sus pendientes y lleva a su detalle
   anotar({ lineas_pendientes: pendientes });
   expect(pendientes).toBeGreaterThan(0);
 
-  await pagina.goto(`${ADMIN}/cola`);
+  // Se filtra por el colegio de este trabajo: la cola es paginada y una base con corridas anteriores
+  // dejaria el trabajo fuera de la primera pagina.
+  await pagina.goto(`${ADMIN}/cola?q=${colegioDelTrabajo}`);
   // Una tarjeta por trabajo de acudiente en espera; el enlace con el colegio lleva el id como `title`.
   const tarjeta = pagina.locator("article").filter({ has: pagina.locator(`a[title="${trabajoId}"]`) });
   await expect(tarjeta).toHaveCount(1);

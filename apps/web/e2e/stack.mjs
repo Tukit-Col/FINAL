@@ -31,7 +31,7 @@ export const IP_DEL_EQUIPO = ipDeFamilia();
 export const ENTREGA_FICTICIA = {
   destinatario: "Acudiente Ficticio QA",
   direccion: "Calle Ficticia 1 # 2-3",
-  ciudad: "Bogota",
+  ciudad: "Bogotá",
   // En Bogota la localidad es obligatoria (ADR 0044): sin ella el formulario no se envia.
   localidad: "Chapinero",
 };

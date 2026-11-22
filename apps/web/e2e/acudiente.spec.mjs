@@ -102,7 +102,8 @@ test.describe("flujo del acudiente", () => {
   test("tablero: la solicitud aprobada lleva a los tres kits", async () => {
     anotar({ trabajo_id: vista.trabajo_id });
     const solicitudes = pagina.locator("#solicitudes");
-    await expect(solicitudes.getByText(stack.GRADO, { exact: true })).toBeVisible();
+    // El tablero pinta «Kit de <grado>», no el grado suelto.
+    await expect(solicitudes.getByText(`Kit de ${stack.GRADO}`, { exact: true })).toBeVisible();
     await solicitudes.getByRole("link", { name: "Ver mis kits" }).click();
 
     await pagina.waitForURL(`${WEB}/kits/${vista.trabajo_id}`);
@@ -159,7 +160,8 @@ test.describe("flujo del acudiente", () => {
     await expect(pagina.getByText("Ubicación confirmada en el mapa.")).toHaveCount(0);
     // Exacto: la etiqueta del select de localidad incluye sus opciones, y una es «Ciudad Bolívar»
     // (`tukit-contrato/src/localidades.ts`), asi que «Ciudad» por subcadena encuentra los dos (N-178).
-    await pagina.getByLabel("Ciudad", { exact: true }).fill(stack.ENTREGA_FICTICIA.ciudad);
+    // La ciudad es de solo lectura (el servicio es solo en Bogota): se comprueba, no se escribe.
+    await expect(pagina.getByLabel("Ciudad", { exact: true })).toHaveValue(stack.ENTREGA_FICTICIA.ciudad);
     // Con la ciudad en Bogota se enciende la localidad, que es obligatoria.
     await pagina.getByLabel("Localidad").selectOption(stack.ENTREGA_FICTICIA.localidad);
     // Con sesion no se vuelve a pedir el correo: el comprobante va al de la cuenta.
@@ -220,8 +222,9 @@ test.describe("flujo del acudiente", () => {
       ip: acudiente.ip,
     });
     const envio = leido.envio ?? {};
-    anotar({ localidad: envio.localidad, google_place_id: envio.google_place_id });
-    expect([envio.direccion, envio.ciudad, envio.localidad, envio.google_place_id]).toEqual([
+    // El envio ya no guarda ningun lugar de Google (migracion `envio_quita_google_place_id`).
+    anotar({ localidad: envio.localidad, google_place_id: envio.google_place_id ?? null });
+    expect([envio.direccion, envio.ciudad, envio.localidad, envio.google_place_id ?? null]).toEqual([
       stack.ENTREGA_FICTICIA.direccion,
       stack.ENTREGA_FICTICIA.ciudad,
       stack.ENTREGA_FICTICIA.localidad,
@@ -231,13 +234,11 @@ test.describe("flujo del acudiente", () => {
 
   test("tablero: el pedido pagado aparece en Mis pedidos con su total", async () => {
     await pagina.goto(`${WEB}/dashboard`);
-    const fila = pagina
-      .locator("#pedidos")
-      .getByRole("row")
-      .filter({ hasText: pedido.pedido_id.slice(0, 8).toUpperCase() });
+    // Los pedidos son una lista (`<li id="pedido-<id>">`), no una tabla.
+    const fila = pagina.locator(`#pedido-${pedido.pedido_id}`);
     await expect(fila).toHaveCount(1);
     await expect(fila).toContainText("Pagado");
-    expect(stack.pesos(await fila.locator(".cifra").textContent())).toBe(pedido.total);
+    expect(stack.pesos(await fila.locator(".cifra").first().textContent())).toBe(pedido.total);
   });
 
   test("costo: el navegador no hizo ninguna peticion a Gemini", async () => {
