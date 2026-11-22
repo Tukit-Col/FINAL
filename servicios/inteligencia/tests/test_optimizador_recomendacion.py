@@ -40,7 +40,7 @@ class TestQueKitsSeArman:
         assert self._perfiles({"presupuesto_por_hijo": 12000}) == ["Ahorrador", "A tu Medida", "Premium"]
         assert self._perfiles({"prioridad": "precio"}) == ["Ahorrador", "Premium"]
 
-    def test_se_marca_uno_solo(self):
+    def test_con_prioridad_equilibrio_se_marca_un_solo_kit_recomendado(self):
         kits = armar_los_tres(self.RENGLONES, {"prioridad": "equilibrio"})
         assert sum(1 for kit in kits if kit.recomendado) == 1
 

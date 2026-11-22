@@ -69,7 +69,7 @@ def test_la_supresion_va_con_su_propio_nivel_mas_corto_que_el_estricto():
         ("GET", "/favicon.ico"),
     ],
 )
-def test_las_rutas_exentas(metodo, ruta):
+def test_las_rutas_exentas_no_cuentan_ningun_limite(metodo, ruta):
     assert limite.cuentas(metodo, ruta, "tok-ana", "198.51.100.7") == []
 
 

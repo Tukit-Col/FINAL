@@ -42,7 +42,7 @@ class TestHashDeClave:
 
 
 class TestTokenFirmado:
-    def test_ida_y_vuelta(self):
+    def test_un_token_emitido_se_lee_de_vuelta_con_su_contenido(self):
         import uuid
 
         uid = uuid.uuid4()

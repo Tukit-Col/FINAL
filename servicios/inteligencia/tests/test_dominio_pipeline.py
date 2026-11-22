@@ -300,7 +300,7 @@ class TestPersonajesPorHijo:
         assert personajes_por_hijo(prefs) == {"hijo-1": "Spiderman", "hijo-3": "frozen"}
         assert personajes_por_hijo({}) == {}
 
-    def test_clave_exacta_gana(self):
+    def test_el_personaje_se_asigna_por_la_referencia_del_hijo_antes_que_por_el_orden(self):
         assert personajes_de_los_hijos(PREFS_DOS, ["hijo-1", "hijo-2"]) == {
             "hijo-1": "spiderman",
             "hijo-2": "frozen",

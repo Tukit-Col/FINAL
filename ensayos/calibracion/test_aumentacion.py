@@ -37,7 +37,7 @@ def _conjunto_fijo(cx: b.Contexto, n: int = 40) -> list[int]:
     return out[:n]
 
 
-def test_determinista() -> None:
+def test_perturbar_y_variante_aumentada_repiten_su_resultado_con_los_mismos_datos() -> None:
     for tp in a.TIPOS_TODOS:
         for sv in (a.LEVE, a.FUERTE):
             assert a.perturbar("Cuaderno cuadriculado de 100 hojas", tp, sv) == a.perturbar("Cuaderno cuadriculado de 100 hojas", tp, sv)

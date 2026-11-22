@@ -217,7 +217,7 @@ async def test_detalle_trae_descripcion_y_titular_para_el_back_office(cliente):
     assert detalle["eventos"] == []
 
 
-async def test_vincular_pedido(cliente):
+async def test_vincular_un_pedido_a_un_caso_responde_200_y_un_id_invalido_422(cliente):
     caso = await _abrir(cliente)
     pedido = str(uuid.uuid4())
     respuesta = await cliente.post(

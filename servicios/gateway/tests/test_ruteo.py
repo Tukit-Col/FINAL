@@ -186,7 +186,7 @@ class TestLosSegmentosPuntoNoSaltanElBloqueo:
 class TestElEndpointInternoDeCatalogoNoSeExpone:
     RUTA = "/interno/listas-por-contacto/aaaaaaaa-aaaa-5aaa-8aaa-aaaaaaaaaaaa"
 
-    def test_destino_es_none(self):
+    def test_una_ruta_interna_no_tiene_destino_en_la_puerta(self):
         assert destino(self.RUTA) is None
 
     async def test_responde_404_ruta_desconocida(self):

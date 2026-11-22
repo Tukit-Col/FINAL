@@ -66,7 +66,7 @@ async def test_sin_claves_no_llama_al_motor(cliente, motor):
     assert motor.llamadas == []
 
 
-async def test_lo_guardado_vence(cliente, reloj):
+async def test_lo_guardado_vence_al_cumplirse_su_ttl(cliente, reloj):
     await cliente.guardar("vector", "a", b"1", 60)
 
     reloj.avanzar(59)

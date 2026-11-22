@@ -13,7 +13,7 @@ from tukit_catalogo.embeddings import (
 
 
 class TestElEmbederFalsoSirveParaProbar:
-    def test_es_determinista(self):
+    def test_el_mismo_texto_da_siempre_el_mismo_vector(self):
         una = embeder_falso(["cuaderno cosido 100 hojas"])
         otra = embeder_falso(["cuaderno cosido 100 hojas"])
         assert una == otra
@@ -30,7 +30,7 @@ class TestElEmbederFalsoSirveParaProbar:
         bloc, block, pegante = embeder_falso(["bloc oficio", "block oficio", "pegante en barra"])
         assert coseno(bloc, block) > coseno(bloc, pegante)
 
-    def test_no_sale_a_la_red(self):
+    def test_el_embeder_falso_no_usa_urllib_ni_abre_conexiones(self):
         import inspect
 
         fuente = inspect.getsource(embeder_falso)
@@ -39,7 +39,7 @@ class TestElEmbederFalsoSirveParaProbar:
 
 
 class TestElCoseno:
-    def test_iguales_da_uno(self):
+    def test_el_coseno_de_un_vector_consigo_mismo_es_uno(self):
         (v,) = embeder_falso(["colores x 12"])
         assert math.isclose(coseno(v, v), 1.0, rel_tol=1e-9)
 

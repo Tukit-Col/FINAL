@@ -23,7 +23,7 @@ class TestAtributos:
         assert extraer_atributos("Cuaderno Media Carta", ("tamano",))["tamano"] == "media carta"
         assert extraer_atributos("Cuaderno tamaño carta", ("tamano",))["tamano"] == "carta"
 
-    def test_lee_el_color(self):
+    def test_lee_el_color_del_nombre_del_producto(self):
         assert extraer_atributos("Cartulina Espejo Medio Pliego Verde", ("color",))["color"] == "verde"
         assert extraer_atributos("Tarro Vinilo Payasito x1000 Gramos Azul", ("color",))["color"] == "azul"
 
@@ -61,7 +61,7 @@ class TestAtributos:
             == "dactilar"
         )
 
-    def test_lee_el_material(self):
+    def test_lee_el_material_del_nombre_del_producto(self):
         assert extraer_atributos("Caja Guantes de Nitrilo x100 Unds", ("material",))["material"] == "nitrilo"
         assert extraer_atributos("Abaco Plastico Vertical 10 Filas", ("material",))["material"] == "plastico"
 
@@ -101,7 +101,7 @@ class TestAtributos:
     def test_no_inventa_colores_cuando_el_empaque_puede_ser_de_uno_solo(self):
         assert extraer_atributos("Marcador permanente negro x12 unidades", ("colores",)) == {}
 
-    def test_lee_multimaterias(self):
+    def test_multimaterias_es_multiple_y_un_numero_de_materias_se_conserva(self):
         attrs = extraer_atributos("Cuaderno Argollado Multimaterias Spiderman", ("materias",))
         assert attrs["materias"] == "multiple"
         assert extraer_atributos("Cuaderno argollado 5 materias", ("materias",))["materias"] == 5
@@ -285,7 +285,7 @@ class TestCuandoElSilencioSignificaAlgo:
 
 
 class TestAtributosDeUnaListaDeSeptimo:
-    def test_rayas_es_rayado(self):
+    def test_la_palabra_rayas_en_el_nombre_marca_el_rayado_como_rayado(self):
         nombre = "Cuaderno Argollado 105 Scribe Master Pasta Dura Hombre 80 Hojas Rayas Pasta Dura Grande"
         assert extraer_atributos(nombre, ("rayado",)) == {"rayado": "rayado"}
 
@@ -390,7 +390,7 @@ class TestAtributosDeUnaListaDeSeptimo:
     def test_los_grados_del_transportador(self, texto):
         assert extraer_atributos(texto, ("grados",)) == {"grados": 360}
 
-    def test_la_regla_de_acero(self):
+    def test_una_regla_de_acero_inoxidable_es_de_material_acero(self):
         assert extraer_atributos("regla de acero inoxidable de 30 cm", ("material",)) == {"material": "acero"}
 
     @pytest.mark.parametrize(
@@ -401,7 +401,7 @@ class TestAtributosDeUnaListaDeSeptimo:
             ("Palo De Balso Cuadrado 5 X 5 Mm X 90 Cm 10 Unidades", "balso"),
         ],
     )
-    def test_el_tipo_de_palito(self, texto, esperado):
+    def test_el_tipo_de_un_palo_se_lee_del_nombre_paleta_o_balso(self, texto, esperado):
         assert extraer_atributos(texto, ("tipo",)) == {"tipo": esperado}
 
     @pytest.mark.parametrize(
@@ -527,5 +527,5 @@ class TestVocabularioDeElectronica:
     def test_leds_de_diferentes_colores_son_surtidos(self):
         assert extraer_atributos("10 LEDs de diferentes colores", ("color",)) == {"color": "surtido"}
 
-    def test_sin_mangas(self):
+    def test_un_delantal_sin_mangas_marca_manga_como_sin(self):
         assert extraer_atributos("Delantal Style Sin Mangas", ("manga",)) == {"manga": "sin"}

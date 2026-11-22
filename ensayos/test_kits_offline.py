@@ -148,7 +148,7 @@ class TestLosHuecosDeLaAuditoriaV2TienenProducto:
 
 
 class TestFalsosHuecosQueYaSeResuelven:
-    def test_la_biblia(self, renglon):
+    def test_la_biblia_se_resuelve_al_libro_curado_en_el_ahorrador(self, renglon):
         assert _sku(renglon("1#1").ahorrador) == "TK-LIB-9788471512635"
 
     def test_el_diccionario_ingles_espanol(self, renglon):
