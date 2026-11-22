@@ -5,6 +5,8 @@ Decisiones:
   en cada arranque que no cifra y marca el dato con el prefijo `claro:`.
 - El adaptador real (Fernet) entra solo si estan la libreria `cryptography` y
   `TUKIT_LLAVE_CIFRADO`; ninguna de las dos se asume.
+- Con `TUKIT_ENTORNO=produccion` caer en claro no es un aviso: el arranque falla
+  (ver `tukit_comun.entorno`).
 """
 
 from __future__ import annotations
@@ -12,6 +14,8 @@ from __future__ import annotations
 import json
 import os
 from typing import Any, Protocol
+
+from .entorno import exigir_en_produccion
 
 PREFIJO_EN_CLARO = b"claro:"
 VARIABLE_LLAVE = "TUKIT_LLAVE_CIFRADO"
@@ -76,15 +80,18 @@ class CifradorFernet(_Base):
 
 def cifrador_desde_entorno() -> Cifrador:
     llave = os.environ.get(VARIABLE_LLAVE, "").strip()
+    exigir_en_produccion(bool(llave), f"falta {VARIABLE_LLAVE}; los datos se guardarian en claro.")
     if llave:
         try:
             return CifradorFernet(llave)
         except ImportError:
+            exigir_en_produccion(False, "`cryptography` no esta instalada; los datos se guardarian en claro.")
             print(
                 f"[cifrado] {VARIABLE_LLAVE} esta puesta pero `cryptography` no esta instalada: "
                 "los datos derivados se guardan EN CLARO."
             )
         except Exception as error:
+            exigir_en_produccion(False, f"la llave de {VARIABLE_LLAVE} no sirve ({error}).")
             print(f"[cifrado] la llave de {VARIABLE_LLAVE} no sirve ({error}): se guarda EN CLARO.")
     elif VARIABLE_LLAVE not in os.environ:
         # Sin llave el sistema funciona pero no cifra: hay que decirlo, no dejar creer que cifra (H-A-03).

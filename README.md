@@ -227,6 +227,21 @@ alcanzarlo. Para probarlo desde tu máquina expón el gateway (`cloudflared tunn
 y pega `https://<túnel>/v1/webhooks/wompi` en el panel de Wompi. Sin túnel, la página de resultado
 confirma igual.
 
+## Producción: llaves obligatorias
+
+**Regla:** todo servidor real corre con `TUKIT_ENTORNO=produccion`, y con eso el código exige las
+dos llaves. Sin ellas identidad e inteligencia no arrancan (`ConfiguracionInsegura`); no hay forma
+de saltarse el chequeo con un aviso en consola.
+
+| Variable | Qué protege | Se genera con |
+|---|---|---|
+| `TUKIT_LLAVE_SESION` | La firma de los tokens. Sin ella se usa la de desarrollo, que está en este repo público: cualquiera fabricaría una sesión de admin. Mínimo 32 caracteres. | `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
+| `TUKIT_LLAVE_CIFRADO` | Los datos personales derivados (nombres de los hijos, preferencias). Sin ella se guardan en claro. | `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
+
+Las llaves no se suben a git ni se comparten por chat. Lo guardado en claro antes de poner
+`TUKIT_LLAVE_CIFRADO` se sigue leyendo (lleva el prefijo `claro:`); lo nuevo sale cifrado. Cambiar
+una llave de cifrado ya usada deja ilegible lo que cifró: no se rota sin migrar los datos.
+
 ## Base de datos
 
 `libs/py/tukit_comun` tiene el motor, las sesiones y la configuración por entorno, y `infra/`

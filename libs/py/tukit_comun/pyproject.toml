@@ -10,6 +10,9 @@ dependencies = [
     "tenacity>=9.1.4",
     "aio-pika>=9.5.0",
     "redis>=8.1.0",
+    # Fernet para TUKIT_LLAVE_CIFRADO. Obligatoria: sin ella el cifrador cae en
+    # claro aunque la llave este puesta, y en produccion eso no arranca.
+    "cryptography>=43",
 ]
 
 [project.optional-dependencies]

@@ -98,7 +98,7 @@ jobs:
             # el fallo sale en la fixture y no en el caso, asi que no se
             # parece en nada a lo que de verdad se rompio.
             uv pip install pytest pytest-asyncio==1.4.0 \
-              sqlalchemy pydantic pgvector aiosqlite \
+              sqlalchemy pydantic pgvector aiosqlite cryptography \
               fastapi httpx alembic greenlet \
               numpy pymoo tenacity
             .venv/bin/pytest "servicios/${SERVICIO}" -q
@@ -124,7 +124,7 @@ jobs:
       - run: uv venv --python 3.12
       - run: |
           uv pip install pytest pytest-asyncio==1.4.0 \
-            sqlalchemy pydantic pgvector aiosqlite \
+            sqlalchemy pydantic pgvector aiosqlite cryptography \
             fastapi httpx alembic greenlet \
             numpy pymoo
       - name: Pruebas de los ensayos
@@ -257,7 +257,7 @@ jobs:
       # elegir las marcadas, y recoger una prueba importa su modulo.
       - run: |
           uv pip install pytest pytest-asyncio==1.4.0 \
-            sqlalchemy pydantic pgvector aiosqlite \
+            sqlalchemy pydantic pgvector aiosqlite cryptography \
             fastapi httpx alembic greenlet \
             numpy pymoo tenacity aio-pika
 
@@ -309,7 +309,7 @@ jobs:
       # `libs` importan `aiormq`, que llega con `aio-pika`.
       - run: |
           uv pip install pytest pytest-asyncio==1.4.0 \
-            sqlalchemy pydantic pgvector aiosqlite \
+            sqlalchemy pydantic pgvector aiosqlite cryptography \
             fastapi httpx alembic greenlet \
             numpy pymoo tenacity aio-pika "redis>=8.1.0"
 
