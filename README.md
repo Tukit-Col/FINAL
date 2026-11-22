@@ -248,12 +248,15 @@ pruebas). Sin túnel no pasa nada malo: la página de resultado confirma igual.
 
 ## Cómo está organizado, y por qué así
 
-Un monorepo con **siete desplegables independientes y cinco bases de datos separadas**.
+Un monorepo con **siete desplegables independientes previstos (seis con código hoy) y cinco bases de datos separadas**.
 
 ```
-servicios/     identidad  catalogo  inteligencia  comercio  operacion  ingesta  gateway
-apps/          web  admin  colegio
-libs/          py/tukit_comun   go/tukitgo
+servicios/     identidad  catalogo  inteligencia  comercio  operacion  gateway
+               (ingesta: declarado en el manifiesto, todavía sin código)
+apps/          web  admin
+               (colegio: previsto, todavía sin construir)
+libs/          py/tukit_comun   ts/tukit-contrato
+               (go/tukitgo: previsto, todavía sin código)
 arquitectura/  manifiesto.toml + las funciones de aptitud
 datos/         corpus, conceptos, conjuntos de referencia
 infra/         compose de Postgres 16 + pgvector (cinco bases), despliegue
@@ -267,6 +270,23 @@ con la norma 42010 y el modelo 4+1, que separan la vista de desarrollo de la vis
 La razón concreta de haber juntado el código: mover una función de redacción a la librería
 compartida, en la estructura anterior, exigió editar **siete archivos `pyproject.toml`** y
 publicar un tag antes de que algo instalara. Aquí es un commit.
+
+### Dónde vive cada cosa dentro de un servicio
+
+Los módulos grandes se parten por responsabilidad. Cada uno es un paquete que reexporta su API,
+así que `from tukit_inteligencia import trabajos, optimizador` sigue funcionando.
+
+| Paquete o módulo | Responsabilidad |
+|---|---|
+| `inteligencia/optimizador/` | `tipos` (entidades y constantes), `candidatos` (filtros duros y heurística por perfil), `preferencias`, `frente` (enumeración exacta y NSGA-II), `lineas` (consolidación y personaje), `recomendacion` (MAUT), `armado` (`armar_los_tres`, punto de entrada) |
+| `inteligencia/trabajos/` | `base` (tablas, configuración, excepciones), `pipeline` (creación y etapas), `lectura`, `solicitudes`, `revision`, `versiones`, `cambios`, más `formas` y `anclas` como ayudantes compartidos |
+| `catalogo/extraccion.py` | Reglas puras: empaque, atributos y personaje desde el nombre o la ficha. `enriquecer.py` solo orquesta el lote |
+| `catalogo/clasificacion.py` | Reglas puras: de un renglón de lista a un concepto. `descubrir.py` conserva la revisión y el alta |
+| `tukit_comun/autenticacion.py` | Lectura del encabezado `Authorization`, igual para todos los servicios |
+
+Dentro de cada paquete las dependencias van en un solo sentido y no hay ciclos: en `optimizador`,
+`tipos` no importa de nadie y `armado` importa de los demás. La ruta de consulta del catálogo
+(`consulta.py`) lee de `extraccion` y `clasificacion`, no de los CLI `enriquecer` y `descubrir`.
 
 ---
 

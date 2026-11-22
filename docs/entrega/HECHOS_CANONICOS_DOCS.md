@@ -20,18 +20,18 @@ Cada fila: término o cifra, valor canónico y fuente. Estado: V = verificado en
 
 | Término | Valor canónico | Fuente | Estado |
 |---|---|---|---|
-| Objetivos | 4: costo (min), fidelidad, disponibilidad, personaje | `optimizador.py`, ADR 0030 | V |
+| Objetivos | 4: costo (min), fidelidad, disponibilidad, personaje | `optimizador/`, ADR 0030 | V |
 | Perfiles de kit | 4: Ahorrador, Fan, Premium, A tu Medida | ADR 0030 | V |
-| Enumeración exacta | hasta `LIMITE_ENUMERACION = 4096`; por encima NSGA-II | `optimizador.py` línea 102 | V |
-| Población | min(100, max(20, 6·n)), par (calibrada) | `optimizador.py`, `calibracion_nsga.json` | V |
-| Generaciones | 10·log10(espacio), acotadas a 15 a 60 (calibradas) | `optimizador.py`, `calibracion_nsga.json` | V |
-| Semilla | fija | `optimizador.py` | V |
+| Enumeración exacta | hasta `LIMITE_ENUMERACION = 4096`; por encima NSGA-II | `optimizador/frente.py` | V |
+| Población | min(100, max(20, 6·n)), par (calibrada) | `optimizador/`, `calibracion_nsga.json` | V |
+| Generaciones | 10·log10(espacio), acotadas a 15 a 60 (calibradas) | `optimizador/`, `calibracion_nsga.json` | V |
+| Semilla | fija | `optimizador/` | V |
 | Biblioteca | pymoo, sin respaldo heurístico (fail-loud) | memoria del proyecto | V |
 | Presupuesto | se aplica después del frente | ADR 0029 | V |
-| Selección a posteriori | MAUT: U = w_precio·u_costo + (w_marca+w_calidad)·u_fidelidad + w_personaje·u_personaje. En el código: `elegir_recomendado_maut` | `optimizador.py`, spec 2026-09-22 | V |
+| Selección a posteriori | MAUT: U = w_precio·u_costo + (w_marca+w_calidad)·u_fidelidad + w_personaje·u_personaje. En el código: `elegir_recomendado_maut` | `optimizador/`, spec 2026-09-22 | V |
 | Pesos P21 | 0,285 precio / 0,273 marca / 0,255 calidad / 0,187 personaje (reemplazan 0,35/0,30/0,25/0,10). En el código desde a664810 | `modelos/base.py` PESOS_POR_OMISION; `pesos_p21.json` (IC 95 % bootstrap) | V |
 | Independencia preferencial | supuesto declarado | spec | V |
-| Regla de recomendación | Fan si pidió personaje; si no, A tu Medida cuando ese kit existe, es decir, cuando eligió el punto medio de gasto o declaró un tope (con el tope declarado o, sin tope, a mitad de camino entre Ahorrador y Premium); si no existe, Premium cuando el sobreprecio aceptado es de al menos 10 % y MAUT lo prefiere; en otro caso Ahorrador; al final, si el elegido se pasa del tope, el de mayor fidelidad que cabe | `optimizador.py` `recomendar` | V |
+| Regla de recomendación | Fan si pidió personaje; si no, A tu Medida cuando ese kit existe, es decir, cuando eligió el punto medio de gasto o declaró un tope (con el tope declarado o, sin tope, a mitad de camino entre Ahorrador y Premium); si no existe, Premium cuando el sobreprecio aceptado es de al menos 10 % y MAUT lo prefiere; en otro caso Ahorrador; al final, si el elegido se pasa del tope, el de mayor fidelidad que cabe | `optimizador/` `recomendar` | V |
 
 ## Resolución de ítems
 
@@ -58,7 +58,7 @@ Cada fila: término o cifra, valor canónico y fuente. Estado: V = verificado en
 | Modelo | gemini-3.5-flash-lite, temperatura 0 | S4 | V |
 | Cifras de evaluación | Ronda 3 (cifras de la memoria): utilidad 58/70, F1 1,000 en personajes y marcas, ASR 0/81 (cota superior del 95 % cerca de 3,7 %), p50 1.000 ms y p95 1.177 ms, utilidad bajo ataque 36/60, controles del kit 12/12. Ronda 2 (referencia): 57/70, ASR 0/81. Cambio de criterio `descarte_aplicable` → `descarte_sin_confirmar` declarado como no preregistrado | `docs/informes/nl2c/resultados/ronda3_*.json` | V |
 | Salida R | {filtros duros, pesos NSGA, preferencias PRM} | S4 | V |
-| Filtros duros en el optimizador | `marcas_excluidas` y `solo_disponibles` llegan al optimizador (commit 0059f6d) y se aplican antes del frente de Pareto, también en el carrusel de opciones y en el cambio de producto (976deb1). La marca que el colegio exige en el renglón no se quita. La ruta rápida `aplicar-canonico` los rechaza con 422 `filtros_requieren_recalculo`. Ya no se documenta como brecha. Límite: `solo_disponibles` usa la oferta activa con precio vigente, no stock por tienda | `optimizador.py`, `test_filtros_duros.py` | V |
+| Filtros duros en el optimizador | `marcas_excluidas` y `solo_disponibles` llegan al optimizador (commit 0059f6d) y se aplican antes del frente de Pareto, también en el carrusel de opciones y en el cambio de producto (976deb1). La marca que el colegio exige en el renglón no se quita. La ruta rápida `aplicar-canonico` los rechaza con 422 `filtros_requieren_recalculo`. Ya no se documenta como brecha. Límite: `solo_disponibles` usa la oferta activa con precio vigente, no stock por tienda | `optimizador/`, `test_filtros_duros.py` | V |
 | Lectura de un kit | con dueño de cuenta con clave solo lo lee su sesión o el staff (sin sesión 401, otra cuenta 404); trabajos anónimos o de contacto sin clave se leen por identificador (commit 0c9d1e1). Registro y cuenta exigen `acepta_terminos` (422 `consentimiento_requerido`) | `routers/inteligencia.py`, IDOR 2026-11-02 | V |
 | Versión de Next.js | 16.4.3 en web y admin; `npm audit --omit=dev` en 0 (commit a201f4c) | `package.json` | V |
 | Cobertura de pruebas (2026-11-02) | identidad 77 %, catálogo 54 %, inteligencia 88 %, comercio 83 %, operación 81 %, gateway 98 %, `tukit_comun` 85 %; sin umbral de falla. Suite: 2.542 pruebas Python pasan, 1 saltada; web 86, contrato 67 | `pytest-cov`, `make prueba` | V |
@@ -112,15 +112,15 @@ Cada fila: término o cifra, valor canónico y fuente. Estado: V = verificado en
 ## Calibración del optimizador (S2, fusionado en validacion/oe5)
 | Hecho | Valor | Fuente | Estado |
 |---|---|---|---|
-| Población NSGA-II | min(100, max(20, 6n)), par | `optimizador.py`, `calibracion_nsga.json` | V |
+| Población NSGA-II | min(100, max(20, 6n)), par | `optimizador/`, `calibracion_nsga.json` | V |
 | Generaciones NSGA-II | min(60, max(15, 10·log10 S)) | ídem | V |
 | Elección de la configuración | CV 5 pliegues agrupada por colegio, elegida en 4/5; prueba (32 listas, uso único): HV 0,9962 contra 0,9996 (Δ −0,0034, IC [−0,0054, −0,0017]); tiempo medio 2,04 s → 0,47 s | `calibracion_nsga.json` | V |
 | Umbral 4.096 | el exacto deja de ganar en S≈4.932 (mediana) / 2.380 (p95); exacto más rápido en 28/30 subproblemas bajo 4.096 y en 1/24 por encima | `umbral.json`, `umbral_elegida.json` | V |
 | Sensibilidad MAUT | el kit recomendado se mantiene en 0,965 / 0,986 / 0,946 de los sorteos (σ 0,05/0,10/0,20); peor lista 0,54 | `sensibilidad.json` | V |
 | HV por perfil (relativo al frente exacto) | MAUT-P21 0,517; Ahorrador 0,362; Premium 0,231; frente NSGA-II 0,9969 del exacto | `hipervolumen_prueba.json` | V |
-| Regla `calidad_primero` | Retirada; Premium se decide con MAUT | `optimizador.py` | V |
+| Regla `calidad_primero` | Retirada; Premium se decide con MAUT | `optimizador/` | V |
 | Corpus de calibración | 174 listas de 17 colegios; 175 instancias del benchmark (una sin renglones decidibles) | `docs/informes/calibracion/README.md` | V |
-| Semilla | 0 por omisión en el código; la calibración usó 20261101 | `optimizador.py`, README de calibración | V |
+| Semilla | 0 por omisión en el código; la calibración usó 20261101 | `optimizador/`, README de calibración | V |
 
 | Carga L-02 (RNF05, DP-02) | 5-nov-2026, versión `dc8e2e7` (b6b6fe7 + override del modelo simulado), rampa de 5 a 100 usuarios en 15 min con el arnés de Tukit-QA. Windows 11 / WSL2 con 4 CPU: saturación desde 30 usuarios (H-B-08). Apple M4 nativo: 25.706 peticiones, 0 errores, sin saturación hasta 100; p95 del catálogo por ventana de 180 a 420 ms hasta 50 usuarios y 2,5 s con 100; catálogo al 100 % de un núcleo en el pico | `docs/informes/calidad/carga_mac_2026-11-05/`, Tukit-QA `resultados/informe-fases-7-9.md` | V |
 | Hallazgos de QA | 85 vigentes (17 H-C, 57 H-A, 11 H-B; 16 alta, 58 media, 11 baja) y 10 cerrados, al 5-nov-2026 | Tukit-QA `trazabilidad/hallazgos.md`, `docs/informes/calidad/hallazgos_qa_oficial.csv` | V |
