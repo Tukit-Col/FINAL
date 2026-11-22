@@ -22,7 +22,6 @@ import uuid
 from tukit_comun.entorno import exigir_en_produccion
 
 VARIABLE_LLAVE = "TUKIT_LLAVE_SESION"
-# En produccion la llave firma todas las sesiones: corta, se adivina.
 _LARGO_MINIMO_PRODUCCION = 32
 _LLAVE_DESARROLLO = "tukit-desarrollo-no-usar-en-produccion"
 

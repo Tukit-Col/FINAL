@@ -81,7 +81,7 @@ async def _usuario_de_la_peticion(peticion: Request) -> str | None:
 
 
 async def _arrancar(app: FastAPI) -> None:
-    cifrador_desde_entorno()  # sin TUKIT_LLAVE_CIFRADO avisa al arrancar; en produccion no arranca
+    cifrador_desde_entorno()  # valida la llave al arrancar y no en la primera peticion
     app.state.motor = crear_motor("inteligencia")
     instrumentar_motor(app.state.motor.engine)
     if trabajos.autopublicar():

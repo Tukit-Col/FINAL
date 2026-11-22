@@ -16,7 +16,7 @@ PUERTO_POR_OMISION = 8011
 
 async def _arrancar(app: FastAPI) -> None:
     sesiones._llave()  # sin TUKIT_LLAVE_SESION avisa aqui, al arrancar, y no al firmar el primer token
-    cifrador_desde_entorno()  # idem con TUKIT_LLAVE_CIFRADO; en produccion, sin ella no arranca
+    cifrador_desde_entorno()
     app.state.motor = crear_motor("identidad")
     instrumentar_motor(app.state.motor.engine)
 

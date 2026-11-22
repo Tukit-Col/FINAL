@@ -15,8 +15,6 @@ import clasificacion as k  # noqa: E402
 from particion import SEMILLA_BASE, partir  # noqa: E402
 from robustez import similitud  # noqa: E402
 
-# `centroides.npz` sale de `exportar_etiquetas.py` (embeddings de Gemini) y no se
-# versiona: en un checkout limpio, como el de CI, no existe.
 pytestmark = pytest.mark.skipif(
     not (k.DATOS / "renglones_etiquetados.csv").exists() or not (k.DATOS / "centroides.npz").exists(),
     reason="faltan los datos exportados",

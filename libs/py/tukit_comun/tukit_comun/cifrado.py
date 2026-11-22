@@ -5,8 +5,7 @@ Decisiones:
   en cada arranque que no cifra y marca el dato con el prefijo `claro:`.
 - El adaptador real (Fernet) entra solo si estan la libreria `cryptography` y
   `TUKIT_LLAVE_CIFRADO`; ninguna de las dos se asume.
-- Con `TUKIT_ENTORNO=produccion` caer en claro no es un aviso: el arranque falla
-  (ver `tukit_comun.entorno`).
+- Con `TUKIT_ENTORNO=produccion` caer en claro hace fallar el arranque.
 """
 
 from __future__ import annotations

@@ -22,8 +22,6 @@ def test_kappa_coincide_con_el_calculo_hecho_a_mano() -> None:
     assert abs(ac.kappa(a, b) - 0.5) < 1e-12
 
 
-# Los centroides salen de `exportar_etiquetas.py` (embeddings de Gemini) y no se
-# versionan, asi que en un checkout limpio, como el de CI, no existen.
 @pytest.mark.skipif(
     not (k.DATOS / "centroides.npz").exists(),
     reason="falta datos/centroides.npz: generarlo con exportar_etiquetas.py",
