@@ -1,7 +1,13 @@
 from __future__ import annotations
 
-from opentelemetry import metrics, trace
-from tukit_comun.telemetria import configurar_telemetria, instrumentar_motor
+import pytest
+
+# OpenTelemetry es un extra opcional (`tukit-comun[otel]`): los trabajos de CI
+# que no lo instalan (Redis, RabbitMQ) saltan esta prueba en vez de romperse.
+pytest.importorskip("opentelemetry.sdk")
+
+from opentelemetry import metrics, trace  # noqa: E402
+from tukit_comun.telemetria import configurar_telemetria, instrumentar_motor  # noqa: E402
 
 
 class _Intocable:
