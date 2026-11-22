@@ -12,6 +12,9 @@ from tukit_comun.resiliencia import CircuitoAbierto, disyuntor_de, reintentar_ge
 URL_CATALOGO_POR_OMISION = "http://127.0.0.1:8012"
 URL_IDENTIDAD_POR_OMISION = "http://127.0.0.1:8011"
 ESPERA_SEGUNDOS = 30.0
+# Resolver un SKU es una lectura corta. Con 30 s por intento, tres intentos y un umbral de cinco, un catalogo
+# colgado tardaba 150 s en abrir el circuito; con 5 s abre en menos de 30 (ESC-R2, H-A-55).
+ESPERA_RESOLVER_SEGUNDOS = 5.0
 
 
 def url_catalogo() -> str:
@@ -42,7 +45,9 @@ class ClienteCatalogo:
                 disyuntor_de("catalogo"),
                 cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente,
             ):
-                respuesta = await cliente.get(f"{self._base()}/interno/resolver-sku/{sku}")
+                respuesta = await cliente.get(
+                    f"{self._base()}/interno/resolver-sku/{sku}", timeout=ESPERA_RESOLVER_SEGUNDOS
+                )
                 if respuesta.status_code == 404:
                     return None
                 respuesta.raise_for_status()
