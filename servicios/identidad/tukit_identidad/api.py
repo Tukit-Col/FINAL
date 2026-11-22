@@ -7,12 +7,14 @@ from tukit_comun.bd import crear_motor
 from tukit_comun.http import crear_app
 from tukit_comun.telemetria import instrumentar_motor
 
+from .dominio import sesiones
 from .routers import router
 
 PUERTO_POR_OMISION = 8011
 
 
 async def _arrancar(app: FastAPI) -> None:
+    sesiones._llave()  # sin TUKIT_LLAVE_SESION avisa aqui, al arrancar, y no al firmar el primer token
     app.state.motor = crear_motor("identidad")
     instrumentar_motor(app.state.motor.engine)
 
