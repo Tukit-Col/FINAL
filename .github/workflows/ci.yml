@@ -52,7 +52,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        servicio: [identidad, catalogo, inteligencia, comercio, operacion, ingesta, gateway]
+        servicio: [identidad, catalogo, inteligencia, comercio, operacion, gateway]
     steps:
       - uses: actions/checkout@v4
         with:

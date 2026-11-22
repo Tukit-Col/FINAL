@@ -1,8 +1,6 @@
 # Ejecutor de tareas del monorepo.
 #
-# Un solo comando por intencion, independiente del lenguaje del servicio. El
-# arbol mezcla Python, Go y TypeScript, y sin esto cada quien recuerda una
-# invocacion distinta.
+# Un solo comando por intencion, independiente del lenguaje del servicio.
 
 .DEFAULT_GOAL := ayuda
 .PHONY: ayuda preparar fronteras prueba prueba-colas prueba-redis lint formato tipos verificar limpiar \
