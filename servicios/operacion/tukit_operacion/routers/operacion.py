@@ -166,7 +166,6 @@ async def ver_caso(
 
 
 class SolicitudRespuesta(BaseModel):
-
     texto: str = Field(max_length=4096)
 
 
@@ -263,7 +262,10 @@ class SolicitudNota(BaseModel):
     texto: str = Field(max_length=4096)
 
 
-@router.post("/v1/operacion/casos/{caso_id}/asignar", summary="Asigna el ticket a quien llama, o lo suelta. Solo staff.")
+@router.post(
+    "/v1/operacion/casos/{caso_id}/asignar",
+    summary="Asigna el ticket a quien llama, o lo suelta. Solo staff.",
+)
 async def asignar_caso(
     request: Request,
     caso_id: uuid.UUID,
@@ -292,8 +294,12 @@ async def asignar_caso(
                     estado=409,
                 )
             datos = {"desde": str(actual) if actual else None, "hacia": str(hacia) if hacia else None}
-            await repo.registrar_evento(caso_id=caso_id, tipo="asignacion", datos=datos, actor_id=actor, ahora=ahora)
-            await repo.auditar(actor_id=actor, accion="caso_asignado", caso_id=caso_id, datos=datos, ahora=ahora)
+            await repo.registrar_evento(
+                caso_id=caso_id, tipo="asignacion", datos=datos, actor_id=actor, ahora=ahora
+            )
+            await repo.auditar(
+                actor_id=actor, accion="caso_asignado", caso_id=caso_id, datos=datos, ahora=ahora
+            )
         return await _detalle_staff(repo, await _caso_o_404(repo, caso_id))
 
 
@@ -313,15 +319,21 @@ async def cambiar_prioridad_caso(
         if rechazo is not None:
             raise _rechazar(rechazo)
         if fila.prioridad != solicitud.prioridad:
-            if not await repo.cambiar_prioridad(caso_id=caso_id, desde=fila.prioridad, hacia=solicitud.prioridad):
+            if not await repo.cambiar_prioridad(
+                caso_id=caso_id, desde=fila.prioridad, hacia=solicitud.prioridad
+            ):
                 raise ErrorDominio(
                     "cambio_concurrente",
                     "Alguien mas movio este ticket mientras tanto; recarga y vuelve a intentar.",
                     estado=409,
                 )
             datos = {"desde": fila.prioridad, "hacia": solicitud.prioridad}
-            await repo.registrar_evento(caso_id=caso_id, tipo="prioridad", datos=datos, actor_id=actor, ahora=ahora)
-            await repo.auditar(actor_id=actor, accion="caso_prioridad", caso_id=caso_id, datos=datos, ahora=ahora)
+            await repo.registrar_evento(
+                caso_id=caso_id, tipo="prioridad", datos=datos, actor_id=actor, ahora=ahora
+            )
+            await repo.auditar(
+                actor_id=actor, accion="caso_prioridad", caso_id=caso_id, datos=datos, ahora=ahora
+            )
         return await _detalle_staff(repo, await _caso_o_404(repo, caso_id))
 
 
@@ -362,7 +374,10 @@ async def vincular_pedido(
         pedido_id = uuid.UUID(solicitud.pedido_id)
     except ValueError:
         raise ErrorDominio(
-            "identificador_invalido", "El pedido no tiene forma de identificador.", estado=422, campo="pedido_id"
+            "identificador_invalido",
+            "El pedido no tiene forma de identificador.",
+            estado=422,
+            campo="pedido_id",
         ) from None
     ahora = datetime.now(UTC)
     async with request.app.state.motor.sesion() as db:
@@ -429,7 +444,6 @@ class Contacto(BaseModel):
 
 
 class SolicitudCaso(BaseModel):
-
     categoria: str = Field(max_length=24)
     asunto: str = Field(min_length=1, max_length=256)
     descripcion: str = Field(min_length=1, max_length=4096)
@@ -510,7 +524,6 @@ async def _usuario_de_sesion(request: Request, authorization: str | None) -> uui
 
 
 class SolicitudMiCaso(BaseModel):
-
     categoria: str = Field(max_length=24)
     asunto: str = Field(min_length=1, max_length=256)
     descripcion: str = Field(min_length=1, max_length=4096)
@@ -538,7 +551,10 @@ def _uuid_opcional(valor: str | None, campo: str) -> uuid.UUID | None:
         return uuid.UUID(valor)
     except ValueError:
         raise ErrorDominio(
-            "identificador_invalido", f"El campo {campo} no tiene forma de identificador.", estado=422, campo=campo
+            "identificador_invalido",
+            f"El campo {campo} no tiene forma de identificador.",
+            estado=422,
+            campo=campo,
         ) from None
 
 

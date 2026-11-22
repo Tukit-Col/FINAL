@@ -28,7 +28,6 @@ from tukit_inteligencia.poller import Poller
 
 
 class _CatalogoNoIdentidad:
-
     def __init__(self) -> None:
         self.registros: list[Any] = []
 
@@ -170,7 +169,6 @@ class TestPollerConColegioSinPadre:
 
 
 class TestPollerUsaLaReferenciaRealDelHijo:
-
     async def _fan(self, motor, catalogo, carga) -> set[tuple[str, str | None]]:
         await sembrar_bandeja(motor, **carga)
         poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
@@ -206,9 +204,7 @@ class TestPollerUsaLaReferenciaRealDelHijo:
 
     async def test_un_evento_viejo_sin_referencias_cae_en_hijo_1(self, motor):
         await sembrar_bandeja(motor, **carga_lista_verificada(str(uuid.uuid4())))
-        poller = Poller(
-            motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo_verificado()
-        )
+        poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo_verificado())
         assert await poller.pasada() == 1
         async with motor.engine.begin() as conexion:
             hijos = (await conexion.execute(select(trabajos.TRABAJO.c.hijos))).scalar_one()
@@ -224,9 +220,7 @@ class TestPollerLlevaElApodo:
         await apodos_subida.guardar(motor, str(version_id), contacto, {"hijo-2": "Luca"})
         carga = carga_lista_verificada(contacto, referencias=["hijo-2"])
         await sembrar_bandeja(motor, agregado_id=version_id, **carga)
-        poller = Poller(
-            motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo_verificado()
-        )
+        poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo_verificado())
         assert await poller.pasada() == 1
         async with motor.engine.begin() as conexion:
             hijos = (await conexion.execute(select(trabajos.TRABAJO.c.hijos))).scalar_one()
@@ -236,9 +230,7 @@ class TestPollerLlevaElApodo:
 
     async def test_sin_apodo_guardado_el_trabajo_no_lleva_la_clave(self, motor):
         await sembrar_bandeja(motor, **carga_lista_verificada(str(uuid.uuid4()), referencias=["hijo-1"]))
-        poller = Poller(
-            motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo_verificado()
-        )
+        poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo_verificado())
         assert await poller.pasada() == 1
         async with motor.engine.begin() as conexion:
             hijos = (await conexion.execute(select(trabajos.TRABAJO.c.hijos))).scalar_one()

@@ -65,15 +65,16 @@ def hipervolumen(frente: list[tuple], ref_info: dict) -> float:
         return 0.0
     c0, c1 = ref_info["cmin"], ref_info["cmax"]
     span = max(1, c1 - c0)
-    pts = np.array(
-        [[(v[0] - c0) / span, 1 - v[1], 1 - v[2], 1 - v[3]] for v in frente], dtype=float
-    )
+    pts = np.array([[(v[0] - c0) / span, 1 - v[1], 1 - v[2], 1 - v[3]] for v in frente], dtype=float)
     pts = np.clip(pts, 0.0, 1.0)
     return float(HV(ref_point=np.full(4, 1.1))(pts))
 
 
 def pd_frente_4d(dec, prefs):
-    pedidos = {r.orden: {normalizar_personaje(p) for p in prefs.get("personaje_por_hijo", {}).get(r.hijo, [])} for r in dec}
+    pedidos = {
+        r.orden: {normalizar_personaje(p) for p in prefs.get("personaje_por_hijo", {}).get(r.hijo, [])}
+        for r in dec
+    }
     ops = []
     for r in dec:
         fila = []
@@ -125,9 +126,12 @@ def trabajo(args):
     pedidos = {pers} if pers else set()
     espacio = math.prod(len(_admisibles(r)) for r in dec)
     fila = {
-        "instancia": inst["id"], "lineas": len(dec), "espacio": espacio,
+        "instancia": inst["id"],
+        "lineas": len(dec),
+        "espacio": espacio,
         "metodo": "enumeracion" if espacio <= LIMITE_ENUMERACION else "nsga2",
-        "personaje_pedido": pers, "tope": tope,
+        "personaje_pedido": pers,
+        "tope": tope,
     }
 
     ns = []
@@ -137,11 +141,18 @@ def trabajo(args):
         kits = {p.value: _proyectar(frente, p.value) for p in PerfilKit}
         kits["A tu Medida"] = elegir_recomendado_maut(frente, PESOS, tope=tope)
         seg = time.perf_counter() - t
-        ns.append({
-            "semilla": semilla, "s": seg, "n_frente": len(frente),
-            "vectores": [(s.costo, s.fidelidad, s.disponibilidad, s.personaje) for s in frente],
-            "kits": {k: (None if v is None else (v.costo, v.fidelidad, v.disponibilidad, v.personaje)) for k, v in kits.items()},
-        })
+        ns.append(
+            {
+                "semilla": semilla,
+                "s": seg,
+                "n_frente": len(frente),
+                "vectores": [(s.costo, s.fidelidad, s.disponibilidad, s.personaje) for s in frente],
+                "kits": {
+                    k: (None if v is None else (v.costo, v.fidelidad, v.disponibilidad, v.personaje))
+                    for k, v in kits.items()
+                },
+            }
+        )
 
     t = time.perf_counter()
     asig = {
@@ -200,8 +211,12 @@ def trabajo(args):
     fila["nsga"] = [{"semilla": r["semilla"], "s": r["s"], **metricas(r["vectores"])} for r in ns]
     fila["pd4_kits"] = metricas([v for v in objs.values() if v])
     for nombre, b in barridos.items():
-        fila[f"pd_{nombre}"] = {"k": b["k"], "s": b["s"], **metricas(b["vectores"]),
-                                **{"con_extremos": metricas(b["vectores"] + extremos)}}
+        fila[f"pd_{nombre}"] = {
+            "k": b["k"],
+            "s": b["s"],
+            **metricas(b["vectores"]),
+            **{"con_extremos": metricas(b["vectores"] + extremos)},
+        }
     fila["kits_nsga_s0"] = ns[0]["kits"]
     fila["kits_pd"] = objs
     fila["frente_nsga_s0"] = ns[0]["vectores"]
@@ -217,8 +232,11 @@ def mediana(xs):
 
 def resumen(filas):
     out = {}
-    for nombre, sel in (("todas", filas), ("nsga2", [f for f in filas if f["metodo"] == "nsga2"]),
-                        ("enumeracion", [f for f in filas if f["metodo"] == "enumeracion"])):
+    for nombre, sel in (
+        ("todas", filas),
+        ("nsga2", [f for f in filas if f["metodo"] == "nsga2"]),
+        ("enumeracion", [f for f in filas if f["metodo"] == "enumeracion"]),
+    ):
         if not sel:
             continue
         r = {"listas": len(sel)}
@@ -271,9 +289,14 @@ def main():
             if n % 20 == 0:
                 print(f"{n}/{len(tareas)} {time.perf_counter() - t0:.0f}s", flush=True)
     datos = {
-        "config": {"semillas": list(SEMILLAS), "barridos": list(BARRIDOS), "procesos": args.procesos,
-                   "listas": len(ids), "segundos_totales": round(time.perf_counter() - t0, 1),
-                   "nota": "bK = tantos presupuestos como puntos del frente de NSGA-II (semilla 0, tope 400)"},
+        "config": {
+            "semillas": list(SEMILLAS),
+            "barridos": list(BARRIDOS),
+            "procesos": args.procesos,
+            "listas": len(ids),
+            "segundos_totales": round(time.perf_counter() - t0, 1),
+            "nota": "bK = tantos presupuestos como puntos del frente de NSGA-II (semilla 0, tope 400)",
+        },
         "resumen": resumen(filas),
         "filas": filas,
     }

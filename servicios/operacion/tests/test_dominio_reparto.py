@@ -36,7 +36,9 @@ def test_kits_publicados_no_saca_destinatario_de_la_carga():
 
 def test_los_datos_no_llevan_turno():
     agregado = uuid.UUID("abcdef12-0000-4000-8000-000000000000")
-    datos = datos_plantilla("pedido_pagado", agregado, {"pedido_id": str(agregado)}, base_web="https://tukit.co")
+    datos = datos_plantilla(
+        "pedido_pagado", agregado, {"pedido_id": str(agregado)}, base_web="https://tukit.co"
+    )
     assert "turno" not in datos and datos["pedido"] == "ABCDEF12"
 
 
@@ -63,10 +65,17 @@ def test_pedido_id_invalido_no_arma_enlace():
 
 
 def test_cancelado_lleva_si_hay_reembolso_y_preparacion_si_retoma():
-    cancelado = datos_plantilla("pedido_cancelado", uuid.uuid4(), {"reembolso": True}, base_web="https://tukit.co")
+    cancelado = datos_plantilla(
+        "pedido_cancelado", uuid.uuid4(), {"reembolso": True}, base_web="https://tukit.co"
+    )
     assert cancelado["reembolso"] is True
-    assert datos_plantilla("pedido_cancelado", uuid.uuid4(), {}, base_web="https://tukit.co")["reembolso"] is False
-    retoma = datos_plantilla("pedido_en_preparacion", uuid.uuid4(), {"retoma": True}, base_web="https://tukit.co")
+    assert (
+        datos_plantilla("pedido_cancelado", uuid.uuid4(), {}, base_web="https://tukit.co")["reembolso"]
+        is False
+    )
+    retoma = datos_plantilla(
+        "pedido_en_preparacion", uuid.uuid4(), {"retoma": True}, base_web="https://tukit.co"
+    )
     assert retoma["retoma"] is True
 
 

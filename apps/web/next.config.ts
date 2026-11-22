@@ -8,6 +8,9 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: join(import.meta.dirname, "../.."),
   },
+  experimental: {
+    agentUpgrade: "security",
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "**.exito.com" },

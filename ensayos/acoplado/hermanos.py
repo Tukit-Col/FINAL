@@ -51,7 +51,6 @@ def armar_hogar(instancias):
 
 
 class Hogar:
-
     def __init__(self, renglones):
         self.renglones = renglones
         self.dec = decidibles(renglones)
@@ -129,7 +128,11 @@ class Hogar:
 
     def heuristica(self, perfil):
         idx = []
-        perfil = PerfilKit[perfil.upper()].value if isinstance(perfil, str) and perfil.upper() in PerfilKit.__members__ else perfil
+        perfil = (
+            PerfilKit[perfil.upper()].value
+            if isinstance(perfil, str) and perfil.upper() in PerfilKit.__members__
+            else perfil
+        )
         for r, o in zip(self.dec, self.opc, strict=True):
             el = elegir_por_perfil(tuple(o), perfil, personajes=(), cantidad=r.cantidad)
             idx.append(next(j for j, c in enumerate(o) if c is el))
@@ -161,7 +164,9 @@ def _opciones_pd(h: Hogar, i: int):
     return base, sh
 
 
-def pd_hogar(h: Hogar, modo: str, tope: int, limite_s: float | None = None, tope_capa: int = 600_000, reconstruir=False):
+def pd_hogar(
+    h: Hogar, modo: str, tope: int, limite_s: float | None = None, tope_capa: int = 600_000, reconstruir=False
+):
     t0 = time.perf_counter()
     con_s = modo == "presupuesto"
     capas = []
@@ -307,8 +312,14 @@ def nsga_hogar(h: Hogar, presupuesto: int, semilla: int = 0):
 
     class _P(Problem):
         def __init__(self):
-            super().__init__(n_var=n, n_obj=4, n_constr=0, xl=_np.zeros(n, dtype=int),
-                            xu=_np.array([t - 1 for t in tam], dtype=int), vtype=int)
+            super().__init__(
+                n_var=n,
+                n_obj=4,
+                n_constr=0,
+                xl=_np.zeros(n, dtype=int),
+                xu=_np.array([t - 1 for t in tam], dtype=int),
+                vtype=int,
+            )
 
         def _evaluate(self, X, out, *a, **k):
             nonlocal n_eval
@@ -320,9 +331,13 @@ def nsga_hogar(h: Hogar, presupuesto: int, semilla: int = 0):
             out["F"] = _np.array(filas, dtype=float)
 
     pop = _poblacion(n)
-    alg = NSGA2(pop_size=pop, sampling=_poblacion_inicial(sembradas, tam, pop, semilla),
-                crossover=SBX(prob=0.9, eta=15, repair=RoundingRepair()),
-                mutation=PM(prob=1.0, eta=20, repair=RoundingRepair()), eliminate_duplicates=True)
+    alg = NSGA2(
+        pop_size=pop,
+        sampling=_poblacion_inicial(sembradas, tam, pop, semilla),
+        crossover=SBX(prob=0.9, eta=15, repair=RoundingRepair()),
+        mutation=PM(prob=1.0, eta=20, repair=RoundingRepair()),
+        eliminate_duplicates=True,
+    )
     res = _minimizar(_P(), alg, ("n_gen", _generaciones(math.prod(tam))), seed=semilla, verbose=False)
     cand = [indices(f) for f in (_np.atleast_2d(res.X) if res.X is not None else [])] + sembradas
     ahorr = presu = None

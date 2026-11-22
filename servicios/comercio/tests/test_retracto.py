@@ -80,7 +80,9 @@ async def _entregar(pedido_id: str, entregado_en: datetime) -> None:
         conexion = await db.connection()
         pid = uuid.UUID(pedido_id)
         await conexion.execute(update(PEDIDO).where(PEDIDO.c.id == pid).values(estado="entregado"))
-        await conexion.execute(update(ENVIO).where(ENVIO.c.pedido_id == pid).values(entregado_en=entregado_en))
+        await conexion.execute(
+            update(ENVIO).where(ENVIO.c.pedido_id == pid).values(entregado_en=entregado_en)
+        )
 
 
 def _retracto(cliente, pedido_id, token=TOKEN_ACUDIENTE, motivo="no lo necesito"):
@@ -95,7 +97,9 @@ async def test_retracto_dentro_del_plazo_registra_la_solicitud_y_se_puede_pedir_
     await _entregar(pedido_id, entregado)
     reloj(entregado + timedelta(days=3))
 
-    ficha = (await cliente.get(f"/v1/comercio/mis-pedidos/{pedido_id}", headers=bearer(TOKEN_ACUDIENTE))).json()
+    ficha = (
+        await cliente.get(f"/v1/comercio/mis-pedidos/{pedido_id}", headers=bearer(TOKEN_ACUDIENTE))
+    ).json()
     assert ficha["retracto"]["puede"] is True
     assert ficha["retracto"]["vence_en"].startswith("2026-03-12")
 
@@ -105,7 +109,9 @@ async def test_retracto_dentro_del_plazo_registra_la_solicitud_y_se_puede_pedir_
     assert cuerpo["devolucion_id"] and cuerpo["monto"] == total_de(nueva_orden())
     assert cuerpo["cancelado"] is False
 
-    ficha = (await cliente.get(f"/v1/comercio/mis-pedidos/{pedido_id}", headers=bearer(TOKEN_ACUDIENTE))).json()
+    ficha = (
+        await cliente.get(f"/v1/comercio/mis-pedidos/{pedido_id}", headers=bearer(TOKEN_ACUDIENTE))
+    ).json()
     assert ficha["retracto"]["puede"] is False
     assert ficha["retracto"]["razon"] == "ya_solicitado"
     assert ficha["retracto"]["solicitado_en"]
@@ -124,7 +130,9 @@ async def test_retracto_con_el_plazo_vencido_es_409(cliente, reloj):
     respuesta = await _retracto(cliente, pedido_id)
     assert respuesta.status_code == 409
     assert respuesta.json()["error"] == "retracto_plazo_vencido"
-    ficha = (await cliente.get(f"/v1/comercio/mis-pedidos/{pedido_id}", headers=bearer(TOKEN_ACUDIENTE))).json()
+    ficha = (
+        await cliente.get(f"/v1/comercio/mis-pedidos/{pedido_id}", headers=bearer(TOKEN_ACUDIENTE))
+    ).json()
     assert ficha["retracto"]["puede"] is False and ficha["retracto"]["razon"] == "plazo_vencido"
 
 
@@ -135,7 +143,9 @@ async def test_retracto_de_un_pedido_ajeno_es_403_y_no_toca_nada(cliente, reloj)
     respuesta = await _retracto(cliente, pedido_id, token=TOKEN_OTRO)
     assert respuesta.status_code == 403
     assert respuesta.json()["error"] == "pedido_ajeno"
-    ficha = (await cliente.get(f"/v1/comercio/mis-pedidos/{pedido_id}", headers=bearer(TOKEN_ACUDIENTE))).json()
+    ficha = (
+        await cliente.get(f"/v1/comercio/mis-pedidos/{pedido_id}", headers=bearer(TOKEN_ACUDIENTE))
+    ).json()
     assert ficha["estado"] == EstadoPedido.PAGADO.value
     assert ficha["retracto"]["puede"] is True
 
@@ -156,7 +166,9 @@ async def test_retracto_antes_de_la_entrega_cancela_y_marca_el_reembolso(cliente
     assert respuesta.status_code == 201
     assert respuesta.json()["cancelado"] is True
 
-    ficha = (await cliente.get(f"/v1/comercio/mis-pedidos/{pedido_id}", headers=bearer(TOKEN_ACUDIENTE))).json()
+    ficha = (
+        await cliente.get(f"/v1/comercio/mis-pedidos/{pedido_id}", headers=bearer(TOKEN_ACUDIENTE))
+    ).json()
     assert ficha["estado"] == EstadoPedido.CANCELADO.value
     assert ficha["pago"]["estado"] == EstadoPago.REEMBOLSADO.value
 
