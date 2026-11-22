@@ -556,6 +556,15 @@ arriba:  ## Levanta los seis procesos HTTP y los de fondo, con RabbitMQ y Redis 
 	@# sin el, un checkout abandonado bloquea stock para siempre.
 	@$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_comercio.barredor --seguir \
 		> $(EJECUCION)/barredor.log 2>&1 & echo $$! > $(EJECUCION)/barredor.pid
+	@# Con broker, los consumidores escuchan colas y ya no leen las bandejas:
+	@# sin un publicador por servicio ningun evento llega a RabbitMQ y no sale
+	@# ni un aviso (pedido pagado, despachado, kits publicados...).
+	@if [ -n "$$(cat $(EJECUCION)/broker 2>/dev/null)" ]; then \
+		for s in catalogo comercio inteligencia identidad; do \
+			$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_$$s.publicador --seguir \
+				> $(EJECUCION)/publicador-$$s.log 2>&1 & echo $$! > $(EJECUCION)/publicador-$$s.pid; \
+		done; \
+	fi
 	@$(MAKE) --no-print-directory estado
 
 abajo:  ## Detiene los seis procesos HTTP y los trabajadores de fondo
