@@ -21,7 +21,7 @@ from typing import Any
 
 from tukit_comun.texto import normalizar_personaje
 
-# Orden de calidad de marca. Se repite aqui (igual que en optimizador.py) porque este modulo
+# Orden de calidad de marca. Se repite aqui (igual que en optimizador/) porque este modulo
 # no debe importar el optimizador, que arrastra pymoo: el vocabulario es el mismo.
 ORDEN_NIVEL = ("economico", "confiable", "premium")
 

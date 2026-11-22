@@ -19,8 +19,8 @@ from tukit_inteligencia.dominio.pipeline import (
     personajes_de_los_hijos,
     personajes_por_hijo,
 )
-from tukit_inteligencia.modelos import EstadoResolucion
-from tukit_inteligencia.optimizador import Candidato, KitArmado, LineaKit, PerfilKit, consolidar
+from tukit_inteligencia.modelos import EstadoResolucion, PerfilKit
+from tukit_inteligencia.optimizador import Candidato, KitArmado, LineaKit, consolidar
 
 
 class TestEstadoDesdeEmparejamiento:

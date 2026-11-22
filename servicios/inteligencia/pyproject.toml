@@ -16,7 +16,7 @@ dependencies = [
     # OE4: el optimizador de la tesis. NSGA-II sobre pymoo produce el frente de
     # Pareto de verdad que sostiene los resultados de hipervolumen; la
     # heuristica de `elegir_por_perfil` fue el andamio para que el ciclo
-    # corriera antes de tener el algoritmo (ver docstring de optimizador.py).
+    # corriera antes de tener el algoritmo (ver docstring del paquete optimizador/).
     # Es dependencia DURA: el modulo la importa arriba sin `try`, asi que si
     # falta el servicio no arranca. Antes degradaba a la heuristica cuando no
     # estaba, pero esa degradacion silenciosa servia kits que no eran los del
