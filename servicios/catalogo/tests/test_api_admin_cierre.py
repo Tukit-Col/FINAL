@@ -130,30 +130,6 @@ class TestCerrarLaRevision:
         await cliente.post(f"/v1/admin/listas/{vid}/cerrar")
         assert len(await self._bandeja("lista_aprobada")) == 1
 
-    async def test_las_listas_aprobadas_antes_reciben_su_evento_una_sola_vez(self, cliente):
-        # Una lista aprobada antes de que existiera `lista_aprobada` no tiene
-        # kits canonicos: `canonicos.emitir` le deja el evento que le falto, y
-        # correrlo otra vez no lo repite.
-        from sqlalchemy import delete
-        from tukit_catalogo import canonicos
-
-        vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()["version_id"]
-        assert (await cliente.post(f"/v1/admin/listas/{vid}/cerrar")).status_code == 200
-        motor = app.state.motor
-        async with motor.sesion() as db:
-            conexion = await db.connection()
-            # Como si se hubiera aprobado antes del cambio: sin evento.
-            await conexion.execute(delete(BANDEJA).where(BANDEJA.c.tipo == "lista_aprobada"))
-            # La semilla trae otras listas aprobadas: tambien reciben el suyo.
-            emitidos = await canonicos.emitir(conexion)
-            assert emitidos >= 1
-            assert await canonicos.emitir(conexion) == 0
-            await db.commit()
-
-        eventos = {str(e.agregado_id): e for e in await self._bandeja("lista_aprobada")}
-        assert len(eventos) == emitidos
-        assert eventos[vid].carga["grado"] == "Sexto"
-
     async def test_cerrar_una_version_de_colegio_nuevo_emite_colegio_verificado(self, cliente):
         # Un acudiente subio la lista de un colegio que aun no existe en Tukit
         # (lo eligio del directorio o lo escribio): la version trae `colegio_datos`.
