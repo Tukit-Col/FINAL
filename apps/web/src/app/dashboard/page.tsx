@@ -9,7 +9,6 @@
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Fragment } from "react";
 import {
   Clock,
   LifeBuoy,
@@ -24,7 +23,6 @@ import {
   GRADOS_CANONICOS,
   formatearPesos,
   type Colegio,
-  type EstadoTrabajo,
   type MiCaso,
   type MatriculaAcudiente,
   type Pedido,
@@ -49,6 +47,14 @@ import {
   type TonoEstado,
 } from "@/lib/pagar-pedido";
 import { saludoDeCuenta } from "@/lib/cuenta";
+import {
+  PALABRAS_ESTADO,
+  chipDeSolicitud,
+  fechaLegible,
+  rangoDeChip,
+  type ChipEstado,
+  type TonoChip,
+} from "@/lib/panel-cuenta";
 import AccionesPedido from "./AccionesPedido";
 import ActualizarSolo from "./ActualizarSolo";
 import DetallePedido from "./DetallePedido";
@@ -61,68 +67,12 @@ import styles from "./Dashboard.module.css";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Mi cuenta — Tukit" };
 
-function fechaLegible(iso: string): string {
-  return new Date(iso).toLocaleDateString("es-CO", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-const PALABRAS_ESTADO: Record<EstadoTrabajo, string> = {
-  encolado: "Estamos armando tu kit",
-  procesando: "Estamos armando tu kit",
-  espera_revision: "Una persona lo está revisando",
-  publicado: "Listo",
-  fallido: "Hubo un problema, lo estamos revisando",
-  cancelado: "Cancelaste esta solicitud",
-};
-
-type TonoChip = TonoEstado | "info" | "neutro";
-interface ChipEstado {
-  texto: string;
-  tono: TonoChip;
-}
-
 const CLASE_CHIP: Record<TonoChip, string> = {
   exito: styles.badgeExito,
   aviso: styles.badgeAviso,
   peligro: styles.badgePeligro,
   info: styles.badgeInfo,
   neutro: styles.badgeNeutro,
-};
-
-function chipDeSolicitud(
-  solicitud: Solicitud,
-  compra: { estado: "comprado" | "pendiente_pago" | string } | null,
-): ChipEstado {
-  if (compra) {
-    return compra.estado === "comprado"
-      ? { texto: "Comprado", tono: "exito" }
-      : { texto: "Pago pendiente", tono: "aviso" };
-  }
-  if (solicitud.tipo === "recibida")
-    return { texto: "En revisión", tono: "aviso" };
-  if (solicitud.tipo === "aprobada") return { texto: "Listo", tono: "exito" };
-  switch (solicitud.estado) {
-    case "publicado":
-      return { texto: "Listo", tono: "exito" };
-    case "encolado":
-    case "procesando":
-      return { texto: "Armando", tono: "info" };
-    case "cancelado":
-      return { texto: "Cancelada", tono: "neutro" };
-    default:
-      return { texto: "En revisión", tono: "aviso" };
-  }
-}
-
-const RANGO_CHIP: Record<string, number> = {
-  Listo: 4,
-  Comprado: 4,
-  Armando: 3,
-  "Pago pendiente": 2,
-  "En revisión": 1,
 };
 
 function EstadoVacio(props: {
@@ -249,8 +199,7 @@ async function panel() {
     const clave = `${s.colegio_id}|${s.grado}`;
     const previo = estadoPorHijo.get(clave);
     if (
-      (RANGO_CHIP[chip.texto] ?? 0) >
-      (previo ? (RANGO_CHIP[previo.texto] ?? 0) : 0)
+      rangoDeChip(chip) > (previo ? rangoDeChip(previo) : 0)
     ) {
       estadoPorHijo.set(clave, chip);
     }
