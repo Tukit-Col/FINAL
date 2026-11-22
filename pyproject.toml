@@ -22,11 +22,11 @@ package = false
 
 [dependency-groups]
 dev = [
-    "pytest>=8.0",
-    "pytest-asyncio>=0.24",
+    "pytest>=9.2.0",
+    "pytest-asyncio>=1.5.0",
     # Medir cobertura por servicio (`--cov=tukit_<svc>`); sin umbral de falla.
     "pytest-cov>=5.0",
-    "ruff>=0.6",
+    "ruff>=0.17.6",
     # Estos dos son extras opcionales de `tukit-comun` (ver su pyproject), pero
     # en desarrollo se quieren siempre: sin ellos `make bd-migrar` falla justo
     # despues de `make preparar`, y el mensaje habla de un modulo que falta en
@@ -34,8 +34,8 @@ dev = [
     #
     # Ponerlos aqui no engorda la integracion continua: sus trabajos instalan a
     # mano lo que cada uno necesita y no pasan por este grupo.
-    "alembic>=1.13",
-    "asyncpg>=0.29",
+    "alembic>=1.20.1",
+    "asyncpg>=0.32.0",
     # SQLAlchemy async lo necesita en tiempo de ejecucion (`engine.dispose`,
     # cualquier `await` contra el motor), pero no lo declara como dependencia
     # dura: su wheel lo trae solo bajo ciertos marcadores de plataforma. En este
@@ -43,7 +43,7 @@ dev = [
     # -todo lo que toca la BD async- moria con "the greenlet library is
     # required". Fijarlo aqui lo mantiene puesto entre `uv sync`.
     "greenlet>=3.0",
-    "mypy>=1.11",
+    "mypy>=2.4.1",
 ]
 
 [tool.pytest.ini_options]

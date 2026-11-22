@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Servicio de Catalogo: conceptos, productos canonicos, ofertas, listas oficiales y ciclo editorial"
 requires-python = ">=3.12"
 dependencies = [
-    "sqlalchemy>=2.0",
+    "sqlalchemy>=2.1.9",
     "pydantic>=2.0",
     "pgvector>=0.3",
     "tukit-comun",
