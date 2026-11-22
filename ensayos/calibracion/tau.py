@@ -115,7 +115,13 @@ def curva_roc(parecido: np.ndarray, y: np.ndarray) -> list[dict]:
     puntos = [{"umbral": None, "fpr": 0.0, "tpr": 0.0}]
     for t in sorted(np.unique(parecido), reverse=True):
         acepta = parecido >= t
-        puntos.append({"umbral": float(t), "fpr": float((acepta & ~y).sum() / neg), "tpr": float((acepta & y).sum() / pos)})
+        puntos.append(
+            {
+                "umbral": float(t),
+                "fpr": float((acepta & ~y).sum() / neg),
+                "tpr": float((acepta & y).sum() / pos),
+            }
+        )
     return puntos
 
 
@@ -154,7 +160,11 @@ def main() -> int:
         "colegios": dict(collections.Counter(p["colegio"] for p in pares)),
         "aciertos": int(y.sum()),
         "parecido_valores_distintos": int(len(np.unique(parecido))),
-        "parecido_min_mediana_max": [float(parecido.min()), float(np.median(parecido)), float(parecido.max())],
+        "parecido_min_mediana_max": [
+            float(parecido.min()),
+            float(np.median(parecido)),
+            float(parecido.max()),
+        ],
         "auc_parecido": auc(parecido, y),
         "en_tau_actual": metricas(parecido, y, TAU_ACTUAL),
         "matriz_tau_actual": matriz_confusion(parecido, y, TAU_ACTUAL),
@@ -173,10 +183,18 @@ def main() -> int:
         if pru.sum() == 0 or ent.sum() == 0:
             continue
         tau = elegir_tau(parecido[ent], y[ent])
-        filas.append({"pliegue": k, "n_prueba": int(pru.sum()), "tau": tau, **metricas(parecido[pru], y[pru], tau)})
+        filas.append(
+            {"pliegue": k, "n_prueba": int(pru.sum()), "tau": tau, **metricas(parecido[pru], y[pru], tau)}
+        )
     salida["validacion_cruzada_agrupada"] = filas
     n.guardar("tau.json", salida)
-    print(salida["pares"], salida["listas"], salida["aciertos"], salida["parecido_valores_distintos"], salida["auc_parecido"])
+    print(
+        salida["pares"],
+        salida["listas"],
+        salida["aciertos"],
+        salida["parecido_valores_distintos"],
+        salida["auc_parecido"],
+    )
     return 0
 
 

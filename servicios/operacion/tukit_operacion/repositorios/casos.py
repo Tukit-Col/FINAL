@@ -46,7 +46,6 @@ def serializar_caso(fila: Any) -> dict[str, Any]:
 
 
 class RepoCasos:
-
     def __init__(self, conexion: Any) -> None:
         self.conexion = conexion
 
@@ -145,7 +144,9 @@ class RepoCasos:
 
     async def eventos_de(self, caso_id: uuid.UUID) -> list[dict[str, Any]]:
         filas = await self.conexion.execute(
-            select(EVENTO).where(EVENTO.c.caso_id == caso_id).order_by(EVENTO.c.creado_en.asc(), EVENTO.c.id.asc())
+            select(EVENTO)
+            .where(EVENTO.c.caso_id == caso_id)
+            .order_by(EVENTO.c.creado_en.asc(), EVENTO.c.id.asc())
         )
         return [
             {
@@ -227,7 +228,10 @@ class RepoCasos:
     async def comentarios_de(self, caso_id: uuid.UUID) -> list[dict[str, Any]]:
         filas = await self.conexion.execute(
             select(EVENTO)
-            .where(EVENTO.c.caso_id == caso_id, EVENTO.c.tipo.in_([TIPO_COMENTARIO_ACUDIENTE, TIPO_RESPUESTA_EQUIPO]))
+            .where(
+                EVENTO.c.caso_id == caso_id,
+                EVENTO.c.tipo.in_([TIPO_COMENTARIO_ACUDIENTE, TIPO_RESPUESTA_EQUIPO]),
+            )
             .order_by(EVENTO.c.creado_en)
         )
         return [

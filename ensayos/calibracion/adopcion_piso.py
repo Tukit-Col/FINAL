@@ -4,7 +4,6 @@ Uso: uv run python ensayos/calibracion/adopcion_piso.py"""
 from __future__ import annotations
 
 import collections
-import copy
 import csv
 import sys
 from pathlib import Path
@@ -18,8 +17,10 @@ import tau as T  # noqa: E402
 from tukit_catalogo.transcripcion import corregir, lexico_de  # noqa: E402
 
 OBJ = 0.97
-REGLA = ("tau nuevo = el menor tau de la rejilla fina (paso 0,005) con precision de lo aceptado >= 0,97 "
-         "sobre los 405 pares con piso 0,5")
+REGLA = (
+    "tau nuevo = el menor tau de la rejilla fina (paso 0,005) con precision de lo aceptado >= 0,97 "
+    "sobre los 405 pares con piso 0,5"
+)
 REJILLA = [round(i * 0.005, 3) for i in range(0, 201)]
 
 
@@ -81,9 +82,16 @@ def conjunto_de_pares(base, d, ind, res, piso: float, tratamiento: str):
             par = float(s[u])
         else:
             cod, par = r["concepto_codigo"], float(r["parecido"])
-        pares.append({"lista": f"{col}|{grado}", "colegio": col, "parecido": par,
-                      "concepto_resolver": cod, "concepto_revisor": concepto,
-                      "acierto": bool(cod) and cod == concepto})
+        pares.append(
+            {
+                "lista": f"{col}|{grado}",
+                "colegio": col,
+                "parecido": par,
+                "concepto_resolver": cod,
+                "concepto_revisor": concepto,
+                "acierto": bool(cod) and cod == concepto,
+            }
+        )
     return pares, dict(estado)
 
 
@@ -114,7 +122,9 @@ def cv_agrupada(pares, p, y, objetivo):
         for kk in range(T.PLIEGUES):
             ent, pru = fold != kk, fold == kk
             tau = T.elegir_tau(p[ent], y[ent])
-            filas.append({"pliegue": kk, "n_prueba": int(pru.sum()), "tau": tau, **T.metricas(p[pru], y[pru], tau)})
+            filas.append(
+                {"pliegue": kk, "n_prueba": int(pru.sum()), "tau": tau, **T.metricas(p[pru], y[pru], tau)}
+            )
     finally:
         T.OBJETIVO_PRECISION = old
     agr = {"aceptados": sum(f["aceptados"] for f in filas)}
@@ -128,11 +138,15 @@ def cifras(pares, tau):
     p = np.array([q["parecido"] for q in pares])
     y = np.array([q["acierto"] for q in pares])
     return {
-        "pares": len(pares), "aciertos": int(y.sum()), "incorrectos": int((~y).sum()),
+        "pares": len(pares),
+        "aciertos": int(y.sum()),
+        "incorrectos": int((~y).sum()),
         "precision_aceptar_todo": float(y.mean()),
         "parecido_valores_distintos": int(len(np.unique(p))),
-        "auc": T.auc(p, y), "tau": tau,
-        "en_tau": T.metricas(p, y, tau), "matriz": T.matriz_confusion(p, y, tau),
+        "auc": T.auc(p, y),
+        "tau": tau,
+        "en_tau": T.metricas(p, y, tau),
+        "matriz": T.matriz_confusion(p, y, tau),
         "ic95_bootstrap": T.ic_bootstrap(p, y, tau),
         "curva_memoria": [T.metricas(p, y, t) for t in (0.5, 0.75, 0.85, 0.95)],
         "validacion_cruzada_agrupada_regla_actual_0_95": cv_agrupada(pares, p, y, 0.95),
@@ -155,30 +169,42 @@ def recorrido(d, rs, y, piso, tau):
 def main() -> int:
     base = pares_con_renglon()
     d, ind, res = resolver_bench([0.6, 0.5])
-    sal: dict = {"regla_tau": REGLA, "objetivo_precision": OBJ, "rejilla": "0,000 a 1,000 paso 0,005",
-                 "nota_regla_hoy": "tau.py usa objetivo 0,95 (no 0,97) y el 0,75 de hoy es una eleccion conservadora, no el minimo de ninguna regla: ver reglas_aplicadas_a_piso_0_6."}
+    sal: dict = {
+        "regla_tau": REGLA,
+        "objetivo_precision": OBJ,
+        "rejilla": "0,000 a 1,000 paso 0,005",
+        "nota_regla_hoy": "tau.py usa objetivo 0,95 (no 0,97) y el 0,75 de hoy es una eleccion conservadora, no el minimo de ninguna regla: ver reglas_aplicadas_a_piso_0_6.",
+    }
     for trat in ("A", "B"):
         c6, est6 = conjunto_de_pares(base, d, ind, res, 0.6, trat)
         c5, est5 = conjunto_de_pares(base, d, ind, res, 0.5, trat)
-        p6 = np.array([q["parecido"] for q in c6]); y6 = np.array([q["acierto"] for q in c6])
-        p5 = np.array([q["parecido"] for q in c5]); y5 = np.array([q["acierto"] for q in c5])
+        p6 = np.array([q["parecido"] for q in c6])
+        y6 = np.array([q["acierto"] for q in c6])
+        p5 = np.array([q["parecido"] for q in c5])
+        y5 = np.array([q["acierto"] for q in c5])
         t_nuevo = regla_tau(p5, y5)
         ref = int((p6 >= 0.75).sum())
         t_mf = tau_misma_fraccion(p5, y5, ref)
         bloque = {
             "estado_de_los_pares": {"piso_0_6": est6, "piso_0_5": est5},
-            "reglas_aplicadas_a_piso_0_6": {"tau_menor_con_precision_0_97": regla_tau(p6, y6, 0.97),
-                                            "tau_menor_con_precision_0_95": regla_tau(p6, y6, 0.95)},
+            "reglas_aplicadas_a_piso_0_6": {
+                "tau_menor_con_precision_0_97": regla_tau(p6, y6, 0.97),
+                "tau_menor_con_precision_0_95": regla_tau(p6, y6, 0.95),
+            },
             "tau_nuevo_regla_0_97": t_nuevo,
-            "alternativa_misma_fraccion_aceptada_que_hoy": {"aceptados_hoy": ref, "tau": t_mf,
+            "alternativa_misma_fraccion_aceptada_que_hoy": {
+                "aceptados_hoy": ref,
+                "tau": t_mf,
                 "metricas": T.metricas(p5, y5, t_mf) if t_mf is not None else None,
-                "criterio": "mayor tau de la rejilla con aceptados >= 340"},
+                "criterio": "mayor tau de la rejilla con aceptados >= 340",
+            },
             "control_piso_0_6_tau_0_75": cifras(c6, 0.75),
             "nuevo_piso_0_5_tau_nuevo": cifras(c5, t_nuevo),
             "piso_0_5_tau_0_75": cifras(c5, 0.75),
             "piso_0_6_con_tau_nuevo": cifras(c6, t_nuevo),
             "intervalo_tau_equivalente_al_nuevo": (lambda e: [e[0], e[-1]])(
-                [t for t in REJILLA if int((p5 >= t).sum()) == int((p5 >= t_nuevo).sum())]),
+                [t for t in REJILLA if int((p5 >= t).sum()) == int((p5 >= t_nuevo).sum())]
+            ),
             "barrido_fino_piso_0_5": [T.metricas(p5, y5, t) for t in REJILLA],
             "barrido_fino_piso_0_6": [T.metricas(p6, y6, t) for t in REJILLA],
         }
@@ -191,13 +217,19 @@ def main() -> int:
     y = k.etiquetas(dd)
     t_nuevo = sal["tratamiento_A"]["tau_nuevo_regla_0_97"]
     sal["recorrido_3037"] = {
-        "renglones": len(dd.filas), "listas": len({f["lista"] for f in dd.filas}),
+        "renglones": len(dd.filas),
+        "listas": len({f["lista"] for f in dd.filas}),
         "con_vectores_de_cache": dd.vectores is not None,
         "control_piso_0_6_tau_0_75": recorrido(dd, rs, y, 0.6, 0.75),
         "piso_0_5_tau_0_75": recorrido(dd, rs, y, 0.5, 0.75),
         "nuevo_piso_0_5_tau_nuevo": recorrido(dd, rs, y, 0.5, t_nuevo),
-        "piso_0_5_tau_misma_fraccion_405": (recorrido(dd, rs, y, 0.5, sal["tratamiento_A"]["alternativa_misma_fraccion_aceptada_que_hoy"]["tau"])
-                                          if sal["tratamiento_A"]["alternativa_misma_fraccion_aceptada_que_hoy"]["tau"] is not None else None),
+        "piso_0_5_tau_misma_fraccion_405": (
+            recorrido(
+                dd, rs, y, 0.5, sal["tratamiento_A"]["alternativa_misma_fraccion_aceptada_que_hoy"]["tau"]
+            )
+            if sal["tratamiento_A"]["alternativa_misma_fraccion_aceptada_que_hoy"]["tau"] is not None
+            else None
+        ),
     }
     t_nuevo = sal["tratamiento_A"]["tau_nuevo_regla_0_97"]
     tx = sorted({r["texto"] for i in n.instancias() for r in i["renglones"]})
@@ -207,12 +239,15 @@ def main() -> int:
         u = np.array([ind[t] for t in tx])
         con = (idx[u] >= 0) & (s_[u] >= 0.5)
         ind_bench[f"piso_{piso}_tau_{tau}"] = {
-            "textos": len(tx), "auto_por_puntaje": float((con & (s_[u] >= tau)).mean()),
+            "textos": len(tx),
+            "auto_por_puntaje": float((con & (s_[u] >= tau)).mean()),
             "ambiguo_entre_0_5_y_tau": float((con & (s_[u] < tau)).mean()),
-            "sin_correspondencia": float((~con).mean())}
+            "sin_correspondencia": float((~con).mean()),
+        }
     sal["indicativo_textos_unicos_bench"] = {
         "aviso": "Aproximacion: solo puntaje, sin estado hueco/abstencion ni los 60 sublistas de la corrida de la memoria (35,3/36,5/28,1), que no se pudo reproducir.",
-        **ind_bench}
+        **ind_bench,
+    }
     ruta = n.guardar("adopcion_piso.json", sal)
     print(ruta)
     return 0

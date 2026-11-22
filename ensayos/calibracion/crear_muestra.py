@@ -26,7 +26,9 @@ NINGUNO = "NINGUNO"
 def cuotas(tam: dict[str, int], cap: dict[str, int], n: int, minimo: int) -> dict[str, int]:
     q = {c: min(minimo, cap[c]) for c in tam}
     for _ in range(20):
-        libres = [c for c in tam if q[c] < cap[c] and q[c] > minimo - 1 and tam[c] * n / sum(tam.values()) > minimo]
+        libres = [
+            c for c in tam if q[c] < cap[c] and q[c] > minimo - 1 and tam[c] * n / sum(tam.values()) > minimo
+        ]
         resto = n - sum(q.values())
         if resto == 0 or not libres:
             break
@@ -44,14 +46,17 @@ def main() -> int:
     for x in csv.DictReader((k.DATOS / "renglones_etiquetados.csv").open(encoding="utf-8")):
         filas.append(x)
     clave = collections.Counter((x["colegio"], x["grado"], x["texto_original"]) for x in filas)
-    listas = sorted({f'{x["colegio"]}|{x["grado"]}' for x in filas})
+    listas = sorted({f"{x['colegio']}|{x['grado']}" for x in filas})
     prueba = [str(l) for l in p.partir(listas, p.SEMILLA_BASE)["prueba"]]
     for col, grados in EXCEPCION.items():
         prueba += [f"{col}|{g}" for g in grados]
     tam = collections.Counter(x["colegio"] for x in filas)
     elegibles = collections.defaultdict(list)
     for x in filas:
-        if f'{x["colegio"]}|{x["grado"]}' in prueba and clave[(x["colegio"], x["grado"], x["texto_original"])] == 1:
+        if (
+            f"{x['colegio']}|{x['grado']}" in prueba
+            and clave[(x["colegio"], x["grado"], x["texto_original"])] == 1
+        ):
             elegibles[x["colegio"]].append(x)
     cap = {c: len(elegibles[c]) for c in tam}
     q = cuotas(dict(tam), cap, N, MINIMO)
@@ -85,12 +90,18 @@ def main() -> int:
                 if s.strip().lower() != c["nombre"].strip().lower() and s not in ej:
                     ej.append(s)
             w.writerow([c["codigo"], c["nombre"], " | ".join(ej[:5])])
-        w.writerow([NINGUNO, "ninguno / no esta en el catalogo", "usar si ningun concepto describe el renglon"])
+        w.writerow(
+            [NINGUNO, "ninguno / no esta en el catalogo", "usar si ningun concepto describe el renglon"]
+        )
     doc = {
         "semilla": SEMILLA,
         "total": len(elegidas),
         "particion_base": {"semilla": p.SEMILLA_BASE, "listas_prueba": sorted(prueba)},
-        "excepcion": {"colegio": list(EXCEPCION)[0], "listas": EXCEPCION["COLEGIO MADRE MATILDE"], "motivo": "sin listas en la prueba de la semilla base; se usan las que mas veces fueron prueba en 20 semillas (4, 4 y 3 de 20); pudieron ser entrenamiento en otras"},
+        "excepcion": {
+            "colegio": list(EXCEPCION)[0],
+            "listas": EXCEPCION["COLEGIO MADRE MATILDE"],
+            "motivo": "sin listas en la prueba de la semilla base; se usan las que mas veces fueron prueba en 20 semillas (4, 4 y 3 de 20); pudieron ser entrenamiento en otras",
+        },
         "tamano_colegio": dict(tam),
         "elegibles_por_colegio": cap,
         "cuota_por_colegio": q,

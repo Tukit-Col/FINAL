@@ -23,7 +23,9 @@ RESPUESTAS = CACHE / "respuestas"
 LIBRO_GASTO = CACHE / "gasto.jsonl"
 GOLD_CSV = RAIZ / "ensayos" / "calibracion" / "datos" / "lectura_gold_80.csv"
 SALIDA = RAIZ / "ensayos" / "calibracion" / "salidas"
-CGS_DIR = RAIZ.parent / "_archivo" / "2026-11-05" / "borradores_arquitectura" / "Arquitectura" / "Listas de Útiles"
+CGS_DIR = (
+    RAIZ.parent / "_archivo" / "2026-11-05" / "borradores_arquitectura" / "Arquitectura" / "Listas de Útiles"
+)
 
 MODELO = "gemini-3.5-flash-lite"
 USD_IN, USD_OUT = 0.10, 0.40
@@ -58,8 +60,15 @@ def calcular_prf1(items_pred: list[dict], items_gold: list[dict]) -> dict:
                 if idx not in usados_gold:
                     tp += 1
                     usados_gold.add(idx)
-                    matches.append({"pred": desc_pred, "gold": items_gold[idx].get("descripcion", ""),
-                                    "score": 1.0, "ip": ip, "ig": idx})
+                    matches.append(
+                        {
+                            "pred": desc_pred,
+                            "gold": items_gold[idx].get("descripcion", ""),
+                            "score": 1.0,
+                            "ip": ip,
+                            "ig": idx,
+                        }
+                    )
                     match_encontrado = True
                     break
         if not match_encontrado:
@@ -91,15 +100,29 @@ def calcular_prf1(items_pred: list[dict], items_gold: list[dict]) -> dict:
         if mejor_score >= UMBRAL_FUZZY and mejor_idx >= 0:
             tp += 1
             usados_gold.add(mejor_idx)
-            matches.append({"pred": desc_pred, "gold": items_gold[mejor_idx].get("descripcion", ""),
-                            "score": round(mejor_score, 3), "ip": ip, "ig": mejor_idx})
+            matches.append(
+                {
+                    "pred": desc_pred,
+                    "gold": items_gold[mejor_idx].get("descripcion", ""),
+                    "score": round(mejor_score, 3),
+                    "ip": ip,
+                    "ig": mejor_idx,
+                }
+            )
     fp = len(items_pred) - tp
     fn = len(items_gold) - tp
     precision = tp / max(tp + fp, 1)
     recall = tp / max(tp + fn, 1)
     f1 = 2 * precision * recall / max(precision + recall, 1e-10)
-    return {"precision": round(precision, 4), "recall": round(recall, 4), "f1": round(f1, 4),
-            "tp": tp, "fp": fp, "fn": fn, "matches": matches}
+    return {
+        "precision": round(precision, 4),
+        "recall": round(recall, 4),
+        "f1": round(f1, 4),
+        "tp": tp,
+        "fp": fp,
+        "fn": fn,
+        "matches": matches,
+    }
 
 
 def agregar(metricas: list[dict]) -> dict:
@@ -110,13 +133,23 @@ def agregar(metricas: list[dict]) -> dict:
     r = tp / max(tp + fn, 1)
     f1 = 2 * p * r / max(p + r, 1e-10)
     k = max(len(metricas), 1)
-    return {"P": p, "R": r, "F1_micro": f1, "F1_macro": sum(m["f1"] for m in metricas) / k,
-            "P_macro": sum(m["precision"] for m in metricas) / k, "R_macro": sum(m["recall"] for m in metricas) / k,
-            "tp": tp, "fp": fp, "fn": fn, "listas": len(metricas)}
+    return {
+        "P": p,
+        "R": r,
+        "F1_micro": f1,
+        "F1_macro": sum(m["f1"] for m in metricas) / k,
+        "P_macro": sum(m["precision"] for m in metricas) / k,
+        "R_macro": sum(m["recall"] for m in metricas) / k,
+        "tp": tp,
+        "fp": fp,
+        "fn": fn,
+        "listas": len(metricas),
+    }
 
 
 def bootstrap(metricas: list[dict], b: int = 2000, semilla: int = 7) -> dict:
     import random
+
     rnd = random.Random(semilla)
     vals: dict[str, list[float]] = {"P": [], "R": [], "F1_micro": [], "F1_macro": []}
     for _ in range(b):
@@ -142,8 +175,18 @@ def tipos_de_error(pred: list[dict], gold: list[dict], m: dict) -> dict:
     fns = [j for j in range(len(gold)) if j not in ig_ok]
     usados_p: set[int] = set()
     usados_g: set[int] = set()
-    cuenta = {k: 0 for k in ("fila_partida", "renglones_unidos", "duplicado", "texto_alterado",
-                             "extra_no_pedido", "omitido", "cantidad_distinta")}
+    cuenta = {
+        k: 0
+        for k in (
+            "fila_partida",
+            "renglones_unidos",
+            "duplicado",
+            "texto_alterado",
+            "extra_no_pedido",
+            "omitido",
+            "cantidad_distinta",
+        )
+    }
     ejemplos: dict[str, list] = {k: [] for k in cuenta}
     np_ = {i: normalizar(pred[i]["descripcion"]) for i in fps}
     ng_ = {j: normalizar(gold[j]["descripcion"]) for j in fns}
@@ -153,7 +196,9 @@ def tipos_de_error(pred: list[dict], gold: list[dict], m: dict) -> dict:
             cuenta["fila_partida"] += 1
             usados_g.add(j)
             usados_p.update(partes)
-            ejemplos["fila_partida"].append((gold[j]["descripcion"], [pred[i]["descripcion"] for i in partes]))
+            ejemplos["fila_partida"].append(
+                (gold[j]["descripcion"], [pred[i]["descripcion"] for i in partes])
+            )
     for i in fps:
         if i in usados_p:
             continue
@@ -162,7 +207,9 @@ def tipos_de_error(pred: list[dict], gold: list[dict], m: dict) -> dict:
             cuenta["renglones_unidos"] += 1
             usados_p.add(i)
             usados_g.update(partes)
-            ejemplos["renglones_unidos"].append((pred[i]["descripcion"], [gold[j]["descripcion"] for j in partes]))
+            ejemplos["renglones_unidos"].append(
+                (pred[i]["descripcion"], [gold[j]["descripcion"] for j in partes])
+            )
     ok_norm = {normalizar(pred[i]["descripcion"]) for i in ip_ok}
     for i in fps:
         if i in usados_p:
@@ -209,32 +256,79 @@ _PG = {**os.environ, "PGGSSENCMODE": "disable", "PGPASSWORD": "tukit"}
 
 def _select(base: str, sql: str) -> list[list[str]]:
     assert sql.lstrip().lower().startswith("select")
-    r = subprocess.run(["psql", "-h", "127.0.0.1", "-U", "tukit", "-d", base, "-At", "-c",
-                        f"copy ({sql}) to stdout with csv"], capture_output=True, text=True, env=_PG,
-                       timeout=300, check=True)
+    r = subprocess.run(
+        [
+            "psql",
+            "-h",
+            "127.0.0.1",
+            "-U",
+            "tukit",
+            "-d",
+            base,
+            "-At",
+            "-c",
+            f"copy ({sql}) to stdout with csv",
+        ],
+        capture_output=True,
+        text=True,
+        env=_PG,
+        timeout=300,
+        check=True,
+    )
     return list(csv.reader(r.stdout.splitlines()))
 
 
 def exportar() -> None:
     import io
+
     col = {i: n for i, n in _select("tukit_identidad", "select id, nombre from colegio")}
-    filas = _select("tukit_catalogo", """select v.id, l.colegio_id, l.grado, l.anio_lectivo, v.numero,
+    filas = _select(
+        "tukit_catalogo",
+        """select v.id, l.colegio_id, l.grado, l.anio_lectivo, v.numero,
         (select count(*) from correccion_lista k where k.version_id=v.id), i.orden, i.texto_original, i.cantidad
         from item_lista_oficial i join version_lista_oficial v on v.id=i.version_id join lista_oficial l on l.id=v.lista_id
-        where v.vigente and v.revisada_en is not null order by 2,3,7""")
+        where v.vigente and v.revisada_en is not null order by 2,3,7""",
+    )
     GOLD_CSV.parent.mkdir(parents=True, exist_ok=True)
     with GOLD_CSV.open("w", encoding="utf-8", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["version_id", "colegio", "grado", "anio", "numero_version", "correcciones_version",
-                    "orden", "descripcion", "cantidad"])
+        w.writerow(
+            [
+                "version_id",
+                "colegio",
+                "grado",
+                "anio",
+                "numero_version",
+                "correcciones_version",
+                "orden",
+                "descripcion",
+                "cantidad",
+            ]
+        )
         for vid, cid, g, a, num, nc, o, t, c in filas:
             w.writerow([vid, col.get(cid, cid), g, a, num, nc, o, t, c])
     PDFS.mkdir(parents=True, exist_ok=True)
-    r = subprocess.run(["psql", "-h", "127.0.0.1", "-U", "tukit", "-d", "tukit_catalogo", "-At", "-c",
-                        "copy (select t.version_id, encode(t.documento,'hex') from tarea_importacion t join "
-                        "version_lista_oficial v on v.id=t.version_id where v.vigente and v.revisada_en is not null "
-                        "and t.documento is not null) to stdout"], capture_output=True, text=True, env=_PG,
-                       timeout=300, check=True)
+    r = subprocess.run(
+        [
+            "psql",
+            "-h",
+            "127.0.0.1",
+            "-U",
+            "tukit",
+            "-d",
+            "tukit_catalogo",
+            "-At",
+            "-c",
+            "copy (select t.version_id, encode(t.documento,'hex') from tarea_importacion t join "
+            "version_lista_oficial v on v.id=t.version_id where v.vigente and v.revisada_en is not null "
+            "and t.documento is not null) to stdout",
+        ],
+        capture_output=True,
+        text=True,
+        env=_PG,
+        timeout=300,
+        check=True,
+    )
     n = 0
     for linea in io.StringIO(r.stdout):
         vid, hx = linea.rstrip("\n").split("\t")
@@ -247,9 +341,17 @@ def exportar() -> None:
 def cargar_listas() -> dict[str, dict]:
     listas: dict[str, dict] = {}
     for r in csv.DictReader(GOLD_CSV.open(encoding="utf-8")):
-        d = listas.setdefault(r["version_id"], {"id": r["version_id"], "colegio": r["colegio"], "grado": r["grado"],
-                                                 "numero_version": int(r["numero_version"]),
-                                                 "correcciones": int(r["correcciones_version"]), "gold": []})
+        d = listas.setdefault(
+            r["version_id"],
+            {
+                "id": r["version_id"],
+                "colegio": r["colegio"],
+                "grado": r["grado"],
+                "numero_version": int(r["numero_version"]),
+                "correcciones": int(r["correcciones_version"]),
+                "gold": [],
+            },
+        )
         d["gold"].append({"descripcion": r["descripcion"], "cantidad": int(r["cantidad"])})
     for d in listas.values():
         d["pdf"] = PDFS / f"{d['id']}.pdf"
@@ -287,19 +389,32 @@ def costo(uso: dict) -> float:
 
 def _pedir(instruccion: str, png: bytes, numero: int) -> dict:
     from tukit_inteligencia import gemini
+
     clave = os.environ.get("GEMINI_API_KEY", "").strip()
     if not clave:
         raise RuntimeError("falta GEMINI_API_KEY")
     cuerpo = {
-        "contents": [{"role": "user", "parts": [
-            {"text": f"{instruccion}\n\nEsta es la pagina {numero}."},
-            {"inline_data": {"mime_type": "image/png", "data": base64.b64encode(png).decode()}}]}],
-        "generationConfig": {"temperature": 0, "responseMimeType": "application/json",
-                             "responseSchema": gemini._ESQUEMA},
+        "contents": [
+            {
+                "role": "user",
+                "parts": [
+                    {"text": f"{instruccion}\n\nEsta es la pagina {numero}."},
+                    {"inline_data": {"mime_type": "image/png", "data": base64.b64encode(png).decode()}},
+                ],
+            }
+        ],
+        "generationConfig": {
+            "temperature": 0,
+            "responseMimeType": "application/json",
+            "responseSchema": gemini._ESQUEMA,
+        },
     }
-    pedido = urllib.request.Request(gemini._URL.format(modelo=MODELO, clave=clave),
-                                    data=json.dumps(cuerpo).encode(),
-                                    headers={"Content-Type": "application/json"}, method="POST")
+    pedido = urllib.request.Request(
+        gemini._URL.format(modelo=MODELO, clave=clave),
+        data=json.dumps(cuerpo).encode(),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
     ultimo_error = None
     for intento in range(3):
         try:
@@ -317,6 +432,7 @@ def _pedir(instruccion: str, png: bytes, numero: int) -> dict:
 
 def leer_documento(pdf: Path, version: str, instruccion: str, max_paginas: int | None = None) -> dict:
     from tukit_inteligencia.paginas import renderizar
+
     contenido = pdf.read_bytes()
     huella = hashlib.sha256(contenido).hexdigest()
     hi = hashlib.sha256(instruccion.encode()).hexdigest()[:10]
@@ -339,8 +455,16 @@ def leer_documento(pdf: Path, version: str, instruccion: str, max_paginas: int |
             crudo = _pedir(instruccion, png, numero)
             f.write_text(json.dumps(crudo, ensure_ascii=False))
             c = costo(crudo.get("usageMetadata") or {})
-            total = _registrar({"t": time.time(), "version": version, "huella": huella[:16], "pagina": numero,
-                                "uso": crudo.get("usageMetadata"), "usd": c})
+            total = _registrar(
+                {
+                    "t": time.time(),
+                    "version": version,
+                    "huella": huella[:16],
+                    "pagina": numero,
+                    "uso": crudo.get("usageMetadata"),
+                    "usd": c,
+                }
+            )
             usd += c
             llamadas += 1
             if total >= TOPE_USD:
@@ -353,5 +477,10 @@ def leer_documento(pdf: Path, version: str, instruccion: str, max_paginas: int |
                     items.append({"descripcion": it["descripcion"], "cantidad": it.get("cantidad")})
         except (KeyError, IndexError, ValueError, TypeError):
             pass
-    return {"items": items, "paginas": len(paginas), "usd_nuevo": usd, "llamadas_nuevas": llamadas,
-            "huella": huella}
+    return {
+        "items": items,
+        "paginas": len(paginas),
+        "usd_nuevo": usd,
+        "llamadas_nuevas": llamadas,
+        "huella": huella,
+    }

@@ -231,14 +231,16 @@ class TestUnLibroConTituloSoloSeSurteConEseTitulo:
             _producto(
                 self.LIBRO,
                 "GW-B1",
-                "Gateway to the World b1 Student'S Book With Student'S app and Digital Student'S Book (en Inglés)",
+                "Gateway to the World b1 Student'S Book With Student'S app and Digital Student'S "
+                "Book (en Inglés)",
                 "confiable",
                 {},
             ),
             _producto(
                 self.LIBRO,
                 "GW-A2",
-                "Gateway to the World a2 Student'S Book With Student'S app and Digital Student'S Book (en Inglés)",
+                "Gateway to the World a2 Student'S Book With Student'S app and Digital Student'S "
+                "Book (en Inglés)",
                 "confiable",
                 {},
             ),

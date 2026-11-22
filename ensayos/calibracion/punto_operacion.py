@@ -30,7 +30,6 @@ CLAVES = ("piso", "w_jac", "w_cos", "corte")
 
 
 class Grupos:
-
     def __init__(self, p: np.ndarray, s: np.ndarray, y: np.ndarray, corte: float):
         pc = np.where(s >= corte, p, -1)
         self.elegible = pc >= 0
@@ -103,7 +102,12 @@ def resumen_config(grp: Grupos, w: np.ndarray, niveles: dict[str, float]) -> dic
 def vector_metricas(grp: Grupos, w: np.ndarray, niveles: np.ndarray) -> np.ndarray:
     wg, cg = grp.sumas(w)
     wt = float(w.sum())
-    return np.concatenate([precision_en(wg, cg, wt, niveles), [aurc(wg, cg, wt, 0.0, TOPE_AURC), aurc(wg, cg, wt, 0.5, TOPE_AURC)]])
+    return np.concatenate(
+        [
+            precision_en(wg, cg, wt, niveles),
+            [aurc(wg, cg, wt, 0.0, TOPE_AURC), aurc(wg, cg, wt, 0.5, TOPE_AURC)],
+        ]
+    )
 
 
 def cfgs_nombradas() -> dict[str, dict]:
@@ -119,7 +123,10 @@ def cfgs_nombradas() -> dict[str, dict]:
 
 
 def todas_las_combinaciones() -> list[dict]:
-    return [{**k.ACTUAL, **dict(zip(CLAVES, v, strict=True))} for v in itertools.product(*(ESPACIO[c] for c in CLAVES))]
+    return [
+        {**k.ACTUAL, **dict(zip(CLAVES, v, strict=True))}
+        for v in itertools.product(*(ESPACIO[c] for c in CLAVES))
+    ]
 
 
 def aurc_cfg(cx: b.Contexto, cfg: dict, mask: np.ndarray | None = None) -> float:
@@ -153,12 +160,18 @@ def parte1(cx: b.Contexto, combos: list[dict]) -> tuple[dict, dict]:
         ex.append(exactitud_cfg(cx, c))
         au.append(aurc(wg, cg, float(n), 0.0, TOPE_AURC))
         pre.append(float(precision_en(wg, cg, float(n), np.array([cob_act]))[0]))
-    ex, au, pre = np.array(ex), np.nan_to_num(np.array(au), nan=np.inf), np.nan_to_num(np.array(pre), nan=-np.inf)
+    ex, au, pre = (
+        np.array(ex),
+        np.nan_to_num(np.array(au), nan=np.inf),
+        np.nan_to_num(np.array(pre), nan=-np.inf),
+    )
     i_act = next(i for i, c in enumerate(combos) if all(abs(c[x] - k.ACTUAL[x]) < 1e-9 for x in CLAVES))
     dist = np.array([sum(abs(c[x] - k.ACTUAL[x]) > 1e-9 for x in CLAVES) for c in combos])
 
     def mejor(v, mayor):
-        o = sorted(range(len(combos)), key=lambda i: (-round(v[i], 12) if mayor else round(v[i], 12), dist[i]))
+        o = sorted(
+            range(len(combos)), key=lambda i: (-round(v[i], 12) if mayor else round(v[i], 12), dist[i])
+        )
         return o[0]
 
     i_ex, i_au, i_pr = mejor(ex, True), mejor(au, False), mejor(pre, True)
@@ -177,7 +190,8 @@ def parte1(cx: b.Contexto, combos: list[dict]) -> tuple[dict, dict]:
             "precision_a_85_6": int((pre > pre[i_act] + 1e-12).sum() + 1),
         },
         "mejor_exactitud_pp_sobre_actual": float(100 * (ex[i_ex] - ex[i_act])),
-        "mejor_aurc_pp_sobre_actual": float(100 * (au[i_act] - au[i_au])), "combinaciones_que_no_llegan_a_88": int(np.isinf(au).sum()),
+        "mejor_aurc_pp_sobre_actual": float(100 * (au[i_act] - au[i_au])),
+        "combinaciones_que_no_llegan_a_88": int(np.isinf(au).sum()),
         "mejor_precision_85_6_pp_sobre_actual": float(100 * (pre[i_pr] - pre[i_act])),
         "combinaciones_con_precision_85_6_mayor_que_el_actual": int((pre > pre[i_act] + 1e-12).sum()),
         "combinaciones_con_aurc_menor_que_el_actual": int((au < au[i_act] - 1e-12).sum()),
@@ -249,13 +263,24 @@ def parte1(cx: b.Contexto, combos: list[dict]) -> tuple[dict, dict]:
         for j, et in enumerate(etiquetas):
             sgn = -1.0 if et.startswith("aurc") else 1.0
             d = sgn * (boot[nom][:, j] - boot["actual"][:, j]) * 100
-            pt = sgn * (punt[nom]["precision"][et] - punt["actual"]["precision"][et]) * 100 if not et.startswith("aurc") else sgn * (punt[nom][et] - punt["actual"][et]) * 100
+            pt = (
+                sgn * (punt[nom]["precision"][et] - punt["actual"]["precision"][et]) * 100
+                if not et.startswith("aurc")
+                else sgn * (punt[nom][et] - punt["actual"][et]) * 100
+            )
             lo, hi = ic(d)
-            fila[et] = {"diferencia_pp": float(pt), "ic95_pp": [lo, hi], "excluye_cero": bool(lo > 0 or hi < 0), "mejor_que_actual_con_ic": bool(lo > 0)}
+            fila[et] = {
+                "diferencia_pp": float(pt),
+                "ic95_pp": [lo, hi],
+                "excluye_cero": bool(lo > 0 or hi < 0),
+                "mejor_que_actual_con_ic": bool(lo > 0),
+            }
         comparacion[nom] = fila
     malla_out = {
         "cobertura": malla.tolist(),
-        "precision_actual": [float(precision_en(*grp["actual"].sumas(w1), float(n), np.array([m]))[0]) for m in malla],
+        "precision_actual": [
+            float(precision_en(*grp["actual"].sumas(w1), float(n), np.array([m]))[0]) for m in malla
+        ],
         "diferencia_pp": {},
         "ic95_pp": {},
     }
@@ -267,7 +292,10 @@ def parte1(cx: b.Contexto, combos: list[dict]) -> tuple[dict, dict]:
         pa_ = np.array(malla_out["precision_actual"])
         malla_out["diferencia_pp"][nom] = (100 * (pn - pa_)).tolist()
         d = 100 * (bootm[nom] - bootm["actual"])
-        malla_out["ic95_pp"][nom] = [np.nanpercentile(d, 2.5, axis=0).tolist(), np.nanpercentile(d, 97.5, axis=0).tolist()]
+        malla_out["ic95_pp"][nom] = [
+            np.nanpercentile(d, 2.5, axis=0).tolist(),
+            np.nanpercentile(d, 97.5, axis=0).tolist(),
+        ]
     boot_s = round(time.time() - t0, 1)
     sal = {
         "cobertura_actual": cob_act,
@@ -279,7 +307,12 @@ def parte1(cx: b.Contexto, combos: list[dict]) -> tuple[dict, dict]:
         "barrido_completo": barrido_completo,
         "alias": alias,
         "puntual": punt,
-        "comparacion_con_actual_bootstrap_por_listas": {"remuestreos": REMUESTREOS, "segundos": boot_s, "positivo_es_mejor_que_el_actual": True, "candidatos": comparacion},
+        "comparacion_con_actual_bootstrap_por_listas": {
+            "remuestreos": REMUESTREOS,
+            "segundos": boot_s,
+            "positivo_es_mejor_que_el_actual": True,
+            "candidatos": comparacion,
+        },
         "malla_precision": malla_out,
     }
     return sal, {"unicas": unicas, "alias": alias}
@@ -298,7 +331,12 @@ def parte2(cx: b.Contexto, combos: list[dict]) -> dict:
     listas = sorted(set(cx.lista))
 
     def exact(mask):
-        return np.array([(np.where(s[mask] >= c["corte"], p[mask], -1) == cx.y[mask]).mean() for c, (p, s) in zip(combos, PS, strict=True)])
+        return np.array(
+            [
+                (np.where(s[mask] >= c["corte"], p[mask], -1) == cx.y[mask]).mean()
+                for c, (p, s) in zip(combos, PS, strict=True)
+            ]
+        )
 
     def aurcs(mask):
         out = []
@@ -328,7 +366,11 @@ def parte2(cx: b.Contexto, combos: list[dict]) -> dict:
         sem = pa.SEMILLA_BASE + i
         parte = pa.partir(listas, sem)
         m = {q: np.isin(cx.lista, ls) for q, ls in parte.items()}
-        fila = {"semilla": sem, "renglones_prueba": int(m["prueba"].sum()), "listas_prueba": len(parte["prueba"])}
+        fila = {
+            "semilla": sem,
+            "renglones_prueba": int(m["prueba"].sum()),
+            "listas_prueba": len(parte["prueba"]),
+        }
         pr = m["prueba"]
         base = medir(i_act, pr)
         fila["actual"] = base
@@ -342,7 +384,17 @@ def parte2(cx: b.Contexto, combos: list[dict]) -> dict:
                 "precision": r["precision"],
                 "aurc_0_88": r["aurc_0_88"],
                 "aurc_50_88": r["aurc_50_88"],
-                "diferencia_pp": {e: float(100 * ((r["precision"][e] - base["precision"][e]) if not e.startswith("aurc") else -(r[e] - base[e]))) for e in et},
+                "diferencia_pp": {
+                    e: float(
+                        100
+                        * (
+                            (r["precision"][e] - base["precision"][e])
+                            if not e.startswith("aurc")
+                            else -(r[e] - base[e])
+                        )
+                    )
+                    for e in et
+                },
             }
         filas.append(fila)
     sal = {"semillas": pa.SEMILLAS, "segundos": round(time.time() - t0, 1), "por_semilla": filas}
@@ -361,16 +413,25 @@ def parte2(cx: b.Contexto, combos: list[dict]) -> dict:
                 "gana": int((d > 1e-9).sum()),
                 "empata": int((np.abs(d) <= 1e-9).sum()),
                 "pierde": int((d < -1e-9).sum()),
-                "ic95_media_entre_semillas_pp": [float(d.mean() - 1.96 * d.std(ddof=1) / np.sqrt(len(d))), float(d.mean() + 1.96 * d.std(ddof=1) / np.sqrt(len(d)))],
+                "ic95_media_entre_semillas_pp": [
+                    float(d.mean() - 1.96 * d.std(ddof=1) / np.sqrt(len(d))),
+                    float(d.mean() + 1.96 * d.std(ddof=1) / np.sqrt(len(d))),
+                ],
             }
-        res["semillas_en_que_lo_elegido_es_el_actual"] = int(sum(f[f"elegido_por_{crit}"]["es_el_actual"] for f in filas))
+        res["semillas_en_que_lo_elegido_es_el_actual"] = int(
+            sum(f[f"elegido_por_{crit}"]["es_el_actual"] for f in filas)
+        )
         freq: dict[str, int] = {}
         for f in filas:
             kk = json.dumps(f[f"elegido_por_{crit}"]["constantes"])
             freq[kk] = freq.get(kk, 0) + 1
-        res["combinaciones_elegidas"] = [{"constantes": json.loads(a), "veces": v} for a, v in sorted(freq.items(), key=lambda t: -t[1])]
+        res["combinaciones_elegidas"] = [
+            {"constantes": json.loads(a), "veces": v} for a, v in sorted(freq.items(), key=lambda t: -t[1])
+        ]
         sal[f"elegido_por_{crit}_menos_actual"] = res
-    sal["nota"] = "El IC entre semillas es solo orientativo: las 20 particiones comparten listas, no son independientes. El juicio principal es el bootstrap por listas de la parte 1."
+    sal["nota"] = (
+        "El IC entre semillas es solo orientativo: las 20 particiones comparten listas, no son independientes. El juicio principal es el bootstrap por listas de la parte 1."
+    )
     return sal
 
 
@@ -383,7 +444,10 @@ def conclusion(p1: dict, p2: dict) -> dict:
                 mejores.append({"candidato": nom, "punto": e, **f[e]})
             if f[e]["ic95_pp"][1] < 0:
                 peores.append({"candidato": nom, "punto": e, **f[e]})
-    return {"candidatos_mejores_que_el_actual_con_ic_que_excluye_cero": mejores, "candidatos_peores_que_el_actual_con_ic_que_excluye_cero": peores}
+    return {
+        "candidatos_mejores_que_el_actual_con_ic_que_excluye_cero": mejores,
+        "candidatos_peores_que_el_actual_con_ic_que_excluye_cero": peores,
+    }
 
 
 def dibujar(sal: dict) -> None:
@@ -397,11 +461,31 @@ def dibujar(sal: dict) -> None:
         r = __import__("subprocess").run(["kpsewhich", f], capture_output=True, text=True).stdout.strip()
         if r:
             fm.fontManager.addfont(r)
-    plt.rcParams.update({"font.family": "serif", "font.serif": ["Latin Modern Roman", "DejaVu Serif"], "font.size": 9, "axes.grid": True, "grid.color": "#E3E3E3", "axes.spines.top": False, "axes.spines.right": False, "pdf.fonttype": 42, "axes.formatter.use_locale": False, "axes.unicode_minus": False})
+    plt.rcParams.update(
+        {
+            "font.family": "serif",
+            "font.serif": ["Latin Modern Roman", "DejaVu Serif"],
+            "font.size": 9,
+            "axes.grid": True,
+            "grid.color": "#E3E3E3",
+            "axes.spines.top": False,
+            "axes.spines.right": False,
+            "pdf.fonttype": 42,
+            "axes.formatter.use_locale": False,
+            "axes.unicode_minus": False,
+        }
+    )
     p1 = sal["parte1_todos_los_datos"]
     mp = p1["malla_precision"]
     cob = np.array(mp["cobertura"]) * 100
-    color = {"actual": "#000000", "piso 0,5": "#1F4E86", "piso 0,55": "#5B8DC9", "peso Jaccard 0,35": "#2E6B2B", "peso coseno 0,05": "#A8500F", "corte 0,55": "#5B2E99"}
+    color = {
+        "actual": "#000000",
+        "piso 0,5": "#1F4E86",
+        "piso 0,55": "#5B8DC9",
+        "peso Jaccard 0,35": "#2E6B2B",
+        "peso coseno 0,05": "#A8500F",
+        "corte 0,55": "#5B2E99",
+    }
     otros = ["#B22222", "#888800", "#008888"]
     nombres = list(mp["diferencia_pp"])
     col = {}

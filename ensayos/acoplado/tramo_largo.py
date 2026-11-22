@@ -1,4 +1,5 @@
 """Tramo largo: NSGA-II (semillas 0,1,2) y PD (limite 20 s) en las 5 listas mas largas, T en {12..64}."""
+
 import argparse
 import json
 import statistics as st
@@ -23,14 +24,16 @@ def _pico(fn):
 
 def trabajo(a):
     inst, pres0, T, semillas = a
-    from acoplado import F_ENVIO, Tiempo, _admisibles, costo_linea, nsga_acoplado, pd_exacta, total_de
+    from acoplado import Tiempo, _admisibles, costo_linea, nsga_acoplado, pd_exacta, total_de
     from comun import decidibles, optimo_ahorrador, renglones_de
 
     dec = decidibles(renglones_de(inst))
     n = len(dec)
     asig = optimo_ahorrador(dec)
     _, tot = total_de(dec, asig, T)
-    pr = pres0 + (tot - sum(costo_linea(r, next(c for c in _admisibles(r) if c.sku == asig[str(r.orden)])) for r in dec))
+    pr = pres0 + (
+        tot - sum(costo_linea(r, next(c for c in _admisibles(r) if c.sku == asig[str(r.orden)])) for r in dec)
+    )
     f = {"instancia": inst["id"], "lineas": n, "T": T, "presupuesto": pr}
     t = time.perf_counter()
     try:
@@ -74,7 +77,11 @@ def main():
     ap.add_argument("--salida", default="tramo_largo.json")
     a = ap.parse_args()
     inst = {i["id"]: i for i in cargar_json("instancias.json.gz")["instancias"]}
-    pres = {e["instancia"]: e["presupuesto"] for e in cargar_json("escenarios.json")["escenarios"] if e["escenario"] == "presupuesto"}
+    pres = {
+        e["instancia"]: e["presupuesto"]
+        for e in cargar_json("escenarios.json")["escenarios"]
+        if e["escenario"] == "presupuesto"
+    }
     ids = sorted(pres, key=lambda i: -len(decidibles(renglones_de(inst[i]))))[: a.listas]
     tareas = [(inst[i], pres[i], T, a.semillas) for i in ids for T in a.ts]
     t0 = time.perf_counter()
@@ -82,10 +89,23 @@ def main():
     with ProcessPoolExecutor(max_workers=a.procesos) as ex:
         for f in ex.map(trabajo, tareas, chunksize=1):
             filas.append(f)
-            print(f"{f['instancia']} L={f['lineas']} T={f['T']} pd={f['pd_estado']} {f['pd_s']}s ns_med={f['ns_s_mediana']}s", flush=True)
-    datos = {"config": {"F_envio_cop": F_ENVIO, "ts": a.ts, "semillas": a.semillas, "limite_pd_s": LIMITE, "procesos": a.procesos,
-                        "listas": ids, "tienda": "crc32(sku) % T", "segundos_totales": round(time.perf_counter() - t0, 1)},
-             "filas": filas}
+            print(
+                f"{f['instancia']} L={f['lineas']} T={f['T']} pd={f['pd_estado']} {f['pd_s']}s ns_med={f['ns_s_mediana']}s",
+                flush=True,
+            )
+    datos = {
+        "config": {
+            "F_envio_cop": F_ENVIO,
+            "ts": a.ts,
+            "semillas": a.semillas,
+            "limite_pd_s": LIMITE,
+            "procesos": a.procesos,
+            "listas": ids,
+            "tienda": "crc32(sku) % T",
+            "segundos_totales": round(time.perf_counter() - t0, 1),
+        },
+        "filas": filas,
+    }
     (AQUI / a.salida).write_text(json.dumps(datos, indent=1, ensure_ascii=False), encoding="utf-8")
 
 

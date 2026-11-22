@@ -64,7 +64,30 @@ class Emparejamiento:
 
 
 _VACIAS_TITULO = frozenset(
-    "de del la las el los en y o a un una con para por al to the of and with an".split()
+    [
+        "de",
+        "del",
+        "la",
+        "las",
+        "el",
+        "los",
+        "en",
+        "y",
+        "o",
+        "a",
+        "un",
+        "una",
+        "con",
+        "para",
+        "por",
+        "al",
+        "to",
+        "the",
+        "of",
+        "and",
+        "with",
+        "an",
+    ]
 )
 _CORTE_TITULO = re.compile(r"\(| \+ | - | / |,| with ", re.IGNORECASE)
 
@@ -72,9 +95,7 @@ _CORTE_TITULO = re.compile(r"\(| \+ | - | / |,| with ", re.IGNORECASE)
 def _palabras_titulo(texto: str) -> set[str]:
     import unicodedata
 
-    plano = "".join(
-        c for c in unicodedata.normalize("NFD", texto.lower()) if unicodedata.category(c) != "Mn"
-    )
+    plano = "".join(c for c in unicodedata.normalize("NFD", texto.lower()) if unicodedata.category(c) != "Mn")
     return {p for p in re.findall(r"[a-z0-9+]+", plano) if len(p) > 1 and p not in _VACIAS_TITULO}
 
 

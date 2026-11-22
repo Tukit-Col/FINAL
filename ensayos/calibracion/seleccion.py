@@ -24,9 +24,17 @@ class Espacio:
         self.S = np.array([s for _, s in res])
         self.cortes = b.CORTES
         self.dist = np.array(
-            [[sum(abs(c[x] - k.ACTUAL[x]) > 1e-9 for x in claves) + (abs(j - k.ACTUAL["corte"]) > 1e-9) for j in self.cortes] for c in self.cfgs]
+            [
+                [
+                    sum(abs(c[x] - k.ACTUAL[x]) > 1e-9 for x in claves) + (abs(j - k.ACTUAL["corte"]) > 1e-9)
+                    for j in self.cortes
+                ]
+                for c in self.cfgs
+            ]
         )
-        self.i_actual = next(i for i, c in enumerate(self.cfgs) if all(abs(c[x] - k.ACTUAL[x]) < 1e-9 for x in claves))
+        self.i_actual = next(
+            i for i, c in enumerate(self.cfgs) if all(abs(c[x] - k.ACTUAL[x]) < 1e-9 for x in claves)
+        )
         self.j_actual = self.cortes.index(k.ACTUAL["corte"])
         self.n_combinaciones = len(self.cfgs) * len(self.cortes)
 
@@ -40,7 +48,10 @@ class Espacio:
 
     def elegir(self, train: np.ndarray, val: np.ndarray | None = None, topk: int = 5) -> dict:
         acc = self.exactitud(train)
-        orden = sorted(((i, j) for i in range(len(self.cfgs)) for j in range(len(self.cortes))), key=lambda t: (-round(acc[t], 12), self.dist[t]))
+        orden = sorted(
+            ((i, j) for i in range(len(self.cfgs)) for j in range(len(self.cortes))),
+            key=lambda t: (-round(acc[t], 12), self.dist[t]),
+        )
         cand = orden[:topk]
         if val is not None:
             av = self.exactitud(val)
@@ -48,7 +59,10 @@ class Espacio:
         i, j = cand[0]
         cfg = {**self.cfgs[i], "corte": self.cortes[j]}
         pc = np.where(self.S[i, train] >= cfg["corte"], self.P[i, train], -1)
-        taus = {str(o): b.regla_tau(self.S[i, train], pc, self.cx.y[train], cfg["corte"], o) for o in OBJETIVOS_TAU}
+        taus = {
+            str(o): b.regla_tau(self.S[i, train], pc, self.cx.y[train], cfg["corte"], o)
+            for o in OBJETIVOS_TAU
+        }
         return {
             "cfg": cfg,
             "taus": taus,
@@ -63,4 +77,8 @@ class Espacio:
 
 def resumen(valores: list[float]) -> dict:
     v = [x for x in valores if x is not None]
-    return {"media": float(np.mean(v)), "min": float(np.min(v)), "max": float(np.max(v)), "sd": float(np.std(v))} if v else {}
+    return (
+        {"media": float(np.mean(v)), "min": float(np.min(v)), "max": float(np.max(v)), "sd": float(np.std(v))}
+        if v
+        else {}
+    )

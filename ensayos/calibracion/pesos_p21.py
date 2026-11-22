@@ -46,7 +46,12 @@ def main() -> int:
         "puntos_promedio": {c: round(float(puntos[:, i].mean()), 3) for i, c in enumerate(CRITERIOS)},
         "ic95": {c: [round(float(ic[0, i]), 4), round(float(ic[1, i]), 4)] for i, c in enumerate(CRITERIOS)},
         "fraccion_en_primer_lugar": {c: round(v, 3) for c, v in primero.items()},
-        "pesos_anteriores_del_codigo": {"precio": 0.35, "marca_exigida": 0.30, "calidad": 0.25, "personaje": 0.10},
+        "pesos_anteriores_del_codigo": {
+            "precio": 0.35,
+            "marca_exigida": 0.30,
+            "calidad": 0.25,
+            "personaje": 0.10,
+        },
     }
     n.guardar("pesos_p21.json", salida)
     for c in CRITERIOS:
