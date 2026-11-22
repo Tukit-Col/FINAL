@@ -23,6 +23,7 @@ from tukit_comun.http import ErrorDominio
 
 from .. import api, apodos_subida, importaciones, metricas, trabajos
 from ..modelos import EstadoResolucion, EstadoTrabajo
+from ..paginas import quitar_metadatos
 from ..percepcion import Percepcion
 from ..remoto import RemotoCaido
 
@@ -59,6 +60,13 @@ async def _usuario_de_sesion(authorization: str | None) -> uuid.UUID:
     if sesion is None:
         raise ErrorDominio("sesion_invalida", "El token no es valido o expiro.", estado=401)
     return uuid.UUID(str(sesion["usuario_id"]))
+
+
+async def _autor_de_la_decision(authorization: str | None, declarado: uuid.UUID | None) -> uuid.UUID | None:
+    """Firma quien tiene la sesion; el `actor` del cuerpo solo vale sin sesion (consola sin token)."""
+    if token_bearer(authorization):
+        return await _usuario_de_sesion(authorization)
+    return declarado
 
 
 async def _exigir_dueno_del_trabajo(trabajo_id: uuid.UUID, authorization: str | None) -> None:
@@ -119,6 +127,20 @@ class Hijo(BaseModel):
         if isinstance(v, str):
             return v.strip() or None
         return v
+
+
+# El contrato promete archivos de hasta 10 MB (CONTRATO_API.md); el navegador lo valida, y aqui se impone.
+TOPE_ARCHIVO_BYTES = 10 * 1024 * 1024
+
+
+def _exigir_tamano(contenido: bytes) -> None:
+    if len(contenido) > TOPE_ARCHIVO_BYTES:
+        raise ErrorDominio(
+            "archivo_demasiado_grande",
+            f"El archivo pesa mas de {TOPE_ARCHIVO_BYTES // (1024 * 1024)} MB.",
+            estado=413,
+            campo="archivo",
+        )
 
 
 class Contacto(BaseModel):
@@ -594,18 +616,26 @@ def _leer_multipart(cuerpo: bytes, tipo_contenido: str) -> tuple[dict[str, str],
     return campos, archivos
 
 
+# Un renglon que solo rotula a quien pertenece la lista ("Estudiante: ...") no es un util: es el nombre del
+# menor, y no debe entrar al catalogo ni a la percepcion que se guarda (H-C-15).
+_RENGLON_CON_EL_NOMBRE = re.compile(
+    r"^\s*(estudiante|alumn[oa]|nombre( del (estudiante|alumn[oa]))?)\s*:", re.I
+)
+
+
 def _items_desde_percepcion(percepcion: Percepcion) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    leidos = [item for item in percepcion.items if not _RENGLON_CON_EL_NOMBRE.match(item.descripcion)]
     items = [
         {
             "texto_original": item.descripcion,
             "cantidad": item.cantidad or 1,
             "confianza": item.confianza,
         }
-        for item in percepcion.items
+        for item in leidos
     ]
     leido = "\n".join(
         f"{item.cantidad} {item.descripcion}".strip() if item.cantidad else item.descripcion
-        for item in percepcion.items
+        for item in leidos
     )
     percepcion_cruda = [
         {"pagina": numero, "crudo": leido if numero == 1 else ""}
@@ -814,7 +844,9 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
             campo="archivo",
         )
 
-    pdf_por_hijo = [_archivo_de(i, h.referencia) for i, h in enumerate(hijos)]
+    pdf_por_hijo = [quitar_metadatos(_archivo_de(i, h.referencia)) for i, h in enumerate(hijos)]
+    for pdf in pdf_por_hijo:
+        _exigir_tamano(pdf)
 
     percibidos: list[tuple[HijoSubida, str, bytes, Percepcion]] = []
     for hijo, pdf in zip(hijos, pdf_por_hijo, strict=True):
@@ -974,6 +1006,8 @@ async def onboarding(
         raise ErrorDominio(
             "archivo_faltante", "No llego ningun archivo en el campo `archivo`.", estado=422, campo="archivo"
         )
+    _exigir_tamano(archivo)
+    archivo = quitar_metadatos(archivo)
     try:
         anio_lectivo = int(campos["anio_lectivo"])
     except ValueError as error:
@@ -1176,7 +1210,12 @@ async def eliminar_trabajo(trabajo_id: uuid.UUID) -> None:
     tags=["admin"],
     summary="AD-04: una persona da por bueno el emparejamiento",
 )
-async def validar_linea(trabajo_id: uuid.UUID, item_id: uuid.UUID, decision: DecisionLinea) -> dict[str, Any]:
+async def validar_linea(
+    trabajo_id: uuid.UUID,
+    item_id: uuid.UUID,
+    decision: DecisionLinea,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
     """Sin `sku` confirma el producto que la linea tiene en el kit.
 
     El catalogo va inyectado porque el producto validado puede no ser
@@ -1190,7 +1229,7 @@ async def validar_linea(trabajo_id: uuid.UUID, item_id: uuid.UUID, decision: Dec
             item_id,
             estado=EstadoResolucion.RESUELTO_AUTO.value,
             sku=decision.sku,
-            actor=decision.actor,
+            actor=await _autor_de_la_decision(authorization, decision.actor),
             motivo=decision.motivo,
             catalogo=api._catalogo(),
         )
@@ -1280,7 +1319,8 @@ async def aplicar_canonico(cuerpo: AplicarCanonico, solicitud: Request) -> dict[
             estado=422,
         )
     desde_token = await api._usuario_de_la_peticion(solicitud)
-    usuario_id = uuid.UUID(desde_token) if desde_token else cuerpo.usuario_id
+    # Sin sesion no hay a nombre de quien crear el pedido: el `usuario_id` del cuerpo no vale (H-C-06).
+    usuario_id = uuid.UUID(desde_token) if desde_token else None
     try:
         return await trabajos.aplicar_canonico(
             api.app.state.motor,
@@ -1307,7 +1347,10 @@ async def aplicar_canonico(cuerpo: AplicarCanonico, solicitud: Request) -> dict[
     summary="AD-04: una persona declara que el catalogo no lo tiene",
 )
 async def sin_coincidencia(
-    trabajo_id: uuid.UUID, item_id: uuid.UUID, decision: DecisionLinea
+    trabajo_id: uuid.UUID,
+    item_id: uuid.UUID,
+    decision: DecisionLinea,
+    authorization: Annotated[str | None, Header()] = None,
 ) -> dict[str, Any]:
     """Marca `HUECO_CATALOGO` y no `SIN_MATCH`, y la diferencia importa.
 
@@ -1324,7 +1367,7 @@ async def sin_coincidencia(
             trabajo_id,
             item_id,
             estado=EstadoResolucion.HUECO_CATALOGO.value,
-            actor=decision.actor,
+            actor=await _autor_de_la_decision(authorization, decision.actor),
             motivo=decision.motivo,
         )
     except trabajos.TrabajoNoExiste as error:
@@ -1343,14 +1386,18 @@ async def sin_coincidencia(
     tags=["admin"],
     summary="AD-06: aprobar publica al acudiente, devolver reabre sin avisar",
 )
-async def revisar(trabajo_id: uuid.UUID, decision: DecisionRevision) -> dict[str, Any]:
+async def revisar(
+    trabajo_id: uuid.UUID,
+    decision: DecisionRevision,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
     try:
         resultado = await trabajos.revisar(
             api.app.state.motor,
             trabajo_id,
             decision=decision.decision,
             nota=decision.nota,
-            actor=decision.actor,
+            actor=await _autor_de_la_decision(authorization, decision.actor),
         )
     except trabajos.TrabajoNoExiste as error:
         raise ErrorDominio(
@@ -1387,7 +1434,11 @@ async def revisar(trabajo_id: uuid.UUID, decision: DecisionRevision) -> dict[str
     tags=["admin"],
     summary="Fija un preview como los kits canonicos de su grado (sin avisar a nadie)",
 )
-async def fijar_canonico(trabajo_id: uuid.UUID, cuerpo: FijarCanonico) -> dict[str, Any]:
+async def fijar_canonico(
+    trabajo_id: uuid.UUID,
+    cuerpo: FijarCanonico,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
     """La contraparte de "publicar" para un trabajo sin acudiente.
 
     El admin previsualizo los kits de una lista, quiza los ajusto, y aprueba:
@@ -1398,7 +1449,10 @@ async def fijar_canonico(trabajo_id: uuid.UUID, cuerpo: FijarCanonico) -> dict[s
     """
     try:
         return await trabajos.fijar_como_canonico(
-            api.app.state.motor, trabajo_id, nota=cuerpo.nota, actor=cuerpo.actor
+            api.app.state.motor,
+            trabajo_id,
+            nota=cuerpo.nota,
+            actor=await _autor_de_la_decision(authorization, cuerpo.actor),
         )
     except trabajos.TrabajoNoExiste as error:
         raise ErrorDominio(

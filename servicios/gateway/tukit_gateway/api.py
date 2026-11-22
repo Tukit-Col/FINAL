@@ -16,19 +16,29 @@ Decisiones:
 from __future__ import annotations
 
 import argparse
+import asyncio
 import os
 import re
+import weakref
 
 import httpx
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from tukit_comun.http import CABECERA_CORRELACION, crear_app, crear_pool, id_de_correlacion
+from tukit_comun.resiliencia import CircuitoAbierto, Disyuntor
 
 from . import limite
 
 PUERTO_POR_OMISION = 8010
 
 ESPERA_SEGUNDOS = 300.0
+# Solo inteligencia corre el pipeline y justifica esperar minutos; un destino mudo no puede tener a
+# la puerta colgada mas de lo que ESC-R2 tolera (30 s), asi que los demas tienen un tope corto.
+ESPERA_CORTA_SEGUNDOS = 25.0
+DESTINOS_LENTOS = frozenset({"inteligencia"})
+
+# 10 MiB de archivo (el tope de la subida) mas el sobre multipart.
+TOPE_CUERPO_BYTES = 10 * 1024 * 1024 + 64 * 1024
 
 CONEXIONES = 100
 
@@ -139,6 +149,24 @@ async def _apagar(app: FastAPI) -> None:
     cliente = getattr(app.state, "cliente", None)
     if cliente is not None:
         await cliente.aclose()
+
+
+# Un disyuntor por destino, atado al pool: cuando se cierra el pool, se olvida el estado.
+_DISYUNTORES: weakref.WeakKeyDictionary[httpx.AsyncClient, dict[str, Disyuntor]] = weakref.WeakKeyDictionary()
+
+
+def _disyuntor(cliente: httpx.AsyncClient, nombre: str) -> Disyuntor:
+    return _DISYUNTORES.setdefault(cliente, {}).setdefault(nombre, Disyuntor(nombre))
+
+
+def _cuerpo_demasiado_grande() -> JSONResponse:
+    return JSONResponse(
+        status_code=413,
+        content={
+            "error": "cuerpo_demasiado_grande",
+            "mensaje": f"La puerta no recibe cuerpos de mas de {TOPE_CUERPO_BYTES // (1024 * 1024)} MB.",
+        },
+    )
 
 
 def _cliente() -> httpx.AsyncClient:
@@ -268,19 +296,41 @@ async def reenviar(ruta: str, peticion: Request) -> Response:
 
     base = _servicios()[nombre]
     cabeceras = {k: v for k, v in peticion.headers.items() if k.lower() not in CABECERAS_SALTADAS}
+    declarado = peticion.headers.get("content-length", "")
+    if declarado.isdigit() and int(declarado) > TOPE_CUERPO_BYTES:
+        return _cuerpo_demasiado_grande()
     cuerpo = await peticion.body()
+    if len(cuerpo) > TOPE_CUERPO_BYTES:
+        return _cuerpo_demasiado_grande()
 
     cid = id_de_correlacion()
     if cid:
         cabeceras[CABECERA_CORRELACION] = cid
 
+    cliente = _cliente()
     try:
-        respuesta = await _cliente().request(
-            peticion.method,
-            f"{base}{camino}",
-            params=dict(peticion.query_params),
-            headers=cabeceras,
-            content=cuerpo,
+        async with _disyuntor(cliente, nombre):
+            try:
+                # El tope va aparte del timeout del pool (300 s): un destino mudo no cuelga la puerta.
+                async with asyncio.timeout(
+                    ESPERA_SEGUNDOS if nombre in DESTINOS_LENTOS else ESPERA_CORTA_SEGUNDOS
+                ):
+                    respuesta = await cliente.request(
+                        peticion.method,
+                        f"{base}{camino}",
+                        params=dict(peticion.query_params),
+                        headers=cabeceras,
+                        content=cuerpo,
+                    )
+            except TimeoutError as error:
+                raise httpx.ReadTimeout(f"{nombre} no contesto a tiempo") from error
+    except CircuitoAbierto:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "servicio_no_disponible",
+                "mensaje": f"El servicio de {nombre} esta caido; la puerta deja de insistir unos segundos.",
+            },
         )
     except httpx.HTTPError as error:
         return JSONResponse(

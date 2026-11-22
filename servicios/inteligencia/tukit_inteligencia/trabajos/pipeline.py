@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import logging
 import time
 import uuid
 from typing import Any
 
 from sqlalchemy import delete, insert, select, update
+from sqlalchemy.exc import SQLAlchemyError
 from tukit_comun.cifrado import cifrador_desde_entorno
 from tukit_comun.consumidor import marcar_procesado
 
@@ -27,7 +29,8 @@ from ..optimizador import (
     Renglon,
     armar_los_tres,
 )
-from ..parseo import BUSCA_EN_CATALOGO, Demanda, mensaje_para_papa
+from ..optimizador.tipos import TIPOS_NO_COMPRABLES
+from ..parseo import BUSCA_EN_CATALOGO, Demanda, mensaje_para_papa, parsear_renglon
 from ..remoto import ClienteCatalogo, ClienteIdentidad, RemotoCaido
 from ..repositorios.trabajos import RepoTrabajos, TrabajoNoExiste
 from .anclas import anclas_por_hijo
@@ -127,6 +130,32 @@ async def _marcar_etapa(
     detalle: dict[str, Any] | None = None,
 ) -> None:
     await RepoTrabajos(conexion).marcar_etapa(trabajo_id, nombre, estado, ms=ms, detalle=detalle)
+
+
+_log = logging.getLogger(__name__)
+
+# Lo que ve quien consulta un trabajo que fallo por la base: nunca la sentencia, ni sus parametros.
+MENSAJE_ERROR_DE_BASE = (
+    "No pudimos guardar el kit por un error interno. El trabajo quedo guardado y se puede reintentar."
+)
+
+
+async def _marcar_etapa_que_fallo(conexion: Any, trabajo_id: uuid.UUID, error: str) -> None:
+    """Deja `fallida` la primera etapa que seguia `pendiente`: la que no llego a terminar."""
+    pendientes = {
+        fila.nombre
+        for fila in await conexion.execute(
+            select(ETAPA.c.nombre).where(
+                ETAPA.c.trabajo_id == trabajo_id, ETAPA.c.estado == EstadoEtapa.PENDIENTE.value
+            )
+        )
+    }
+    for nombre in ETAPAS:
+        if nombre in pendientes:
+            await _marcar_etapa(
+                conexion, trabajo_id, nombre, EstadoEtapa.FALLIDA.value, detalle={"error": error}
+            )
+            return
 
 
 async def _listas_por_hijo(
@@ -294,6 +323,12 @@ async def _procesar_verificado(
                 candidatos = tuple(_candidato(c) for c in (item.get("candidatos") or ()))
                 tipo = item.get("tipo_item") or "util"
                 modo = item.get("modo_adquisicion") or "mercado_abierto"
+                if tipo in BUSCA_EN_CATALOGO:
+                    # La ruta rapida tambien parsea el renglon: una licencia, un uniforme o el "disponible
+                    # en casa" no se compran aunque el concepto del catalogo los reconozca como util.
+                    demanda = parsear_renglon(item["texto_original"])
+                    if demanda.tipo_item in TIPOS_NO_COMPRABLES:
+                        tipo, modo, candidatos = demanda.tipo_item, demanda.modo_adquisicion, ()
                 surtible = (
                     item.get("concepto_codigo") is not None
                     and tipo in BUSCA_EN_CATALOGO
@@ -701,6 +736,7 @@ async def procesar(motor: Any, trabajo_id: uuid.UUID, *, catalogo: ClienteCatalo
 
     except RemotoCaido as error:
         async with motor.engine.begin() as conexion:
+            await _marcar_etapa_que_fallo(conexion, trabajo_id, "dependencia_caida")
             await conexion.execute(
                 update(TRABAJO)
                 .where(TRABAJO.c.id == trabajo_id)
@@ -716,14 +752,21 @@ async def procesar(motor: Any, trabajo_id: uuid.UUID, *, catalogo: ClienteCatalo
             )
         return EstadoTrabajo.FALLIDO.value
     except Exception as error:  # noqa: BLE001 - el trabajo no puede quedar colgado
+        if isinstance(error, SQLAlchemyError):
+            # La sentencia y sus parametros se quedan en el log; el trabajo es legible sin sesion.
+            _log.exception("el pipeline fallo al escribir en la base (trabajo %s)", trabajo_id)
+            mensaje = MENSAJE_ERROR_DE_BASE
+        else:
+            mensaje = f"El pipeline fallo: {error}"
         async with motor.engine.begin() as conexion:
+            await _marcar_etapa_que_fallo(conexion, trabajo_id, "error_interno")
             await conexion.execute(
                 update(TRABAJO)
                 .where(TRABAJO.c.id == trabajo_id)
                 .values(
                     estado=EstadoTrabajo.FALLIDO.value,
                     error="error_interno",
-                    mensaje=f"El pipeline fallo: {error}",
+                    mensaje=mensaje,
                     terminado_en=ahora(),
                 )
             )
