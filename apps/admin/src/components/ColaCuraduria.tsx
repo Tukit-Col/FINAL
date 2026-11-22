@@ -10,7 +10,14 @@ import {
   rechazarPropuesta,
   FalloCatalogo,
 } from "@/lib/api-catalogo";
-import { filasDeAtributos, type ParAtributo } from "@/lib/atributos-editor";
+import {
+  conCampo,
+  conValor,
+  filasDeAtributos,
+  pareceUrl,
+  type ParAtributo,
+} from "@/lib/atributos-editor";
+import GrupoAtributos from "./GrupoAtributos";
 import type { OpcionConcepto } from "./PanelReclasificar";
 import Desplegable from "./Desplegable";
 import styles from "./CatalogoSpa.module.css";
@@ -32,16 +39,6 @@ function codigoConcepto(p: PropuestaCola): string | null {
 function precioTexto(precio: number | null): string {
   if (precio === null) return "sin precio";
   return `$${precio.toLocaleString("es-CO")}`;
-}
-
-function pareceUrl(texto: string): boolean {
-  if (!texto.trim()) return true;
-  try {
-    const u = new URL(texto);
-    return u.protocol === "http:" || u.protocol === "https:";
-  } catch {
-    return false;
-  }
 }
 
 export default function ColaCuraduria({ conceptos, personajes }: Props) {
@@ -212,44 +209,8 @@ function FilaPropuesta({ p, conceptos, personajes, ocupada, onAprobar, onRechaza
     return cuerpo;
   }
 
-  function editarValor(
-    set: React.Dispatch<React.SetStateAction<ParAtributo[]>>,
-    indice: number,
-    valor: string,
-  ) {
-    set((prev) => prev.map((par, i) => (i === indice ? { ...par, valor } : par)));
-  }
-
-  function editarLibre(indice: number, campo: keyof ParAtributo, valor: string) {
-    setLibres((prev) => prev.map((par, i) => (i === indice ? { ...par, [campo]: valor } : par)));
-  }
-
-  function grupoDeclarado(
-    titulo: string,
-    nota: string,
-    filas: ParAtributo[],
-    set: React.Dispatch<React.SetStateAction<ParAtributo[]>>,
-  ) {
-    if (filas.length === 0) return null;
-    return (
-      <div className={styles.atributos}>
-        <span className={styles.ayuda}>
-          <strong>{titulo}</strong> — {nota}
-        </span>
-        {filas.map((par, i) => (
-          <div key={par.clave} className={styles.atributoFila}>
-            <input aria-label="Clave" value={par.clave} readOnly disabled />
-            <input
-              aria-label={`Valor de ${par.clave}`}
-              placeholder="(sin valor)"
-              value={par.valor}
-              onChange={(e) => editarValor(set, i, e.target.value)}
-            />
-          </div>
-        ))}
-      </div>
-    );
-  }
+  const editarLibre = (indice: number, campo: keyof ParAtributo, valor: string) =>
+    setLibres((prev) => conCampo(prev, indice, campo, valor));
 
   return (
     <div className={styles.panel}>
@@ -389,18 +350,18 @@ function FilaPropuesta({ p, conceptos, personajes, ocupada, onAprobar, onRechaza
               El concepto todavía no está confirmado; agregá atributos libres si hace falta.
             </span>
           )}
-          {grupoDeclarado(
-            "Filtra la búsqueda",
-            "estos atributos deciden qué candidatos entran a un kit.",
-            discriminantes,
-            setDiscriminantes,
-          )}
-          {grupoDeclarado(
-            "Solo informativo",
-            "se le muestran al acudiente pero no filtran.",
-            descriptivos,
-            setDescriptivos,
-          )}
+          <GrupoAtributos
+            titulo="Filtra la búsqueda"
+            nota="estos atributos deciden qué candidatos entran a un kit."
+            filas={discriminantes}
+            onEditar={(i, valor) => setDiscriminantes((prev) => conValor(prev, i, valor))}
+          />
+          <GrupoAtributos
+            titulo="Solo informativo"
+            nota="se le muestran al acudiente pero no filtran."
+            filas={descriptivos}
+            onEditar={(i, valor) => setDescriptivos((prev) => conValor(prev, i, valor))}
+          />
 
           <div className={styles.atributos}>
             {libres.length > 0 && (
