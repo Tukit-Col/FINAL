@@ -53,7 +53,7 @@ Tres rutas, cada una con un plan fijo (`nl2c_flujo.py`):
 
 `marcas_excluidas` y `solo_disponibles` ya no son decorativos. El recorrido es: `a_preferencias(R)` los incluye (solo si el padre los pidió) → el asistente los muestra en el resumen y los guarda con las demás restricciones → el formulario de `/empezar` los manda dentro de `preferencias` (se ven y se pueden quitar antes de enviar) → `Preferencias` del trabajo (cifradas en `preferencias_cifradas`) → `armar_los_tres` → `aplicar_filtros_duros`.
 
-- **Por construcción, antes del frente.** Se quitan candidatos de cada renglón antes de calcular el frente de Pareto. No son un peso: un peso podría dejar pasar la marca que el padre pidió no ver. (El presupuesto sí se aplica después del frente; ver el docstring de `optimizador.py`.)
+- **Por construcción, antes del frente.** Se quitan candidatos de cada renglón antes de calcular el frente de Pareto. No son un peso: un peso podría dejar pasar la marca que el padre pidió no ver. (El presupuesto sí se aplica después del frente; ver el docstring del paquete `optimizador/`.)
 - **Comparación de marcas.** Sin mayúsculas, tildes ni signos (`Faber-Castell` = `FABER CASTELL`), por palabras completas (`Norma` no excluye `Normalizado`). Si el catálogo no trae marca, se mira el nombre del producto.
 - **Marca exigida por el colegio.** Catálogo no guarda la marca exigida como dato aparte; la señal es que el texto del renglón nombre la marca. En ese renglón no se quita y la línea lo explica ("El colegio pide X en esta línea y no la quitamos"). `solo_disponibles` sí aplica también ahí.
 - **`solo_disponibles`.** Disponible = candidato con precio vigente en una oferta activa, que es lo único que llega a Inteligencia y lo que ya mide el objetivo `disponibilidad`.
