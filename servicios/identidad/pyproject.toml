@@ -7,6 +7,9 @@ dependencies = [
     "sqlalchemy>=2.0",
     "pydantic>=2.9",
     "tukit-comun",
+    # ZoneInfo("America/Bogota") (barrido de supresion): Windows no trae la base
+    # de zonas horarias del sistema, asi que sin esto el modulo no importa ahi.
+    "tzdata; sys_platform == 'win32'",
     # La superficie minima de lectura (`tukit_identidad.api`): colegios, sedes
     # y grados para que el acudiente escoja, mas el registro del contacto que
     # convierte un correo en un identificador. Sin ese ultimo, el contrato no
