@@ -8,7 +8,7 @@ dependencies = [
     "pydantic>=2.9",
     "tukit-comun",
     "fastapi>=0.115",
-    "uvicorn[standard]>=0.30",
+    "uvicorn[standard]>=0.54.0",
     # Al abrir un caso, el contacto (correo/celular) se resuelve a un usuario_id
     # llamando a Identidad por HTTP: nunca se persiste el dato de contacto aqui.
     # El repartidor tambien resuelve el destinatario contra Identidad.

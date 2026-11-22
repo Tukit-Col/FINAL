@@ -8,7 +8,7 @@ dependencies = [
     "sqlalchemy>=2.1.9",
     "tukit-comun",
     "fastapi>=0.115",
-    "uvicorn[standard]>=0.30",
+    "uvicorn[standard]>=0.54.0",
     # El unico camino por el que este servicio ve el catalogo y la identidad.
     # No puede importar sus paquetes ni leer sus bases (invariantes 1 y 3),
     # asi que un cliente HTTP no es una comodidad: es la frontera.
