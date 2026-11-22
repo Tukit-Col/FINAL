@@ -1,21 +1,3 @@
-"""La superficie de Operacion: monta el router y ata los singletons.
-
-Dos superficies, como en el contrato (`libs/ts/tukit-contrato/src/operacion.ts`):
-
-- **Lectura** (`GET /v1/operacion/casos`, `/{id}`, `/metricas`): la bandeja del
-  back-office, ordenada por prioridad y luego por vencimiento, y las series de
-  metricas de calidad congeladas por dia.
-- **Escritura** (`POST /v1/operacion/casos`): lo que un acudiente manda desde el
-  centro de ayuda. El contacto NO se persiste: se resuelve a un `usuario_id`
-  contra Identidad. `vence_en` sale de la tabla de SLA por categoria (Ley 1755).
-
-Este modulo solo ensambla: crea el motor y el cliente de Identidad al arrancar,
-los cuelga de `app.state`, y monta `routers/operacion.py`. El parseo, las reglas
-y el SQL viven en `routers/`, `dominio/` y `repositorios/` (ADR 0019).
-
-    python -m tukit_operacion.api            # localhost:8015
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -34,8 +16,6 @@ PUERTO_POR_OMISION = 8015
 async def _arrancar(app: FastAPI) -> None:
     app.state.motor = crear_motor("operacion")
     instrumentar_motor(app.state.motor.engine)
-    # El cliente de Identidad se cuelga de la app para poder sustituirlo en las
-    # pruebas sin tocar el endpoint.
     app.state.pool_identidad = crear_pool(espera=ESPERA_SEGUNDOS)
     app.state.identidad = ClienteIdentidad(cliente=app.state.pool_identidad)
 

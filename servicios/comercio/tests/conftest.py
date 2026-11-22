@@ -1,10 +1,3 @@
-"""Banco de pruebas de Comercio: SQLite en memoria, sin base externa.
-
-Los modelos usan tipos portables a proposito (BigInteger degradado a Integer,
-JSONB a JSON, indices parciales con `postgresql_where` y `sqlite_where` a la
-vez), asi que el mismo esquema corre aqui y en Postgres.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -22,8 +15,6 @@ from tukit_comercio.pasarela import PasarelaFalsa
 from tukit_comercio.remoto import IdentidadCaida
 from tukit_comun.bd import MotorServicio
 
-# Usuarios y tokens fijos de las pruebas HTTP. El acudiente es el mismo
-# `USUARIO` de las ordenes de `_ayudas_comercio`, para que sus pedidos sean "suyos".
 ACUDIENTE = "22222222-2222-5222-8222-222222222222"
 OTRO_ACUDIENTE = "33333333-3333-5333-8333-333333333333"
 OPERADOR = "44444444-4444-5444-8444-444444444444"
@@ -39,12 +30,6 @@ def bearer(token: str) -> dict[str, str]:
 
 
 class IdentidadFalsa:
-    """Doble del cliente de Identidad: token -> sesion, sin red.
-
-    Imita `GET /v1/sesiones/actual`: un token desconocido devuelve `None` (el
-    401 de Identidad) y `caida=True` lanza `IdentidadCaida`, que es lo que el
-    cliente real levanta si Identidad no responde.
-    """
 
     def __init__(self, sesiones: dict[str, dict[str, Any]] | None = None, *, caida: bool = False) -> None:
         self.sesiones = sesiones if sesiones is not None else sesiones_por_omision()
@@ -58,7 +43,6 @@ class IdentidadFalsa:
 
 def sesiones_por_omision() -> dict[str, dict[str, Any]]:
     def sesion(usuario: str, *roles: str) -> dict[str, Any]:
-        # Como `GET /v1/sesiones/actual`: la sesion trae el correo del portador.
         return {
             "usuario_id": usuario,
             "correo": f"{roles[0]}-{usuario[:8]}@tukit.test",
@@ -109,12 +93,6 @@ async def agregar_linea(db: AsyncSession, pedido: Pedido, precio: int, cantidad:
 
 @pytest_asyncio.fixture
 async def cliente() -> AsyncIterator[httpx.AsyncClient]:
-    """La app de Comercio por `ASGITransport`, sin uvicorn ni red.
-
-    El motor (SQLite en memoria), la pasarela falsa, el Catalogo falso y el doble
-    de Identidad se cuelgan a mano de `app.state`; el reloj queda el real hasta
-    que una prueba lo fije con la fixture `reloj`.
-    """
     from _ayudas_comercio import PRECIO, SKU, CatalogoFalso
 
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
@@ -134,7 +112,6 @@ async def cliente() -> AsyncIterator[httpx.AsyncClient]:
 
 @pytest.fixture
 def reloj() -> Callable[[datetime], None]:
-    """Fija el "ahora" de Comercio (retracto y linea de tiempo) por `app.state.reloj`."""
 
     def fijar(instante: datetime) -> None:
         app.state.reloj = lambda: instante

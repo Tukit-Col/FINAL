@@ -1,10 +1,3 @@
-"""Los pedidos del acudiente (`/v1/comercio/mis-pedidos`): solo los suyos, sin datos del staff.
-
-El usuario sale de la SESION, nunca de la URL. Un pedido ajeno responde 404 como
-uno inexistente. La linea de tiempo de `/pedidos/[id]` muestra que paso y
-cuando, sin actor, correo, nota ni el celular del repartidor.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -24,8 +17,6 @@ from sqlalchemy import select
 from tukit_comercio.api import app
 from tukit_comercio.modelos import EstadoPedido, Pedido
 
-# --- El listado ---------------------------------------------------------------
-
 
 async def test_mis_pedidos_exige_sesion(cliente):
     respuesta = await cliente.get("/v1/comercio/mis-pedidos")
@@ -36,8 +27,6 @@ async def test_mis_pedidos_exige_sesion(cliente):
 
 
 async def test_mis_pedidos_ignora_el_usuario_de_la_url(cliente):
-    # El pedido es del acudiente; "otro" pide los suyos con el id del acudiente
-    # en la URL y recibe solo los propios (ninguno).
     await pedido_pagado(cliente)
     acudiente = USUARIO
     respuesta = await cliente.get(
@@ -48,27 +37,21 @@ async def test_mis_pedidos_ignora_el_usuario_de_la_url(cliente):
 
 
 async def test_mis_pedidos_solo_devuelve_los_del_acudiente(cliente):
-    # Dos pedidos del acudiente conocido y uno de otro usuario.
     await cliente.post("/v1/ordenes", json=nueva_orden())
     await cliente.post("/v1/ordenes", json=nueva_orden())
     otro = nueva_orden()
     otro["usuario_id"] = OTRO_ACUDIENTE
     await cliente.post("/v1/ordenes", json=otro)
 
-    # El usuario sale del token, no de la URL.
     mios = (await cliente.get("/v1/comercio/mis-pedidos", headers=bearer(TOKEN_ACUDIENTE))).json()
     assert mios["total"] == 2
     assert all(p["total"] == total_de(nueva_orden()) for p in mios["pedidos"])
-    # Cada pedido trae su linea de tiempo, sin actor ni notas del staff.
     for p in mios["pedidos"]:
         assert [x["paso"] for x in p["linea_de_tiempo"]["pasos"]][0] == "creado"
         assert "historial" not in p["linea_de_tiempo"]
 
     ajenos = (await cliente.get("/v1/comercio/mis-pedidos", headers=bearer(TOKEN_OTRO))).json()
     assert ajenos["total"] == 1
-
-
-# --- Un pedido propio ----------------------------------------------------------
 
 
 async def test_el_acudiente_ve_paga_y_cancela_su_pedido_con_su_sesion(cliente):
@@ -104,16 +87,12 @@ async def test_un_pedido_ajeno_es_404_y_sin_sesion_es_401(cliente):
         assert ajeno.json()["error"] == "pedido_no_existe"
         assert (await cliente.request(metodo, ruta)).status_code == 401
 
-    # Nada se movio: el pedido del otro sigue pendiente.
     async with app.state.motor.sesion() as db:
         conexion = await db.connection()
         estado = await conexion.scalar(
             select(Pedido.__table__.c.estado).where(Pedido.__table__.c.id == uuid.UUID(pedido_id))
         )
     assert estado == EstadoPedido.PENDIENTE_PAGO.value
-
-
-# --- La linea de tiempo de `/pedidos/[id]` -----------------------------------
 
 
 async def test_el_acudiente_ve_la_linea_de_tiempo_de_su_pedido_sin_datos_del_staff(cliente):
@@ -127,7 +106,6 @@ async def test_el_acudiente_ve_la_linea_de_tiempo_de_su_pedido_sin_datos_del_sta
     respuesta = await cliente.get(f"/v1/comercio/mis-pedidos/{pedido_id}", headers=bearer(TOKEN_ACUDIENTE))
     assert respuesta.status_code == 200
     cuerpo = respuesta.json()
-    # La linea de tiempo se agrega al pedido, no lo reemplaza.
     assert cuerpo["pedido_id"] == pedido_id
     assert cuerpo["lineas"] and cuerpo["envio"]["direccion"]
 
@@ -145,8 +123,6 @@ async def test_el_acudiente_ve_la_linea_de_tiempo_de_su_pedido_sin_datos_del_sta
     assert linea["especial"]["tipo"] == "incidencia"
     assert linea["especial"]["tipo_incidencia"] == "otro"
 
-    # Nada del staff: ni el historial crudo, ni quien avanzo, ni la nota, ni el
-    # celular del repartidor.
     texto = respuesta.text
     assert "historial" not in cuerpo
     for prohibido in ("actor_id", "actor_correo", "nota", "Perro bravo", CELULAR, OPERADOR, "@tukit.test"):

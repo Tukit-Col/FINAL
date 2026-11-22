@@ -1,9 +1,3 @@
-"""El detalle de pedido del admin: transaccion de Wompi, retractos con su plazo de
-la Ley 1480 y despacho por transportadora. Solo staff ve estos campos.
-
-Usa el banco de `conftest` (SQLite en memoria, pasarela e Identidad falsas).
-"""
-
 from __future__ import annotations
 
 from _ayudas_comercio import OPERADOR_HDR, REPARTIDOR, avanzar, pedido_pagado, poner_estado
@@ -19,7 +13,6 @@ async def test_detalle_trae_la_transaccion_de_wompi_solo_para_staff(cliente):
     staff = (await _detalle(cliente, pedido_id)).json()
     assert staff["pago"]["transaccion_wompi"]
     assert staff["pago"]["actualizado_en"]
-    # El portador lo ve por la ruta del acudiente y esa no lleva la transaccion.
     suyo = await cliente.get(f"/v1/comercio/mis-pedidos/{pedido_id}", headers=bearer(TOKEN_ACUDIENTE))
     assert "transaccion_wompi" not in (suyo.json().get("pago") or {})
 
@@ -33,7 +26,6 @@ async def test_retracto_aparece_con_plazo_y_limite_de_reembolso(cliente):
         ("entregado", {}),
     ):
         assert (await avanzar(cliente, pedido_id, {"destino": destino, **extra})).json()["estado"] == destino
-    # Entregado: el retracto de Ley 1480 corre cinco dias habiles desde hoy.
     await cliente.post(f"/v1/ordenes/{pedido_id}/retracto", json={"motivo": "No me sirvio"})
     devoluciones = (await _detalle(cliente, pedido_id)).json()["devoluciones"]
     assert len(devoluciones) == 1
@@ -69,4 +61,3 @@ async def test_despacho_con_transportadora_sin_guia_da_422(cliente):
     assert respuesta.status_code == 422
     assert respuesta.json()["campo"] == "guia"
     assert (await _detalle(cliente, pedido_id)).json()["estado"] == "en_preparacion"
-

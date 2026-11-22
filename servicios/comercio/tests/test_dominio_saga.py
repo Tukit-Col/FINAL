@@ -1,12 +1,3 @@
-"""La saga orden→pago→despacho, parte pura (ADR 0023).
-
-La saga entera ya existia dispersa (maquina de estados, `pedido_tras_pago`,
-`retractar_orden`, webhook idempotente). Lo que faltaba y se prueba aqui es la
-compensacion C1: liberar una reserva de inventario cuyo pago no confirmo dentro
-del TTL. La decision —QUE reservas vencieron— es pura: recibe filas planas y un
-corte, no toca base ni reloj.
-"""
-
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
@@ -40,8 +31,6 @@ def test_no_libera_una_reserva_reciente():
 
 
 def test_no_libera_si_el_pedido_ya_se_pago():
-    # El pago llego dentro del TTL: la reserva se consume al despachar, no se
-    # libera aunque la fila sea vieja.
     filas = [_reserva("activa", edad_min=31, pedido_estado="pagado")]
     assert reservas_vencidas(filas, ahora=AHORA, ttl=TTL) == []
 
@@ -55,8 +44,6 @@ def test_no_libera_una_reserva_ya_liberada_o_consumida():
 
 
 def test_los_pasos_de_la_saga_estan_nombrados():
-    # La saga se documenta como dato: cuatro pasos T con su compensacion (o None
-    # para T4, at-least-once no compensable).
     claves = {p.paso for p in PASOS}
     assert claves == {"T1", "T2", "T3", "T4"}
     t4 = next(p for p in PASOS if p.paso == "T4")

@@ -1,10 +1,3 @@
-"""La consecuencia de un pago sobre el pedido, como dominio puro.
-
-`pedido_tras_pago` decide a qué estado pasa el pedido según el resultado del
-cobro. Ya era una función pura dentro de `api.py` (`_pedido_tras_pago`); aquí
-vive en `dominio/pagos.py` y se prueba sin webhook ni base.
-"""
-
 from __future__ import annotations
 
 from tukit_comercio.dominio.pagos import firma_orden, pedido_tras_pago

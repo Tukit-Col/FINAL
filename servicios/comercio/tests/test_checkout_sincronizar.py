@@ -1,11 +1,3 @@
-"""Sincronizar el pago al regreso del acudiente (`/v1/pagos/{transaccion}/sincronizar`).
-
-El navegador vuelve de Wompi con el id de la transaccion; Comercio la consulta
-y aplica el resultado con las mismas reglas del webhook: idempotente, sin
-revivir un rechazo, sin duplicar el aviso `pedido_pagado`, y con una red de
-seguridad si llega una aprobacion para un pedido ya cancelado.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -111,7 +103,6 @@ async def test_sincronizar_transaccion_desconocida_es_404(cliente):
 
 
 async def test_sincronizar_referencia_sin_pago_es_404(cliente):
-    # La pasarela la conoce pero Comercio no tiene ese pago.
     app.state.pasarela.montos["tukit-huerfano"] = centavos(nueva_orden())
     r = await cliente.post("/v1/pagos/falsa-APPROVED-tukit-huerfano/sincronizar")
     assert r.status_code == 404
@@ -130,7 +121,6 @@ async def test_sincronizar_con_pasarela_caida_es_502(cliente):
 
 
 async def test_sincronizar_reintenta_una_vez_si_choca_el_indice_unico(cliente, monkeypatch):
-    """Webhook y regreso del usuario simultaneos: el segundo INSERT falla y se reintenta."""
     from tukit_comercio.repositorios import RepoPedidos
 
     pedido_id, ref = await pedido_con_pago(cliente)
@@ -140,7 +130,6 @@ async def test_sincronizar_reintenta_una_vez_si_choca_el_indice_unico(cliente, m
     async def con_choque(repo, datos):
         llamadas["n"] += 1
         if llamadas["n"] == 1:
-            # La "otra entrega" gana la carrera: aplica y confirma en su sesion.
             async with app.state.motor.sesion() as otra:
                 await original(RepoPedidos(await otra.connection()), datos)
             raise IntegrityError("INSERT", {}, Exception("UNIQUE evento_id"))
@@ -161,8 +150,6 @@ async def test_sincronizar_reintenta_una_vez_si_choca_el_indice_unico(cliente, m
 
 
 async def test_pago_aprobado_tras_cancelar_deja_una_incidencia(cliente):
-    # Red de seguridad: si aun asi llega una aprobacion para un pedido
-    # cancelado, el dinero no se pierde en silencio.
     pedido_id, ref = await pedido_con_pago(cliente)
     await cliente.post(f"/v1/ordenes/{pedido_id}/cancelar")
     r = await cliente.post(f"/v1/pagos/falsa-APPROVED-{ref}/sincronizar")

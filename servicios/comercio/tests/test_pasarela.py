@@ -1,10 +1,3 @@
-"""Las firmas de la pasarela, contra vectores conocidos.
-
-Las formulas estan verificadas contra docs.wompi.co. Se fijan aqui como
-funciones puras para que un cambio accidental en el orden de concatenacion o en
-lo que se firma rompa una prueba y no un cobro real.
-"""
-
 from __future__ import annotations
 
 import hashlib
@@ -25,7 +18,6 @@ from tukit_comercio.pasarela import (
 
 
 def test_firma_integridad_es_sha256_de_la_concatenacion():
-    # SHA256("<referencia><monto_centavos><moneda><secreto>"), monto en centavos.
     esperado = hashlib.sha256(b"ref-1250000COPsecreto").hexdigest()
     assert firma_integridad("ref-1", 250000, "secreto") == esperado
 
@@ -53,7 +45,6 @@ def test_la_pasarela_falsa_verifica_su_propia_firma():
     )
     assert falsa.verificar_firma(evento) is True
 
-    # Alterar el cuerpo firmado invalida la firma: es exactamente lo que protege.
     evento["data"]["transaction"]["status"] = "DECLINED"
     assert falsa.verificar_firma(evento) is False
 
@@ -70,9 +61,6 @@ def test_parsear_evento_saca_solo_id_referencia_transaccion_y_estado():
 
 
 def test_datos_widget_llevan_monto_referencia_y_firma():
-    # Lo que `new WidgetCheckout({...})` recibe en el navegador, con los nombres
-    # de la documentacion de Wompi. La firma sale del servidor: el secreto de
-    # integridad nunca viaja al navegador.
     datos = datos_widget(
         llave_publica="pub_test_x",
         referencia="tukit-abc",
@@ -92,9 +80,6 @@ def test_datos_widget_llevan_monto_referencia_y_firma():
 
 
 def test_datos_widget_llevan_redirect_url_cuando_se_pasa():
-    # PSE saca la pestana entera hacia el banco y el callback del widget se
-    # pierde: sin `redirectUrl`, Wompi deja al acudiente en su comprobante.
-    # Por postMessage (no por URL) Wompi si acepta volver a localhost.
     datos = datos_widget(
         llave_publica="pub_test_x",
         referencia="tukit-abc",
@@ -127,8 +112,6 @@ async def test_wompi_sandbox_crear_no_sale_a_la_red():
     )
     await cliente.aclose()
     assert creada.transaccion_id is None
-    # El widget no redirige: Wompi rechaza volver a localhost, y el modal deja
-    # al acudiente en Tukit.
     assert creada.url_redireccion is None
     assert creada.widget == datos_widget(
         llave_publica="pub_test_x",
@@ -361,13 +344,7 @@ def test_modo_falso_con_espacios_y_mayusculas_se_acepta(monkeypatch):
     assert isinstance(pasarela_desde_entorno(), PasarelaFalsa)
 
 
-# --- Busqueda por referencia (antes de cancelar un pedido) ------------------
-
-
 async def test_wompi_consultar_por_referencia_usa_llave_privada_y_toma_la_mas_reciente():
-    # Con la llave privada Wompi solo devuelve transacciones de ESTE comercio.
-    # Un pedido puede tener varios intentos con la misma referencia: manda el
-    # mas reciente.
     def _ok(peticion: httpx.Request) -> httpx.Response:
         assert peticion.method == "GET"
         assert peticion.url.path == "/v1/transactions"

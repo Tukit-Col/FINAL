@@ -1,10 +1,3 @@
-"""La maquina de estados del pedido, como dato y no como cadena de `if`.
-
-Se prueba cada par de transiciones: las permitidas pasan, todas las demas se
-rechazan, y los estados terminales (`entregado`, `cancelado`) no dejan salir a
-ningun lado.
-"""
-
 from __future__ import annotations
 
 from itertools import product

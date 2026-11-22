@@ -1,15 +1,3 @@
-"""La supresion del titular en Operacion (Ley 1581, ADR 0048).
-
-`titular_suprimido` llega por `operacion.supresion`. Lo que se fija aqui:
-
-- en los casos del titular, el asunto, la descripcion y todo texto de su
-  historia quedan con la marca;
-- el estado, la categoria, las fechas y la estructura de la historia se quedan
-  (la traza de que se atendio una PQRS);
-- los casos de otro no se tocan;
-- la confirmacion sale en la bandeja propia, una sola vez aunque el evento se repita.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -92,7 +80,6 @@ async def test_redacta_el_texto_libre_y_conserva_estado_y_fechas(motor):
         eventos = {e.tipo: e.datos for e in (await db.execute(select(EventoCaso))).scalars()}
         assert eventos["comentario_acudiente"] == {"texto": MARCA_SUPRIMIDO}
         assert eventos["respuesta"] == {"texto": MARCA_SUPRIMIDO}
-        # Lo que no es texto libre se queda: es la traza de la atencion.
         assert eventos["estado"] == {"desde": "abierto", "hacia": "resuelto"}
 
 

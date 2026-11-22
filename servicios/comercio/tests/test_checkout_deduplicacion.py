@@ -1,12 +1,3 @@
-"""Deduplicar ordenes del mismo kit (trabajo).
-
-Si el acudiente vuelve a cerrar el mismo kit con la misma entrega, Comercio
-reutiliza el pedido pendiente; si cambia la entrega (otra direccion, localidad,
-apartamento o pin), cancela el pendiente y crea otro, porque el envio es una
-copia congelada (ADR 0015). Un pendiente con pago en curso no se cancela, y uno
-vencido no se reutiliza. Las ordenes sin kit nunca se deduplican.
-"""
-
 from __future__ import annotations
 
 import pytest
@@ -25,7 +16,6 @@ TRABAJO = "33333333-3333-5333-8333-333333333333"
 
 
 def _orden_kit(**cambios) -> dict:
-    """Una orden ligada a un kit (trabajo), que es lo que deduplica Comercio."""
     return {**nueva_orden(), "trabajo_id": TRABAJO, **cambios}
 
 
@@ -51,7 +41,6 @@ async def test_orden_identica_del_mismo_kit_reutiliza_el_pedido_pendiente(client
 
 
 async def test_orden_con_campos_de_entrega_vacios_reutiliza_la_que_no_los_traia(cliente):
-    # Un campo ausente y uno vacio son la misma entrega.
     primero = (await cliente.post("/v1/ordenes", json=_orden_kit())).json()
     segundo = (await cliente.post("/v1/ordenes", json=_con_entrega(localidad="", indicaciones=""))).json()
     assert segundo["pedido_id"] == primero["pedido_id"]
@@ -62,8 +51,6 @@ async def test_orden_con_campos_de_entrega_vacios_reutiliza_la_que_no_los_traia(
     [{"localidad": "Usaquén"}, {"indicaciones": "Apto 301"}, {"departamento": "Cundinamarca"}],
 )
 async def test_orden_del_mismo_kit_con_otra_entrega_cancela_y_crea(cliente, cambio):
-    # El envio es una copia congelada (ADR 0015): reutilizar el pendiente con
-    # otra localidad u otro apartamento despacharia con los datos viejos.
     primero = (await cliente.post("/v1/ordenes", json=_con_entrega(localidad="Chapinero"))).json()
     segundo = (
         await cliente.post("/v1/ordenes", json=_con_entrega(**{"localidad": "Chapinero", **cambio}))
@@ -104,7 +91,6 @@ async def test_ordenes_sin_kit_no_se_deduplican(cliente):
 
 
 async def test_mover_el_pin_no_reutiliza_el_pendiente(cliente):
-    # Mismo texto, otro punto: el repartidor iria al sitio viejo si se reutilizara.
     a = (await cliente.post("/v1/ordenes", json=_con_entrega(latitud=4.65, longitud=-74.05))).json()
     b = (await cliente.post("/v1/ordenes", json=_con_entrega(latitud=4.70, longitud=-74.07))).json()
     c = (await cliente.post("/v1/ordenes", json=_con_entrega(latitud=4.70, longitud=-74.07))).json()

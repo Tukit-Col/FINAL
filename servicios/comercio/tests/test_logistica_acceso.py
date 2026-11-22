@@ -1,12 +1,3 @@
-"""Logistica: el back-office es solo del staff y el celular no sale de el.
-
-Se prueba por HTTP contra la app real (`ASGITransport`), con SQLite en memoria,
-la pasarela falsa y un doble de Identidad que mapea token -> sesion. Tablero,
-detalle y avance son de operador/admin: 401 sin sesion, 403 con otro rol, 503 si
-Identidad no responde (falla cerrada). El celular del repartidor solo lo traen
-el detalle de staff y la respuesta del avance.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -63,12 +54,9 @@ async def test_avanzar_solo_para_staff(cliente, headers, esperado):
     respuesta = await avanzar(cliente, pedido_id, {"destino": "en_preparacion"}, headers=headers)
     assert respuesta.status_code == esperado
     if esperado != 200:
-        # Un rechazo de acceso no mueve nada.
         assert await filas_de(HISTORIAL, pedido_id) == []
 
 
-# Las demas rutas de back-office sobre un pedido. El cuerpo es valido para que un
-# rechazo no pueda venir de la validacion: 401/403 tienen que salir del acceso.
 RUTAS_DE_STAFF = [
     ("GET", "/v1/comercio/pedidos/{id}/vista-previa?destino=en_preparacion", None),
     ("POST", "/v1/comercio/pedidos/{id}/reconciliar-pago", None),
@@ -86,7 +74,6 @@ async def test_las_rutas_de_back_office_rechazan_sin_sesion_o_sin_rol(
     respuesta = await cliente.request(metodo, ruta.format(id=pedido_id), headers=headers, json=json)
     assert respuesta.status_code == esperado
     assert respuesta.json()["error"] == ("sesion_invalida" if esperado == 401 else "acceso_denegado")
-    # Un rechazo de acceso no mueve nada.
     assert await filas_de(HISTORIAL, pedido_id) == []
 
 
@@ -124,7 +111,6 @@ async def test_el_celular_no_sale_del_detalle_de_staff(cliente):
     interna = (await cliente.get(f"/v1/ordenes/{pedido_id}")).text
     for cuerpo in (tablero, mios, interna):
         assert CELULAR not in cuerpo
-        # El nombre si se muestra: el papa sabe quien le lleva el pedido.
         assert "Luis Gomez" in cuerpo
 
 

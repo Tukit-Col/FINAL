@@ -1,11 +1,3 @@
-"""Logistica: cada avance del pedido deja su historial y su aviso, o nada.
-
-El operador (o el admin) mueve el pedido por la matriz de `AVANCES_DE_LOGISTICA`.
-Cada avance escribe una fila de historial con el actor y un aviso en la bandeja
-sin celular ni nota; un rechazo (422/409) o una carrera no dejan estado,
-historial ni evento a medias.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -50,9 +42,6 @@ AVANCES_SIN_CANCELAR = sorted(
 )
 
 
-# --- La matriz de avances ----------------------------------------------------
-
-
 def test_son_nueve_avances_sin_cancelar():
     assert len(AVANCES_SIN_CANCELAR) == 9
 
@@ -81,7 +70,6 @@ async def test_cada_avance_deja_historial_y_su_aviso(cliente, desde, hacia):
         carga = avisos[0].carga
         assert carga["pedido_id"] == pedido_id
         assert carga["usuario_id"] == USUARIO
-        # La carga viaja por el broker entera: ni celular, ni nota, ni tipo.
         assert CELULAR not in str(carga)
         assert "nota interna" not in str(carga)
         assert "tipo_incidencia" not in carga
@@ -105,12 +93,9 @@ async def test_el_admin_tambien_avanza_y_queda_como_actor(cliente):
 
 
 async def test_el_historial_guarda_el_correo_de_quien_avanzo(cliente):
-    """El back-office no puede pedirle a Identidad el nombre de otro miembro del
-    equipo: el historial guarda una copia del correo de la sesion del actor."""
     pedido_id = await pedido_pagado(cliente)
     respuesta = await avanzar(cliente, pedido_id, {"destino": "en_preparacion"})
     assert respuesta.status_code == 200
-    # El correo es el de la sesion que Identidad devolvio para el token.
     correo = sesiones_por_omision()[TOKEN_OPERADOR]["correo"]
     assert respuesta.json()["historial"][0]["actor_correo"] == correo
     (fila,) = await filas_de(HISTORIAL, pedido_id)
@@ -127,7 +112,6 @@ async def test_avanzar_pedido_pagado_a_en_preparacion(cliente):
 
 
 async def test_avanzar_a_destino_ilegal_da_409(cliente):
-    # pagado -> entregado se salta pasos: la tabla lo rechaza con 409.
     pedido_id = await pedido_pagado(cliente)
     respuesta = await cliente.post(
         f"/v1/ordenes/{pedido_id}/avanzar", headers=OPERADOR_HDR, json={"destino": "entregado"}
@@ -177,9 +161,6 @@ async def test_transiciones_fuera_de_la_matriz_dan_409(cliente, desde, hacia):
     assert await filas_de(HISTORIAL, pedido_id) == []
 
 
-# --- Despacho e incidencias --------------------------------------------------
-
-
 async def test_despachar_sin_repartidor_da_422(cliente):
     pedido_id = await pedido_pagado(cliente)
     await cliente.post(
@@ -204,7 +185,6 @@ async def test_despachar_con_repartidor_sella_el_envio(cliente):
         json={"destino": "despachado", **REPARTIDOR},
     )
     assert respuesta.status_code == 200
-    # La respuesta del avance es el detalle de staff: trae el celular.
     assert respuesta.json()["envio"]["repartidor_celular"] == CELULAR
     pedido = (await cliente.get(f"/v1/ordenes/{pedido_id}")).json()
     assert pedido["estado"] == EstadoPedido.DESPACHADO.value
@@ -264,7 +244,6 @@ async def test_reprogramar_y_cancelar_tras_incidencia(cliente):
     pedido_id = await pedido_pagado(cliente)
     incidencia = {"destino": "incidencia", "tipo_incidencia": "direccion_errada"}
     assert (await avanzar(cliente, pedido_id, incidencia)).json()["estado"] == "incidencia"
-    # Reprogramar: vuelve a preparacion y el aviso dice que se retoma.
     retoma = await avanzar(cliente, pedido_id, {"destino": "en_preparacion"})
     assert retoma.json()["estado"] == EstadoPedido.EN_PREPARACION.value
     assert (await avanzar(cliente, pedido_id, incidencia)).json()["estado"] == "incidencia"
@@ -273,7 +252,6 @@ async def test_reprogramar_y_cancelar_tras_incidencia(cliente):
     assert cancelado.status_code == 200
     cuerpo = cancelado.json()
     assert cuerpo["estado"] == EstadoPedido.CANCELADO.value
-    # Como el retracto: el pago aprobado queda marcado para reembolso.
     assert cuerpo["pago"]["estado"] == EstadoPago.REEMBOLSADO.value
     assert [h["estado_hacia"] for h in cuerpo["historial"]] == [
         "incidencia",
@@ -281,7 +259,6 @@ async def test_reprogramar_y_cancelar_tras_incidencia(cliente):
         "incidencia",
         "cancelado",
     ]
-    # Cada paso avisa: incidencia, retoma, incidencia y la cancelacion con su reembolso.
     avisos = await avisos_de(pedido_id)
     assert [a.tipo for a in avisos] == [
         "incidencia",
@@ -311,16 +288,13 @@ async def test_entrega_estimada_con_zona_queda_en_el_envio(cliente):
     assert respuesta.json()["envio"]["entrega_estimada"].startswith("2026-10-05")
 
 
-# --- Concurrencia -------------------------------------------------------------
-
-
 async def test_el_repositorio_no_mueve_desde_un_estado_desactualizado(cliente):
     pedido_id = await pedido_pagado(cliente)
     async with app.state.motor.sesion() as db:
         repo = RepoPedidos(await db.connection())
         movido = await repo.avanzar_despacho(
             pedido_id=uuid.UUID(pedido_id),
-            desde="en_preparacion",  # el pedido sigue en `pagado`
+            desde="en_preparacion",
             destino="despachado",
             repartidor_nombre="Luis",
             repartidor_celular=CELULAR,
@@ -337,8 +311,6 @@ async def test_una_carrera_da_409_y_no_deja_rastro(cliente, monkeypatch):
     original = RepoPedidos.obtener
 
     async def obtener_y_que_otro_lo_mueva(self, pid):
-        # El router lee el pedido en `pagado`; justo despues "otro operador" lo
-        # mueve. El UPDATE guardado ya no encuentra la fila en `pagado`.
         fila = await original(self, pid)
         await self.conexion.execute(update(PEDIDO).where(PEDIDO.c.id == pid).values(estado="incidencia"))
         return fila

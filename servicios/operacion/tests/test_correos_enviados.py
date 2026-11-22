@@ -1,7 +1,3 @@
-"""El panel de correos enviados: solo staff, sin contacto, con filtros y resumen.
-
-Contra la app real con SQLite en memoria, como `test_admin_tickets`."""
-
 from __future__ import annotations
 
 import uuid

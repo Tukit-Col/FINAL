@@ -1,14 +1,3 @@
-"""Las reglas del ciclo de un caso, puras y sin marco.
-
-Cuatro decisiones que antes vivian sueltas en el manejador HTTP, aqui separadas
-del router y del SQL: que categoria puede abrir un acudiente, con que prioridad
-nace un caso, cuando vence segun su SLA y como se ordena la bandeja. Cada una es
-una funcion que consulta las tablas de `modelos/base.py` —no las repite— y
-devuelve datos planos. `admitir_categoria_acudiente` sigue el patron de
-`despacho.validar_avance` de Comercio: devuelve el valor bueno o un rechazo
-tipado (razon estable + codigo HTTP) que el router traduce a un `ErrorDominio`.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -29,25 +18,12 @@ _RANGO_DESCONOCIDO = 99
 
 @dataclass(frozen=True)
 class CategoriaRechazada:
-    """Por que no se admite una categoria, con su codigo HTTP.
-
-    `razon` es un identificador estable (no un mensaje): `categoria_invalida`
-    cuando el texto no es ninguna categoria conocida, `categoria_no_permitida`
-    cuando existe pero es una falla de la saga que abre el sistema, no una
-    persona. Ambas son `422`; el router arma el sobre.
-    """
 
     razon: str
     estado: int
 
 
 def admitir_categoria_acudiente(categoria: str) -> CategoriaCaso | CategoriaRechazada:
-    """La categoria que un acudiente pide, o el rechazo tipado si no procede.
-
-    Devuelve el `CategoriaCaso` cuando el texto es una categoria valida y esta
-    en `CATEGORIAS_CASO_ACUDIENTE`; si no, un `CategoriaRechazada` distinguiendo
-    "no existe" de "existe pero la abre el sistema".
-    """
     try:
         elegida = CategoriaCaso(categoria)
     except ValueError:
@@ -58,25 +34,15 @@ def admitir_categoria_acudiente(categoria: str) -> CategoriaCaso | CategoriaRech
 
 
 def prioridad_inicial(categoria: CategoriaCaso) -> Prioridad:
-    """La prioridad con la que nace un caso segun su categoria (MEDIA por omision)."""
     return PRIORIDAD_POR_CATEGORIA.get(categoria, Prioridad.MEDIA)
 
 
 def vence_en(categoria: CategoriaCaso, desde: datetime) -> datetime | None:
-    """El instante de vencimiento del SLA, o `None` si la categoria no tiene termino."""
     horas = SLA_HORAS.get(categoria)
     return desde + timedelta(hours=horas) if horas is not None else None
 
 
 def clave_orden(prioridad: str, vence: datetime | None) -> tuple[int, float]:
-    """La clave de orden de la bandeja: prioridad primero, luego vencimiento.
-
-    Se ordena por el rango de `ORDEN_PRIORIDAD` (urgente arriba) y, dentro del
-    grupo, por el vencimiento mas cercano; un caso sin `vence_en` va al final de
-    su grupo (+inf). Una prioridad desconocida no rompe el orden: cae al fondo
-    (rango 99). Es calculo puro para que la bandeja y la etiqueta de prioridad no
-    se desincronicen.
-    """
     try:
         rango = ORDEN_PRIORIDAD[Prioridad(prioridad)]
     except ValueError:
@@ -87,8 +53,6 @@ def clave_orden(prioridad: str, vence: datetime | None) -> tuple[int, float]:
 
 _C = EstadoCaso
 
-# Lo que el operador puede mover en un ticket. `resuelto` se puede reabrir (el
-# acudiente responde o la solucion no sirvio); `cerrado` es terminal.
 TRANSICIONES_CASO: dict[EstadoCaso, frozenset[EstadoCaso]] = {
     _C.ABIERTO: frozenset({_C.EN_GESTION, _C.ESPERANDO_TERCERO, _C.RESUELTO}),
     _C.EN_GESTION: frozenset({_C.ESPERANDO_TERCERO, _C.RESUELTO}),
@@ -102,10 +66,6 @@ LONGITUD_MAXIMA_RESPUESTA = 2000
 
 @dataclass(frozen=True)
 class CambioRechazado:
-    """Por que un cambio de estado o una respuesta no procede, con su HTTP.
-
-    `razon` es estable (no un mensaje); `estado` es `422` si el destino ni es un
-    estado, y `409` si el estado actual no admite el cambio."""
 
     razon: str
     estado: int
@@ -113,7 +73,6 @@ class CambioRechazado:
 
 
 def validar_cambio_estado(actual: str, destino: str) -> CambioRechazado | None:
-    """`None` si el ticket puede pasar de `actual` a `destino`."""
     try:
         hacia = EstadoCaso(destino)
     except ValueError:
@@ -128,10 +87,6 @@ def validar_cambio_estado(actual: str, destino: str) -> CambioRechazado | None:
 
 
 def validar_respuesta(estado: str, texto: str) -> tuple[str | None, CambioRechazado | None]:
-    """El texto limpio de una respuesta al acudiente, o el rechazo.
-
-    No se responde a un ticket cerrado (`409`), ni con un texto vacio o mas largo
-    que el tope (`422`)."""
     if estado == EstadoCaso.CERRADO.value:
         return None, CambioRechazado("caso_cerrado", 409, "texto")
     limpio = texto.strip()
@@ -143,20 +98,13 @@ def validar_respuesta(estado: str, texto: str) -> tuple[str | None, CambioRechaz
 
 
 def estado_tras_respuesta(actual: str) -> str:
-    """Responder un ticket recien abierto lo pasa a gestion; cualquier otro queda igual
-    (uno resuelto se reabre aparte, con intencion)."""
     return EstadoCaso.EN_GESTION.value if actual == EstadoCaso.ABIERTO.value else actual
 
-
-# --- gestion del back-office: prioridad, asignacion y nota interna ------------
 
 LONGITUD_MAXIMA_NOTA = 2000
 
 
 def validar_prioridad(estado: str, destino: str) -> CambioRechazado | None:
-    """`None` si el ticket admite pasar a la prioridad `destino`.
-
-    Un valor desconocido es `422`; un ticket cerrado ya no se repriorizan (`422`)."""
     try:
         Prioridad(destino)
     except ValueError:
@@ -169,10 +117,6 @@ def validar_prioridad(estado: str, destino: str) -> CambioRechazado | None:
 def validar_asignacion(
     asignar: str, asignado_actual: str | None, actor: str, *, es_admin: bool
 ) -> CambioRechazado | None:
-    """`None` si la asignacion procede.
-
-    `yo` toma el ticket (tambien relevando a otro: la UI pide confirmarlo).
-    `nadie` lo suelta, y solo lo hace su dueno o un admin (`403`)."""
     if asignar == "yo":
         return None
     if asignar == "nadie":
@@ -183,7 +127,6 @@ def validar_asignacion(
 
 
 def validar_nota(texto: str) -> tuple[str | None, CambioRechazado | None]:
-    """El texto limpio de una nota interna (1 a 2000 caracteres), o el rechazo."""
     limpio = texto.strip()
     if not limpio:
         return None, CambioRechazado("nota_vacia", 422, "texto")

@@ -1,11 +1,3 @@
-"""Las reglas puras de como se interpreta un evento de bandeja de salida.
-
-Son el nucleo del repartidor sin base ni red: que plantilla le toca a cada tipo
-de evento, de donde sale el destinatario cuando la carga ya lo trae, y como se
-arma el cuerpo del aviso (codigo del pedido, enlace) sin filtrar contacto. El
-worker (`repartidor.py`) las orquesta; aqui se prueban solas (ADR 0019).
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -25,7 +17,6 @@ def test_plantilla_por_tipo_conocido():
 
 
 def test_plantilla_tipo_desconocido_es_none():
-    # Un tipo que el repartidor no maneja: no nos toca, no es un fallo.
     assert plantilla_para("algo_raro") is None
 
 
@@ -40,13 +31,10 @@ def test_destinatario_none_si_la_carga_no_trae_usuario():
 
 
 def test_kits_publicados_no_saca_destinatario_de_la_carga():
-    # kits_publicados lo lee de trabajo_pipeline (eso es del worker), nunca de la
-    # carga, aunque venga poblada.
     assert destinatario_en_carga("kits_publicados", {"usuario_id": "u-1"}) is None
 
 
 def test_los_datos_no_llevan_turno():
-    # "Turno" era el id del agregado: en un evento de pedido, el mismo codigo repetido.
     agregado = uuid.UUID("abcdef12-0000-4000-8000-000000000000")
     datos = datos_plantilla("pedido_pagado", agregado, {"pedido_id": str(agregado)}, base_web="https://tukit.co")
     assert "turno" not in datos and datos["pedido"] == "ABCDEF12"
@@ -82,8 +70,6 @@ def test_cancelado_lleva_si_hay_reembolso_y_preparacion_si_retoma():
     assert retoma["retoma"] is True
 
 
-# Los avisos de logistica: el back-office mueve el pedido y Comercio escribe el
-# evento con el usuario en la carga, igual que `pedido_pagado`.
 AVISOS_DE_LOGISTICA = ("pedido_despachado", "pedido_en_reparto", "pedido_entregado")
 
 
@@ -127,9 +113,6 @@ def test_textos_de_los_avisos_de_logistica():
     )
 
 
-# --- kits_publicados con varias listas del hogar (hermanos, 13-nov) -----------
-
-
 def test_lugares_de_mismo_colegio_dos_grados():
     from tukit_operacion.dominio.reparto import lugares_de
 
@@ -143,13 +126,11 @@ def test_lugares_de_dos_colegios():
     listas = [{"colegio_id": "a", "grado": "3"}, {"colegio_id": "b", "grado": "5"}]
     nombres = {"a": "Colegio A", "b": "Colegio B"}
     assert lugares_de(listas, nombres) == "Colegio A, grado 3 y Colegio B, grado 5"
-    # Tres colegios: comas y una "y" al final, sin truncar.
     tres = [*listas, {"colegio_id": "c", "grado": "1"}]
     assert (
         lugares_de(tres, {"a": "Colegio A", "b": "Colegio B", "c": "Colegio C"})
         == "Colegio A, grado 3, Colegio B, grado 5 y Colegio C, grado 1"
     )
-    # Un colegio sin nombre resuelto conserva su grado.
     assert lugares_de(listas, {"a": "Colegio A"}) == "Colegio A, grado 3 y grado 5"
 
 

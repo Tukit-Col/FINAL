@@ -1,16 +1,3 @@
-"""La superficie HTTP de Operacion, contra el contrato.
-
-Se prueba con `ASGITransport` y no levantando uvicorn: la app se llama en el
-mismo proceso. El motor y el cliente de Identidad se inyectan a mano en
-`app.state` porque el arranque normal abriria conexiones reales, y una suite
-que las necesita se termina saltando.
-
-Lo que se comprueba es lo que el contrato promete: el 422 para una categoria
-que un acudiente no puede abrir, el `vence_en` calculado del SLA, que la
-bandeja devuelva `resumen`+`casos`, y —lo que la deuda del manifiesto exige—
-que el contacto NO quede guardado en ningun lado del caso.
-"""
-
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
@@ -57,7 +44,6 @@ async def test_abrir_caso_devuelve_201_y_vence_en(cliente):
     cuerpo = respuesta.json()
     assert cuerpo["estado"] == "abierto"
     assert cuerpo["categoria"] == "peticion"
-    # Una peticion tiene termino (Ley 1755): vence_en no es nulo.
     assert cuerpo["vence_en"] is not None
     assert cuerpo["caso_id"]
 
@@ -75,13 +61,10 @@ async def test_categoria_inexistente_se_rechaza_con_422(cliente):
 
 
 async def test_sugerencia_puede_no_vencer_nunca_pero_peticion_si(cliente):
-    # Sugerencia tiene termino guia; una queja tambien. Lo que importa es que el
-    # SLA se aplica por categoria y no es un valor unico.
     peticion = (await cliente.post("/v1/operacion/casos", json=_solicitud(categoria="peticion"))).json()
     pago = (await cliente.post("/v1/operacion/casos", json=_solicitud(categoria="pago"))).json()
     assert peticion["vence_en"] is not None
     assert pago["vence_en"] is not None
-    # El de pago vence antes que el de peticion (24 h contra 15 dias).
     assert pago["vence_en"] < peticion["vence_en"]
 
 
@@ -100,7 +83,6 @@ async def test_bandeja_devuelve_resumen_y_casos(cliente):
         "vencidos",
     }
     assert cuerpo["resumen"]["abiertos"] == 1
-    # Un caso de pago nace urgente.
     assert cuerpo["resumen"]["urgentes"] == 1
 
 
@@ -113,13 +95,11 @@ async def test_contacto_no_queda_guardado_en_el_caso(cliente):
             json=_solicitud(contacto={"correo": correo, "celular": celular}),
         )
     ).json()
-    # El caso se pudo abrir y quedo con el usuario_id resuelto por el doble.
     detalle = (await cliente.get(f"/v1/operacion/casos/{creado['caso_id']}", headers=STAFF)).json()
     assert detalle["caso_id"] == creado["caso_id"]
     texto = str(detalle)
     assert correo not in texto
     assert celular not in texto
-    # Y el doble de Identidad SI recibio el contacto (se resolvio, no se guardo).
     assert app.state.identidad.llamadas == [(correo, celular)]
 
 
