@@ -73,7 +73,7 @@ leer, el vector de un renglón no se vuelve a pedir y el contador del límite de
 Si no responde, o con `make arriba REDIS_URL=`, arrancan sin caché y la puerta cuenta en su memoria
 (ADR 0047). `make prueba-redis` corre las pruebas contra Redis, en la base 15.
 Cada servicio publica su OpenAPI en `/docs`. La fuente de verdad, de todas formas, es
-[el contrato](docs/arquitectura/CONTRATO_API.md), que desde la versión 1.1 documenta la
+[el contrato](CONTRATO_API.md), que desde la versión 1.1 documenta la
 superficie de lectura completa con ejemplos de respuestas reales.
 
 `make humo` es la función de aptitud de la capa HTTP. No comprueba que responda `200`: un
@@ -365,7 +365,7 @@ catálogo con 18: modelos SQLAlchemy y pruebas de dominio); los otros cinco se l
 portando desde los repositorios anteriores, en el orden del
 plan `PLAN_TUKIT_V2.md` (repositorio externo `Arquitectura/`).
 
-La otra mitad de la superficie compartida es el [contrato de la API](docs/arquitectura/CONTRATO_API.md).
+La otra mitad de la superficie compartida es el [contrato de la API](CONTRATO_API.md).
 El manifiesto fija las fronteras de *datos*; el contrato fija las de *conversación*. Son los
 dos únicos archivos que varios frentes tocan a la vez, así que se cierran antes de repartir
 trabajo.

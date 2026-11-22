@@ -3,7 +3,7 @@
 - Las pruebas normales no llaman a Gemini.
 - `pytest -m nl2c_vivo ensayos/nl2c` corre la utilidad y los ataques con el modelo real
   (necesita GEMINI_API_KEY en el entorno). Es la corrida que produjo las cifras del informe;
-  los resultados crudos quedan en `docs/informes/nl2c/resultados/`.
+  los resultados crudos quedan en `ensayos/nl2c/salidas/resultados/`.
 """
 
 from __future__ import annotations

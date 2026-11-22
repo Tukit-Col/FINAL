@@ -41,8 +41,9 @@ from pathlib import Path
 import numpy as np
 
 RAIZ = Path(__file__).resolve().parents[2]
-SALIDA = RAIZ / "docs" / "informes" / "calibracion"
-MUESTRA = SALIDA / "muestra_ciega" / "muestra.csv"
+SALIDA = RAIZ / "ensayos" / "calibracion" / "salidas"
+MUESTRA_CIEGA = Path(__file__).resolve().parent / "datos" / "muestra_ciega"
+MUESTRA = MUESTRA_CIEGA / "muestra.csv"
 for r in ("servicios/catalogo", "servicios/inteligencia", "libs/py/tukit_comun", "ensayos/calibracion"):
     sys.path.insert(0, str(RAIZ / r))
 

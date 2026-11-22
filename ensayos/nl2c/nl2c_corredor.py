@@ -10,7 +10,7 @@ un doble. Mide:
   utilidad bajo ataque.
 
 Uso en vivo (necesita GEMINI_API_KEY en el entorno; nunca se imprime):
-    python ensayos/nl2c/nl2c_corredor.py --etiqueta ronda1 --salida docs/informes/nl2c/resultados
+    python ensayos/nl2c/nl2c_corredor.py --etiqueta ronda1 --salida ensayos/nl2c/salidas/resultados
 """
 
 from __future__ import annotations
@@ -548,7 +548,7 @@ def principal() -> int:
 
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--etiqueta", default="vivo")
-    ap.add_argument("--salida", default=str(RAIZ / "docs" / "informes" / "nl2c" / "resultados"))
+    ap.add_argument("--salida", default=str(RAIZ / "ensayos" / "nl2c" / "salidas" / "resultados"))
     ap.add_argument("--rep-utilidad", type=int, default=1)
     ap.add_argument("--rep-ataques", type=int, default=3)
     ap.add_argument("--pausa", type=float, default=0.3, help="segundos entre llamadas al modelo")

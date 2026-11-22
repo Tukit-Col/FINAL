@@ -19,7 +19,7 @@ Reglas del muestreo
 
 Salidas (la carpeta muestra_ciega/ es lo unico que ven los anotadores):
   muestra_ciega/muestra.csv, conceptos.csv, anotador_A.csv, anotador_B.csv
-  docs/informes/calibracion/muestreo.json (documentacion; NO se comparte con anotadores)
+  ensayos/calibracion/salidas/muestreo.json (documentacion; NO se comparte con anotadores)
 
 Uso: uv run python ensayos/calibracion/crear_muestra.py
 """
@@ -42,7 +42,7 @@ SEMILLA = 20261115
 N = 240
 MINIMO = 15
 EXCEPCION = {"COLEGIO MADRE MATILDE": ["Sexto", "Tercero", "Once"]}
-MUESTRA = k.SALIDA / "muestra_ciega"
+MUESTRA = k.MUESTRA_CIEGA
 NINGUNO = "NINGUNO"
 
 

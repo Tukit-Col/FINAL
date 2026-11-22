@@ -60,4 +60,4 @@ def test_flujo_con_anotadores_sinteticos(tmp_path: Path) -> None:
     assert abs(s["contra_oro_independiente"]["exactitud"]["valor"] - s["contra_etiquetas_del_sistema_circulares"]["exactitud"]["valor"]) < 0.05
     assert json.loads(salida.read_text(encoding="utf-8"))["n"] == len(filas)
     # nada de pruebas dentro de muestra_ciega/
-    assert not (k.SALIDA / "muestra_ciega" / "adjudicacion.csv").exists()
+    assert not (k.MUESTRA_CIEGA / "adjudicacion.csv").exists()

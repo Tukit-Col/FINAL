@@ -9,7 +9,7 @@ El intervalo del 95 % sale de un bootstrap percentil: 10.000 remuestreos con
 reemplazo de los 60 encuestados, con semilla fija.
 
 Uso: uv run python ensayos/calibracion/pesos_p21.py
-Salida: docs/informes/calibracion/pesos_p21.json
+Salida: ensayos/calibracion/salidas/pesos_p21.json
 """
 
 from __future__ import annotations

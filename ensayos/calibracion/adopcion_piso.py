@@ -1,7 +1,7 @@
 """Adopcion del piso 0,5 (hoy 0,6): que cifras cambian en la memoria.
 
 Solo calcula; no modifica el sistema ni la memoria. Escribe
-docs/informes/calibracion/adopcion_piso.json.
+ensayos/calibracion/salidas/adopcion_piso.json.
 
 Regla de tau (fijada ANTES de ver el resultado): "tau nuevo = el menor tau de la rejilla fina
 (paso 0,005) con precision de lo aceptado >= 0,97 sobre los 405 pares con piso 0,5".

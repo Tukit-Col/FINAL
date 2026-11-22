@@ -20,7 +20,7 @@ RAIZ = Path(__file__).resolve().parents[2]
 # los resultados que el informe cita (metricas, tablas, figuras, tiempos) van a
 # la documentacion, junto al informe que los lee.
 CARPETA = Path(__file__).resolve().parent
-SALIDA = RAIZ / "docs" / "informes" / "benchmark-laya"
+SALIDA = RAIZ / "ensayos" / "bench_laya" / "salidas"
 for sub in ("servicios/inteligencia", "libs/py/tukit_comun"):
     if str(RAIZ / sub) not in sys.path:
         sys.path.insert(0, str(RAIZ / sub))

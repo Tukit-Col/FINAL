@@ -1,5 +1,0 @@
-   1 .env
-1471 datos/catalogo
-  10 dependencias/build
-  16 generic-api-key
-1466 jwt

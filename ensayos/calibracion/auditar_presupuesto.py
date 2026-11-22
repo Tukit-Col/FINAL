@@ -23,7 +23,7 @@ from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 BANCO = Path(__file__).resolve().parents[1] / "bench_laya"
-SALIDA = Path(__file__).resolve().parents[2] / "docs" / "informes" / "calibracion" / "auditar_presupuesto.json"
+SALIDA = Path(__file__).resolve().parents[2] / "ensayos" / "calibracion" / "salidas" / "auditar_presupuesto.json"
 SEMILLAS = (0, 1, 2)
 sys.path.insert(0, str(BANCO))
 

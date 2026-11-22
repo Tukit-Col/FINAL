@@ -91,15 +91,7 @@ strict = true
 [tool.ruff]
 line-length = 110
 target-version = "py312"
-# Los worktrees efimeros de los agentes (.claude/worktrees, .worktrees) son
-# copias del arbol en otra rama: lintearlas aqui haria que el trabajo a medio
-# hacer de un agente rompiera la CI del arbol principal. Cada worktree se
-# revisa en su propia rama, no desde la raiz.
-#
-# `docs/` tampoco: desde la 0.16, ruff formatea los bloques de codigo de los
-# `.md`, y los de la documentacion son fragmentos que registran como estaba algo
-# en su momento (un plan, una spec). Reformatearlos reescribiria la historia.
-extend-exclude = [".claude/worktrees", ".worktrees", "docs"]
+extend-exclude = [".claude/worktrees", ".worktrees"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]

@@ -13,7 +13,7 @@ Se reporta, por kappa y por sobreprecio declarado, el promedio sobre listas de e
 fraccion con un intervalo bootstrap del 95 % (remuestreo de listas).
 
 Uso: uv run python ensayos/calibracion/sensibilidad.py
-Salida: docs/informes/calibracion/sensibilidad.json
+Salida: ensayos/calibracion/salidas/sensibilidad.json
 """
 
 from __future__ import annotations

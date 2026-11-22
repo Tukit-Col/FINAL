@@ -2,7 +2,7 @@
 
 Reutiliza ruta_real.py (importado): consulta.emparejar + estado_desde_emparejamiento sobre el catalogo vivo
 (solo SELECT) y los vectores en cache. Sin adoptar cambios. Salidas:
-  docs/informes/calibracion/tau_v2.json, docs/informes/calibracion/tabla_tau_v2.tex
+  ensayos/calibracion/salidas/tau_v2.json, ensayos/calibracion/salidas/tabla_tau_v2.tex
 
 Definiciones. Un renglon es "aceptado" a tau si la ruta real lo resuelve sin revision: emparejamiento
 reconocido con opciones y parecido >= tau (equivale a RESUELTO_AUTO). Acierto: concepto propuesto == etiqueta
@@ -22,7 +22,7 @@ import ruta_real as RR
 
 RAIZ, SALIDA = RR.RAIZ, RR.SALIDA
 ETIQ = RR.CL.DATOS / "renglones_etiquetados_v2.csv"
-ORO = SALIDA / "muestra_ciega" / "adjudicacion_llm.csv"
+ORO = RR.MUESTRA_CIEGA / "adjudicacion_llm.csv"
 SEMILLA = 20261101
 REP = 2000
 OBJ = 0.95
@@ -154,13 +154,13 @@ def particion(d, objetivo=OBJ, semillas=20):
 def main():
     rng = np.random.default_rng(SEMILLA)
     et = list(csv.DictReader(ETIQ.open(encoding="utf-8")))
-    M_ = SALIDA / "muestra_ciega"
+    M_ = RR.MUESTRA_CIEGA
     rd = lambda n: {r["id"]: r["concepto_codigo"] for r in csv.DictReader((M_ / n).open(encoding="utf-8"))}  # noqa: E731
     A, B = rd("anotador_A_llm.csv"), rd("anotador_B_llm.csv")
     adj = {r["id"]: r["adjudicado"] for r in csv.DictReader(ORO.open(encoding="utf-8"))}
     oro = {i: (A[i] if A[i] == B[i] else adj[i]) for i in A}  # mismo criterio que acuerdo_ruta_real.py
     ou = [{"id": i, "adjudicado": oro[i]} for i in sorted(oro)]
-    mu = {r["id"]: r for r in csv.DictReader((SALIDA / "muestra_ciega" / "muestra.csv").open(encoding="utf-8"))}
+    mu = {r["id"]: r for r in csv.DictReader((RR.MUESTRA_CIEGA / "muestra.csv").open(encoding="utf-8"))}
     em = emparejar_todo([r["texto_original"] for r in et] + [r["texto_original"] for r in mu.values()])
     D = Datos([r["texto_original"] for r in et], [r["concepto_codigo"] for r in et],
               [r["colegio"] + "|" + r["grado"] for r in et], [r["colegio"] for r in et], em)

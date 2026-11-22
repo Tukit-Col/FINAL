@@ -1,6 +1,6 @@
 """Exponente de crecimiento (ajuste log-log) del tiempo y la memoria de NSGA-II y de la PD frente al
 numero de lineas n, recalculado desde las corridas crudas de benchmarks/06-optimizacion (rama
-origin/benchmarks, commit 8d917ae). Solo lectura. Salida: docs/informes/calibracion/exponente_tiempo.json.
+origin/benchmarks, commit 8d917ae). Solo lectura. Salida: ensayos/calibracion/salidas/exponente_tiempo.json.
 Uso: python3 -I ensayos/calibracion/exponente_tiempo.py"""
 import gzip
 import io
@@ -12,7 +12,7 @@ from pathlib import Path
 
 RAMA = "origin/benchmarks"
 BASE = "benchmarks/06-optimizacion/resultados"
-OUT = Path(__file__).resolve().parents[2] / "docs/informes/calibracion/exponente_tiempo.json"
+OUT = Path(__file__).resolve().parents[2] / "ensayos/calibracion/salidas/exponente_tiempo.json"
 
 
 def leer_crudo(nombre):

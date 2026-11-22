@@ -21,7 +21,7 @@ import numpy as np
 
 RAIZ = Path(__file__).resolve().parents[2]
 CARPETA = Path(__file__).resolve().parent
-SALIDA = RAIZ / "docs" / "informes" / "calibracion"
+SALIDA = RAIZ / "ensayos" / "calibracion" / "salidas"
 BENCH = RAIZ / "ensayos" / "bench_laya"
 for ruta in (str(RAIZ / "servicios" / "inteligencia"), str(RAIZ / "libs" / "py" / "tukit_comun"), str(BENCH)):
     if ruta not in sys.path:

@@ -38,7 +38,7 @@ import clasificacion as k  # noqa: E402
 NINGUNO = "NINGUNO"
 REMUESTRAS = 2000
 SEMILLA = 20261116
-MUESTRA = k.SALIDA / "muestra_ciega"
+MUESTRA = k.MUESTRA_CIEGA
 
 
 def norm(c: str | None) -> str:

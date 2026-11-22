@@ -3,8 +3,8 @@
 Cada cifra del informe sale de aqui, de modo que ninguna se copia a mano.
 
     python ensayos/nl2c/nl2c_tablas.py ronda1
-escribe `docs/informes/nl2c/tablas/<etiqueta>_<nombre>.tex` (una por tabla, para \\input) y
-`docs/informes/nl2c/tablas_<etiqueta>.md` (para el README).
+escribe `ensayos/nl2c/salidas/tablas/<etiqueta>_<nombre>.tex` (una por tabla, para \\input) y
+`ensayos/nl2c/salidas/tablas_<etiqueta>.md` (para el README).
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
-CARPETA = RAIZ / "docs" / "informes" / "nl2c"
+CARPETA = RAIZ / "ensayos" / "nl2c" / "salidas"
 
 # Precio de lista de gemini-3.5-flash-lite en USD por millon de tokens. Es un supuesto
 # declarado en el informe, no un dato medido: se cambia aqui y las tablas se regeneran.

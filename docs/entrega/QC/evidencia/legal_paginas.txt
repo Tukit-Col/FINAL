@@ -1,7 +1,0 @@
-/legal 200
-/legal/privacidad 200
-/legal/terminos 200
-/legal/retracto 200
-/registro 404
-/cuenta/privacidad 404
-/privacidad 307
