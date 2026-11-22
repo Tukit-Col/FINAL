@@ -1,24 +1,26 @@
+// Formulario de `/empezar`: de quién es la lista, cuál kit marcar y el envío.
+//
+// Decisiones:
+// - Es un pedido por hogar y no por hijo, para poder juntar lo que se repite entre hermanos.
+// - Cada paso del envío (registro, matrículas, trabajo) guarda la firma de lo que ya hizo, así un
+//   reintento tras un fallo no repite lo que ya salió bien.
+// - Camino rápido: con un solo hijo de lista verificada, sin tope ni filtros y sin el punto medio,
+//   se aplica el kit canónico del grado en vez de crear un trabajo.
+// - Las reglas y los cuerpos de las peticiones viven en `lib/formulario-empezar` y
+//   `lib/envio-empezar`; las secciones de pantalla, en los componentes vecinos.
+
 "use client";
 
 import { useEffect, useId, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Check, LogIn, UserPlus } from "lucide-react";
+import { LogIn } from "lucide-react";
 import {
-  formatearTamano,
-  validarArchivo,
-  EXTENSIONES_ACEPTADAS,
-  GRADOS_CANONICOS,
   claveValida,
-  reglasDeClave,
+  validarArchivo,
   type Colegio,
   type GradoCanonico,
-  type HijoNuevo,
-  type HijoSolicitud,
   type MatriculaAcudiente,
-  type PerfilKit,
-  type Pesos,
-  type SolicitudTrabajo,
 } from "@tukit/contrato";
 import {
   aplicarCanonico,
@@ -37,86 +39,45 @@ import {
   CLAVE_RESTRICCIONES,
   aplicarPersonajes,
   cambiosDelAsistente,
-  filtrosDePreferencias,
   leerRestriccionesGuardadas,
 } from "@/lib/restricciones-asistente";
-import BuscadorColegio from "@/components/BuscadorColegio";
-import SelectorPersonaje from "./SelectorPersonaje";
+import {
+  contactoCompleto,
+  estadoDePaso,
+  faltantesDeContacto,
+  faltantesDeHijos,
+  faltantesEnOrden,
+  hijoCompleto,
+  hijoVacio,
+  pasoActual,
+  pasoEsFuturo,
+  perfilDeSeleccion,
+  siguienteReferencia,
+  unirEnLista,
+  type ClavePrioridad,
+  type HijoFormulario,
+  type Modo,
+  type PasoEmpezar,
+} from "@/lib/formulario-empezar";
+import {
+  archivosDeSubida,
+  canonicoDelUnicoHijo,
+  construirPreferencias,
+  construirRegistro,
+  construirSolicitud,
+  cuerpoCanonico,
+  destinoDeSubida,
+  hijosConListaVerificada,
+  hijosParaSubir,
+  matriculasNuevas,
+  personajesPorHijo,
+} from "@/lib/envio-empezar";
+import BloqueHijo from "./BloqueHijo";
+import SelectorCamino from "./SelectorCamino";
+import SeccionContacto from "./SeccionContacto";
+import SeccionPreferencias from "./SeccionPreferencias";
+import SeccionRegistro, { type PropsSeccion } from "./SeccionRegistro";
 import styles from "./Empezar.module.css";
-
-interface HijoFormulario {
-  referencia: string;
-  colegioId: string;
-  colegioDane: string;
-  colegioNombre: string;
-  grado: string;
-  apodo: string;
-  precargado: boolean;
-  archivo: File | null;
-  errorArchivo: string | null;
-  personajes: string;
-}
-
-type ClavePrioridad = "precio" | "equilibrio" | "calidad";
-
-interface Prioridad {
-  clave: ClavePrioridad;
-  titulo: string;
-  detalle: string;
-  pesos: Pesos;
-  disposicion_sobreprecio: number;
-}
-
-const PRIORIDADES: Prioridad[] = [
-  {
-    clave: "precio",
-    titulo: "Lo más económico",
-    detalle: "Gastar lo menos posible. Te marcamos el Ahorrador.",
-    pesos: { precio: 0.6, marca_exigida: 0.15, calidad: 0.2, personaje: 0.05 },
-    disposicion_sobreprecio: 0,
-  },
-  {
-    clave: "equilibrio",
-    titulo: "Un punto medio",
-    detalle: "Te armamos el kit «A tu Medida»: más marca que el Ahorrador, sin llegar al precio del Premium. Si quieres, ponle un tope.",
-    pesos: { precio: 0.35, marca_exigida: 0.3, calidad: 0.25, personaje: 0.1 },
-    disposicion_sobreprecio: 0.05,
-  },
-  {
-    clave: "calidad",
-    titulo: "Puedo estirarme un poco",
-    detalle: "Marcas y acabados de gama alta. Te marcamos el Premium.",
-    pesos: { precio: 0.15, marca_exigida: 0.35, calidad: 0.4, personaje: 0.1 },
-    disposicion_sobreprecio: 0.1,
-  },
-];
-
-function perfilDeSeleccion(prioridad: ClavePrioridad, tienePersonaje: boolean): PerfilKit {
-  if (tienePersonaje) return "Fan";
-  return prioridad === "calidad" ? "Premium" : "Ahorrador";
-}
-
-function hijoVacio(indice: number): HijoFormulario {
-  return {
-    referencia: `hijo-${indice}`,
-    colegioId: "",
-    colegioDane: "",
-    colegioNombre: "",
-    grado: "",
-    apodo: "",
-    precargado: false,
-    archivo: null,
-    errorArchivo: null,
-    personajes: "",
-  };
-}
-
-function unirEnLista(items: string[]): string {
-  if (items.length <= 1) return items[0] ?? "";
-  return `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}`;
-}
-
-type Modo = "elegir" | "existente" | "nuevo" | "autenticado";
 
 export default function FormularioEmpezar({
   colegios,
@@ -217,74 +178,28 @@ export default function FormularioEmpezar({
     });
   }
 
-  function gradoVerificado(hijo: HijoFormulario): boolean {
-    return porId.get(hijo.colegioId)?.grados.includes(hijo.grado) ?? false;
-  }
-
-  function necesitaArchivo(hijo: HijoFormulario): boolean {
-    if (!hijo.colegioId) return true;
-    return hijo.grado !== "" && !gradoVerificado(hijo);
-  }
-
-  function hijoCompleto(hijo: HijoFormulario): boolean {
-    if (!hijo.grado) return false;
-    if (!hijo.colegioId) return Boolean(hijo.colegioNombre) && hijo.archivo !== null;
-    if (necesitaArchivo(hijo)) return hijo.archivo !== null;
-    return true;
-  }
-
   const pideContacto = modo === "nuevo";
+  const datosContacto = {
+    correo,
+    celular,
+    claveOk: claveValida(clave),
+    aceptaTerminos,
+  };
   const listo =
-    (!pideContacto ||
-      (correo.trim().length > 3 &&
-        celular.trim().length > 6 &&
-        claveValida(clave) &&
-        aceptaTerminos)) &&
-    hijos.every(hijoCompleto);
+    (!pideContacto || contactoCompleto(datosContacto)) &&
+    hijos.every((hijo) => hijoCompleto(hijo, porId));
 
-  const faltantesContacto: string[] = [];
-  if (pideContacto) {
-    if (correo.trim().length <= 3) faltantesContacto.push("tu correo");
-    if (!claveValida(clave)) faltantesContacto.push("una contraseña de al menos 8 caracteres");
-    if (!aceptaTerminos) faltantesContacto.push("aceptar la política de datos y los términos");
-    if (celular.trim().length <= 6) faltantesContacto.push("tu celular");
-  }
-
-  const faltantesHijos: string[] = [];
-  hijos.forEach((hijo, i) => {
-    const suf = hijos.length > 1 ? ` del hijo ${i + 1}` : "";
-    const tieneColegio = Boolean(hijo.colegioId) || Boolean(hijo.colegioNombre);
-    if (!tieneColegio) faltantesHijos.push(`el colegio${suf}`);
-    else if (!hijo.grado) faltantesHijos.push(`el grado${suf}`);
-    else if (necesitaArchivo(hijo) && hijo.archivo === null) faltantesHijos.push(`la lista${suf}`);
-  });
-
-  const faltantes =
-    modo === "nuevo"
-      ? [...faltantesContacto, ...faltantesHijos]
-      : [...faltantesHijos, ...faltantesContacto];
+  const faltantesContacto = pideContacto ? faltantesDeContacto(datosContacto) : [];
+  const faltantesHijos = faltantesDeHijos(hijos, porId);
+  const faltantesPorPaso = { contacto: faltantesContacto, hijos: faltantesHijos };
+  const faltantes = faltantesEnOrden(modo, faltantesPorPaso);
 
   const mostrarFormulario = modo === "nuevo" || modo === "autenticado";
   const pasoHijos = modo === "nuevo" ? 2 : 1;
   const pasoContacto = 2;
   const pasoPrioridad = 3;
 
-  type PasoEmpezar = "registro" | "hijos" | "contacto" | "preferencias";
-  const ORDEN_PASOS: PasoEmpezar[] = ["registro", "hijos", "contacto", "preferencias"];
-  function pasoActual(): PasoEmpezar | null {
-    if (!mostrarFormulario) return null;
-    if (modo === "nuevo" && faltantesContacto.length > 0) return "registro";
-    if (faltantesHijos.length > 0) return "hijos";
-    return "preferencias";
-  }
-  const actual = pasoActual();
-  function estadoDePaso(paso: PasoEmpezar): PasoProgreso["estado"] {
-    if (actual === null) return "futuro";
-    if (paso === actual) return "actual";
-    if (ORDEN_PASOS.indexOf(paso) > ORDEN_PASOS.indexOf(actual)) return "futuro";
-    const faltantes = paso === "hijos" ? faltantesHijos : paso === "contacto" ? faltantesContacto : [];
-    return faltantes.length === 0 ? "completo" : "futuro";
-  }
+  const actual = pasoActual(modo, faltantesPorPaso);
   const pasosProgreso: PasoProgreso[] = (
     modo === "nuevo"
       ? ([
@@ -297,11 +212,15 @@ export default function FormularioEmpezar({
           ["contacto", "A dónde te avisamos"],
           ["preferencias", "Cuál kit te marcamos"],
         ] as const)
-  ).map(([clave, titulo]) => ({ clave, titulo, estado: estadoDePaso(clave) }));
+  ).map(([clavePaso, titulo]) => ({
+    clave: clavePaso,
+    titulo,
+    estado: estadoDePaso(clavePaso, actual, faltantesPorPaso),
+  }));
 
-  function propsDePaso(paso: PasoEmpezar): { className: string; "aria-current"?: "step" } {
-    const futuro = actual !== null && ORDEN_PASOS.indexOf(paso) > ORDEN_PASOS.indexOf(actual);
-    const completo = estadoDePaso(paso) === "completo";
+  function propsDePaso(paso: PasoEmpezar): PropsSeccion {
+    const futuro = pasoEsFuturo(paso, actual);
+    const completo = estadoDePaso(paso, actual, faltantesPorPaso) === "completo";
     return {
       className: futuro
         ? `${styles.bloque} ${styles.bloqueInactivo}`
@@ -320,45 +239,19 @@ export default function FormularioEmpezar({
     setAviso(null);
     setGradosDetectados([]);
 
-    const personajePorHijo: Record<string, string[]> = {};
-    for (const hijo of hijos) {
-      const lista = hijo.personajes
-        .split(",")
-        .map((p) => p.trim())
-        .filter(Boolean);
-      if (lista.length > 0) personajePorHijo[hijo.referencia] = lista;
-    }
-
-    const elegida =
-      PRIORIDADES.find((p) => p.clave === prioridad) ?? PRIORIDADES[1]!;
-
+    const personajePorHijo = personajesPorHijo(hijos);
     const contacto = { correo: correo.trim(), celular: celular.trim() };
-
-    const preferencias = {
-      pesos: elegida.pesos,
-      disposicion_sobreprecio: elegida.disposicion_sobreprecio,
-      prioridad: elegida.clave,
-      ...(conTope ? { presupuesto_por_hijo: Number.parseInt(presupuesto, 10) } : {}),
-      ...(Object.keys(personajePorHijo).length > 0
-        ? { personaje_por_hijo: personajePorHijo }
-        : {}),
-      ...filtrosDePreferencias(marcasExcluidas, soloDisponibles),
-    };
+    const preferencias = construirPreferencias({
+      prioridad,
+      presupuesto,
+      conTope,
+      personajePorHijo,
+      marcasExcluidas,
+      soloDisponibles,
+    });
 
     if (modo === "nuevo") {
-      const registro = {
-        correo: contacto.correo,
-        clave,
-        acepta_terminos: aceptaTerminos,
-        celular: contacto.celular,
-        hijos: hijos
-          .filter((hijo) => hijo.colegioId)
-          .map((hijo) => ({
-            colegio_id: hijo.colegioId,
-            grado: hijo.grado,
-            ...(hijo.apodo.trim() ? { apodo: hijo.apodo.trim() } : {}),
-          })),
-      };
+      const registro = construirRegistro({ ...contacto, clave, aceptaTerminos }, hijos);
       const firmaRegistro = JSON.stringify(registro);
       if (progreso.registroFirma !== firmaRegistro) {
         try {
@@ -391,13 +284,7 @@ export default function FormularioEmpezar({
     }
 
     if (modo === "autenticado") {
-      const nuevos: HijoNuevo[] = hijos
-        .filter((hijo) => !hijo.precargado && hijo.colegioId)
-        .map((hijo) => ({
-          colegio_id: hijo.colegioId,
-          grado: hijo.grado,
-          ...(hijo.apodo.trim() ? { apodo: hijo.apodo.trim() } : {}),
-        }));
+      const nuevos = matriculasNuevas(hijos);
       if (nuevos.length > 0) {
         const firmaMatriculas = JSON.stringify(nuevos);
         if (progreso.matriculasFirma !== firmaMatriculas) {
@@ -413,30 +300,17 @@ export default function FormularioEmpezar({
       }
     }
 
-    const hijosVerificados = hijos.filter(
-      (hijo) => hijo.colegioId && gradoVerificado(hijo),
-    );
-    const hijosSubida = hijos.filter((hijo) => necesitaArchivo(hijo) && hijo.archivo);
+    const hijosVerificados = hijosConListaVerificada(hijos, porId);
+    const hijosSubida = hijosParaSubir(hijos, porId);
 
-    const soloHijo = hijos.length === 1 ? hijos[0] : null;
-    const canonicoDelHijo =
-      soloHijo && soloHijo.colegioId && gradoVerificado(soloHijo)
-        ? canonicos.find(
-            (c) => c.colegio_id === soloHijo.colegioId && c.grado === soloHijo.grado,
-          )
-        : undefined;
-
-    if (soloHijo && canonicoDelHijo && prioridad !== "equilibrio" && !hayFiltros) {
+    const rapido = canonicoDelUnicoHijo(hijos, canonicos, porId);
+    if (rapido && prioridad !== "equilibrio" && !hayFiltros) {
+      const { soloHijo, canonico } = rapido;
       const personaje = personajePorHijo[soloHijo.referencia]?.[0];
       try {
-        const aplicado = await aplicarCanonico({
-          colegio_id: canonicoDelHijo.colegio_id,
-          grado: canonicoDelHijo.grado,
-          anio_lectivo: canonicoDelHijo.anio_lectivo,
-          perfil: perfilDeSeleccion(prioridad, Boolean(personaje)),
-          ...(personaje ? { personaje } : {}),
-          ...(soloHijo.apodo.trim() ? { apodo: soloHijo.apodo.trim().slice(0, 40) } : {}),
-        });
+        const aplicado = await aplicarCanonico(
+          cuerpoCanonico(soloHijo, canonico, perfilDeSeleccion(prioridad, Boolean(personaje)), personaje),
+        );
         router.push(`/kits/${aplicado.trabajo_id}`);
         if (modo === "nuevo") router.refresh();
         return;
@@ -452,15 +326,7 @@ export default function FormularioEmpezar({
       let trabajoInstantaneo: string | null = null;
 
       if (hijosVerificados.length > 0) {
-        const solicitud: SolicitudTrabajo = {
-          hijos: hijosVerificados.map<HijoSolicitud>((hijo) => ({
-            referencia: hijo.referencia,
-            colegio_id: hijo.colegioId,
-            grado: hijo.grado,
-            ...(hijo.apodo.trim() ? { apodo: hijo.apodo.trim().slice(0, 40) } : {}),
-          })),
-          preferencias,
-        };
+        const solicitud = construirSolicitud(hijosVerificados, preferencias);
         const firmaTrabajo = JSON.stringify(solicitud);
         if (progreso.trabajoId && progreso.trabajoFirma === firmaTrabajo) {
           trabajoInstantaneo = progreso.trabajoId;
@@ -473,20 +339,8 @@ export default function FormularioEmpezar({
 
       if (hijosSubida.length > 0) {
         const resultado = await subirListas(
-          hijosSubida.map((hijo) => ({
-            referencia: hijo.referencia,
-            ...(hijo.colegioId
-              ? { colegio_id: hijo.colegioId }
-              : hijo.colegioDane
-                ? { colegio_dane: hijo.colegioDane, colegio_nombre: hijo.colegioNombre }
-                : { colegio_nombre: hijo.colegioNombre }),
-            grado: hijo.grado,
-            ...(hijo.apodo.trim() ? { apodo: hijo.apodo.trim().slice(0, 40) } : {}),
-          })),
-          hijosSubida.map((hijo) => ({
-            referencia: hijo.referencia,
-            archivo: hijo.archivo as File,
-          })),
+          hijosSubida.map(destinoDeSubida),
+          archivosDeSubida(hijosSubida),
           undefined,
           preferencias,
         );
@@ -519,34 +373,7 @@ export default function FormularioEmpezar({
         </p>
       </header>
 
-      {modo !== "autenticado" && (
-        <div className={styles.dosColumnas} role="group" aria-label="¿Ya tienes cuenta?">
-          <button
-            type="button"
-            aria-pressed={modo === "existente"}
-            className={`${styles.opcionEntrada} ${modo === "existente" ? styles.opcionActiva : ""}`}
-            onClick={() => setModo("existente")}
-          >
-            <LogIn size={16} strokeWidth={2.4} aria-hidden="true" />
-            <span className={styles.opcionTexto}>
-              <strong>Ya tengo cuenta, ingresar</strong>
-              <span>Te precargamos a tus hijos: no vuelves a escribir su colegio ni su grado.</span>
-            </span>
-          </button>
-          <button
-            type="button"
-            aria-pressed={modo === "nuevo"}
-            className={`${styles.opcionEntrada} ${modo === "nuevo" ? styles.opcionActiva : ""}`}
-            onClick={() => setModo("nuevo")}
-          >
-            <UserPlus size={16} strokeWidth={2.4} aria-hidden="true" />
-            <span className={styles.opcionTexto}>
-              <strong>Crear cuenta nueva</strong>
-              <span>Guardamos tus pedidos y a tus hijos para la próxima vez.</span>
-            </span>
-          </button>
-        </div>
-      )}
+      {modo !== "autenticado" && <SelectorCamino modo={modo} onElegir={setModo} />}
 
       {mostrarFormulario && <ProgresoPasos pasos={pasosProgreso} />}
 
@@ -564,425 +391,116 @@ export default function FormularioEmpezar({
       )}
 
       {modo === "nuevo" && (
-        <section {...propsDePaso("registro")} aria-labelledby={`${idBase}-registro`}>
-          <h2 id={`${idBase}-registro`} className={styles.tituloBloque}>
-            <span className={styles.paso}>1</span> Regístrate
-          </h2>
-          <p className={styles.explicacion}>
-            Creamos tu cuenta para guardar tus pedidos y avisarte cuando el kit esté
-            listo. La próxima vez entras y ya tienes a tus hijos cargados.
-          </p>
-          <div className={styles.dosColumnas}>
-            <label className={styles.campo}>
-              <span>Correo</span>
-              <input
-                type="email"
-                value={correo}
-                onChange={(e) => setCorreo(e.target.value)}
-                placeholder="tucorreo@ejemplo.com"
-                autoComplete="email"
-                required
-              />
-            </label>
-            <div className={styles.campo}>
-              <label htmlFor={`${idReglasClave}-clave`}>
-                <span>Contraseña</span>
-              </label>
-              <input
-                id={`${idReglasClave}-clave`}
-                type="password"
-                value={clave}
-                onChange={(e) => setClave(e.target.value)}
-                placeholder="Elige una contraseña"
-                autoComplete="new-password"
-                aria-describedby={idReglasClave}
-                required
-              />
-              <ul id={idReglasClave} className={styles.reglasClave} aria-live="polite">
-                {reglasDeClave(clave).map((regla) => (
-                  <li key={regla.id} className={regla.cumple ? styles.reglaCumple : styles.reglaPendiente}>
-                    <Check size={13} aria-hidden="true" strokeWidth={3} />
-                    {regla.texto}
-                    <span className={styles.soloLectores}>{regla.cumple ? " (listo)" : " (falta)"}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <label className={styles.campo}>
-              <span>Celular</span>
-              <input
-                type="tel"
-                value={celular}
-                onChange={(e) => setCelular(e.target.value)}
-                placeholder="+57 300 123 4567"
-                autoComplete="tel"
-                required
-              />
-            </label>
-          </div>
-          <label className={styles.casillaTerminos}>
-            <input
-              type="checkbox"
-              checked={aceptaTerminos}
-              onChange={(e) => setAceptaTerminos(e.target.checked)}
-              required
-            />
-            <span>
-              Leí y acepto la{" "}
-              <Link href="/legal/privacidad" target="_blank" rel="noopener noreferrer">
-                política de tratamiento de datos personales
-              </Link>{" "}
-              y los{" "}
-              <Link href="/legal/terminos" target="_blank" rel="noopener noreferrer">
-                términos y condiciones
-              </Link>
-              .
-            </span>
-          </label>
-        </section>
+        <SeccionRegistro
+          propsSeccion={propsDePaso("registro")}
+          idBase={idBase}
+          idReglasClave={idReglasClave}
+          correo={correo}
+          onCorreo={setCorreo}
+          clave={clave}
+          onClave={setClave}
+          celular={celular}
+          onCelular={setCelular}
+          aceptaTerminos={aceptaTerminos}
+          onAceptaTerminos={setAceptaTerminos}
+        />
       )}
 
       {mostrarFormulario && (
         <>
-      <section {...propsDePaso("hijos")} aria-labelledby={`${idBase}-hijos`}>
-        <h2 id={`${idBase}-hijos`} className={styles.tituloBloque}>
-          <span className={styles.paso}>{pasoHijos}</span> De quién es la lista
-        </h2>
+          <section {...propsDePaso("hijos")} aria-labelledby={`${idBase}-hijos`}>
+            <h2 id={`${idBase}-hijos`} className={styles.tituloBloque}>
+              <span className={styles.paso}>{pasoHijos}</span> De quién es la lista
+            </h2>
 
-        {hijos.map((hijo, indice) => {
-          const colegio = porId.get(hijo.colegioId);
-          return (
-            <fieldset key={hijo.referencia} className={styles.hijo}>
-              <legend className={styles.leyenda}>
-                Hijo {indice + 1}
-                {hijos.length > 1 && (
-                  <button
-                    type="button"
-                    className={styles.quitar}
-                    onClick={() => setHijos((a) => a.filter((_, i) => i !== indice))}
-                  >
-                    Quitar
-                  </button>
-                )}
-              </legend>
-
-              <BuscadorColegio
+            {hijos.map((hijo, indice) => (
+              <BloqueHijo
+                key={hijo.referencia}
+                hijo={hijo}
+                indice={indice}
+                totalHijos={hijos.length}
+                modo={modo}
+                colegio={porId.get(hijo.colegioId)}
                 colegiosAliados={colegiosAliados}
-                colegioId={hijo.colegioId}
-                colegioDane={hijo.colegioDane}
-                colegioNombre={hijo.colegioNombre}
-                onElegirAliado={(colegioId) =>
-                  cambiar(indice, { colegioId, colegioDane: "", colegioNombre: "", grado: "" })
-                }
-                onElegirDirectorio={({ dane, nombre }) =>
-                  cambiar(indice, { colegioId: "", colegioDane: dane, colegioNombre: nombre, grado: "" })
-                }
-                onEscribir={(nombre) =>
-                  cambiar(indice, { colegioId: "", colegioDane: "", colegioNombre: nombre, grado: "" })
-                }
-                onCambiar={() =>
-                  cambiar(indice, { colegioId: "", colegioDane: "", colegioNombre: "", grado: "" })
-                }
-              />
-
-              {(hijo.colegioId || hijo.colegioNombre) &&
-                (modo === "nuevo" || (modo === "autenticado" && !hijo.precargado)) && (
-                  <label className={styles.campo}>
-                    <span>Apodo de tu hijo (opcional)</span>
-                    <input
-                      type="text"
-                      value={hijo.apodo}
-                      onChange={(e) => cambiar(indice, { apodo: e.target.value })}
-                      placeholder="Escribe el apodo de tu hijo para personalizar tu kit"
-                      autoComplete="off"
-                    />
-                  </label>
-                )}
-              {modo === "autenticado" && hijo.precargado && hijo.apodo && (
-                <p className={styles.apodoPrecargado}>Apodo: {hijo.apodo}</p>
-              )}
-
-              {(colegio || hijo.colegioNombre) && (
-                <div className={styles.gradoBloque}>
-                  <span className={styles.campoRotulo}>Grado</span>
-                  <div className={styles.gradoChips} role="radiogroup" aria-label="Elige el grado">
-                    {GRADOS_CANONICOS.map((g) => {
-                      const activo = hijo.grado === g;
-                      const oficial = Boolean(hijo.colegioId);
-                      const verificado = oficial && (colegio?.grados.includes(g) ?? false);
-                      const clase = activo
-                        ? styles.chipGradoActivo
-                        : verificado
-                          ? styles.chipGradoVerificado
-                          : "";
-                      return (
-                        <button
-                          key={g}
-                          type="button"
-                          role="radio"
-                          aria-checked={activo}
-                          aria-label={
-                            oficial
-                              ? `${g}, ${verificado ? "con lista verificada" : "sin lista verificada"}`
-                              : g
-                          }
-                          title={
-                            oficial
-                              ? verificado
-                                ? "Tiene lista verificada del colegio"
-                                : "Sin lista verificada todavía"
-                              : undefined
-                          }
-                          className={`${styles.chipGrado} ${clase}`}
-                          onClick={() => cambiar(indice, { grado: g })}
-                        >
-                          {g}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {colegio &&
-                hijo.grado !== "" &&
-                !colegio.grados.includes(hijo.grado) && (
-                  <div className={styles.zonaListaGrado}>
-                    <span className={styles.campoRotulo}>Subir lista de grado ({hijo.grado})</span>
-                    <p className={styles.reglaArchivo}>
-                      Este grado todavía no tiene lista verificada del colegio.
-                      Adjunta tu lista y la revisamos para armar el kit.
-                    </p>
-                    <input
-                      id={`lista-grado-${hijo.referencia}`}
-                      type="file"
-                      className={styles.inputArchivo}
-                      accept={EXTENSIONES_ACEPTADAS.join(",")}
-                      onChange={(e) => {
-                        elegirArchivo(indice, e.target.files?.[0]);
-                        e.target.value = "";
-                      }}
-                    />
-                    <label htmlFor={`lista-grado-${hijo.referencia}`} className={styles.soltar}>
-                      <strong>Haz clic para elegir el archivo</strong>
-                      <span>PDF, JPG, PNG o WEBP · hasta 10 MB</span>
-                    </label>
-                    {hijo.archivo && (
-                      <p className={styles.archivoElegido}>
-                        {hijo.archivo.name} · {formatearTamano(hijo.archivo.size)}
-                      </p>
-                    )}
-                    {hijo.errorArchivo && (
-                      <p className={styles.errorCampo} role="alert">
-                        {hijo.errorArchivo}
-                      </p>
-                    )}
-                  </div>
-                )}
-
-              {!hijo.colegioId && hijo.colegioNombre && (
-                <div className={styles.zonaArchivo}>
-                  <p className={styles.reglaArchivo}>
-                    Sube solo las páginas del grado de tu hijo. Si mandas el PDF
-                    completo del colegio con los trece grados no lo procesamos, porque
-                    un kit armado con los útiles de otro grado es peor que no tener
-                    kit.
-                  </p>
-                  <input
-                    id={`archivo-${hijo.referencia}`}
-                    type="file"
-                    className={styles.inputArchivo}
-                    accept={EXTENSIONES_ACEPTADAS.join(",")}
-                    onChange={(e) => {
-                      elegirArchivo(indice, e.target.files?.[0]);
-                      e.target.value = "";
-                    }}
-                  />
-                  <label htmlFor={`archivo-${hijo.referencia}`} className={styles.soltar}>
-                    <strong>Haz clic para elegir el archivo</strong>
-                    <span>PDF, JPG, PNG o WEBP · hasta 10 MB</span>
-                  </label>
-
-                  {hijo.archivo && (
-                    <p className={styles.archivoElegido}>
-                      {hijo.archivo.name} · {formatearTamano(hijo.archivo.size)}
-                    </p>
-                  )}
-                  {hijo.errorArchivo && (
-                    <p className={styles.errorCampo} role="alert">
-                      {hijo.errorArchivo}
-                    </p>
-                  )}
-
-                  {hijo.colegioNombre && hijo.grado && !error && (
-                    <p className={styles.sugerenciaOk} role="status">
-                      <Check size={16} strokeWidth={3} aria-hidden="true" />
-                      Con esto revisamos tu lista, armamos tu kit y dejamos {hijo.colegioNombre} ·{" "}
-                      {hijo.grado} verificado para los demás.
-                    </p>
-                  )}
-                </div>
-              )}
-
-              <SelectorPersonaje
-                etiquetaHijo={`Hijo ${indice + 1}`}
-                valor={hijo.personajes}
-                onChange={(personajes) => cambiar(indice, { personajes })}
                 surtidos={surtidos}
+                hayError={Boolean(error)}
+                onCambiar={(cambio) => cambiar(indice, cambio)}
+                onQuitar={() => setHijos((a) => a.filter((_, i) => i !== indice))}
+                onElegirArchivo={(elegido) => elegirArchivo(indice, elegido)}
               />
-            </fieldset>
-          );
-        })}
+            ))}
 
-        {modo === "autenticado" &&
-          avisosPrecarga.map((texto) => (
-            <p key={texto} className={styles.avisoCaja} role="status">
-              {texto}
-            </p>
-          ))}
+            {modo === "autenticado" &&
+              avisosPrecarga.map((texto) => (
+                <p key={texto} className={styles.avisoCaja} role="status">
+                  {texto}
+                </p>
+              ))}
 
-        {hijos.length < MAX_HIJOS && (
-          <button
-            type="button"
-            className={styles.agregar}
-            onClick={() =>
-              setHijos((a) => [
-                ...a,
-                hijoVacio(Math.max(0, ...a.map((h) => Number(h.referencia.slice(5)) || 0)) + 1),
-              ])
-            }
-          >
-            + Agregar otro hijo
-          </button>
-        )}
-      </section>
+            {hijos.length < MAX_HIJOS && (
+              <button
+                type="button"
+                className={styles.agregar}
+                onClick={() => setHijos((a) => [...a, hijoVacio(siguienteReferencia(a))])}
+              >
+                + Agregar otro hijo
+              </button>
+            )}
+          </section>
 
-      {modo !== "nuevo" && (
-      <section {...propsDePaso("contacto")} aria-labelledby={`${idBase}-contacto`}>
-        <h2 id={`${idBase}-contacto`} className={styles.tituloBloque}>
-          <span className={styles.paso}>{pasoContacto}</span> A dónde te avisamos
-        </h2>
-        <p className={styles.explicacion}>
-          Armar el kit toma minutos, no segundos, porque una persona revisa cada
-          lista para que la calidad no falle. No tienes que quedarte mirando la
-          pantalla: te escribimos cuando esté listo.
-        </p>
-        <p className={styles.explicacion}>
-          Te avisamos a los datos de tu cuenta
-          {sesion?.correo ? (
-            <>
-              : <strong>{sesion.correo}</strong>
-            </>
-          ) : null}
-          .
-        </p>
-      </section>
-      )}
-
-      <section {...propsDePaso("preferencias")} aria-labelledby={`${idBase}-preferencias`}>
-        <h2 id={`${idBase}-preferencias`} className={styles.tituloBloque}>
-          <span className={styles.paso}>{pasoPrioridad}</span> Cuál kit te marcamos
-        </h2>
-        <p className={styles.explicacion}>
-          Todos los kits llevan la misma lista; lo que cambia es la marca de cada
-          producto y, con ella, cuánto gastas. Siempre verás el Ahorrador y el
-          Premium, y te marcamos el que va con lo que elijas aquí. No preguntamos por
-          el estrato ni por nada del hogar.
-        </p>
-
-        <fieldset className={styles.opciones}>
-          <legend className={styles.leyendaSimple}>Cuánto quieres gastar</legend>
-          {PRIORIDADES.map((opcion) => (
-            <label
-              key={opcion.clave}
-              className={`${styles.tarjetaPrioridad} ${
-                prioridad === opcion.clave ? styles.opcionActiva : ""
-              }`}
-            >
-              <input
-                type="radio"
-                name="prioridad"
-                value={opcion.clave}
-                checked={prioridad === opcion.clave}
-                onChange={() => setPrioridad(opcion.clave)}
-              />
-              <span className={styles.prioridadTexto}>
-                <strong>{opcion.titulo}</strong>
-                <span className={styles.prioridadDetalle}>{opcion.detalle}</span>
-              </span>
-            </label>
-          ))}
-        </fieldset>
-
-        {hayFiltros && (
-          <p className={styles.explicacion}>
-            Tu kit va {marcasExcluidas.length > 0 ? `sin ${marcasExcluidas.join(", ")}` : ""}
-            {marcasExcluidas.length > 0 && soloDisponibles ? " y " : ""}
-            {soloDisponibles ? "solo con productos que hay hoy" : ""}.{" "}
-            <button
-              type="button"
-              className={styles.quitar}
-              onClick={() => {
-                setMarcasExcluidas([]);
-                setSoloDisponibles(false);
-              }}
-            >
-              Quitar
-            </button>
-          </p>
-        )}
-
-        {prioridad === "equilibrio" && (
-          <div className={styles.panelTope}>
-            <label className={styles.campo}>
-              <span>
-                Tope para tu kit «A tu Medida» <em>(opcional)</em>
-              </span>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={presupuesto ? `$ ${Number(presupuesto).toLocaleString("es-CO")}` : ""}
-                onChange={(e) => setPresupuesto(e.target.value.replace(/\D/g, "").slice(0, 9))}
-                placeholder="Ej.: 350.000"
-                aria-describedby={`${idBase}-ayuda-presupuesto`}
-              />
-            </label>
-            <p id={`${idBase}-ayuda-presupuesto`} className={styles.ayudaTope}>
-              {conTope
-                ? "Te armamos la mejor marca que no pase de este tope. Si ni el kit más barato cabe, te lo decimos con su precio."
-                : "Sin tope, «A tu Medida» sube de marca donde vale la pena, sin pasar de la mitad de camino entre el precio del Ahorrador y el del Premium."}
-            </p>
-          </div>
-        )}
-      </section>
-
-      {error && (
-        <div className={styles.errorCaja} role="alert">
-          <strong>{error}</strong>
-          {gradosDetectados.length > 0 && (
-            <p>Detectamos estos grados en el archivo: {gradosDetectados.join(", ")}.</p>
+          {modo !== "nuevo" && (
+            <SeccionContacto
+              propsSeccion={propsDePaso("contacto")}
+              idBase={idBase}
+              numeroPaso={pasoContacto}
+              correoSesion={sesion?.correo}
+            />
           )}
-        </div>
-      )}
 
-      {aviso && (
-        <div className={styles.avisoCaja} role="status">
-          {aviso}
-        </div>
-      )}
+          <SeccionPreferencias
+            propsSeccion={propsDePaso("preferencias")}
+            idBase={idBase}
+            numeroPaso={pasoPrioridad}
+            prioridad={prioridad}
+            onPrioridad={setPrioridad}
+            marcasExcluidas={marcasExcluidas}
+            soloDisponibles={soloDisponibles}
+            onQuitarFiltros={() => {
+              setMarcasExcluidas([]);
+              setSoloDisponibles(false);
+            }}
+            presupuesto={presupuesto}
+            onPresupuesto={setPresupuesto}
+            conTope={conTope}
+          />
 
-      <div className={styles.barraAccion}>
-        <button type="submit" className={styles.enviar} disabled={!listo || enviando}>
-          {enviando ? "Creando tu pedido…" : "Armar mis kits"}
-        </button>
-        {!listo && (
-          <p className={styles.faltante}>
-            {faltantes.length > 0
-              ? `${faltantes.length === 1 ? "Falta" : "Faltan"} ${unirEnLista(faltantes)} para continuar.`
-              : "Completa los datos que faltan para continuar."}
-          </p>
-        )}
-      </div>
+          {error && (
+            <div className={styles.errorCaja} role="alert">
+              <strong>{error}</strong>
+              {gradosDetectados.length > 0 && (
+                <p>Detectamos estos grados en el archivo: {gradosDetectados.join(", ")}.</p>
+              )}
+            </div>
+          )}
+
+          {aviso && (
+            <div className={styles.avisoCaja} role="status">
+              {aviso}
+            </div>
+          )}
+
+          <div className={styles.barraAccion}>
+            <button type="submit" className={styles.enviar} disabled={!listo || enviando}>
+              {enviando ? "Creando tu pedido…" : "Armar mis kits"}
+            </button>
+            {!listo && (
+              <p className={styles.faltante}>
+                {faltantes.length > 0
+                  ? `${faltantes.length === 1 ? "Falta" : "Faltan"} ${unirEnLista(faltantes)} para continuar.`
+                  : "Completa los datos que faltan para continuar."}
+              </p>
+            )}
+          </div>
         </>
       )}
     </form>
