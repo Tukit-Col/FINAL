@@ -121,6 +121,20 @@ class Hijo(BaseModel):
         return v
 
 
+# El contrato promete archivos de hasta 10 MB (CONTRATO_API.md); el navegador lo valida, y aqui se impone.
+TOPE_ARCHIVO_BYTES = 10 * 1024 * 1024
+
+
+def _exigir_tamano(contenido: bytes) -> None:
+    if len(contenido) > TOPE_ARCHIVO_BYTES:
+        raise ErrorDominio(
+            "archivo_demasiado_grande",
+            f"El archivo pesa mas de {TOPE_ARCHIVO_BYTES // (1024 * 1024)} MB.",
+            estado=413,
+            campo="archivo",
+        )
+
+
 class Contacto(BaseModel):
     correo: str = Field(min_length=5, max_length=320)
     celular: str | None = Field(default=None, max_length=32)
@@ -815,6 +829,8 @@ async def subir_listas(peticion: Request) -> dict[str, Any]:
         )
 
     pdf_por_hijo = [_archivo_de(i, h.referencia) for i, h in enumerate(hijos)]
+    for pdf in pdf_por_hijo:
+        _exigir_tamano(pdf)
 
     percibidos: list[tuple[HijoSubida, str, bytes, Percepcion]] = []
     for hijo, pdf in zip(hijos, pdf_por_hijo, strict=True):
@@ -974,6 +990,7 @@ async def onboarding(
         raise ErrorDominio(
             "archivo_faltante", "No llego ningun archivo en el campo `archivo`.", estado=422, campo="archivo"
         )
+    _exigir_tamano(archivo)
     try:
         anio_lectivo = int(campos["anio_lectivo"])
     except ValueError as error:
