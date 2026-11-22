@@ -1,21 +1,3 @@
-"""Las colas en RabbitMQ, con dobles y sin broker (ADR 0046).
-
-Se fija aqui:
-
-- **La topologia.** Cada consumidor tiene su cola principal, la de reintentos
-  (que devuelve a la principal cuando vence su espera) y la de descartados; las
-  tres clasicas y durables, y la principal atada por cada tipo que le toca.
-- **El sobre.** Lo que sale de una fila de bandeja llega igual al consumidor, con
-  su origen; un cuerpo que no es un sobre se reconoce.
-- **El publicador.** Marca publicado solo lo que el broker confirmo; si falla a
-  mitad, guarda lo confirmado y el error sube.
-- **El consumidor.** Confirma tras procesar, reintenta con la cuenta en la
-  cabecera, descarta al llegar al tope, devuelve sin gastar intento ante una
-  caida y salta lo que ya proceso.
-
-Las pruebas contra un RabbitMQ de verdad estan en `test_colas_rabbitmq.py`.
-"""
-
 from __future__ import annotations
 
 import json
@@ -53,21 +35,16 @@ from tukit_comun.topologia import (
 AGREGADO = uuid.UUID("11111111-2222-3333-4444-555555555555")
 
 
-# --- topologia ---------------------------------------------------------------
-
-
 def test_cada_cola_tiene_reintentos_y_descartados():
     cola = Cola("operacion.avisos", ("pedido_pagado",), espera_reintento_ms=2_000)
 
     assert cola.reintentos == "operacion.avisos.reintentos"
     assert cola.descartados == "operacion.avisos.descartados"
-    # Lo que la principal rechaza va a descartados por el exchange por omision.
     assert cola.argumentos() == {
         "x-queue-type": "classic",
         "x-dead-letter-exchange": "",
         "x-dead-letter-routing-key": "operacion.avisos.descartados",
     }
-    # Los reintentos esperan su TTL y vuelven a la principal.
     assert cola.argumentos_reintentos() == {
         "x-queue-type": "classic",
         "x-message-ttl": 2_000,
@@ -88,7 +65,6 @@ def test_la_topologia_tiene_una_cola_por_consumidor():
         "inteligencia.supresion",
         "identidad.supresion",
     ]
-    # La supresion del titular llega a los tres servicios que guardan sus datos.
     assert [c.nombre for c in TOPOLOGIA.colas if "titular_suprimido" in c.claves] == [
         "comercio.supresion",
         "operacion.supresion",
@@ -107,7 +83,6 @@ def test_con_prefijo_renombra_exchange_y_colas():
     assert avisos.nombre == "prueba-1.operacion.avisos"
     assert avisos.claves == AVISOS.claves
     assert avisos.argumentos_reintentos()["x-message-ttl"] == 50
-    # La topologia de verdad no cambia.
     assert TOPOLOGIA.cola("operacion.avisos").nombre == "operacion.avisos"
 
 
@@ -142,10 +117,8 @@ async def test_declarar_crea_exchange_colas_y_bindings():
     assert exchange == "p.tukit.eventos"
     assert canal.llamadas[0] == ("exchange", "p.tukit.eventos", "topic", True)
     declaradas = [llamada for llamada in canal.llamadas if llamada[0] == "cola"]
-    # Tres colas por consumidor, todas durables.
     assert len(declaradas) == 3 * len(topologia.colas)
     assert all(llamada[2] is True for llamada in declaradas)
-    # La principal se declara despues de su descartados y su reintentos.
     nombres = [llamada[1] for llamada in declaradas]
     assert nombres[:3] == [
         "p.operacion.avisos.descartados",
@@ -157,9 +130,6 @@ async def test_declarar_crea_exchange_colas_y_bindings():
     assert ("p.inteligencia.trabajos", "trabajo_encolado") in bindings
     assert len(bindings) == sum(len(cola.claves) for cola in topologia.colas)
     assert set(colas) == {cola.nombre for cola in topologia.colas}
-
-
-# --- el sobre ----------------------------------------------------------------
 
 
 def _fila(id_: int = 7, tipo: str = "pedido_pagado", carga: dict[str, Any] | None = None) -> Any:
@@ -222,8 +192,6 @@ def test_un_cuerpo_que_no_es_sobre_se_reconoce(datos):
         evento_de(datos)
 
 
-# --- el publicador -----------------------------------------------------------
-
 BANDEJA = bandeja_reflejada(MetaData())
 
 
@@ -262,8 +230,6 @@ async def _pendientes(motor: AsyncEngine) -> list[int]:
 
 
 class _Destino:
-    """Un broker falso: confirma todo, salvo la publicacion numero `falla_en`."""
-
     def __init__(self, *, falla_en: int | None = None, error: Exception | None = None) -> None:
         self.publicados: list[Evento] = []
         self.falla_en = falla_en
@@ -302,11 +268,9 @@ async def test_si_la_publicacion_falla_guarda_lo_confirmado_y_el_error_sube(moto
     with pytest.raises(ConnectionRefusedError):
         await publicar_pendientes(motor, destino, origen="comercio")
 
-    # Los dos confirmados quedaron marcados; el que fallo y el siguiente, no.
     assert [e.id for e in destino.publicados] == [1, 2]
     assert await _pendientes(motor) == [3, 4]
 
-    # La pasada siguiente sigue donde iba, sin repetir lo confirmado.
     await publicar_pendientes(motor, destino, origen="comercio")
     assert [e.id for e in destino.publicados] == [1, 2, 3, 4]
     assert await _pendientes(motor) == []
@@ -321,7 +285,7 @@ async def test_vaciar_sigue_hasta_que_no_quedan_pendientes(motor):
 
 
 class _Corte(Exception):
-    """Para salir del bucle infinito en la prueba."""
+    pass
 
 
 async def test_el_bucle_cierra_la_conexion_tras_una_caida_y_sigue(motor):
@@ -337,7 +301,6 @@ async def test_el_bucle_cierra_la_conexion_tras_una_caida_y_sigue(motor):
     with pytest.raises(_Corte):
         await correr("comercio", motor, destino, seguir=True, intervalo=1.0, dormir=dormir)
 
-    # La caida cerro la conexion y espero 1 s; la vuelta siguiente publico todo.
     assert destino.cerrado == 1
     assert esperas == [1.0, 1.0]
     assert [e.id for e in destino.publicados] == [1, 2]
@@ -363,12 +326,7 @@ def test_sin_rabbitmq_url_el_publicador_no_arranca(monkeypatch, capsys):
     assert "falta RABBITMQ_URL" in capsys.readouterr().out
 
 
-# --- el consumidor -----------------------------------------------------------
-
-
 class _Mensaje:
-    """Un mensaje entrante falso, con lo que el consumidor usa de aio-pika."""
-
     def __init__(self, datos: bytes, *, cabeceras: dict[str, Any] | None = None) -> None:
         self.body = datos
         self.headers = cabeceras or {}
@@ -459,9 +417,7 @@ async def test_reintentar_va_a_reintentos_con_la_cuenta_en_la_cabecera():
     assert reenvio.enviados == [
         ("operacion.avisos.reintentos", {CABECERA_INTENTOS: 2, "tukit-otra": "se conserva"})
     ]
-    # Se confirma el original: la copia en reintentos es la que sigue.
     assert mensaje.acks == 1
-    # Lo que no se proceso no queda anotado.
     assert registro.vistos == set()
 
 
@@ -541,7 +497,6 @@ async def test_el_registro_en_tabla_anota_una_sola_vez(motor):
     await registro.marcar("catalogo", 3)
     await registro.marcar("catalogo", 3)
     assert await registro.ya_procesado("catalogo", 3) is True
-    # El id es por origen: el 3 de Comercio es otro evento.
     assert await registro.ya_procesado("comercio", 3) is False
 
     async with motor.begin() as conexion:

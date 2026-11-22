@@ -1,21 +1,3 @@
-"""La superficie de ESCRITURA de productos: editar, reclasificar y retirar.
-
-El SPA de catalogo (P4c) y el refactor del empezar (P4b) necesitan cuatro cosas
-que la API de LECTURA no daba: enumerar los personajes en existencia con su
-conteo, editar un producto por su sku, reasignarle el concepto y retirarlo. Se
-montan sobre la MISMA api publica que ya sirve `GET /v1/catalogo/productos`,
-porque ahi viven los productos y de ahi los lee el SPA: la forma de lectura y la
-de escritura tienen que coincidir clave por clave.
-
-Las tres rutas que escriben NO llaman a Gemini en el camino de la peticion:
-cuando cambia lo que alimenta el vector (nombre, atributos, concepto) solo se
-invalida `texto_embedding=NULL`, y el siguiente `enriquecer` re-embebe. Se
-prueba mirando la columna directo, no la respuesta.
-
-Corren contra la app con `ASGITransport` y un SQLite en memoria inyectado a
-mano, igual que `test_api_admin`.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -38,21 +20,11 @@ from tukit_catalogo.modelos import (
 from tukit_comun.bd import MotorServicio
 
 CURADOR = uuid.UUID("22222222-2222-5222-8222-222222222222")
-# El precio sembrado del producto que editan y reclasifican las pruebas (pesos).
 PRECIO_SPIDER = 9900
 PRODUCTO = Base.metadata.tables["producto_canonico"]
 
 
 def _siembra(sesion) -> dict[str, uuid.UUID]:
-    """Dos conceptos y un puñado de productos con personaje, para ejercer todo.
-
-    C001 (cuaderno) admite personaje y tiene un cuaderno de Spiderman con
-    precio, un cuaderno liso con precio y un cuaderno de Frozen sin precio.
-    C011 (colores) tiene una caja de Spiderman: dos personajes distintos, dos
-    conceptos, para probar el enumerado. El producto con precio y ofertas es el
-    que se usa para comprobar que la respuesta de escritura conserva
-    `precio_desde` y `tiendas`.
-    """
     cuaderno = Concepto(codigo="C001", nombre_canonico="cuaderno", categoria="Cuadernos")
     colores = Concepto(codigo="C011", nombre_canonico="colores", categoria="Arte")
     sesion.add_all([cuaderno, colores])
@@ -64,7 +36,6 @@ def _siembra(sesion) -> dict[str, uuid.UUID]:
 
     productos: dict[str, ProductoCanonico] = {}
     especificacion = (
-        # sku, concepto, nombre, nivel, personaje, precio (None = sin oferta)
         ("TK-C001-SPIDER", cuaderno.id, "Cuaderno Spiderman", "confiable", "Spiderman", PRECIO_SPIDER),
         ("TK-C001-LISO", cuaderno.id, "Cuaderno liso", "economico", None, 4500),
         ("TK-C001-FROZEN", cuaderno.id, "Cuaderno Frozen", "premium", "Frozen", None),
@@ -83,8 +54,6 @@ def _siembra(sesion) -> dict[str, uuid.UUID]:
             atributos={"rayado": "cuadriculado"},
             unidades_por_empaque=1,
             quality_score="0.700",
-            # La huella del embedding empieza puesta: el test de invalidacion
-            # comprueba que la escritura la borra a NULL.
             texto_embedding=f"texto de {sku}",
             embedding_model="fake-embeder",
             curado_por=CURADOR,
@@ -150,12 +119,11 @@ class TestListarPersonajes:
     async def test_enumera_personajes_con_su_conteo(self, cliente):
         cuerpo = (await cliente.get("/v1/catalogo/personajes")).json()
         por_nombre = {p["nombre"]: p for p in cuerpo["personajes"]}
-        # Spiderman aparece en dos productos (cuaderno y colores), Frozen en uno.
         assert por_nombre["Spiderman"]["productos"] == 2
         assert por_nombre["Frozen"]["productos"] == 1
         assert set(por_nombre) == {"Frozen", "Spiderman"}
 
-    async def test_ordena_por_nombre(self, cliente):
+    async def test_los_personajes_salen_ordenados_por_nombre(self, cliente):
         cuerpo = (await cliente.get("/v1/catalogo/personajes")).json()
         nombres = [p["nombre"] for p in cuerpo["personajes"]]
         assert nombres == sorted(nombres)
@@ -170,8 +138,6 @@ class TestListarPersonajes:
             assert [p["sku"] for p in cuerpo["productos"]] == ["TK-C001-SPIDER"], consulta
 
     async def test_trae_los_conceptos_de_cada_personaje(self, cliente):
-        # El SPA necesita los codigos de concepto por personaje para su gate de
-        # los cuatro anclas (C001/C009/C011/C086) sin una segunda llamada.
         cuerpo = (await cliente.get("/v1/catalogo/personajes")).json()
         por_nombre = {p["nombre"]: p for p in cuerpo["personajes"]}
         assert set(por_nombre["Spiderman"]["conceptos"]) == {"C001", "C011"}
@@ -195,7 +161,6 @@ class TestEditarProducto:
         assert cuerpo["nombre"] == "Cuaderno Spiderman edicion"
         assert cuerpo["marca"] == "Scribe"
         assert cuerpo["es_propio"] is True
-        # La forma publica conserva precio_desde y tiendas del producto con oferta.
         assert cuerpo["precio_desde"] == PRECIO_SPIDER
         assert cuerpo["tiendas"] == 1
         assert cuerpo["concepto"]["codigo"] == "C001"
@@ -210,7 +175,6 @@ class TestEditarProducto:
         assert await _texto_embedding("TK-C001-SPIDER") is None
 
     async def test_editar_solo_marca_no_toca_el_embedding(self, cliente):
-        # La marca no alimenta el vector: no hay por que gastar una re-embebida.
         await cliente.patch("/v1/catalogo/productos/TK-C001-SPIDER", json={"marca": "Scribe"})
         assert await _texto_embedding("TK-C001-SPIDER") == "texto de TK-C001-SPIDER"
 
@@ -253,15 +217,12 @@ class TestEditarProducto:
         assert respuesta.json()["campo"] == "quality_score"
 
     async def test_patch_atributos_no_escalar_es_422(self, cliente):
-        # Un atributo con valor lista/objeto es basura tipada: se rechaza antes
-        # de persistirla, nombrando la clave ofensora, no un 200 que la guarda.
         respuesta = await cliente.patch(
             "/v1/catalogo/productos/TK-C001-SPIDER", json={"atributos": {"materias": ["a", "b"]}}
         )
         assert respuesta.status_code == 422 and respuesta.json()["error"] == "atributos_invalido"
 
     async def test_patch_atributos_escalares_ok(self, cliente):
-        # int, str y bool son valores simples aceptados (bool es subclase de int).
         respuesta = await cliente.patch(
             "/v1/catalogo/productos/TK-C001-SPIDER",
             json={"atributos": {"hojas": 80, "rayado": "cuadriculado", "deposito": True}},
@@ -278,9 +239,6 @@ class TestReclasificar:
         assert respuesta.status_code == 200
         cuerpo = respuesta.json()
         assert cuerpo["concepto"]["codigo"] == "C011"
-        # La semilla se re-acuna: su SKU nombra el concepto y ya no puede
-        # decir C001 (test_el_sku_nombra_al_concepto_y_al_nivel_que_dice_la_fila).
-        # Ya hay un TK-C011-SPIDER: el re-acunado no lo pisa, lleva sufijo.
         assert cuerpo["sku"] == "TK-C011-SPIDER-2"
         assert cuerpo["precio_desde"] == PRECIO_SPIDER
 
@@ -298,11 +256,10 @@ class TestReclasificar:
 
 
 class TestRetirarProducto:
-    async def test_es_soft_delete(self, cliente):
+    async def test_eliminar_un_producto_responde_204_y_lo_deja_inactivo_sin_borrarlo(self, cliente):
         assert await _activo("TK-C001-SPIDER") is True
         respuesta = await cliente.delete("/v1/catalogo/productos/TK-C001-SPIDER")
         assert respuesta.status_code == 204
-        # No se borra: sigue en la tabla, solo inactivo (las ofertas no orfanan).
         assert await _activo("TK-C001-SPIDER") is False
 
     async def test_desaparece_de_la_lectura_publica(self, cliente):

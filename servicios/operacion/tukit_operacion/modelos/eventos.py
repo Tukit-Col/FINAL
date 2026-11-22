@@ -1,11 +1,3 @@
-"""Bandeja de salida transaccional de Operacion.
-
-Misma convencion de columnas que Inteligencia y Comercio (`tipo, agregado_tipo,
-agregado_id, carga, ...`), para que si algun dia otro servicio consume la
-bandeja de Operacion lo haga con el mismo parser. El evento se escribe en la
-misma transaccion que el cambio que lo origina (por ejemplo `caso_abierto`).
-"""
-
 from __future__ import annotations
 
 import uuid

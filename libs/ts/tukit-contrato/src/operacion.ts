@@ -1,28 +1,11 @@
-// Superficie de LECTURA de `operacion`. ASUMIDA, no transcrita.
-//
-// `operacion` es el servicio de casos, PQRS, notificaciones, auditoria y
-// telemetria (§1 de ARQUITECTURA.md). Cada falla del flujo transaccional abre
-// un Caso aqui (§Procesos: AuthFailure, MappingFailure, PaymentFailure,
-// StockFailure, DeliveryFailure). El contrato v1.0 no publica su superficie de
-// lectura, asi que estos tipos son una inferencia a partir de esa
-// responsabilidad canonica y de la ADR 0004 (gestion de casos propia, no
-// Salesforce).
-//
-// Vive aparte de `contrato.ts` por la misma razon que `comercio.ts` y
-// `catalogo.ts`: separar lo transcrito de lo asumido. La bandeja de tickets del
-// back-office consume SOLO esto.
-
 export const VERSION_OPERACION_ASUMIDA = "1.x-asumida";
 
-// De donde nacio el caso. `sistema` son las fallas de la saga (§Procesos); el
-// resto son PQRS que abre una persona.
 export type OrigenCaso =
   | "acudiente"
   | "colegio"
   | "operador"
   | "sistema";
 
-// Las cinco fallas nombradas de la saga + las categorias de PQRS.
 export type CategoriaCaso =
   | "pago"
   | "stock"
@@ -64,8 +47,6 @@ export const ETIQUETA_ESTADO_CASO: Record<EstadoCaso, string> = {
   cerrado: "Cerrado",
 };
 
-// La prioridad ordena la bandeja. Una PQRS tiene un reloj legal (Ley 1755); una
-// falla de pago bloquea plata. El operador entra por lo urgente primero.
 export type Prioridad = "urgente" | "alta" | "media" | "baja";
 
 export const ORDEN_PRIORIDAD: Record<Prioridad, number> = {
@@ -90,27 +71,12 @@ export interface Caso {
   prioridad: Prioridad;
   asunto: string;
   abierto_en: string;
-  // ISO 8601 del vencimiento del SLA/termino legal. `null` si no aplica.
   vence_en: string | null;
-  // Referencias cruzadas a otros dominios (declaradas, nunca FK fisica).
   trabajo_id: string | null;
   pedido_id: string | null;
   asignado_a: string | null;
 }
 
-// ------------------------------------------------------ Abrir un caso (§write)
-//
-// La superficie de LECTURA de arriba es la que consume la bandeja del
-// back-office. Esta es la de ESCRITURA: lo que un acudiente manda desde el
-// centro de ayuda para abrir una PQRS. El contrato v1.0 tampoco publica el
-// endpoint de escritura de `operacion`, asi que —igual que la lectura— es una
-// inferencia coherente con la ADR 0004 (gestion de casos propia). El backend
-// la expone como `POST /v1/operacion/casos`.
-
-// Las categorias que un acudiente puede elegir al abrir un caso. Es un
-// SUBCONJUNTO de `CategoriaCaso`: las fallas de la saga (`mapeo_lista`,
-// `autenticacion`) las abre el sistema, no una persona, y no tienen sentido en
-// un formulario de ayuda.
 export const CATEGORIAS_CASO_ACUDIENTE: readonly CategoriaCaso[] = [
   "peticion",
   "queja",
@@ -125,8 +91,6 @@ export interface SolicitudCaso {
   asunto: string;
   descripcion: string;
   contacto: { correo: string; celular: string };
-  // Opcional: si la duda es sobre un kit concreto, el acudiente puede pegar su
-  // identificador de trabajo para que el operador lo cruce.
   trabajo_id?: string | null;
 }
 
@@ -135,8 +99,6 @@ export interface CasoCreado {
   estado: EstadoCaso;
   categoria: CategoriaCaso;
   recibido_en: string;
-  // Termino legal para responder (Ley 1755), si la categoria lo tiene. La UI lo
-  // muestra para que la promesa quede por escrito, no como adorno.
   vence_en: string | null;
 }
 
@@ -145,8 +107,6 @@ export interface ResumenOperacion {
   urgentes: number;
   vencen_hoy: number;
   resueltos_semana: number;
-  // Activos sin dueno y activos con el SLA vencido. Opcionales: una operacion
-  // sin reiniciar no los trae.
   sin_asignar?: number;
   vencidos?: number;
 }
@@ -155,11 +115,6 @@ export interface BandejaOperacion {
   resumen: ResumenOperacion;
   casos: Caso[];
 }
-
-// ------------------------------------------------------ Correos enviados
-//
-// Lo que el sistema avisó y qué pasó con cada aviso (`GET /v1/operacion/correos`).
-// Nunca trae la dirección del destinatario: solo su dominio.
 
 export type EstadoCorreo = "enviada" | "fallida" | "omitida";
 
@@ -170,10 +125,8 @@ export interface CorreoEnviado {
   plantilla: string;
   estado: EstadoCorreo;
   asunto: string | null;
-  /** Qué pasó con el envío: `smtp`, `consola`, `destino_no_enviable`, `smtp_error: ...`. */
   detalle: string | null;
   destino_dominio: string | null;
-  /** Código corto del pedido o del caso al que pertenece el aviso. */
   pedido: string | null;
   caso: string | null;
   creado_en: string | null;
@@ -189,7 +142,6 @@ export interface FiltrosCorreos {
 }
 
 export interface BandejaCorreos {
-  /** Cuántos avisos hay en cada estado, sin filtros. */
   resumen: Partial<Record<EstadoCorreo, number>>;
   correos: CorreoEnviado[];
 }
@@ -197,11 +149,6 @@ export interface BandejaCorreos {
 export function casoActivo(caso: Caso): boolean {
   return caso.estado !== "resuelto" && caso.estado !== "cerrado";
 }
-
-// ------------------------------------------------------ Mis casos (la sesion)
-//
-// Los casos que el acudiente ve de SI MISMO: el dueno sale de la sesion, no de
-// un correo en el formulario. Sale por `/v1/operacion/mis-casos`.
 
 export interface SolicitudMiCaso {
   categoria: CategoriaCaso;
@@ -225,7 +172,6 @@ export interface MiCaso {
 export interface ComentarioDeCaso {
   texto: string;
   creado_en: string;
-  // Quien lo escribio: el propio acudiente o el equipo (respuesta del ticket).
   autor: "acudiente" | "equipo";
 }
 

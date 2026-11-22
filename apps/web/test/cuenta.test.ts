@@ -1,8 +1,3 @@
-// El saludo del panel: el nombre de la cuenta si es un nombre, y si no algo
-// neutro; nunca el correo.
-//
-// Runner nativo de Node sobre TypeScript. Correr: `node --test test/cuenta.test.ts`.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { saludoDeCuenta } from "../src/lib/cuenta.ts";

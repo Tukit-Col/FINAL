@@ -1,10 +1,4 @@
-"""Los renglones de la auditoria de huecos del Agustiniano, con lo que deben recibir.
-
-Corre sobre `datos/` tal como esta, sin base de datos (`kits_offline.py`). Si
-una curaduria o un cambio de codigo vuelve a romper uno de estos renglones, se
-sabe aqui y no en la siguiente auditoria. La referencia de cada caso es la
-seccion de `docs/informes/auditoria-huecos-agustiniano/v2-d4ea7cb.md` que lo trata.
-"""
+"""Los renglones de la auditoria de huecos del Agustiniano, con lo que deben recibir."""
 
 from __future__ import annotations
 
@@ -23,8 +17,6 @@ def _sku(eleccion) -> str | None:
 
 
 class TestLoQueNoSeVendeLlegaComoLinea:
-    """3.1: con el tipo del concepto, ya no se muestra "No lo tenemos"."""
-
     @pytest.mark.parametrize("clave", ["J#86", "1#2", "J#1", "1#7", "J#68"])
     def test_uniforme_cartilla_licencia_audifonos_y_muda(self, renglon, clave):
         linea = renglon(clave)
@@ -32,8 +24,6 @@ class TestLoQueNoSeVendeLlegaComoLinea:
         assert linea.informativa
 
     def test_un_texto_con_titulo_es_por_su_cuenta(self, renglon):
-        # Desde el plan lector de S1 (C134 = libro_libre), el texto sin edicion
-        # verificada va como `otro` con "Se compra en libreria": linea sin precio.
         linea = renglon("T#1")
         assert linea.tipo == "otro" and linea.informativa
         assert linea.ahorrador is None and linea.premium is None
@@ -50,9 +40,6 @@ def test_el_colegio_no_tiene_huecos():
 
 
 class TestLasFichasBlancasSonBlancas:
-    """C078 distingue `color`: «fichas bibliograficas (blancas)» exige blanco, y
-    las azules del mismo precio ya no le ganan al Ahorrador."""
-
     def test_cada_perfil_lleva_fichas_blancas(self, renglon):
         linea = renglon("2#52")
         assert (_sku(linea.ahorrador), _sku(linea.premium)) == (
@@ -66,10 +53,6 @@ class TestLasFichasBlancasSonBlancas:
 
 
 class TestLasPiedrasDeTexturaSonUnSoloSet:
-    """La lista de Artes de Segundo pide «materiales para generar textura como:
-    (... piedras de bisuteria pequenas, ... piedras de colores de jardineria
-    pequenas, etc)»: son ejemplos, y un set de cuentas cubre los dos."""
-
     def test_la_bisuteria_lleva_el_set(self, renglon):
         linea = renglon("2#71")
         assert (_sku(linea.ahorrador), _sku(linea.premium)) == ("TK-REV-603855", "TK-REV-603851")
@@ -80,9 +63,6 @@ class TestLasPiedrasDeTexturaSonUnSoloSet:
 
 
 class TestElCuadernoDeTresMateriasEsElDeCinco:
-    """No hay cuaderno de 3 materias grande disponible: la curaduria lo cura a
-    `materias=5`, y los 105 de Panamericana declaran `tamano=grande`."""
-
     @pytest.mark.parametrize("clave", ["10#17", "10#24", "10#27", "11#21", "11#24"])
     def test_cada_perfil_tiene_su_cuaderno(self, renglon, clave):
         linea = renglon(clave)
@@ -90,30 +70,26 @@ class TestElCuadernoDeTresMateriasEsElDeCinco:
 
 
 class TestElectronicaBatasYArtesTienenProducto:
-    """Electronica (Zamux), batas antifluido (Maju), acrilico cian y ecoline
-    (Comercial Papelera): los huecos que la auditoria v4 daba por imposibles con
-    las tiendas registradas."""
-
     @pytest.mark.parametrize(
         "clave, sku",
         [
-            ("6#48", "TK-REV-J01"),  # jumpers macho-macho 10 cm x10
-            ("6#49", "TK-REV-J02"),  # jumpers macho-hembra 10 cm x10
-            ("8#63", "TK-REV-J05"),  # jumpers macho-hembra 20 cm x10
-            ("8#64", "TK-REV-J06"),  # jumpers hembra-hembra 20 cm x10
-            ("1#44", "TK-REV-91c2c31c08ae"),  # caimanes de 15 cm
-            ("1#45", "TK-REV-6cc17be10276"),  # LEDs sueltos con el paquete surtido
-            ("6#50", "TK-REV-6cc17be10276"),  # paquete de LEDs de colores
-            ("1#46", "TK-REV-81893789"),  # resistencias de 330 ohm
-            ("6#51", "TK-REV-37e32267c9f2"),  # resistencias surtidas
-            ("1#41", "TK-REV-SW06"),  # interruptor de balancin
-            ("6#52", "TK-REV-SW35"),  # switch de 2 posiciones
-            ("2#79", "TK-REV-MJUG"),  # motor DC
-            ("6#53", "TK-REV-L37A"),  # motorreductor
-            ("8#61", "TK-REV-87e29b56aab5"),  # Arduino Uno
-            ("9#69", "TK-REV-SG90"),  # servomotor
-            ("5#76", "TK-REV-APP"),  # cable estanado calibre 22
-            ("7#43", "TK-REV-790637358"),  # acrilico cian
+            ("6#48", "TK-REV-J01"),
+            ("6#49", "TK-REV-J02"),
+            ("8#63", "TK-REV-J05"),
+            ("8#64", "TK-REV-J06"),
+            ("1#44", "TK-REV-91c2c31c08ae"),
+            ("1#45", "TK-REV-6cc17be10276"),
+            ("6#50", "TK-REV-6cc17be10276"),
+            ("1#46", "TK-REV-81893789"),
+            ("6#51", "TK-REV-37e32267c9f2"),
+            ("1#41", "TK-REV-SW06"),
+            ("6#52", "TK-REV-SW35"),
+            ("2#79", "TK-REV-MJUG"),
+            ("6#53", "TK-REV-L37A"),
+            ("8#61", "TK-REV-87e29b56aab5"),
+            ("9#69", "TK-REV-SG90"),
+            ("5#76", "TK-REV-APP"),
+            ("7#43", "TK-REV-790637358"),
         ],
     )
     def test_el_ahorrador_cobra_el_sku_curado(self, renglon, clave, sku):
@@ -122,9 +98,9 @@ class TestElectronicaBatasYArtesTienenProducto:
     @pytest.mark.parametrize(
         "clave, ahorrador, premium",
         [
-            ("3#41", "TK-REV-7018", "TK-REV-8014"),  # bata con cremallera / bata de ninos
-            ("9#46", "TK-REV-777576887", "TK-REV-790642236"),  # ecoline blanco
-            ("9#47", "TK-REV-790635002", "TK-REV-790635380"),  # ecoline negro
+            ("3#41", "TK-REV-7018", "TK-REV-8014"),
+            ("9#46", "TK-REV-777576887", "TK-REV-790642236"),
+            ("9#47", "TK-REV-790635002", "TK-REV-790635380"),
         ],
     )
     def test_cada_perfil_tiene_su_opcion(self, renglon, clave, ahorrador, premium):
@@ -133,39 +109,30 @@ class TestElectronicaBatasYArtesTienenProducto:
 
     @pytest.mark.parametrize("clave", ["J#63", "6#59", "11#64"])
     def test_el_borrador_sigue_siendo_de_nata(self, renglon, clave):
-        # El de miga de pan que pide Bahia Solano entro al mismo concepto y
-        # ganaba en «borrador en nata» y en «borrador» a secas.
         linea = renglon(clave)
         assert "nata" in linea.ahorrador.nombre.lower()
         assert "nata" in linea.premium.nombre.lower()
 
     def test_septimo_compra_las_dos_cintas_y_un_pegante(self, renglon):
-        # La lista pide un rollo de cinta en cada bloque de Artes; el pegante de
-        # la cartuchera es el mismo de Artes.
         assert renglon("7#61").ahorrador.unidades == 1
         assert renglon("7#66").ahorrador.unidades == 1
         assert renglon("7#89").ahorrador is None
 
 
 class TestLosHuecosDeLaAuditoriaV2TienenProducto:
-    """Huecos de la auditoria v2 que se cerraron con productos aprobados en la cola."""
-
     @pytest.mark.parametrize(
         "clave, sku",
         [
-            ("J#3", "TK-REV-45938454560939"),  # cuaderno de cuadros de 1 cm
-            ("2#10", "TK-REV-47148563103915"),  # block rayado carta
-            ("J#17", "TK-REV-44702907465899"),  # vinilo amarillo de 125 g
-            ("T#40", "TK-REV-124275171"),  # pincel plano #10
-            ("7#12", "TK-REV-37779"),  # diccionario ingles-ingles
-            ("1#11", "TK-REV-47124879278251"),  # sobre de acetato grueso oficio
-            ("2#19", "TK-REV-45126710231211"),  # metro de costura
-            # «de 12 o 18 unidades»: el renglon extrae 18 y la curaduria lo deja en 12.
+            ("J#3", "TK-REV-45938454560939"),
+            ("2#10", "TK-REV-47148563103915"),
+            ("J#17", "TK-REV-44702907465899"),
+            ("T#40", "TK-REV-124275171"),
+            ("7#12", "TK-REV-37779"),
+            ("1#11", "TK-REV-47124879278251"),
+            ("2#19", "TK-REV-45126710231211"),
             ("4#54", "TK-REV-124326044"),
-            # Block de cartulina multicolor A4 en vez del paquete iris x100 de $63.800.
             ("5#66", "TK-REV-628655"),
-            ("T#55", "TK-REV-355583"),  # libro para colorear
-            # «papel iris octavos»: no hay papel iris en octavos; se cura a carta.
+            ("T#55", "TK-REV-355583"),
             ("10#61", "TK-REV-3630108"),
         ],
     )
@@ -173,18 +140,15 @@ class TestLosHuecosDeLaAuditoriaV2TienenProducto:
         assert _sku(renglon(clave).ahorrador) == sku
 
     def test_un_renglon_generico_no_recibe_la_variante(self, renglon):
-        # «paquete de cartulina arte por octavos» no es la fluorescente, y
-        # «lapices» a secas no es el lapiz rojo.
         assert renglon("J#75").ahorrador.sku != "TK-REV-124001157"
         assert "rojo" not in renglon("6#58").ahorrador.nombre.lower()
 
     def test_el_premium_tampoco_cobra_cartulina_de_un_color_por_iris(self, renglon):
-        # El block multicolor A4 o la Majestic carta multicolor: las dos son surtidas.
         assert _sku(renglon("5#66").premium) in {"TK-REV-628655", "TK-REV-152926"}
 
 
 class TestFalsosHuecosQueYaSeResuelven:
-    def test_la_biblia(self, renglon):
+    def test_la_biblia_se_resuelve_al_libro_curado_en_el_ahorrador(self, renglon):
         assert _sku(renglon("1#1").ahorrador) == "TK-LIB-9788471512635"
 
     def test_el_diccionario_ingles_espanol(self, renglon):
@@ -194,7 +158,6 @@ class TestFalsosHuecosQueYaSeResuelven:
         assert _sku(renglon("3#44").ahorrador) == "TK-REV-694037"
 
     def test_el_archivador_de_fuelle(self, renglon):
-        # Por el nombre: `nivelar` le cambia el sku semilla cuando cambia su nivel.
         assert "Fuelle" in renglon("1#47").ahorrador.nombre
 
     def test_los_jumpers_con_el_kit_de_cuarenta(self, renglon):
@@ -211,8 +174,6 @@ class TestFalsosHuecosQueYaSeResuelven:
 
 class TestMalElegidosQueYaCumplen:
     def test_el_kit_de_pinceles(self, renglon):
-        # El kit pide planos, redondos y abanico: solo el set mixto lo cumple; un
-        # paquete de 12 planos es mas barato y no sirve.
         assert "mixto" in renglon("7#39").ahorrador.nombre
 
     def test_la_caja_de_plumones_no_es_un_marcador_suelto(self, renglon):
@@ -244,8 +205,6 @@ class TestMalElegidosQueYaCumplen:
 
 
 class TestEmpaqueYCantidad:
-    """3.4: el kit compra los paquetes que cubren lo pedido, no uno por unidad."""
-
     @pytest.mark.parametrize("clave", ["6#40", "8#57", "J#39", "2#52", "T#78"])
     def test_un_paquete_alcanza(self, renglon, clave):
         assert renglon(clave).ahorrador.unidades == 1
@@ -263,22 +222,12 @@ class TestEmpaqueYCantidad:
 
 class TestHerramientasPedidasEnVariasMaterias:
     def test_compas_y_compas_de_precision_son_un_solo_compas(self, renglon):
-        # 3.5: el Ahorrador compraba dos compases.
         uno, otro = renglon("3#35").ahorrador, renglon("3#47").ahorrador
         assert uno.sku == otro.sku
         assert sorted([uno.unidades, otro.unidades]) == [0, 1]
 
 
 class TestDesempateComoElOptimizador:
-    """Dos productos con el mismo costo de linea: gana el de mejor nivel.
-
-    En el frente de Pareto, a igual costo, la solucion de mejor nivel domina a la
-    otra, asi que el Ahorrador del optimizador no puede tomar la de nivel menor.
-    Las tijeras punta roma Milan (confiable) y Nessan (premium) costaban lo
-    mismo; desde que entraron las Eterna de $2.500 el empate ya no existe en los
-    datos, y la regla la cubre `test_con_todo_igual_gana_el_primero_de_la_ruta_rapida`.
-    """
-
     @pytest.mark.parametrize("clave", ["J#62", "T#66", "1#21", "2#43"])
     def test_las_tijeras_punta_roma_del_ahorrador_son_las_mas_baratas(self, renglon, clave):
         assert _sku(renglon(clave).ahorrador) == "TK-REV-124275363"
@@ -300,15 +249,11 @@ def test_con_todo_igual_gana_el_primero_de_la_ruta_rapida():
     assert _mejor(candidatos, _clave_ahorrador, 1)["sku"] == "B"
     assert _mejor(candidatos, _clave_premium, 1)["sku"] == "B"
 
-    # El Premium no toma un producto sin precio aunque sea de mejor nivel (`_surtibles`).
     sin_precio = [producto("P", "premium", None), producto("C", "confiable", 9000)]
     assert _mejor(sin_precio, _clave_premium, 1)["sku"] == "C"
 
 
 class TestLaCajaNoReemplazaALaUnidad:
-    """Ronda de cobertura del 2026-10-12: una caja que trae diez no es un
-    marcador «premium», y un set de seis no es un pincel."""
-
     @pytest.mark.parametrize("clave", ["1#58", "J#96"])
     def test_un_marcador_borrable_no_es_la_caja_de_diez(self, renglon, clave):
         linea = renglon(clave)
@@ -323,5 +268,4 @@ class TestLaCajaNoReemplazaALaUnidad:
         assert "doble punta" in renglon(clave).ahorrador.nombre.lower()
 
     def test_el_cuaderno_kiut_cuenta_como_cinco_materias(self, renglon):
-        # Tenia `personaje=kiut`, que es la marca, y por eso no era opcion.
         assert "TK-REV-546276" in {c["sku"] for c in renglon("8#17").candidatos}

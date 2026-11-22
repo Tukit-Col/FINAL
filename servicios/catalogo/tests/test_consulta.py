@@ -1,10 +1,3 @@
-"""El emparejamiento responde con el catalogo, y se abstiene cuando no puede.
-
-"Block oficio" cayo alguna vez en origami porque el buscador se quedaba con
-lo que sabia y soltaba el tamano. Con los atributos como restriccion, si
-ningun block declara oficio no hay opcion: se dice, y no se ofrece otro.
-"""
-
 from __future__ import annotations
 
 import inspect
@@ -100,8 +93,6 @@ class TestSeAbstieneEnVezDeInventar:
         assert [o.nivel for o in resultado.opciones] == ["economico", "confiable", "premium"]
 
     def test_un_concepto_ya_asignado_no_se_vuelve_a_adivinar(self):
-        """La previsualizacion manda el concepto que el revisor puso en la lista:
-        un texto que por si solo no se reconoce queda en ese concepto."""
         sin_pista = emparejar("material de trabajo opciones varias", CONCEPTOS, PRODUCTOS)
         asignado = emparejar(
             "material de trabajo opciones varias", CONCEPTOS, PRODUCTOS, concepto_forzado="C004"
@@ -112,8 +103,6 @@ class TestSeAbstieneEnVezDeInventar:
         assert [o.nivel for o in asignado.opciones] == ["economico", "confiable", "premium"]
 
     def test_escolar_no_se_le_exige_a_un_producto(self):
-        """En una lista escolar casi todo dice "escolar": exigirlo como tipo
-        dejaba a "Maleta escolar" sin ninguna de las maletas del catalogo."""
         maleta = uuid.UUID("00000000-0000-0000-0000-0000000000a8")
         conceptos = [
             {"id": maleta, "codigo": "C086", "nombre": "maleta", "sinonimos": [], "discriminantes": ("tipo",)}
@@ -151,9 +140,6 @@ class TestLoQueNoSeReconoceOQueNoTieneProducto:
 
 
 class TestLaFaltaDeOrtografiaSeAcercaAlCatalogo:
-    """Osito imprime SHSRPIE y TAOLLA. Gemini las copia. Sin este paso el
-    catalogo dice que no las reconoce, teniendo marcador y toalla."""
-
     def test_una_sola_palabra_cercana_se_corrige(self):
         from tukit_catalogo.transcripcion import corregir
 
@@ -179,7 +165,7 @@ class TestLaFaltaDeOrtografiaSeAcercaAlCatalogo:
         assert corregir("block oficio", {"block", "oficio", "origami"}) == "block oficio"
 
     def test_el_vinilo_fluorescente_no_son_seis_colores(self):
-        from tukit_catalogo.enriquecer import extraer_atributos
+        from tukit_catalogo.extraccion import extraer_atributos
 
         attrs = extraer_atributos("ESTUCHE DE VINILO X 6 UNIDADES ESCOLAR FLUORESCENTE", ("colores",))
 
@@ -221,9 +207,6 @@ class TestLaFaltaDeOrtografiaSeAcercaAlCatalogo:
 
 class TestElAcudienteNoSaleALaRed:
     def test_este_modulo_no_consulta_fuera_del_catalogo(self):
-        # Se lee el archivo y no el comportamiento, por la misma razon que en
-        # el alta: un camino que existe y nadie llama hoy es un camino que
-        # alguien llama manana. El acudiente se responde con lo curado.
         fuente = Path(inspect.getfile(emparejar)).read_text(encoding="utf-8")
         assert "import tiendas" not in fuente
         assert "tiendas.buscar" not in fuente
@@ -232,13 +215,6 @@ class TestElAcudienteNoSaleALaRed:
 
 
 class TestUnLibroConTituloSoloSeSurteConEseTitulo:
-    """Un libro pedido por titulo no se cambia por otro libro del mismo concepto.
-
-    El Septimo de San Pedro Claver pedia «Los secretos de Hafiz Mustafa» y
-    «Sherlock, Lupin y yo», y el kit ofrecia «Valeria en el Reino de Malagana»
-    para todos: el concepto (libro con titulo) estaba bien, el producto no.
-    """
-
     LIBRO = uuid.UUID("00000000-0000-0000-0000-000000000134")
     CONCEPTO = {
         "id": LIBRO,
@@ -255,14 +231,16 @@ class TestUnLibroConTituloSoloSeSurteConEseTitulo:
             _producto(
                 self.LIBRO,
                 "GW-B1",
-                "Gateway to the World b1 Student'S Book With Student'S app and Digital Student'S Book (en Inglés)",
+                "Gateway to the World b1 Student'S Book With Student'S app and Digital Student'S "
+                "Book (en Inglés)",
                 "confiable",
                 {},
             ),
             _producto(
                 self.LIBRO,
                 "GW-A2",
-                "Gateway to the World a2 Student'S Book With Student'S app and Digital Student'S Book (en Inglés)",
+                "Gateway to the World a2 Student'S Book With Student'S app and Digital Student'S "
+                "Book (en Inglés)",
                 "confiable",
                 {},
             ),

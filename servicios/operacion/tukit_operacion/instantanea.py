@@ -1,26 +1,14 @@
-"""El snapshot diario de metricas punto-en-el-tiempo (`metrica_diaria`).
+"""Snapshot diario de metricas de calidad (`metrica_diaria`).
 
-Hay dos clases de metrica en el panel del operador. Las de CONTEO (pedidos por
-dia, colegios por dia, listas verificadas por dia) se reconstruyen en cualquier
-momento desde las columnas de fecha que ya existen (`creado_en`, `revisada_en`,
-`publicada_en`...). Las de CALIDAD —la cobertura y el match del catalogo, la
-salud del corpus— NO: se recalculan contra el estado ACTUAL del catalogo, asi
-que ayer ya no se puede volver a medir. Por eso este proceso las congela hacia
-adelante, una fila por dia, y asi nace la traza de "como mejora el algoritmo
-mientras crezco el catalogo y lo afino".
+Decisiones:
+- Las metricas de conteo se reconstruyen desde las fechas existentes; las de calidad (cobertura y
+  emparejamiento del catalogo, salud del corpus) se recalculan contra el estado actual, asi que se
+  congelan hacia adelante, una fila por dia.
+- Es idempotente: borra las filas de hoy y las vuelve a insertar. Se corre a mano
+  (`make instantanea-metricas`), con un solo escritor, por eso no hace falta un upsert.
+- Lee los agregados por HTTP (Catalogo, Identidad, Inteligencia) y no toca sus bases.
 
-    python -m tukit_operacion.instantanea        # snapshot de hoy (idempotente)
-
-Es idempotente: reescribe TODAS las filas del dia (borra las de hoy y las vuelve
-a insertar), asi que correrlo dos veces el mismo dia deja lo mismo. Se pensó
-para correrlo a mano por sesion de trabajo (`make instantanea-metricas`), no en
-un bucle: un solo escritor, sin concurrencia, por eso el borrar-e-insertar es
-correcto y no hace falta un upsert por dialecto.
-
-Lee los agregados por HTTP (Catalogo, Identidad, Inteligencia), no tocando sus
-bases: la frontera de bases se respeta, igual que en el resto de Operacion. Si
-un servicio esta caido, se salta esa parte y anota lo que si logro: un snapshot
-parcial es una respuesta valida.
+Uso:  python -m tukit_operacion.instantanea
 """
 
 from __future__ import annotations
@@ -38,9 +26,6 @@ from .remoto import ClienteMetricas
 
 METRICA = Base.metadata.tables["metrica_diaria"]
 
-# Las siete cifras del resumen de catalogo que valen la pena congelar: son el
-# estado del corpus hoy, y crecen a medida que se cura. Se guardan como conteo
-# directo (la columna `valor` es entera). El nombre de la metrica es la clave.
 _CAMPOS_CATALOGO = (
     "conceptos",
     "productos",
@@ -53,11 +38,6 @@ _CAMPOS_CATALOGO = (
 
 
 def _a_bps(fraccion: float) -> int:
-    """Una fraccion 0..1 a puntos base (0..10000), enteros porque `valor` lo es.
-
-    La cobertura viaja como 0.9231; guardarla como 9231 conserva dos decimales
-    de porcentaje sin cambiar el tipo de la columna ni perder precision util.
-    """
     return round(max(0.0, min(1.0, fraccion)) * 10000)
 
 
@@ -66,14 +46,8 @@ def _filas_de_snapshot(
     resumen: dict[str, Any] | None,
     metricas_por_colegio: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Arma las filas de `metrica_diaria` para hoy a partir de lo leido.
-
-    Funcion pura (sin IO) para poder probar el mapeo de agregados a filas sin
-    base de datos ni servicios. El escritor solo la persiste.
-    """
     filas: list[dict[str, Any]] = []
 
-    # --- Salud global del catalogo (dimension="catalogo", sin id) ---
     if resumen is not None:
         for campo in _CAMPOS_CATALOGO:
             filas.append(
@@ -86,11 +60,6 @@ def _filas_de_snapshot(
                 }
             )
 
-    # --- Calidad por colegio (dimension="colegio", id=colegio) ---
-    # Solo los colegios con actividad real (kits armados): un colegio sin kits
-    # tiene cobertura 0 y no aporta traza, y congelar 17 ceros por dia solo
-    # engorda la tabla. Los kits solo crecen (cuentan trabajos publicados), asi
-    # que un colegio que aparece un dia sigue apareciendo.
     total_comprables = 0
     total_resueltas = 0
     for m in metricas_por_colegio:
@@ -119,9 +88,6 @@ def _filas_de_snapshot(
                 }
             )
 
-    # --- Top-line global (dimension="global", sin id) ---
-    # La cobertura agregada sobre todo lo comprable de todos los colegios con
-    # actividad: la aguja unica que resume "cuanto del kit sabemos comprar hoy".
     colegios_activos = len({f["dimension_id"] for f in filas if f["dimension"] == "colegio"})
     if colegios_activos:
         cobertura_global = total_resueltas / total_comprables if total_comprables else 0.0
@@ -148,11 +114,6 @@ def _filas_de_snapshot(
 
 
 async def escribir_instantanea(motor: Any, cliente: ClienteMetricas, hoy: date) -> dict[str, Any]:
-    """Congela el snapshot de `hoy` en `metrica_diaria`, idempotente.
-
-    Devuelve un pequeño reporte (filas escritas, colegios cubiertos, que
-    servicios respondieron) para que el CLI lo imprima y las pruebas lo asserten.
-    """
     resumen = await cliente.resumen_catalogo()
     colegios = await cliente.colegios()
 
@@ -169,9 +130,6 @@ async def escribir_instantanea(motor: Any, cliente: ClienteMetricas, hoy: date) 
 
     async with motor.sesion() as db:
         conexion = await db.connection()
-        # Se reescribe TODO el dia: borrar-e-insertar hace idempotente el
-        # recomputo sin depender de un upsert por dialecto (SQLite en pruebas,
-        # Postgres en prod). Un solo escritor por sesion, sin concurrencia.
         await conexion.execute(delete(METRICA).where(METRICA.c.fecha == hoy))
         if filas:
             await conexion.execute(insert(METRICA), filas)

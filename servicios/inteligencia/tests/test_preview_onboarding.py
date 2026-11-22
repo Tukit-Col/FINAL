@@ -1,23 +1,3 @@
-"""La previsualizacion de kits de una lista de onboarding, ANTES de aprobarla.
-
-El admin sube un PDF (`POST /v1/admin/onboarding`), el catalogo guarda una
-version VIGENTE pero SIN revisar, y antes de aprobarla quiere ver como quedan
-los tres kits. Este endpoint (`POST /v1/admin/onboarding/{version_id}/preview`)
-crea un trabajo desechable con `origen='preview_onboarding'`, lo corre de forma
-SINCRONICA (no fire-and-forget) y devuelve el `trabajo_id`/`estado`. El admin
-lee los kits con el `GET /v1/admin/trabajos/{id}` de siempre.
-
-La version del PATH se previsualiza tal cual (vigente o borrador): el pipeline
-lee sus items por `version_id` con `revision()`. Como llega SIN revisar, toma la
-ruta LENTA (emparejar + NSGA-II): eso es exactamente la vista previa que se
-quiere, y es lo que estas pruebas defienden observando que `emparejar` SI se
-llamo y que `resueltos` (la ruta rapida) NO.
-
-Se prueba con `ASGITransport` y el motor en memoria, con un `CatalogoFalso`
-extendido que expone `revision(version_id)` por (colegio, grado, anio). No hay
-Gemini: la ruta lenta llama a `emparejar`, que el doble responde desde memoria.
-"""
-
 from __future__ import annotations
 
 import httpx
@@ -88,7 +68,6 @@ class TestPreviewFeliz:
         assert cuerpo["estado"] == EstadoTrabajo.ESPERA_REVISION.value
         trabajo_id = cuerpo["trabajo_id"]
 
-        # Ruta lenta: emparejar SI, resueltos NO.
         assert "emparejar" in catalogo.llamadas
         assert "resueltos" not in catalogo.llamadas
 
@@ -104,18 +83,13 @@ class TestPreviewFeliz:
         vista = await cliente.get(f"/v1/admin/trabajos/{trabajo_id}")
         cuerpo = vista.json()
         assert cuerpo["origen"] == "preview_onboarding"
-        # El hijo sintetico del preview guarda el version_id de su lista: es a
-        # donde la consola enlaza para aprobarla (el preview no se publica).
         assert cuerpo["hijos"][0]["version_id"] == VERSION_VIGENTE
 
 
 class TestPreviewVersionAware:
     async def test_previsualizar_un_borrador_no_vigente_funciona(self, motor):
-        # El caso de EDITAR: el borrador nace SIN vigencia (el acudiente sigue
-        # viendo la aprobada) y aun asi se previsualiza por su version_id. Antes
-        # esto era un 409 "existe una version mas nueva"; ahora se arma.
         catalogo = _catalogo_con_lista()
-        catalogo.versiones = ["ver-borrador-2"]  # el borrador, NO la vigente vieja
+        catalogo.versiones = ["ver-borrador-2"]
         app.state.motor = motor
         app.state.catalogo = catalogo
         async with httpx.AsyncClient(
@@ -128,12 +102,11 @@ class TestPreviewVersionAware:
 
 class TestPreviewGuardas:
     async def test_version_inexistente_es_404(self, cliente, catalogo):
-        # Un version_id que no existe en el catalogo: 404, no 409.
         respuesta = await cliente.post("/v1/admin/onboarding/ver-que-no-existe/preview", json=_cuerpo())
         assert respuesta.status_code == 404
         assert respuesta.json()["error"] == "version_no_existe"
 
-    async def test_sin_lista_es_404(self, motor):
+    async def test_sin_version_vigente_en_el_catalogo_el_preview_responde_404(self, motor):
         catalogo = _catalogo_con_lista(version_vigente=None)
         app.state.motor = motor
         app.state.catalogo = catalogo
@@ -145,8 +118,6 @@ class TestPreviewGuardas:
         assert respuesta.json()["error"] == "version_no_existe"
 
     async def test_version_de_otro_grado_es_409(self, cliente, catalogo):
-        # La version existe pero es del grado Cuarto; se pide previsualizarla
-        # como si fuera de Quinto: no corresponde a ese (colegio, grado, anio).
         respuesta = await cliente.post(
             f"/v1/admin/onboarding/{VERSION_VIGENTE}/preview",
             json=_cuerpo(grado="Quinto"),
@@ -157,16 +128,12 @@ class TestPreviewGuardas:
 
 class TestPreviewNoEsFireAndForget:
     async def test_los_kits_estan_listos_al_responder(self, cliente, catalogo):
-        # Si fuera fire-and-forget, los kits no estarian escritos todavia cuando
-        # respondemos. Se lee inmediatamente y ya tienen que estar.
         respuesta = await cliente.post(f"/v1/admin/onboarding/{VERSION_VIGENTE}/preview", json=_cuerpo())
         trabajo_id = respuesta.json()["trabajo_id"]
         vista = await cliente.get(f"/v1/admin/trabajos/{trabajo_id}")
         assert len(vista.json()["kits"]) == 2
 
     async def test_propaga_estado_fallido_si_no_hay_renglones(self, motor):
-        # Una version vigente pero cuya lista no trae items: la ruta lenta cae
-        # en sin_lista_oficial -> fallido, y el endpoint propaga ese estado.
         catalogo = CatalogoPreview(version_vigente=VERSION_VIGENTE, grado="Cuarto", renglones=[])
         app.state.motor = motor
         app.state.catalogo = catalogo
@@ -180,20 +147,15 @@ class TestPreviewNoEsFireAndForget:
 
 class TestPreviewEsIdempotente:
     async def test_tres_previews_dejan_uno_en_la_cola(self, cliente, catalogo):
-        # El bug original: cada clic de "Previsualizar los 3 kits" dejaba un
-        # trabajo desechable mas. Ahora previsualizar descarta el preview
-        # anterior del mismo (colegio, grado, anio): 3 clics -> 1 trabajo.
         ids = []
         for _ in range(3):
             respuesta = await cliente.post(f"/v1/admin/onboarding/{VERSION_VIGENTE}/preview", json=_cuerpo())
             assert respuesta.status_code == 200
             ids.append(respuesta.json()["trabajo_id"])
 
-        # Tres trabajos distintos, pero solo el ultimo sigue vivo.
         assert len({*ids}) == 3
         cola = (await cliente.get("/v1/admin/cola")).json()
         vivos = [t["trabajo_id"] for t in cola["trabajos"]]
         assert ids[-1] in vivos
         assert ids[0] not in vivos and ids[1] not in vivos
-        # Un solo preview de este (colegio, grado) en la cola.
         assert sum(1 for t in cola["trabajos"] if t["trabajo_id"] in ids) == 1

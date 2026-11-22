@@ -1,6 +1,3 @@
-// El panel solo muestra lo accionable.
-// Correr:  node --test test/panel-accionable.test.ts
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ColaAdmin, ResumenComercio, ResumenOperacion } from "@tukit/contrato";
@@ -73,7 +70,6 @@ test("un resumen sin los campos que espera el panel no lanza: cuenta 0 y se anot
   const viejoCasos = { abiertos: 4, urgentes: 0, vencen_hoy: 0, resueltos_semana: 0 } as ResumenOperacion;
   const r = construirWidgets({ pedidos: viejoPedidos, casos: viejoCasos, cola: cola() });
   assert.deepEqual(r.sinActivar.sort(), ["casos", "pedidos"]);
-  // las incidencias salen del conteo de siempre
   assert.deepEqual(r.widgets.map((w) => [w.id, w.cantidad]), [["incidencias", 2]]);
 });
 

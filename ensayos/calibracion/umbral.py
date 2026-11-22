@@ -1,24 +1,6 @@
 """Experimento A: tiempo de la enumeracion exacta y del NSGA-II segun el tamano del espacio.
-
-Para cada nivel b = 6..18 se arman subproblemas con espacio S en [2^b, 2^(b+1))
-a partir de lineas reales de las listas (candidatos y precios reales). Por
-subproblema se mide:
-
-- enumeracion exacta (`_frente_exacto` del codigo, partida en evaluacion y filtro
-  de no dominados para poder ajustar el modelo de costo): tiempo, S, U (vectores
-  de objetivos distintos) y tamano del frente;
-- NSGA-II (`_frente_nsga` con la configuracion actual): tiempo con 3 semillas;
-- razon de hipervolumen NSGA-II / frente exacto con 30 semillas (el frente
-  exacto sale de la poda por linea de `nucleo.frente_exacto_por_podas`, que se
-  verifica igual a la enumeracion en todo subproblema donde la enumeracion corre).
-
-Los tiempos se miden en un solo proceso y en serie (sin competir por CPU); las 30
-semillas del hipervolumen corren en paralelo porque el hipervolumen no depende
-del tiempo.
-
 Uso: uv run python ensayos/calibracion/umbral.py [--rapido]
-Salida: docs/informes/calibracion/umbral.json
-"""
+Salida: ensayos/calibracion/salidas/umbral.json"""
 
 from __future__ import annotations
 
@@ -34,8 +16,6 @@ from tukit_inteligencia.optimizador import _frente_exacto, _frente_nsga, _no_dom
 NIVELES = list(range(6, 19))
 SEMILLAS_HV = tuple(range(30))
 SEMILLAS_TIEMPO = (0, 1, 2)
-# Si el nivel anterior tardo mas que esto, no se enumera el siguiente: ya se
-# sabe que no cabe en ningun presupuesto razonable y cuesta minutos.
 TOPE_ENUMERACION_S = 150.0
 
 
@@ -97,7 +77,6 @@ def main() -> int:
     descs = subproblemas(1 if args.rapido else 5)
     semillas_hv = SEMILLAS_HV[:3] if args.rapido else SEMILLAS_HV
 
-    # Calentamiento: la primera llamada de pymoo importa modulos y falsea el nivel 6.
     d0, o0 = reconstruir(descs[0])
     _frente_nsga(d0, o0, {}, semilla=0)
 
@@ -120,9 +99,9 @@ def main() -> int:
         fila["t_poda_s"] = time.perf_counter() - t0
         fila["frente_poda"] = len(t_poda_ref)
         if fila["exacto"] is not None and S <= 2**16:
-            igual = {(s.costo, s.fidelidad, s.disponibilidad, s.personaje) for s in _frente_exacto(dec, ops, {})} == {
-                (s.costo, s.fidelidad, s.disponibilidad, s.personaje) for s in t_poda_ref
-            }
+            igual = {
+                (s.costo, s.fidelidad, s.disponibilidad, s.personaje) for s in _frente_exacto(dec, ops, {})
+            } == {(s.costo, s.fidelidad, s.disponibilidad, s.personaje) for s in t_poda_ref}
             fila["poda_igual_a_enumeracion"] = igual
         tiempos = []
         for sem in SEMILLAS_TIEMPO:
@@ -133,7 +112,13 @@ def main() -> int:
         lo, hi = n.limites_costo(dec, ops)
         fila["hv_exacto"] = n.hipervolumen(t_poda_ref, lo, hi)
         filas.append(fila)
-        print(b, S, fila["exacto"] and round(fila["exacto"]["t_total"], 3), round(sum(tiempos) / 3, 3), flush=True)
+        print(
+            b,
+            S,
+            fila["exacto"] and round(fila["exacto"]["t_total"], 3),
+            round(sum(tiempos) / 3, 3),
+            flush=True,
+        )
 
     trabajos = [(d, s) for d in descs for s in semillas_hv]
     with ProcessPoolExecutor(max_workers=args.procesos) as ex:
@@ -147,7 +132,12 @@ def main() -> int:
 
     n.guardar(
         "umbral.json" if not args.rapido else "umbral_rapido.json",
-        {"hardware": n.hardware(), "semillas_hv": list(semillas_hv), "referencia_hv": n.REFERENCIA, "filas": filas},
+        {
+            "hardware": n.hardware(),
+            "semillas_hv": list(semillas_hv),
+            "referencia_hv": n.REFERENCIA,
+            "filas": filas,
+        },
     )
     return 0
 

@@ -1,12 +1,6 @@
 """Extrae los ordenamientos de la pregunta P21 de la encuesta a acudientes.
-
 Entrada: el Excel exportado de la encuesta (columna "Ordena de mayor a menor
-importancia..."). Salida: `datos/p21_rankings.csv`, una fila por respuesta con
-los cuatro criterios de mayor a menor importancia. No guarda estrato, correo ni
-ninguna otra columna: solo el orden de los criterios.
-
-Uso: python extraer_p21.py RUTA_AL_XLSX   (requiere openpyxl)
-"""
+Uso: python extraer_p21.py RUTA_AL_XLSX   (requiere openpyxl)"""
 
 from __future__ import annotations
 

@@ -1,13 +1,3 @@
-// `GET /api/catalogo/tiendas/{slug}/buscar` — candidatos para el alta de útil
-// (P4c bis).
-//
-// Envuelve la búsqueda en vivo (VTEX/Shopify) que el backend hace por
-// `tiendas.buscar`. El navegador manda `?consulta=&cuantos=`; este handler lo
-// traduce a `buscarEnTienda(slug, consulta, cuantos)` contra el origen del
-// servidor. Solo lectura externa: NO escribe. Un `slug` fuera de los válidos lo
-// rechaza el backend (`tienda_desconocida`); aquí solo se exige que venga la
-// consulta.
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import { respuestaDeError } from "@/lib/respuesta";
 

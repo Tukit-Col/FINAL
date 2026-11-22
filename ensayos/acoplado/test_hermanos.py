@@ -8,8 +8,8 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from hermanos import Hogar, armar_hogar, enumeracion_hogar, pd_hogar  # noqa: E402
 from comun import cargar_json  # noqa: E402
+from hermanos import Hogar, armar_hogar, enumeracion_hogar, pd_hogar  # noqa: E402
 from tukit_inteligencia.optimizador import _admisibles  # noqa: E402
 
 CASOS = [((40, 41), 4), ((10, 11, 12), 3), ((100, 101), 4)]

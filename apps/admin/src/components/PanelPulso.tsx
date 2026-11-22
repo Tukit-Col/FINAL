@@ -1,11 +1,3 @@
-// Las dos tarjetas inferiores del panel, en grafico: "Listas por verificar"
-// (resumen en dona, distribucion por grado y barras por colegio con su "Otros
-// N") y "Actividad reciente" (barritas de pedidos de 7 dias y linea de tiempo
-// por dia). Solo presentacion: la aritmetica vive en `lib/panel-vivo.ts`.
-// Server Components (sin estado); `ahora` llega de la pagina para que el texto
-// relativo sea el mismo en toda la vista. Ley 1581: solo ids, estados, montos y
-// nombres de colegio; nunca el nombre de un menor ni el asunto de un ticket.
-
 import Link from "next/link";
 import { ArrowRight, ClipboardList, LifeBuoy, Package } from "lucide-react";
 import type { Pedido } from "@tukit/contrato";
@@ -133,7 +125,6 @@ export function PulsoActividad({
   ahora,
 }: {
   actividad: readonly Actividad[];
-  /** `null` si comercio no respondio: sin barritas de la semana. */
   pedidos: readonly Pick<Pedido, "creado_en">[] | null;
   ahora: number;
 }) {

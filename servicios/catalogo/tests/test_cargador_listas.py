@@ -1,22 +1,3 @@
-"""Pruebas de la siembra de listas oficiales.
-
-Las tres cosas que este cargador puede hacer mal no son fallos ruidosos:
-
-1. Cerrar la puerta. Sembrar las versiones ya revisadas dejaria 175 listas que
-   nunca podrian salir a dar de alta lo que el catalogo no tiene, y el
-   sintoma seria un catalogo que deja de crecer, meses despues.
-2. Forzar renglones a un concepto parecido. Sube la cobertura en el informe y
-   le ofrece plastilina a quien pidio pompones.
-3. Romper una restriccion a mitad de camino. Un CHECK que salta en la fila
-   3.000 deja la siembra a medias y el mensaje habla de un nombre de
-   restriccion, no de la fila del CSV.
-
-De ahi la forma de estas pruebas: casi todas son sobre el armado en memoria,
-que es donde estan las decisiones, y la ultima mete las filas armadas en el
-esquema de verdad -SQLite con el mismo `Base.metadata`- para comprobar que
-las restricciones que el modelo declara las cumple el cargador y no la suerte.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -69,11 +50,6 @@ def item(directorio: Path, *, conceptos=CONCEPTOS) -> dict:
 
 
 class TestModoAdquisicion:
-    """`desconocido` son 736 renglones del corpus y no es un valor del enum.
-
-    La restriccion `item_modo_adquisicion_valido` los rechazaria uno a uno.
-    """
-
     def test_desconocido_cae_en_mercado_abierto(self):
         assert normalizar_modo("desconocido") == ModoAdquisicion.MERCADO_ABIERTO.value
 
@@ -83,20 +59,10 @@ class TestModoAdquisicion:
 
     @pytest.mark.parametrize("modo", [m.value for m in ModoAdquisicion])
     def test_los_modos_de_verdad_se_respetan(self, modo):
-        """Lo que el colegio si declaro no se toca. Convertir una edicion
-        exclusiva en mercado abierto seria prometer surtir algo que el colegio
-        cerro, que es el modo de falla mas caro del negocio."""
         assert normalizar_modo(modo) == modo
 
 
 class TestInstruccionColegio:
-    """`item_no_surtible_explica_como_conseguirlo` no admite un renglon que
-    Tukit no surte sin decir como se consigue.
-
-    La regla no es burocracia: una linea que dice "esto no te lo vendemos" y
-    no dice donde comprarlo deja al acudiente peor que antes de abrir Tukit.
-    """
-
     @pytest.mark.parametrize("modo", [m.value for m in ModoAdquisicion if m not in MODOS_SURTIBLES])
     def test_todo_modo_no_surtible_recibe_una_instruccion(self, modo):
         texto = instruccion_para(modo, None)
@@ -104,7 +70,6 @@ class TestInstruccionColegio:
 
     @pytest.mark.parametrize("modo", [m.value for m in MODOS_SURTIBLES])
     def test_lo_surtible_no_lleva_instruccion(self, modo):
-        """Llenar la columna siempre convertiria el aviso en ruido."""
         assert instruccion_para(modo, None) is None
 
     def test_lo_que_el_colegio_dijo_manda_sobre_el_texto_generico(self):
@@ -116,9 +81,6 @@ class TestInstruccionColegio:
         assert "editorial" in INSTRUCCION_POR_MODO["venta_directa_editorial"].lower()
 
     def test_un_modo_no_surtible_sin_texto_en_el_csv_se_rellena(self, tmp_path: Path):
-        """El CSV ya los trae, pero el cargador no puede darlo por hecho: la
-        invariante la impone la base, y un CHECK que salta en la fila 3.000
-        deja la siembra a medias."""
         fila = item(
             escribir_datos(tmp_path, ["2.4,Cuarto,1,Plan lector RAZ,1,licencia_digital,plataforma,Otros,,"])
         )
@@ -128,11 +90,7 @@ class TestInstruccionColegio:
 
 
 class TestCantidad:
-    """`item_cantidad_positiva` no admite cero."""
-
     def test_un_cero_del_corpus_se_lee_como_uno(self):
-        """Cero no significa que el colegio no lo pida: significa que la
-        transcripcion no encontro el numero en el PDF."""
         assert cantidad_valida("0") == 1
         assert cantidad_valida("") == 1
         assert cantidad_valida(None) == 1
@@ -145,9 +103,6 @@ class TestCantidad:
 
 class TestTipoItem:
     def test_un_tipo_desconocido_queda_nulo_y_no_en_util(self):
-        """Nulo significa "lo que diga el concepto". Caer en `util` haria que
-        el renglon afirmara por su cuenta que es papeleria, y el pipeline le
-        buscaria papeleria a una biblia."""
         assert normalizar_tipo("chuchuwa") is None
         assert normalizar_tipo("") is None
 
@@ -171,13 +126,9 @@ class TestOrdenYVersion:
 
         assert len(datos["lista_oficial"]) == 2
         assert [i["orden"] for i in datos["item_lista_oficial"]] == [1, 2, 1]
-        # Dos grados son dos listas y dos versiones, no una con cinco
-        # renglones: `uq_lista_oficial` va por colegio, sede, grado y anio.
         assert len({i["version_id"] for i in datos["item_lista_oficial"]}) == 2
 
     def test_un_orden_repetido_en_la_misma_lista_bloquea(self, tmp_path: Path):
-        """`uq_item_version_orden` lo impondria la base abortando la
-        transaccion entera, sin decir que dos filas del CSV chocaron."""
         cargador = Cargador(
             escribir_datos(
                 tmp_path,
@@ -193,9 +144,6 @@ class TestOrdenYVersion:
         assert any(p.bloqueante for p in cargador.problemas)
 
     def test_la_version_nace_sin_revisar_y_vigente(self, tmp_path: Path):
-        """La decision de fondo del cargador. El modelo documenta que solo una
-        version SIN revisar habilita el descubrimiento, y que una vez revisada
-        no se vuelve a abrir: sembrarlas cerradas seria sembrarlas muertas."""
         datos = Cargador(
             escribir_datos(tmp_path, ["2.4,Cuarto,1,Cuaderno,1,util,mercado_abierto,Cuadernos,,"])
         ).armar(CONCEPTOS)
@@ -206,8 +154,6 @@ class TestOrdenYVersion:
         assert version["numero"] == 1
 
     def test_un_colegio_que_no_esta_en_colegios_csv_bloquea(self, tmp_path: Path):
-        """Sin el, la lista quedaria con un `sede_id` derivado de un nombre
-        que nadie sembro, apuntando a una sede que no existe."""
         cargador = Cargador(
             escribir_datos(tmp_path, ["9.9,Cuarto,1,Cuaderno,1,util,mercado_abierto,Cuadernos,,"])
         )
@@ -230,9 +176,6 @@ class TestResolucionDeConcepto:
         assert fila["confianza_normalizacion"] >= UMBRAL_CONCEPTO
 
     def test_un_renglon_que_no_reconocemos_va_a_revision_y_no_al_concepto_mas_parecido(self, tmp_path: Path):
-        """`item_sin_concepto_va_a_revision` lo exige, y con razon: un renglon
-        que nadie resolvio y que ademas nadie tiene que mirar desaparece del
-        kit sin que el papa se entere de que le falta algo."""
         fila = item(
             escribir_datos(tmp_path, ["2.4,Cuarto,1,Punzon punta metalica,1,util,mercado_abierto,Otros,,"])
         )
@@ -254,14 +197,6 @@ class TestResolucionDeConcepto:
 
 
 class TestIdentificadores:
-    """La otra mitad de la referencia que cruza a Identidad.
-
-    No se compara contra el cargador de Identidad porque un servicio no
-    importa codigo de otro: se comparan los dos contra `tukit_comun.derivar`,
-    que es el contrato que ambos firman. Si esta prueba y su gemela en
-    Identidad pasan, los dos lados llegan al mismo UUID.
-    """
-
     def test_el_colegio_se_deriva_igual_que_en_identidad(self):
         assert id_colegio("2.4") == derivar("colegio", "2.4")
         assert id_sede("2.4", "Sede unica") == derivar("sede", "2.4", "Sede unica")
@@ -290,13 +225,6 @@ class TestIdentificadores:
 
 
 class TestCsvVersionado:
-    """El CSV que el monorepo versiona, no uno de mentira.
-
-    Es la prueba de que la siembra no depende del corpus, que vive fuera del
-    repositorio: si `datos/listas/items_lista.csv` desapareciera, esto falla
-    aqui y no en un despliegue con la base vacia.
-    """
-
     def test_el_corpus_entero_se_arma_sin_bloqueos(self):
         cargador = Cargador(DATOS)
         datos = cargador.armar([])
@@ -318,14 +246,6 @@ class TestCsvVersionado:
 
 
 class TestContraElEsquema:
-    """Las filas armadas entran en las tablas de verdad.
-
-    SQLite con el mismo `Base.metadata` que Postgres, y con las restricciones
-    CHECK activas. No prueba el upsert -eso es de Postgres- sino que lo que el
-    cargador arma cumple lo que el modelo exige, que es lo que de otro modo
-    solo se descubre a mitad de una carga de 4.719 filas.
-    """
-
     def _sembrar(self, sesion: Session, datos: dict) -> None:
         for tabla in ("lista_oficial", "version_lista_oficial", "item_lista_oficial"):
             sesion.execute(insert(Base.metadata.tables[tabla]), datos[tabla])
@@ -347,16 +267,10 @@ class TestContraElEsquema:
 
         item_tabla = Base.metadata.tables["item_lista_oficial"]
         assert sesion.execute(select(func.count()).select_from(item_tabla)).scalar_one() == 3
-        # La cantidad cero del corpus entro como uno: es lo unico que
-        # `item_cantidad_positiva` acepta.
         cantidades = sesion.execute(select(item_tabla.c.cantidad)).scalars().all()
         assert min(cantidades) == 1
 
     def test_un_renglon_no_surtible_sin_instruccion_lo_rechaza_la_base(self, sesion: Session, tmp_path: Path):
-        """Control negativo. Sin el, la prueba de arriba pasaria igual si la
-        restriccion no existiera, y lo que se estaria comprobando es que
-        SQLite deja insertar cualquier cosa.
-        """
         datos = Cargador(
             escribir_datos(tmp_path, ["2.4,Cuarto,1,Plan lector RAZ,1,licencia_digital,plataforma,Otros,,"])
         ).armar([])

@@ -1,35 +1,4 @@
-"""Mide la muestra ciega (240 renglones) por la RUTA REAL de produccion y el catalogo ACTUAL.
-
-Funciones reales que se llaman (nada reimplementado; solo se importan):
-
-  inteligencia (servicios/inteligencia/tukit_inteligencia):
-    parseo.parsear_renglon          -> tipo_item / modo del renglon (decide si busca en catalogo)
-    dominio.pipeline.estado_desde_emparejamiento(emp, tau=0.75) -> ResueltoAuto / Ambiguo /
-                                       HuecoCatalogo / SinMatch (el mismo que usa trabajos.py)
-    trabajos._tipo_del_concepto_manda -> NO se llama (muta renglones de un trabajo); se replica su
-                                       criterio solo para informar la rama (ver `rama`).
-  catalogo (servicios/catalogo/tukit_catalogo):
-    consulta.cargar_indice(conexion)  -> conceptos activos (sinonimos, discriminantes, centroide =
-                                       promedio de producto_canonico.embedding) y productos. SOLO SELECT;
-                                       la transaccion se abre con SET TRANSACTION READ ONLY.
-    consulta.emparejar(texto, conceptos, productos, embedding_renglon=v)  -> el emparejamiento real:
-        transcripcion.corregir + lexico_de   (normalizacion)
-        descubrir.clasificar                 (RANGO_DUREZA, PAR_DE_ESCUADRAS, _sin_encabezado_de_grupo,
-                                              cabeza, _misma_cosa, _parecido, coseno)
-        corte parecido < 0.5 -> sin_match
-        atributos.extraer_atributos + consulta._cumple (abstencion)
-        consulta.pide_titulo + consulta.del_mismo_titulo (libros por titulo, C134)
-        consulta._elegir_por_nivel
-    embeddings.embeder_gemini        -> solo para renglones sin vector en la cache en disco
-                                       (ensayos/calibracion/datos/vectores_renglones.npz, no se reescribe).
-  Contrafactuales (para atribuir diferencias): se parchea EN MEMORIA descubrir._sin_encabezado_de_grupo
-  (identidad) y consulta.pide_titulo (False); ningun archivo cambia.
-
-Lo que NO se ejerce: Redis (cache_vectores) y la red HTTP del gateway; los vectores salen de la cache en
-disco o de Gemini directo. concepto_forzado = None (lista cruda, sin curaduria).
-Comparacion: la salida de ensayos/calibracion/clasificacion.py (rasgos vectorizados con el catalogo
-y los centroides CONGELADOS en datos/) sobre los mismos textos y los mismos vectores.
-"""
+"""Mide la muestra ciega (240 renglones) por la RUTA REAL de produccion y el catalogo ACTUAL."""
 
 from __future__ import annotations
 
@@ -41,14 +10,15 @@ from pathlib import Path
 import numpy as np
 
 RAIZ = Path(__file__).resolve().parents[2]
-SALIDA = RAIZ / "docs" / "informes" / "calibracion"
-MUESTRA = SALIDA / "muestra_ciega" / "muestra.csv"
+SALIDA = RAIZ / "ensayos" / "calibracion" / "salidas"
+MUESTRA_CIEGA = Path(__file__).resolve().parent / "datos" / "muestra_ciega"
+MUESTRA = MUESTRA_CIEGA / "muestra.csv"
 for r in ("servicios/catalogo", "servicios/inteligencia", "libs/py/tukit_comun", "ensayos/calibracion"):
     sys.path.insert(0, str(RAIZ / r))
 
 import clasificacion as CL  # noqa: E402
+from tukit_catalogo import clasificacion as D  # noqa: E402
 from tukit_catalogo import consulta as C  # noqa: E402
-from tukit_catalogo import descubrir as D  # noqa: E402
 from tukit_inteligencia.dominio.pipeline import estado_desde_emparejamiento  # noqa: E402
 from tukit_inteligencia.parseo import BUSCA_EN_CATALOGO, parsear_renglon  # noqa: E402
 
@@ -90,21 +60,25 @@ def correr(textos, vecs, conceptos, productos, *, limpiador=True, libros=True):
     C._sin_encabezado_de_grupo = D._sin_encabezado_de_grupo
     C.pide_titulo = _PIDE if libros else (lambda d: False)
     try:
-        return [C.emparejar(t, conceptos, productos, embedding_renglon=v) for t, v in zip(textos, vecs, strict=True)]
+        return [
+            C.emparejar(t, conceptos, productos, embedding_renglon=v)
+            for t, v in zip(textos, vecs, strict=True)
+        ]
     finally:
         D._sin_encabezado_de_grupo = _LIMPIADOR
         C.pide_titulo = _PIDE
 
 
 def vieja(textos, vecs):
-    """clasificacion.py (vectorizada, catalogo y centroides congelados) -> (codigo|None, puntaje)."""
     d = CL.cargar(con_vectores=False)
     d.textos = list(textos)
     d.corr = [CL.corregir(t, CL.lexico_de(d.conceptos)) for t in textos]
     d.vectores = np.array(vecs)
     r = CL.construir_rasgos(d)
     idx, s = CL.puntuar(r, CL.ACTUAL)
-    return [(d.codigos[i] if (i >= 0 and sc >= CL.ACTUAL["corte"]) else None, float(sc)) for i, sc in zip(idx, s)]
+    return [
+        (d.codigos[i] if (i >= 0 and sc >= CL.ACTUAL["corte"]) else None, float(sc)) for i, sc in zip(idx, s)
+    ]
 
 
 def main():
@@ -124,13 +98,16 @@ def main():
         return estado_desde_emparejamiento(e.a_dict(), TAU) == "RESUELTO_AUTO"
 
     salida, difs = [], []
-    for f, t, e, e1, e2, e3, (cv, pv) in zip(filas, textos, real, sin_enc, sin_lib, sin_ambos, ant, strict=True):
+    for f, t, e, e1, e2, e3, (cv, pv) in zip(
+        filas, textos, real, sin_enc, sin_lib, sin_ambos, ant, strict=True
+    ):
         dem = parsear_renglon(t)
         busca = dem.tipo_item in BUSCA_EN_CATALOGO
         estado = estado_desde_emparejamiento(e.a_dict(), TAU)
         concepto = e.concepto_codigo or "NINGUNO"
-        # rama
-        titulo = e.concepto_codigo and C.pide_titulo(por_codigo[e.concepto_codigo].get("discriminantes") or ())
+        titulo = e.concepto_codigo and C.pide_titulo(
+            por_codigo[e.concepto_codigo].get("discriminantes") or ()
+        )
         if e.estado == "sin_match":
             rama = "sin_match"
         elif e1.concepto_codigo != e.concepto_codigo or abs(e1.parecido - e.parecido) > 1e-9:
@@ -153,7 +130,6 @@ def main():
                 "rama": rama,
             }
         )
-        # diferencia vs clasificacion.py: concepto (a corte 0.5) o aceptado
         ac_v = cv is not None and pv >= TAU
         if (e.concepto_codigo != cv) or (aceptado(e) != ac_v):
             same = lambda x: x.concepto_codigo == cv and aceptado(x) == ac_v  # noqa: E731
@@ -171,7 +147,9 @@ def main():
                 causa = "sin_producto_en_catalogo_actual"
             else:
                 causa = "otro_puntaje(centroides vivos)"
-            difs.append((f["id"], t, cv, round(pv, 3), e.concepto_codigo, round(e.parecido, 3), estado, causa))
+            difs.append(
+                (f["id"], t, cv, round(pv, 3), e.concepto_codigo, round(e.parecido, 3), estado, causa)
+            )
     with (SALIDA / "ruta_real_muestra.csv").open("w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=list(salida[0]))
         w.writeheader()
@@ -182,8 +160,12 @@ def main():
     print("estados", dict(Counter(s["estado"] for s in salida)))
     print("aceptados", sum(s["aceptado"] == "si" for s in salida))
     print("ramas", dict(Counter(s["rama"].split("+")[0] for s in salida)))
-    print("concepto distinto", sum(1 for t_, e, (cv, _) in zip(textos, real, ant) if e.concepto_codigo != cv),
-          "| puntaje distinto >0.001", sum(1 for e, (cv, pv) in zip(real, ant) if abs(e.parecido - pv) > 1e-3 and e.concepto_codigo == cv))
+    print(
+        "concepto distinto",
+        sum(1 for t_, e, (cv, _) in zip(textos, real, ant) if e.concepto_codigo != cv),
+        "| puntaje distinto >0.001",
+        sum(1 for e, (cv, pv) in zip(real, ant) if abs(e.parecido - pv) > 1e-3 and e.concepto_codigo == cv),
+    )
     print("diferencias", len(difs), dict(Counter(d[-1] for d in difs)))
     for d in difs:
         print(" | ".join(map(str, d)))

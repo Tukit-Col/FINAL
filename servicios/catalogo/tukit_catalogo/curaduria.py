@@ -1,39 +1,12 @@
-"""Lleva la curaduria de listas de la base a git, y de git a otra base.
+"""Lleva la curaduria de listas de la base a git y de git a otra base.
 
-El problema que resuelve. Curar una lista es decidir, renglon por renglon, a
-que concepto corresponde lo que el colegio escribio, y cerrarla. Ese trabajo
-vivia solo en `item_lista_oficial` de UNA base local: `volcar` exporta
-productos, no listas; `items_lista.csv` ni siquiera tiene columna de concepto,
-y `cargador_listas` vuelve a ADIVINAR el concepto por parecido. Un compañero
-que clonaba el repositorio no recibia nada de lo curado, y la lista que ya
-estaba resuelta volvia a pasar por la percepcion (Gemini) y por la cola.
-
-Que viaja, y a donde:
-
-- `datos/curaduria/listas_revisadas.csv`: un renglon por item de cada version
-  VIGENTE y REVISADA. El concepto va por `codigo` (C001...), no por UUID, para
-  que el diff se pueda leer.
-- `datos/catalogo/conceptos.csv`: los conceptos que se crearon curando (el
-  "Crear concepto" de la cola) se AGREGAN, y los existentes se actualizan
-  desde la base. Sin esto un renglon apuntaria a un concepto que el otro lado
-  no tiene.
-
-Los colegios NO se exportan aqui: son de Identidad, y este servicio no lee esa
-base (regla 3). El modulo `curaduria` de Identidad lee el CSV de listas que
-sale de aqui y exporta los colegios que ese CSV nombra.
-
-Lo que NO viaja, a proposito: el PDF original y la percepcion cruda
-(`tarea_importacion`). Pesan, y el PDF puede traer nombres de menores; la
-version publicada ya guarda su texto redactado, pero el documento no.
-
-Uso (desde la raiz, con el entorno del servicio):
-
-    python -m tukit_catalogo.curaduria exportar
-    python -m tukit_catalogo.curaduria importar
-    python -m tukit_catalogo.curaduria importar --solo-validar
-
-`importar` supone que los conceptos ya estan cargados (`make bd-cargar`), y es
-idempotente: una lista cuya version vigente ya dice lo mismo no se toca.
+Decisiones:
+- Viaja `datos/curaduria/listas_revisadas.csv`: un renglon por item de cada version vigente y
+  revisada, con el concepto por `codigo` (C001...) para que el diff sea legible.
+- Los conceptos creados curando se agregan a `datos/catalogo/conceptos.csv` y los existentes se
+  actualizan desde la base; sin esto un renglon apuntaria a un concepto que el otro lado no tiene.
+- Los colegios no se exportan aqui: son de Identidad, cuyo modulo `curaduria` lee este CSV y
+  exporta los colegios que nombra.
 """
 
 from __future__ import annotations
@@ -96,10 +69,6 @@ COLUMNAS_CONCEPTOS = [
     "uno_por_estudiante",
 ]
 
-# Columnas que el CSV conserva aunque la base diga otra cosa. `admite_personaje`
-# la deduce la base de los productos (el cargador no la pisa) y
-# `frecuencia_demanda` es una medida del corpus, no algo que se cure en la cola.
-# Reescribirlas desde la base llenaria el diff de cambios que nadie hizo.
 COLUMNAS_PROPIAS_DEL_CSV = frozenset({"admite_personaje", "frecuencia_demanda"})
 
 LISTA = Base.metadata.tables["lista_oficial"]
@@ -107,12 +76,6 @@ VERSION = Base.metadata.tables["version_lista_oficial"]
 ITEM = Base.metadata.tables["item_lista_oficial"]
 CONCEPTO = Base.metadata.tables["concepto"]
 BANDEJA = Base.metadata.tables["bandeja_salida"]
-
-
-# ---------------------------------------------------------------------------
-# Serializacion: una sola forma de escribir cada valor, para que exportar dos
-# veces la misma base de el mismo archivo byte a byte.
-# ---------------------------------------------------------------------------
 
 
 def _texto(valor: Any) -> str:
@@ -140,11 +103,6 @@ def leer_csv(ruta: Path) -> list[dict[str, str]]:
 
 
 def escribir_csv(ruta: Path, columnas: list[str], filas: list[dict[str, str]]) -> None:
-    """Escribe respetando el fin de linea que el archivo ya tenia.
-
-    Git en Windows puede haber dejado `\\r\\n` o `\\n` segun la configuracion de
-    quien lo clono; cambiarlo marcaria el archivo entero como modificado.
-    """
     fin = "\r\n" if ruta.exists() and b"\r\n" in ruta.read_bytes()[:4096] else "\n"
     ruta.parent.mkdir(parents=True, exist_ok=True)
     with ruta.open("w", encoding="utf-8", newline="") as archivo:
@@ -153,22 +111,7 @@ def escribir_csv(ruta: Path, columnas: list[str], filas: list[dict[str, str]]) -
         escritor.writerows(filas)
 
 
-# ---------------------------------------------------------------------------
-# Exportar
-# ---------------------------------------------------------------------------
-
-
 def filas_de_listas(conexion: Connection) -> list[dict[str, str]]:
-    """Los renglones de la ultima version revisada de cada lista, en orden estable.
-
-    La ultima revisada y no la vigente: volver a subir una lista deja vigente
-    una version sin revisar, y exigir las dos cosas sacaba de git la lista ya
-    curada mientras la nueva esperaba en la cola.
-
-    Pero si la vigente esta revisada, va ella: `importar` la fecha con el
-    `revisada_en` del CSV, que puede ser anterior a una edicion hecha en el
-    admin, y por fecha se exportaba la version que la importacion reemplazo.
-    """
     otra = VERSION.alias("otra")
     ultima_revisada = (
         select(otra.c.id)
@@ -251,16 +194,6 @@ def _fila_concepto(f: Any) -> dict[str, str]:
 def fusionar_conceptos(
     en_csv: list[dict[str, str]], en_base: list[dict[str, str]]
 ) -> tuple[list[dict[str, str]], int, int]:
-    """El CSV con lo que la base agrego o cambio. Devuelve (filas, nuevos, cambiados).
-
-    No se borra ninguna fila del CSV: un concepto que falta en la base es una
-    base a medio cargar, no una decision de quitarlo. Los conceptos de libros
-    (`CONCEPTOS_LIBRO`) no se tocan: el cargador los reescribe en cada carga
-    (su `tipo_item` pasa a `libro_libre`), asi que la base siempre diferiria del
-    CSV y el volcado los marcaria cambiados sin que nadie los curara. Los que
-    se fusionaron en otro (`dic-ingles`, hoy C034) tampoco vuelven: una base
-    vieja todavia los tiene.
-    """
     ajenos = {*CONCEPTOS_LIBRO, *CONCEPTOS_LIBRO_FUSIONADOS}
     por_codigo = {f["codigo"]: f for f in en_base}
     salida: list[dict[str, str]] = []
@@ -270,8 +203,6 @@ def fusionar_conceptos(
         if viva is None or fila["codigo"] in ajenos:
             salida.append(fila)
             continue
-        # Una columna que la base todavia no tiene (una base sin la ultima
-        # migracion) no borra lo que el CSV ya decia.
         nueva = {
             c: fila.get(c, "") if c in COLUMNAS_PROPIAS_DEL_CSV else viva.get(c, fila.get(c, ""))
             for c in COLUMNAS_CONCEPTOS
@@ -285,11 +216,6 @@ def fusionar_conceptos(
 
 def conceptos_de_base(conexion: Connection) -> list[dict[str, str]]:
     return [_fila_concepto(f) for f in conexion.execute(select(CONCEPTO))]
-
-
-# ---------------------------------------------------------------------------
-# Importar
-# ---------------------------------------------------------------------------
 
 
 @dataclass
@@ -358,7 +284,6 @@ def _item(renglon: dict[str, str], conceptos: dict[str, uuid.UUID]) -> dict[str,
         "url_externa": _nulo(renglon["url_externa"]),
         "atributos": json.loads(renglon["atributos"]) if renglon["atributos"] else {},
         "requiere_revision": renglon["requiere_revision"] == "true",
-        # Columna nueva: un CSV exportado antes de ella no la trae.
         "avisos_descartados": [a for a in (renglon.get("avisos_descartados") or "").split("|") if a],
     }
 
@@ -387,20 +312,6 @@ def _huella(items: list[dict[str, Any]]) -> list[tuple[Any, ...]]:
 
 
 def importar_listas(conexion: Connection, listas: list[ListaCurada]) -> Resultado:
-    """Deja cada lista curada como la version vigente y revisada de su lista.
-
-    Si la vigente local ya es revisada y dice lo mismo, no se toca. Si no, se
-    crea una version nueva (numero siguiente) y la anterior deja de ser vigente:
-    se versiona, no se sobreescribe, igual que al corregir desde la cola, para
-    que quien compro contra la anterior siga sabiendo contra que compro.
-
-    Los kits canonicos no viajan en el CSV: viven en la base de Inteligencia, que
-    este servicio no toca. Por cada lista importada se deja el mismo
-    `lista_aprobada` que deja aprobarla en la cola, y el poller de Inteligencia
-    los arma en esta maquina. Tambien para las listas que ya estaban al dia: asi
-    importar de nuevo repara una base que tiene las listas pero no sus kits. El
-    poller no vuelve a optimizar una version que ya tiene canonico.
-    """
     conceptos = {f.codigo: f.id for f in conexion.execute(select(CONCEPTO.c.codigo, CONCEPTO.c.id))}
     resultado = Resultado()
 
@@ -462,8 +373,6 @@ def importar_listas(conexion: Connection, listas: list[ListaCurada]) -> Resultad
             ).scalar()
             or 0
         ) + 1
-        # Primero se apaga la vigente: el indice unico parcial sobre `vigente`
-        # no admite dos a la vez ni por un instante.
         conexion.execute(update(VERSION).where(VERSION.c.lista_id == lista_id).values(vigente=False))
         version_id = uuid.uuid4()
         conexion.execute(
@@ -485,7 +394,6 @@ def importar_listas(conexion: Connection, listas: list[ListaCurada]) -> Resultad
 
 
 def _pedir_canonicos(conexion: Connection, lista: ListaCurada, version_id: uuid.UUID) -> None:
-    """Deja `lista_aprobada` en la bandeja, igual que `cerrar_version` (ADR 0030)."""
     conexion.execute(
         BANDEJA.insert().values(
             tipo="lista_aprobada",
@@ -498,11 +406,6 @@ def _pedir_canonicos(conexion: Connection, lista: ListaCurada, version_id: uuid.
             },
         )
     )
-
-
-# ---------------------------------------------------------------------------
-# CLI
-# ---------------------------------------------------------------------------
 
 
 async def _exportar(datos: Path) -> int:

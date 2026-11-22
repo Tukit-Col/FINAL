@@ -1,5 +1,3 @@
-/* Pantalla de progreso y de correo al armar el kit. Tokens de TUKIT. */
-
 .escena,
 .confirmacion {
   display: grid;
@@ -204,8 +202,6 @@
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
-
-/* ------------------------------------------------------------ Correo */
 
 .cuerpoCorreo {
   display: grid;

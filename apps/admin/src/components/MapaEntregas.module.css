@@ -14,8 +14,6 @@
   font-size: 13px;
 }
 
-/* Leaflet inyecta el divIcon fuera del arbol de React: la clase del modulo se
-   aplica al contenedor y el conteo va en el span. */
 .pin {
   background: none;
   border: 0;

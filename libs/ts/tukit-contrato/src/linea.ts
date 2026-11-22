@@ -1,47 +1,25 @@
-// Como leer una linea de kit.
-//
-// El contrato modela en una sola forma cosas que en pantalla se comportan muy
-// distinto: un lapiz con precio, una licencia con link de pago, un diccionario
-// que no hay que comprar, un texto que vende la editorial en el colegio y un
-// hueco de catalogo. Estas reglas viven aqui y no en cada componente porque
-// son reglas del contrato, no decisiones de diseno, y repetirlas en `web` y en
-// `admin` es como se desincronizan.
-
 import type { Dinero, LineaKit } from "./contrato";
 
-/**
- * Para que sirve cada linea en pantalla. El orden en que se prueba importa:
- * `informativa` gana sobre el tipo, porque un `texto` informativo y un `texto`
- * resuelto se pintan distinto aunque compartan `tipo`.
- */
 export type ClaseLinea =
-  | "comprable" // producto elegido, con precio, entra al total
-  | "hueco" // se entendio que pide y el catalogo no lo tiene
-  | "sin_match" // no se entendio que pide
-  | "pendiente_revision" // ambiguo: hay candidatos y ninguno domina
-  | "licencia_digital" // pago externo, con link
-  | "no_comprar" // "el disponible en casa"
-  | "diferido" // se solicitara mas adelante
-  | "fuera_de_alcance" // uniformes: declarado fuera de v1
-  | "por_su_cuenta" // tipo `otro`: Tukit decidio no venderlo (audifonos, un titere)
-  | "informativa"; // la vende el colegio o la editorial, no Tukit
+  | "comprable"
+  | "hueco"
+  | "sin_match"
+  | "pendiente_revision"
+  | "licencia_digital"
+  | "no_comprar"
+  | "diferido"
+  | "fuera_de_alcance"
+  | "por_su_cuenta"
+  | "informativa";
 
 export function clasificar(linea: LineaKit): ClaseLinea {
   if (linea.tipo === "licencia_digital") return "licencia_digital";
   if (linea.tipo === "no_comprar") return "no_comprar";
   if (linea.tipo === "diferido") return "diferido";
   if (linea.tipo === "uniforme") return "fuera_de_alcance";
-  // Antes de `informativa`: un `otro` tambien es informativo, pero decirle al
-  // acudiente que "lo gestiona el colegio" era falso; lo compra el por su cuenta.
   if (linea.tipo === "otro") return "por_su_cuenta";
   if (linea.informativa) return "informativa";
-  // Un texto con titulo y editorial (no informativo: se compra en libreria) no
-  // se busca en el catalogo y llega como SIN_MATCH, porque la edicion aun no se
-  // resuelve. Mostrarlo como "No entendimos que pide" era falso: se entendio.
   if (linea.tipo === "texto" && !linea.producto_elegido) return "por_su_cuenta";
-  // Igual un libro con titulo que el catalogo no tiene («Los secretos de Hafiz
-  // Mustafa»): se entendio y se compra en libreria. Como hueco quedaba en «No lo
-  // tenemos» sin salida, y el acudiente lo veia como un error del kit.
   if (
     linea.tipo === "libro_libre" &&
     !linea.producto_elegido &&
@@ -55,12 +33,10 @@ export function clasificar(linea: LineaKit): ClaseLinea {
   return "comprable";
 }
 
-/** Solo estas entran al total del kit y al carrito (§5.1.1). */
 export function entraAlTotal(linea: LineaKit): boolean {
   return clasificar(linea) === "comprable" && typeof linea.subtotal_linea === "number";
 }
 
-/** Se muestra pero no se cobra: el acudiente necesita saber que existe. */
 export function esInformativaOExterna(linea: LineaKit): boolean {
   const clase = clasificar(linea);
   return (
@@ -73,7 +49,6 @@ export function esInformativaOExterna(linea: LineaKit): boolean {
   );
 }
 
-/** Lo que Tukit no pudo responder y por lo tanto se abstiene de ofrecer. */
 export function esAbstencion(linea: LineaKit): boolean {
   const clase = clasificar(linea);
   return clase === "hueco" || clase === "sin_match";
@@ -92,16 +67,9 @@ export const TITULO_CLASE: Record<ClaseLinea, string> = {
   informativa: "Lo gestiona el colegio",
 };
 
-/**
- * Por que la linea no se cobra, en lenguaje llano y sin culpar al acudiente.
- * `null` para las que si se cobran.
- */
 export function razonDeNoCobrar(linea: LineaKit): string | null {
   switch (clasificar(linea)) {
     case "comprable":
-      // En cero unidades porque otra linea ya la cubre: la herramienta pedida
-      // en varias materias o la que se compra junto con la del hermano. El
-      // mensaje dice donde quedo; sin el, se veia el producto y nada mas.
       return linea.unidades_a_comprar === 0 && linea.mensaje ? linea.mensaje : null;
     case "hueco":
       return (
@@ -138,7 +106,6 @@ export function razonDeNoCobrar(linea: LineaKit): string | null {
   }
 }
 
-/** Agrupa las lineas de un kit por como se van a pintar, conservando el orden. */
 export function agruparPorClase(lineas: readonly LineaKit[]): Map<ClaseLinea, LineaKit[]> {
   const grupos = new Map<ClaseLinea, LineaKit[]>();
   for (const linea of lineas) {
@@ -150,7 +117,6 @@ export function agruparPorClase(lineas: readonly LineaKit[]): Map<ClaseLinea, Li
   return grupos;
 }
 
-/** El orden en que las secciones aparecen: primero lo que duele, luego lo que se compra. */
 export const ORDEN_SECCIONES: readonly ClaseLinea[] = [
   "hueco",
   "sin_match",
@@ -164,21 +130,9 @@ export const ORDEN_SECCIONES: readonly ClaseLinea[] = [
   "comprable",
 ];
 
-// ------------------------------------------------ Lo que el acudiente lee
-//
-// Reglas de presentacion que dependen del contrato y no de un componente: que
-// se muestra donde habria un precio, que lineas son libros o uniformes, como se
-// dice un empaque, que productos hacen "Fan" a un kit y las reglas de la
-// contrasena. Viven aqui, junto a `clasificar`, para probarlas sin pintar nada.
-
-// El concepto del plan lector y los textos con titulo. Una linea suya sin
-// edicion verificada llega como `otro` con "Se compra en librería", pero sigue
-// siendo un libro y va en la seccion de libros. Como esa linea no se busca en
-// el catalogo no trae `concepto` (no tiene resolucion): la instruccion basta.
 const CONCEPTO_LIBRO_CON_TITULO = "C134";
 const SE_COMPRA_EN_LIBRERIA = /^\s*se compra en (?:una )?librer[ií]a/i;
 
-/** Un libro de texto o de lectura: se compra donde la editorial o la libreria. */
 export function esLibro(linea: LineaKit): boolean {
   if (linea.tipo === "texto" || linea.tipo === "libro_libre") return true;
   if (linea.tipo !== "otro") return false;
@@ -188,13 +142,6 @@ export function esLibro(linea: LineaKit): boolean {
   );
 }
 
-/**
- * La instruccion del colegio en una frase corta, para ponerla donde iria el
- * precio: "Se compra en librería", "Pregunta en el colegio (601 427 2365)".
- * La curaduria la escribe como frase y luego la fuente y la fecha; aqui se
- * toma solo la frase. `null` si no hay instruccion o es demasiado larga para
- * un titulo (en ese caso se lee completa como razon de no cobrar).
- */
 export function instruccionCorta(linea: LineaKit): string | null {
   const texto = linea.instruccion_colegio?.trim();
   if (!texto) return null;
@@ -202,7 +149,6 @@ export function instruccionCorta(linea: LineaKit): string | null {
   if (pregunta) return pregunta[0];
   const compra = texto.match(/^Se (?:compra|adquiere|consigue) (?:en|con) [^:.;]+/i);
   if (compra) return compra[0].trim();
-  // split siempre devuelve al menos un trozo, pero el tipo no lo garantiza.
   const frase = (texto.split(/[:.;]/, 1)[0] ?? "").trim();
   return frase && frase.length <= 60 ? frase : null;
 }
@@ -224,12 +170,6 @@ function nombreDeSitio(url: string | null | undefined): string | null {
   }
 }
 
-/**
- * Donde se compra lo que Tukit no cobra, con el dato mas especifico que haya:
- * lo que diga el catalogo (`se_compra_en`), la editorial de la edicion exigida,
- * el sitio del proveedor o la tienda de la primera oferta. `null` si nada lo
- * dice: la pantalla usa entonces un texto generico en vez de inventar un nombre.
- */
 export function dondeComprar(linea: LineaKit): string | null {
   const dicho = linea.se_compra_en?.trim();
   if (dicho) return dicho;
@@ -241,11 +181,6 @@ export function dondeComprar(linea: LineaKit): string | null {
   return tienda || null;
 }
 
-/**
- * Lo que se pinta en lugar del precio de una linea. Nunca `$ 0`: o hay un valor
- * real que cobrar, o una frase que dice por que no se cobra y donde se
- * consigue.
- */
 export type EstadoPrecio =
   | { tipo: "precio"; valor: Dinero }
   | { tipo: "descartado"; ahorro: Dinero | null }
@@ -258,8 +193,6 @@ export function estadoDePrecio(linea: LineaKit): EstadoPrecio {
   const clase = clasificar(linea);
   const donde = dondeComprar(linea);
   const libro = esLibro(linea);
-  // Lo que no se cobra y el colegio dice como conseguir: esa frase va en lugar
-  // del precio, salvo que el catalogo ya nombre la tienda (`se_compra_en`).
   const instruccion = instruccionCorta(linea);
   if (
     instruccion &&
@@ -321,26 +254,19 @@ export function estadoDePrecio(linea: LineaKit): EstadoPrecio {
   }
 }
 
-/** Hay algo que cobrar: un total en cero no se muestra como `$ 0`, se explica. */
 export function hayQueCobrar(total: Dinero | null | undefined): total is Dinero {
   return typeof total === "number" && total > 0;
 }
 
-/**
- * Como se dice el empaque de una opcion: "Empaque de 12" y no "12". Si se
- * compra mas de un empaque, lo dice.
- */
 export function etiquetaEmpaque(unidadesPorEmpaque: number, unidadesAComprar: number): string {
   const empaque = unidadesPorEmpaque > 1 ? `Empaque de ${unidadesPorEmpaque}` : "Por unidad";
   return unidadesAComprar > 1 ? `${empaque} · compras ${unidadesAComprar}` : empaque;
 }
 
-/** Las lineas de un kit que SUMAN al total hoy: con precio y sin descartar. */
 export function lineasQueSuman(lineas: readonly LineaKit[]): LineaKit[] {
   return lineas.filter((l) => !l.descartado && entraAlTotal(l));
 }
 
-/** "Spider-Man" == "spiderman": sin tildes, mayusculas, guiones ni espacios (igual que el backend). */
 export function normalizarPersonaje(texto: string): string {
   return texto
     .normalize("NFD")
@@ -349,7 +275,6 @@ export function normalizarPersonaje(texto: string): string {
     .replace(/[\s_\-]+/g, "");
 }
 
-/** Los personajes que pidio cada hijo, por la `hijo` de sus lineas (solo franquicias). */
 export type PersonajesPedidos = Readonly<Record<string, readonly string[]>>;
 
 function pedidoPorSuHijo(linea: LineaKit, pedidos: PersonajesPedidos): boolean {
@@ -360,12 +285,6 @@ function pedidoPorSuHijo(linea: LineaKit, pedidos: PersonajesPedidos): boolean {
   return delHijo.some((p) => normalizarPersonaje(p) === clave);
 }
 
-/**
- * Los productos con personaje de un kit, sin repetir y sin los descartados: lo
- * que hace "Fan" a un kit Fan. Se muestra primero, antes de la lista completa.
- * Con `pedidos` solo cuenta las lineas cuyo personaje pidio SU hijo: un Bluey
- * que llego por "mas variedad" o la Minnie del hermano no hacen Fan a nadie.
- */
 export function productosDelPersonaje(
   lineas: readonly LineaKit[],
   pedidos?: PersonajesPedidos,
@@ -376,9 +295,6 @@ export function productosDelPersonaje(
     const producto = linea.producto_elegido;
     if (!producto?.personaje || linea.descartado || linea.informativa) continue;
     if (pedidos && !pedidoPorSuHijo(linea, pedidos)) continue;
-    // Se deduplica por (hijo, sku), no por sku a secas: dos hermanos pueden
-    // compartir el MISMO producto de personaje (uno consolidado sobre el otro) y
-    // ambos deben verlo en SU franja. Deduplicar global borraba al segundo hijo.
     const clave = `${linea.hijo ?? ""}\u0000${producto.sku}`;
     if (vistos.has(clave)) continue;
     vistos.add(clave);
@@ -387,15 +303,10 @@ export function productosDelPersonaje(
   return salida;
 }
 
-/** Los personajes distintos de un kit, para el titular de la franja Fan. */
 export function personajesDelKit(lineas: readonly LineaKit[], pedidos?: PersonajesPedidos): string[] {
   return [...new Set(productosDelPersonaje(lineas, pedidos).map((l) => l.producto_elegido!.personaje!))];
 }
 
-/**
- * La franja Fan por hijo: un grupo por (hijo, personaje) en el orden del kit,
- * con sus productos. Un hijo neutral (sin personaje pedido) no aparece.
- */
 export function personajesPorHijo(
   lineas: readonly LineaKit[],
   pedidos?: PersonajesPedidos,
@@ -412,23 +323,14 @@ export function personajesPorHijo(
   return grupos;
 }
 
-// ------------------------------------------------- Contrasena y consentimiento
-
-/** Una regla de la contrasena, dicha en palabras sencillas. */
 export interface ReglaDeClave {
   id: string;
   texto: string;
   cumple: boolean;
 }
 
-/** Largo minimo que exige Identidad (`CLAVE_MINIMA`). */
 export const CLAVE_MINIMA = 8;
 
-/**
- * Las reglas de la contrasena y cuales ya cumple lo escrito. Hoy el unico
- * requisito real es el largo (Identidad no exige mayusculas ni simbolos); la
- * lista se arma aqui para que la pantalla muestre las reglas ANTES de escribir.
- */
 export function reglasDeClave(clave: string): ReglaDeClave[] {
   return [
     {

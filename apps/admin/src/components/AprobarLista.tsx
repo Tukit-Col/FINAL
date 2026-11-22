@@ -1,13 +1,5 @@
 "use client";
 
-// Región 4 del revisor (P4): aprobar y publicar. El onboarding crea una VERSIÓN
-// de lista, no un `TrabajoAdmin`, así que no hay tres kits que armar aquí
-// (`ConsolaRevision` toma un `TrabajoAdmin` y no existe una forma en el contrato
-// de derivarlo de una versión — ver `notas` de la página). Lo que sí existe es
-// `cerrarLista(version_id)`: cierra la versión, la marca revisada y deja el par
-// (colegio, grado) disponible para los acudientes. Tras cerrar, `router.refresh`
-// re-lee la revisión (que ya vendrá `revisada`) y luego se navega al perfil.
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { cerrarLista, FalloListas } from "@/lib/api-listas";

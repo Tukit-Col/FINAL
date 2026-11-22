@@ -1,9 +1,3 @@
-/* Tablero kanban de logistica. Columnas de ancho fijo con scroll horizontal
- * (en movil se desliza; en escritorio caben seis en una pantalla ancha). La
- * columna se distingue por un filete de color arriba, el mismo semantico de
- * los chips de estado de la tabla: azul lo que avanza, ambar lo que espera el
- * pago, verde lo entregado, rojo la incidencia, gris lo cancelado. */
-
 .tablero {
   display: flex;
   flex-direction: column;
@@ -41,7 +35,6 @@
   border-radius: var(--radius-lg);
 }
 
-/* El carril aparte tiene dos columnas: no se estiran a todo el ancho. */
 .columnasAparte {
   grid-auto-columns: minmax(232px, 320px);
   justify-content: start;
@@ -93,7 +86,6 @@
   font-weight: 800;
 }
 
-/* Numero de la etapa: ordena el recorrido de izquierda a derecha. */
 .paso {
   display: grid;
   place-items: center;
@@ -117,7 +109,6 @@
   color: var(--color-success);
 }
 
-/* Recorrido de la tarjeta */
 .recorrido {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
@@ -161,7 +152,6 @@
   color: var(--color-text-muted);
 }
 
-/* Alto maximo con scroll propio: la columna no crece con los pedidos. */
 .lista {
   display: flex;
   flex-direction: column;
@@ -181,8 +171,6 @@
   border-radius: var(--radius-md);
 }
 
-/* ----------------------------------------------------------- tarjeta */
-
 .tarjeta {
   display: flex;
   flex-direction: column;
@@ -201,15 +189,12 @@
   box-shadow: var(--shadow-md);
 }
 
-/* Al avanzar: la tarjeta sale hacia la etapa siguiente (derecha) antes de que
- * el refresco la ponga en su columna nueva. Feedback de que el paso se hizo. */
 .tarjeta[data-sale] {
   opacity: 0;
   transform: translateX(14px) scale(0.98);
   pointer-events: none;
 }
 
-/* Con alerta: el filete rojo a la izquierda, como la fila de la tabla. */
 .tarjetaAlerta {
   box-shadow: var(--clay-shadow-sm), inset 3px 0 0 var(--color-danger);
 }
@@ -221,7 +206,6 @@
   gap: var(--espacio-2);
 }
 
-/* El codigo es el enlace al detalle: area de toque de 44px aunque el texto sea chico. */
 .codigo {
   display: inline-flex;
   align-items: center;
@@ -342,8 +326,6 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
-
-/* -------------------------------------------------- selector de vista */
 
 .vistas {
   display: inline-flex;

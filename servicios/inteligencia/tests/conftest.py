@@ -1,19 +1,3 @@
-"""Utilidades de prueba del servicio de Inteligencia.
-
-Dos piezas, y las dos existen para que la suite no necesite ni Postgres ni
-los otros dos servicios levantados.
-
-`motor` es un SQLite en memoria con el API de `MotorServicio`, o sea el mismo
-que usa el runtime. Va con `StaticPool` porque sin el cada conexion abriria
-una base nueva y las tablas creadas al arrancar no existirian en la
-siguiente: el sintoma es un `no such table` que parece un fallo del modelo.
-
-`CatalogoFalso` implementa los tres metodos de `ClienteCatalogo` sobre datos
-en memoria. No es un simulacro con expectativas sino una implementacion
-alternativa del puerto, que es lo que permite probar la orquestacion completa
-(las cuatro etapas, la persistencia, la maquina de estados) sin red.
-"""
-
 from __future__ import annotations
 
 from collections.abc import Iterator
@@ -33,17 +17,11 @@ COLEGIO = "11111111-1111-5111-8111-111111111111"
 
 @pytest.fixture(autouse=True)
 def _sin_broker(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Las pruebas corren sin RabbitMQ aunque quien las lance tenga `RABBITMQ_URL`.
-
-    La variable cambia el modo del sondeador de listas y del trabajador (ADR
-    0046). Las que prueban el modo con broker la ponen ellas.
-    """
     monkeypatch.delenv("RABBITMQ_URL", raising=False)
 
 
 @pytest.fixture(autouse=True)
 def _limitador_limpio() -> None:
-    """El cupo del asistente vive en memoria del proceso: cada prueba parte de cero."""
     from tukit_inteligencia import nl2c
 
     nl2c.LIMITADOR.reiniciar()
@@ -51,11 +29,6 @@ def _limitador_limpio() -> None:
 
 @pytest.fixture(autouse=True)
 def _sin_dobles_que_sobrevivan() -> Iterator[None]:
-    """Los dobles que una prueba pone en la frontera publica no pasan a la siguiente.
-
-    El modelo del asistente (`nl2c.usar_llamador`) y los puertos de percepcion
-    (`app.state.renderizar` / `app.state.leer`) son del proceso: sin esto, una
-    prueba leeria el PDF con el lector de la anterior."""
     yield
     from tukit_inteligencia import nl2c
     from tukit_inteligencia.api import app
@@ -68,12 +41,6 @@ def _sin_dobles_que_sobrevivan() -> Iterator[None]:
 
 @pytest.fixture(autouse=True)
 def _sin_redis(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """Las pruebas corren sin Redis aunque quien las lance tenga `REDIS_URL`.
-
-    Con la variable, la lectura de una lista se guardaria en Redis (ADR 0047) y
-    una prueba dejaria de leer lo que le pasa a su lector doble. Las que prueban
-    la cache ponen su doble con `usar_cliente`.
-    """
     monkeypatch.delenv("REDIS_URL", raising=False)
     usar_cliente(None)
     yield
@@ -88,9 +55,6 @@ async def motor():
         connect_args={"check_same_thread": False},
     )
 
-    # SQLite ignora las FK (y por tanto ON DELETE CASCADE) salvo que se pida por
-    # conexion. Postgres las respeta en produccion; sin este pragma las pruebas
-    # no verian la cascada de borrado de un trabajo. Es la receta estandar.
     @event.listens_for(engine.sync_engine, "connect")
     def _activar_fk(conexion, _registro):  # noqa: ANN001
         cursor = conexion.cursor()
@@ -124,8 +88,6 @@ def opcion(sku: str, nivel: str, precio: int | None, **kw: Any) -> dict[str, Any
 
 @dataclass
 class CatalogoFalso:
-    """Implementacion en memoria del puerto hacia el catalogo."""
-
     renglones: list[dict[str, Any]] = field(default_factory=list)
     respuestas: dict[str, dict[str, Any]] = field(default_factory=dict)
     grado: str = "Cuarto"
@@ -147,7 +109,6 @@ class CatalogoFalso:
         }
 
     async def producto(self, sku: str) -> dict[str, Any]:
-        """El producto por sku, en forma publica (`precio_desde`), buscado en las opciones."""
         self.llamadas.append("producto")
         for respuesta in self.respuestas.values():
             for op in respuesta.get("opciones", []):
@@ -167,7 +128,6 @@ class CatalogoFalso:
         raise KeyError(sku)
 
     async def productos_del_concepto(self, concepto: str, *, maximo: int = 40) -> list[dict[str, Any]]:
-        """Todas las opciones con precio de un concepto, en forma publica."""
         self.llamadas.append("productos_del_concepto")
         salida: list[dict[str, Any]] = []
         for respuesta in self.respuestas.values():
@@ -195,12 +155,10 @@ class CatalogoFalso:
     async def productos_de_personaje(
         self, concepto: str, personaje: str, *, limite: int = 8
     ) -> list[dict[str, Any]]:
-        """Las variantes de personaje; los dobles que solo definen una la envuelven en lista."""
         producto = await self.producto_de_personaje(concepto, personaje)
         return [producto] if producto else []
 
     async def producto_de_personaje(self, concepto: str, personaje: str) -> dict[str, Any] | None:
-        """Primera opcion de un concepto ancla cuyo personaje coincide, o None."""
         self.llamadas.append("producto_de_personaje")
         respuesta = next((r for r in self.respuestas.values() if r.get("concepto_codigo") == concepto), None)
         for op in (respuesta or {}).get("opciones", []):

@@ -1,11 +1,3 @@
-"""La revision humana de un trabajo: la cola, validar lineas, aprobar y borrar.
-
-Un trabajo de colegio sale de la optimizacion en `espera_revision` y nadie lo
-ve hasta que una persona lo aprueba (AD-03 a AD-06). Aprobar publica y deja el
-evento en la bandeja en la misma transaccion; la lista aprobada fija el puntero
-al kit canonico del grado. Validar una linea deja quien y cuando.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -36,7 +28,6 @@ class TestLaRevisionHumana:
         assert [e.tipo for e in eventos] == ["kits_publicados"]
 
     async def test_publicar_dos_veces_no_se_puede(self, motor):
-        """No es idempotente: es un segundo aviso al acudiente."""
         trabajo_id, _ = await crear_y_procesar(motor)
         await trabajos.revisar(motor, trabajo_id, decision="aprobar")
 
@@ -44,8 +35,6 @@ class TestLaRevisionHumana:
             await trabajos.revisar(motor, trabajo_id, decision="aprobar")
 
     async def test_un_preview_de_onboarding_no_se_publica(self, motor):
-        """Un preview no tiene acudiente: publicarlo dejaria un `kits_publicados`
-        sin destinatario que el repartidor reintentaria sin fin. Se rechaza."""
         from sqlalchemy import func, select
 
         respuesta = await trabajos.crear(
@@ -59,7 +48,6 @@ class TestLaRevisionHumana:
         with pytest.raises(trabajos.PreviewNoPublicable):
             await trabajos.revisar(motor, trabajo_id, decision="aprobar")
 
-        # No se emitio ningun evento sin destinatario.
         async with motor.engine.begin() as conexion:
             eventos = await conexion.scalar(select(func.count()).select_from(trabajos.BANDEJA))
         assert eventos == 0
@@ -73,7 +61,6 @@ class TestLaRevisionHumana:
         await trabajos.eliminar(motor, trabajo_id)
 
         assert (await trabajos.cola(motor))["total"] == 0
-        # La cascada se llevo etapas, items y kits: no quedan huerfanos.
         async with motor.engine.begin() as conexion:
             for tabla in (trabajos.ETAPA, trabajos.ITEM, trabajos.KIT):
                 sobran = await conexion.scalar(
@@ -88,7 +75,6 @@ class TestLaRevisionHumana:
         with pytest.raises(trabajos.TrabajoProtegido):
             await trabajos.eliminar(motor, trabajo_id)
 
-        # Sigue vivo y publicado.
         assert (await trabajos.ver(motor, trabajo_id))["estado"] == EstadoTrabajo.PUBLICADO.value
 
     async def test_borrar_uno_que_no_existe_es_TrabajoNoExiste(self, motor):
@@ -108,10 +94,6 @@ class TestLaRevisionHumana:
         assert puntero[0].trabajo_id == canonico
 
     async def test_aprobar_el_trabajo_de_un_acudiente_no_toca_el_canonico(self, motor):
-        """El canonico sale de la lista aprobada. El kit de un papa lleva sus
-        preferencias (presupuesto, prioridad, personaje) y es solo suyo: antes,
-        aprobarlo en la cola de revision lo volvia el canonico de su grado y los
-        papas siguientes recibian un kit armado con las preferencias de otro."""
         from sqlalchemy import select
 
         canonico = await sembrar_canonico(motor)
@@ -141,15 +123,10 @@ class TestLaRevisionHumana:
 
         async with motor.engine.begin() as conexion:
             puntero = list(await conexion.execute(select(trabajos.KIT_CANONICO)))
-        # Una sola cache bendita por grado: la lista nueva desbanca a la vieja.
         assert len(puntero) == 1
         assert puntero[0].trabajo_id == segundo
 
     async def test_aprobar_un_kit_sin_lineas_comprables_se_niega_y_no_fija_canonico(self, motor):
-        # Todos los renglones son licencia digital (informativos, sin precio): el
-        # kit no tiene NADA que Tukit pueda cobrar. Aprobarlo como canonico solo
-        # garantizaria el 404 "sin lineas comprables" en el checkout, asi que se
-        # niega con `CheckoutRechazado` y NO se fija el puntero ni se emite aviso.
         from sqlalchemy import func, select
 
         catalogo = CatalogoFalso(
@@ -162,7 +139,7 @@ class TestLaRevisionHumana:
                     instruccion_colegio="Se adquiere con QUOVIX.",
                 ),
             ],
-            respuestas={},  # sin emparejamiento: el renglon no gana producto ni precio
+            respuestas={},
         )
         trabajo_id, _ = await crear_y_procesar(motor, catalogo=catalogo)
 
@@ -171,7 +148,6 @@ class TestLaRevisionHumana:
         assert exc.value.estado == 409
         assert exc.value.cuerpo["error"] == "kit_sin_lineas"
 
-        # El rollback dejo el trabajo en espera de revision, sin canonico ni evento.
         assert (await trabajos.ver(motor, trabajo_id))["estado"] == EstadoTrabajo.ESPERA_REVISION.value
         async with motor.engine.begin() as conexion:
             punteros = await conexion.scalar(select(func.count()).select_from(trabajos.KIT_CANONICO))
@@ -186,12 +162,9 @@ class TestLaColaDeRevision:
         cola = await trabajos.cola(motor)
 
         assert cola["total"] == 1
-        # El punzon quedo sin match y la licencia no pasa por el catalogo.
         assert cola["trabajos"][0]["lineas_a_revisar"] == 1
 
     async def test_la_cola_dice_de_que_colegio_y_grado_es(self, motor):
-        """Sin esto la consola mostraba "Sin identificar" en trabajos que si lo
-        sabian: el colegio y el grado viajan en los hijos del trabajo."""
         await crear_y_procesar(motor)
         entrada = (await trabajos.cola(motor))["trabajos"][0]
 
@@ -201,9 +174,6 @@ class TestLaColaDeRevision:
 
 class TestValidarUnaLinea:
     async def test_validar_sin_sku_una_linea_ambigua_toma_el_producto_de_los_kits(self, motor):
-        """El "Confirmar las elegidas" llega sin sku. En una linea AMBIGUA la
-        resolucion no tiene candidato (eligio el optimizador, kit por kit), y
-        validarla asi la dejaba resuelta y sin producto: 500 por el CHECK."""
         from sqlalchemy import select, update
 
         trabajo_id, _ = await crear_y_procesar(motor)
@@ -246,7 +216,6 @@ class TestValidarUnaLinea:
 
         trabajo_id, _ = await crear_y_procesar(motor)
         async with motor.engine.begin() as conexion:
-            # El punzon (orden 4) quedo sin match: no hay candidato ni producto en los kits.
             item = (
                 await conexion.execute(
                     select(trabajos.ITEM.c.id).where(

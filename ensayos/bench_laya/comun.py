@@ -1,11 +1,4 @@
-"""Piezas compartidas del benchmark Laya vs NSGA-II (lado del proyecto, con pymoo).
-
-Todo lo que mide se apoya en las funciones del optimizador de produccion
-(`_admisibles`, `_objetivos_de_asignacion`, `armar_kit`, `recomendar`), para que
-"costo", "fidelidad" y "personaje" signifiquen aqui exactamente lo mismo que en
-el pipeline. Una asignacion es `{orden (str): sku}` sobre las lineas decidibles
-del unico hijo de la lista.
-"""
+"""Piezas compartidas del benchmark Laya vs NSGA-II (lado del proyecto, con pymoo)."""
 
 from __future__ import annotations
 
@@ -16,11 +9,8 @@ from pathlib import Path
 from typing import Any
 
 RAIZ = Path(__file__).resolve().parents[2]
-# Los datos de entrada (instancias, escenarios, corridas) viven con el codigo;
-# los resultados que el informe cita (metricas, tablas, figuras, tiempos) van a
-# la documentacion, junto al informe que los lee.
 CARPETA = Path(__file__).resolve().parent
-SALIDA = RAIZ / "docs" / "informes" / "benchmark-laya"
+SALIDA = RAIZ / "ensayos" / "bench_laya" / "salidas"
 for sub in ("servicios/inteligencia", "libs/py/tukit_comun"):
     if str(RAIZ / sub) not in sys.path:
         sys.path.insert(0, str(RAIZ / sub))
@@ -39,7 +29,6 @@ TOPE_NIVEL = len(ORDEN_NIVEL) - 1
 
 
 def cargar_json(nombre: str, carpeta: Path = CARPETA) -> Any:
-    """Lee un JSON; si el nombre termina en `.gz`, comprimido."""
     ruta = carpeta / nombre
     if ruta.suffix == ".gz":
         with gzip.open(ruta, "rt", encoding="utf-8") as f:
@@ -48,12 +37,10 @@ def cargar_json(nombre: str, carpeta: Path = CARPETA) -> Any:
 
 
 def guardar_json(nombre: str, datos: Any, carpeta: Path = CARPETA) -> None:
-    """Escribe un JSON; si el nombre termina en `.gz`, comprimido."""
     carpeta.mkdir(parents=True, exist_ok=True)
     texto = json.dumps(datos, ensure_ascii=False, indent=1, default=str)
     ruta = carpeta / nombre
     if ruta.suffix == ".gz":
-        # mtime=0: el mismo resultado da el mismo archivo, byte a byte.
         with gzip.GzipFile(ruta, "wb", mtime=0) as f:
             f.write(texto.encode("utf-8"))
     else:
@@ -70,7 +57,6 @@ def renglones_de(instancia: dict[str, Any]) -> list[Renglon]:
 
 
 def decidibles(renglones: list[Renglon]) -> list[Renglon]:
-    """Las lineas donde hay que elegir producto: las mismas que `optimizar_frente`."""
     return [r for r in renglones if not r.informativa and _admisibles(r)]
 
 
@@ -85,7 +71,6 @@ def tiene_personaje(c: Candidato, pedidos: set[str]) -> bool:
 def objetivos(
     dec: list[Renglon], asignacion: dict[str, str], preferencias: dict[str, Any]
 ) -> dict[str, float]:
-    """Los cuatro ejes del frente para una asignacion, con la funcion de produccion."""
     elegidos = []
     for r in dec:
         sku = asignacion.get(str(r.orden))
@@ -110,14 +95,6 @@ def domina(a: dict[str, float], b: dict[str, float]) -> bool:
         or a["personaje"] > b["personaje"]
     )
     return no_peor and estricto
-
-
-# ------------------------------------------------------------ optimos exactos
-#
-# Los cuatro ejes son sumas/promedios por linea, asi que los extremos se
-# resuelven linea por linea y el de presupuesto es una mochila de eleccion
-# multiple, exacta por programacion dinamica sobre la suma de niveles (entera y
-# chica: 0..2n). Los desempates replican `_proyectar`.
 
 
 def optimo_ahorrador(dec: list[Renglon]) -> dict[str, str]:
@@ -145,8 +122,6 @@ def optimo_fan(dec: list[Renglon], pedidos: set[str]) -> dict[str, str]:
 
 
 def optimo_presupuesto(dec: list[Renglon], presupuesto: int) -> dict[str, str] | None:
-    """Maxima fidelidad con costo <= presupuesto; a igual fidelidad, menor costo."""
-    # mejor[s] = (costo minimo para suma de niveles s, asignacion)
     mejor: dict[int, tuple[int, list[str]]] = {0: (0, [])}
     for r in dec:
         nuevo: dict[int, tuple[int, list[str]]] = {}
@@ -165,7 +140,6 @@ def optimo_presupuesto(dec: list[Renglon], presupuesto: int) -> dict[str, str] |
 
 
 def personaje_de_lista(dec: list[Renglon]) -> str | None:
-    """El personaje mas frecuente entre los candidatos de la lista (el que un papa podria pedir)."""
     cuenta: dict[str, int] = {}
     for r in dec:
         vistos = {c.personaje.lower() for c in _admisibles(r) if c.personaje}

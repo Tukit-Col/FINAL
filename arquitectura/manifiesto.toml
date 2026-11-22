@@ -1,54 +1,22 @@
 # Manifiesto de arquitectura de Tukit
 #
-# Fuente de verdad de las fronteras del sistema. No es documentacion: las
-# pruebas de `arquitectura/test_fronteras.py` lo leen y fallan la integracion
-# continua cuando el codigo se sale de lo declarado aqui.
+# Fuente de verdad de las fronteras del sistema. Las pruebas de
+# `arquitectura/test_fronteras.py` lo leen y fallan la integracion continua
+# cuando el codigo se sale de lo declarado aqui.
 #
-# Existe porque el defecto mas grave que encontro el rediseno, dos servicios
-# declarando el maestro del mismo catalogo, no se produjo por falta de criterio
-# sino porque nada verificaba el criterio de forma continua. Ver ADR 0014.
-#
-# Derivado de Arquitectura/ESQUEMA_OBJETIVO.md (reparto de las 67 tablas) y de
-# Arquitectura/DICCIONARIO_DATOS.md (nombres definitivos).
+# Decisiones:
+# - Cada servicio es dueno de sus tablas y de su base. Una referencia a otro
+#   dominio es logica, no una llave foranea, y se declara en `referencias_cruzadas`.
+# - `bandeja_salida` existe en cada base a proposito: el evento se escribe en la
+#   misma transaccion que el cambio que lo origina.
 
 [meta]
 version = "3"
-# 67 del esquema objetivo + `direccion` + `sustituibilidad_concepto`.
-#
-# `direccion`: el esquema objetivo no modelaba ninguna direccion de entrega en
-# un negocio que entrega a domicilio; el hueco se cierra con una tabla en
-# Identidad mas una copia congelada en el envio de Comercio, que no agrega
-# tabla. Ver ADR 0015.
-#
-# `sustituibilidad_concepto`: que ofrecer cuando el catalogo no tiene lo que la
-# lista pide. Hoy 102 de las 297 celdas (concepto x nivel) estan vacias y 17
-# conceptos no tienen ni un producto, asi que responder "no lo tengo" sin
-# alternativa es la respuesta mas comun y la menos util. La relacion es curada
-# sobre 99 conceptos, no inducida, y vive en Catalogo porque es vocabulario de
-# catalogo. Reemplaza al grafo en memoria que se reconstruia por item y costaba
-# el 95,3 por ciento de la latencia del pipeline.
-# 72: `comercio.historial_pedido`, un renglon por cada avance del pedido desde
-# el back-office (quien, de que estado a cual, con que nota), para que una
-# incidencia o una cancelacion tengan explicacion.
-# 73: `inteligencia.importacion_lista`, la lista que un acudiente subio con el
-# catalogo caido. Guarda lo percibido hasta que el trabajador la importa, con
-# una clave de idempotencia por subida y destino (ADR 0040).
-# 74: `inteligencia.evento_procesado`, los eventos que el sondeador de listas ya
-# proceso, por origen e id. Con RabbitMQ la entrega es al menos una vez, y un
-# `lista_verificada` repetido armaba otro kit (ADR 0046).
-# 75-76: `catalogo.correccion_lista` (correcciones del revisor sobre una lista) e
-# `inteligencia.apodo_subida` (apodo de la subida diferida).
 total_tablas_esperado = 76
-
-# Tablas que existen a proposito en varias bases. Son la excepcion declarada,
-# no un descuido: cada servicio necesita su propia bandeja de salida local para
-# que el evento se escriba en la MISMA transaccion que el cambio que lo origina.
-# Si no fuera local, volveria a ser una escritura a dos sistemas sin garantia.
 tablas_replicadas = ["bandeja_salida"]
 
 
 [servicios.identidad]
-lenguaje = "python"
 ruta = "servicios/identidad"
 paquete = "tukit_identidad"
 base_datos = "tukit_identidad"
@@ -73,16 +41,14 @@ tablas = [
 ]
 
 [servicios.catalogo]
-lenguaje = "python"
 ruta = "servicios/catalogo"
 paquete = "tukit_catalogo"
 base_datos = "tukit_catalogo"
 descripcion = """
-Que existe y a que precio publico. El grueso es reconstruible scrapeando, pero la base pasa a
-objetivo de punto de recuperacion CERO: cuatro tablas editoriales guardan decisiones
-institucionales nominales que no se reconstruyen, y la recuperacion es por agrupacion de bases,
-no por tabla. Ver ADR 0017. Se separa de Comercio por perfil de recurso (pgvector, replicas de
-lectura, rafagas del scraper), no ya por recuperabilidad asimetrica.
+Que existe y a que precio publico. La base es de punto de recuperacion cero: cuatro tablas
+editoriales guardan decisiones institucionales nominales que no se reconstruyen, y la
+recuperacion es por agrupacion de bases, no por tabla. Se separa de Comercio por perfil de
+recurso (pgvector, replicas de lectura, rafagas del scraper).
 """
 tablas = [
     "concepto",
@@ -108,27 +74,19 @@ tablas = [
 ]
 
 [servicios.inteligencia]
-lenguaje = "python"
 ruta = "servicios/inteligencia"
 paquete = "tukit_inteligencia"
 base_datos = "tukit_inteligencia"
 descripcion = """
-Percepcion, normalizacion, resolucion y optimizacion. Perfil de recurso propio:
-CPU intensivo y modelos.
+Percepcion, normalizacion, resolucion y optimizacion. Perfil de recurso propio: CPU intensivo y
+modelos.
 
-CUIDADO AL PORTAR, dos cosas que el servicio anterior hacia mal:
-
-(1) `kit.perfil` y `kit.pesos_usados` son derivados de la encuesta
-socioeconomica, que en Identidad esta cifrada. Aqui vivian EN CLARO. Cifrar el
-origen y dejar el derivado en claro no protege nada. Peor: el proceso de
-derecho al olvido documentaba la decision de NO borrar el kit argumentando que
-'no tiene ninguna columna con datos personales', lo cual es cierto para las
-columnas que su autor tenia en mente y falso para esas dos.
-
-(2) El grafo de sustituibilidad se reconstruia entero en cada item, y eso solo
-era el 95,3 por ciento de la latencia del pipeline: 1.673 ms construirlo contra
-0,137 ms consultarlo. Va cacheado por (categoria, version del catalogo) y fuera
-del bucle de eventos. Ver Arquitectura/PERFILADO_PIPELINE.md.
+Decisiones:
+- `kit.perfil` y `kit.pesos_usados` derivan de la encuesta socioeconomica, que en Identidad esta
+  cifrada. Cifrar el origen y dejar el derivado en claro no protege nada, asi que ambas columnas
+  son dato personal y la supresion del titular las alcanza.
+- El grafo de sustituibilidad no se reconstruye por item: va cacheado por (categoria, version del
+  catalogo) y fuera del bucle de eventos.
 """
 tablas = [
     "item_crudo",
@@ -147,7 +105,6 @@ tablas = [
 ]
 
 [servicios.comercio]
-lenguaje = "python"
 ruta = "servicios/comercio"
 paquete = "tukit_comercio"
 base_datos = "tukit_comercio"
@@ -174,7 +131,6 @@ tablas = [
 ]
 
 [servicios.operacion]
-lenguaje = "python"
 ruta = "servicios/operacion"
 paquete = "tukit_operacion"
 base_datos = "tukit_operacion"
@@ -191,46 +147,25 @@ tablas = [
     "bandeja_salida",
 ]
 
-[servicios.ingesta]
-lenguaje = "python"
-ruta = "servicios/ingesta"
-paquete = "tukit_ingesta"
-base_datos = ""
-descripcion = """
-Scrapers y refresco de precios. No tiene base propia: publica hacia Catalogo.
-Es el unico componente con argumento tecnico para Go, pero el perfilado mostro
-que sus cuellos de hoy son estructurales y no de lenguaje (vendedores en serie,
-1,5 s de espera deliberada por producto, sin pool de conexiones). Se arregla eso
-en Python primero. Ver Arquitectura/PERFILADO_PIPELINE.md seccion 9.
-"""
-tablas = []
-
 [servicios.gateway]
-lenguaje = "python"
 ruta = "servicios/gateway"
 paquete = "tukit_gateway"
 base_datos = ""
 descripcion = """
-Ruteo, validacion de token, version de permisos y limite de tasa. Sin dominio y
-sin base. Candidato a Go de prioridad baja: no aparece en ninguna medicion como
-cuello de botella.
+Ruteo, validacion de token, version de permisos y limite de tasa. Sin dominio y sin base.
 """
 tablas = []
 
 
-# Lecturas cruzadas: los procesos que abren un motor a la base de otro
-# servicio. Las tres drenan la bandeja de salida ajena (ADR 0022) y abren el
-# motor con `url_desde_entorno`, que deriva el nombre de la base dentro de la
-# libreria, asi que la regla 3 no las ve: por eso se declaran aqui.
+# Lecturas cruzadas: los procesos que abren un motor a la base de otro servicio. Las tres
+# drenan la bandeja de salida ajena y abren el motor con `url_desde_entorno`, que deriva el
+# nombre de la base dentro de la libreria, asi que la regla 3 no las ve: por eso se declaran
+# aqui.
 #
-# Desde el ADR 0046 son solo el respaldo sin broker. Con `RABBITMQ_URL`, cada
-# proceso consume su cola (`cola`, declarada en `tukit_comun.topologia`) y no
-# abre ningun motor ajeno. `modo = "sin_broker"` es lo que lo dice, y la prueba
-# lo exige de dos formas: toda llamada a `url_desde_entorno` de un servicio esta
-# en un modulo declarado aqui con ese modo, y desde el `escuchar_cola` del
-# modulo no se llega a ninguna. Quitar el respaldo es una decision aparte; el
-# dia que se tome, estas entradas se borran y la prueba exige que no quede
-# ninguna lectura.
+# Son solo el respaldo sin broker. Con `RABBITMQ_URL`, cada proceso consume su cola (`cola`,
+# declarada en `tukit_comun.topologia`) y no abre ningun motor ajeno. `modo = "sin_broker"` lo
+# dice, y la prueba exige que toda llamada a `url_desde_entorno` de un servicio este en un modulo
+# declarado aqui con ese modo y que desde `escuchar_cola` no se llegue a ninguna.
 [[lecturas_cruzadas]]
 modulo = "tukit_operacion.repartidor"
 desde = "operacion"
@@ -255,12 +190,9 @@ lee = "`lista_verificada` y `lista_aprobada` de la bandeja de catalogo."
 modo = "sin_broker"
 cola = "inteligencia.listas"
 
-# Referencias entre bases distintas. Como no pueden ser llaves foraneas fisicas,
-# la unica forma de que no se vuelvan invisibles es declararlas. Toda referencia
-# a un dominio ajeno que NO este aqui hace fallar la prueba.
-#
-# El diccionario de datos contabiliza 53. Se van declarando a medida que cada
-# tabla se implementa; la prueba solo exige que lo implementado este declarado.
+# Referencias entre bases distintas. No pueden ser llaves foraneas fisicas, asi que la unica
+# forma de que no se vuelvan invisibles es declararlas. Toda referencia a un dominio ajeno que no
+# este aqui hace fallar la prueba.
 [[referencias_cruzadas]]
 desde = "inteligencia.item_crudo.matricula_id"
 hacia = "identidad.matricula"
@@ -280,10 +212,9 @@ nota = "Reemplaza el JSON `kits_optimizados.items`, que escondia esta misma refe
 desde = "inteligencia.resolucion_item.decidido_por"
 hacia = "identidad.usuario"
 nota = """
-Quien de Admin Tukit valido el emparejamiento o lo marco sin coincidencia
-(AD-04). Nulo mientras la decision sea automatica, y esa distincion es el
-punto entero de la columna: un kit revisado por una persona y uno que salio
-solo del umbral no son la misma promesa, y hoy no habia como diferenciarlos.
+Quien de Admin Tukit valido el emparejamiento o lo marco sin coincidencia. Nulo mientras la
+decision sea automatica: un kit revisado por una persona y uno que salio solo del umbral no
+son la misma promesa.
 """
 
 [[referencias_cruzadas]]
@@ -295,7 +226,7 @@ nota = "Quien movio la resolucion de un estado a otro. Nulo cuando la movio el p
 desde = "inteligencia.trabajo_pipeline.revisado_por"
 hacia = "identidad.usuario"
 nota = """
-Quien aprobo o devolvio el trabajo en la cola de revision (AD-06). El registro
+Quien aprobo o devolvio el trabajo en la cola de revision. El registro
 completo de la transicion va a `operacion.registro_auditoria` por la bandeja de
 salida; esta columna es la copia local que permite responder
 `GET /v1/admin/trabajos/{id}` sin depender de que Operacion este arriba.
@@ -314,7 +245,7 @@ nota = "El precio se congela en la linea al confirmar; no se vuelve a leer de Ca
 [[referencias_cruzadas]]
 desde = "comercio.inventario.producto_canonico_id"
 hacia = "catalogo.producto_canonico"
-nota = "El stock es de Comercio; el producto es de Catalogo. Esta separacion es la que hoy no existe."
+nota = "El stock es de Comercio; el producto es de Catalogo."
 
 [[referencias_cruzadas]]
 desde = "catalogo.lista_oficial.sede_id"
@@ -376,9 +307,7 @@ Quien pidio el kit, y por tanto a quien hay que avisarle cuando termine. El
 trabajo es por HOGAR y no por hijo: es lo que permite consolidar entre hermanos
 y repartir empaques, cosa que no se puede ver si cada hijo se pide aparte.
 
-Va por identificador y no copiando correo ni celular. Es la misma deuda que la
-nota de `operacion.notificacion`: el servicio anterior persistia el correo real
-del acudiente y el derecho al olvido no lo alcanzaba.
+Va por identificador y no copia correo ni celular, para que el derecho al olvido lo alcance.
 """
 
 [[referencias_cruzadas]]
@@ -398,10 +327,8 @@ nota = "El titular del caso. Puede ser nulo cuando el caso lo abre el sistema."
 desde = "operacion.notificacion.usuario_id"
 hacia = "identidad.usuario"
 nota = """
-El destinatario. OJO con la deuda heredada: el servicio anterior persistia el
-correo REAL del acudiente dentro del contenido de la notificacion, y el
-proceso de derecho al olvido no lo borraba. La referencia va por
-identificador y el contenido no repite el dato de contacto.
+El destinatario. La referencia va por identificador y el contenido de la notificacion no repite
+el dato de contacto, para que el derecho al olvido lo alcance.
 """
 
 [[referencias_cruzadas]]
@@ -488,7 +415,7 @@ desde = "inteligencia.importacion_lista.colegio_id"
 hacia = "identidad.colegio"
 nota = """
 El destino de una lista que un acudiente subio y que espera a que el catalogo
-vuelva (ADR 0040). Es el mismo `colegio_id` que viaja a
+vuelva. Es el mismo `colegio_id` que viaja a
 `catalogo.tarea_importacion`: el de un aliado, o el derivado del DANE o del
 nombre de un colegio que aun no existe y nace al aprobar. Referencia logica,
 como la de la tarea: la tenencia del colegio vive en Identidad.

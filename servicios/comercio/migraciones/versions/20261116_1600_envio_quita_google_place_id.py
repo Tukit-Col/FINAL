@@ -1,13 +1,3 @@
-"""envio: quita google_place_id.
-
-Google Places se reemplazo por OpenStreetMap con mapa de confirmacion (ADR 0049)
-y la columna quedo siempre vacia. Se borra en vez de dejarla muerta en el
-contrato.
-
-Revision ID: d3e8b52a7c19
-Revises: c7a41e9d02f5
-"""
-
 from __future__ import annotations
 
 import sqlalchemy as sa

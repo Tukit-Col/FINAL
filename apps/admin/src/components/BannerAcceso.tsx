@@ -1,10 +1,3 @@
-// Banda de ancho completo con lo que salió mal (o el resultado de una acción).
-//
-// Un 401 (sesión vencida) o un 403 (sin rol) no son un error de formulario:
-// son "no puedes seguir aquí", y se leen arriba de la sección, con su salida.
-// El texto de un 409/422 es el del backend. Presentacional: la URL de ingreso
-// la pone el servidor (el cliente no conoce el origen de la web).
-
 import { claseDeFallo, type ClaseDeFallo } from "@/lib/logistica";
 import styles from "./BannerAcceso.module.css";
 
@@ -21,7 +14,6 @@ export interface NotaVisible {
 interface Props {
   fallo?: FalloVisible | null;
   nota?: NotaVisible | null;
-  /** Enlace "Volver a ingresar" del 401. */
   urlIngresar?: string;
   onCerrar?: () => void;
 }

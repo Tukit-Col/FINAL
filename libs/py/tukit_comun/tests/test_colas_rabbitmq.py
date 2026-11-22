@@ -1,20 +1,3 @@
-"""Las colas contra un RabbitMQ de verdad (ADR 0046).
-
-Corren con el broker de `TUKIT_PRUEBAS_RABBITMQ_URL` (por omision el local) y se
-saltan si no responde. Cada prueba declara su propia topologia, con prefijo, y
-la borra al terminar. CI las corre contra `rabbitmq:3.13-management-alpine`, la
-imagen del banco de QA; en la Mac de desarrollo, contra el 4.x de Homebrew.
-
-Se fija aqui lo que los dobles no pueden probar:
-
-- La topologia se declara dos veces sin error y cada tipo llega a su cola.
-- Lo que el publicador marca publicado esta en la cola: el broker lo confirmo.
-- Un mensaje que falla siempre pasa por reintentos y termina en descartados,
-  con su cuenta y su motivo.
-- Un evento publicado dos veces se maneja una vez.
-- Una caida en mitad del manejo devuelve el mensaje a la cola.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -100,7 +83,6 @@ async def test_la_topologia_se_declara_dos_veces_y_cada_tipo_llega_a_su_cola(top
         _evento(2, "colegio_verificado", "catalogo"),
         _evento(3, "lista_aprobada", "catalogo"),
         _evento(4, "trabajo_encolado", "inteligencia"),
-        # Un tipo que ninguna cola recibe se confirma y se descarta.
         _evento(5, "pedido_solicitado", "inteligencia"),
     )
 
@@ -154,15 +136,28 @@ async def test_un_evento_que_siempre_falla_termina_en_descartados(topologia, son
         return Resultado.REINTENTAR
 
     consumidor = Consumidor(cola=cola, manejar=manejar, max_intentos=3)
+    # El consumidor publica en descartados y DESPUES confirma el mensaje. Ver la
+    # copia en descartados no basta: si se cancela antes del ack, el broker
+    # devuelve el original a la cola. Se espera a que `procesar` termine.
+    procesado = asyncio.Event()
+    procesar = consumidor.procesar
+
+    async def procesar_y_avisar(mensaje):
+        decision = await procesar(mensaje)
+        if len(intentos) >= 3:
+            procesado.set()
+        return decision
+
+    consumidor.procesar = procesar_y_avisar
     escucha = asyncio.create_task(escuchar(URL, consumidor, topologia=topologia, prefetch=1))
     try:
         await _publicar(topologia, _evento(9))
+        await asyncio.wait_for(procesado.wait(), timeout=10)
         await _esperar(lambda: _hay(sonda, cola.descartados))
     finally:
         escucha.cancel()
         await asyncio.gather(escucha, return_exceptions=True)
 
-    # Tres entregas: la original y dos que volvieron de reintentos.
     assert intentos == [0, 1, 2]
     [descartado] = await sonda.sacar(cola.descartados)
     assert descartado.message_id == "comercio:9"
@@ -184,8 +179,6 @@ async def test_un_evento_publicado_dos_veces_se_maneja_una_vez(topologia, sonda)
         manejados.append(evento.message_id)
         return Resultado.HECHO
 
-    # El publicador publico, el broker confirmo y el commit de la bandeja se
-    # perdio: la pasada siguiente lo publica otra vez.
     await _publicar(topologia, _evento(4), _evento(4), _evento(5))
     consumidor = Consumidor(cola=cola, manejar=manejar, registro=RegistroEnMemoria())
 
@@ -210,9 +203,6 @@ async def test_una_caida_en_mitad_del_manejo_devuelve_el_mensaje(topologia, sond
 
     with pytest.raises(ConnectionRefusedError):
         await escuchar(URL, consumidor, topologia=topologia, hasta_vaciar=True)
-    # La caida no gasto el intento: el mensaje volvio a la principal tal cual.
-    # El nack no tiene respuesta y la sonda mira por otra conexion, asi que el
-    # mensaje puede tardar un poco en verse de vuelta (en CI, con 3.13, pasa).
     await _esperar(lambda: _hay(sonda, cola.nombre))
     assert await sonda.cuantos(cola.nombre) == 1
     assert await sonda.cuantos(cola.reintentos) == 0
@@ -223,7 +213,6 @@ async def test_una_caida_en_mitad_del_manejo_devuelve_el_mensaje(topologia, sond
 
 
 async def test_el_broker_informa_su_version(sonda):
-    """Deja en el registro de la prueba contra que version corrio."""
     version = sonda.version
     assert version
     print(f"RabbitMQ {version!r}")

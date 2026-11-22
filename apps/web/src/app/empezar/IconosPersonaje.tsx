@@ -1,26 +1,7 @@
-// Iconos de personaje en clay, para el selector del paso 1.
-//
-// Son evocaciones ABSTRACTAS —una máscara con telaraña, un copo, un moño de
-// lunares, una patita— y no arte de personajes con derechos: la franquicia se
-// nombra en texto, el icono solo le da un ancla visual amable al niño. Misma
-// casa de estilo que `UtilesFlotantes`: gradiente suave y un brillo blanco.
-//
-// TODOS los iconos se dibujan sobre un MEDALLÓN común (`Marco`): un disco clay
-// de radio fijo centrado en 24,24. Eso resuelve el "unos más grandes que otros"
-// de raíz —antes cada pieza llenaba el viewBox a su antojo (el corazón medía
-// 36px, el rayo 23px)—: ahora el pie visual es idéntico y solo cambia el dibujo
-// de encima. Sin dependencias nuevas: todo es SVG inline, viewBox 0 0 48 48.
-//
-// El mapa `iconoDe(nombre)` traduce el nombre de catálogo (en minúscula) a su
-// pieza; lo que no tenga pieza propia cae en `Generico`, una estrella-sticker
-// que sigue leyéndose como "personaje" sin mentir sobre cuál es.
-
 import type { ComponentType, ReactNode } from "react";
 
 type Props = { className?: string };
 
-// Un id de gradiente único por icono evita que dos <defs> con el mismo id se
-// pisen cuando varios iconos conviven en la misma página.
 function grad(id: string, desde: string, hasta: string) {
   return (
     <linearGradient id={id} x1="0" y1="0" x2="0.35" y2="1">
@@ -30,9 +11,6 @@ function grad(id: string, desde: string, hasta: string) {
   );
 }
 
-// El medallón: disco clay de radio fijo (22) que unifica el pie visual de
-// TODAS las piezas. `tono` tiñe suavemente el disco con el color del personaje
-// para que cada ficha tenga identidad sin romper la uniformidad de tamaño.
 function Marco({
   children,
   className,
@@ -56,9 +34,6 @@ function Marco({
   );
 }
 
-// -------------------------------------------------- Franquicias surtidas (7)
-
-// Spiderman: máscara roja con rejilla de telaraña y los dos ojos blancos.
 function Arana({ className }: Props) {
   return (
     <Marco className={className} id="arana" desde="#ff5a5a" hasta="#c81420">
@@ -70,14 +45,12 @@ function Arana({ className }: Props) {
           <line key={i} x1="24" y1="24" x2={24 + 20 * Math.cos((i * 72 - 90) * Math.PI / 180)} y2={24 + 20 * Math.sin((i * 72 - 90) * Math.PI / 180)} />
         ))}
       </g>
-      {/* ojos: dos gotas blancas con borde negro, la firma de la máscara */}
       <path d="M14 20 Q14 15 21 17 Q22 22 16 24 Q13 23 14 20 Z" fill="#fff" stroke="#12203f" strokeWidth="1.4" />
       <path d="M34 20 Q34 15 27 17 Q26 22 32 24 Q35 23 34 20 Z" fill="#fff" stroke="#12203f" strokeWidth="1.4" />
     </Marco>
   );
 }
 
-// Frozen: copo de nieve de seis brazos sobre disco de hielo.
 function Copo({ className }: Props) {
   return (
     <Marco className={className} id="copo" desde="#dff2ff" hasta="#7cc0ee">
@@ -112,7 +85,6 @@ function Copo({ className }: Props) {
   );
 }
 
-// Minnie: el moño de lunares, su firma inconfundible.
 function Mono({ className }: Props) {
   return (
     <Marco className={className} id="mono" desde="#ff64a6" hasta="#e01e63">
@@ -127,7 +99,6 @@ function Mono({ className }: Props) {
   );
 }
 
-// Paw Patrol: la patita de rescate (un cojín grande + cuatro dedos).
 function Pata({ className }: Props) {
   return (
     <Marco className={className} id="pata" desde="#ffd24d" hasta="#e8890f">
@@ -139,7 +110,6 @@ function Pata({ className }: Props) {
   );
 }
 
-// Bluey: cabecita de perro azul con orejas caídas y hocico claro.
 function Perro({ className }: Props) {
   return (
     <Marco className={className} id="perro" desde="#5ab0f2" hasta="#1f6fc4">
@@ -154,7 +124,6 @@ function Perro({ className }: Props) {
   );
 }
 
-// Cars: carro de carreras rojo de perfil, con parabrisas y rayo dorado.
 function Carro({ className }: Props) {
   return (
     <Marco className={className} id="carro" desde="#ff5a4d" hasta="#c81420">
@@ -169,30 +138,22 @@ function Carro({ className }: Props) {
   );
 }
 
-// Stitch: cabecita de koala-alien azul, orejotas rosadas puntudas, ojazos
-// negros con brillo y naricita grande. Cara amable, tipo sticker.
 function Alien({ className }: Props) {
   return (
     <Marco className={className} id="alien" desde="#5aa0ea" hasta="#1f5fc0">
-      {/* orejas rosadas grandes, puntudas y ligeramente caídas hacia afuera */}
       <path d="M15 20 Q6 9 6 19 Q7 27 16 25 Z" fill="#ff9ecb" stroke="#e86fa8" strokeWidth="1" />
       <path d="M33 20 Q42 9 42 19 Q41 27 32 25 Z" fill="#ff9ecb" stroke="#e86fa8" strokeWidth="1" />
-      {/* cabeza redonda con un mechoncito arriba */}
       <path d="M22 12 Q24 8 26 12 Z" fill="#3f7fd0" />
       <ellipse cx="24" cy="27" rx="12.5" ry="11.5" fill="#6fb0f2" />
-      {/* ojazos negros grandes, muy juntos, con brillo blanco */}
       <ellipse cx="19.5" cy="25" rx="3.8" ry="4.4" fill="#12203f" />
       <ellipse cx="28.5" cy="25" rx="3.8" ry="4.4" fill="#12203f" />
       <circle cx="21" cy="23.4" r="1.3" fill="#fff" />
       <circle cx="30" cy="23.4" r="1.3" fill="#fff" />
-      {/* naricita grande + boca sonriente suave */}
       <ellipse cx="24" cy="30.5" rx="2.6" ry="2" fill="#1f3a6b" />
       <path d="M20 33.5 Q24 37 28 33.5" stroke="#1f3a6b" strokeWidth="1.4" fill="none" strokeLinecap="round" />
     </Marco>
   );
 }
-
-// ------------------------------------------------- Anclas del campo libre
 
 function Corona({ className }: Props) {
   return (
@@ -276,15 +237,8 @@ function EstrellaIcono({ className }: Props) {
   );
 }
 
-// Generico: estrella-sticker para cualquier franquicia sin pieza propia. No
-// finge ser el personaje; solo dice "esto es un gusto que buscaremos".
 const Generico = EstrellaIcono;
 
-// Mapa nombre-de-catálogo (minúscula) -> pieza. Las 7 franquicias surtidas de
-// hoy (bluey, cars, frozen, minnie, paw patrol, spiderman, stitch) tienen su
-// ancla propia; el resto que llegue completo cae en el genérico hasta que se le
-// dibuje una pieza. Las llaves extra (barbie, sonic, dinosaurios…) cubren
-// gustos frecuentes del campo libre para que el chip elegido no se vea desnudo.
 const MAPA: Record<string, ComponentType<Props>> = {
   spiderman: Arana,
   frozen: Copo,
@@ -308,7 +262,6 @@ const MAPA: Record<string, ComponentType<Props>> = {
   princesa: Corona,
 };
 
-/** Devuelve el componente de icono para un nombre de personaje. */
 export function iconoDe(nombre: string): ComponentType<Props> {
   return MAPA[nombre.trim().toLowerCase()] ?? Generico;
 }

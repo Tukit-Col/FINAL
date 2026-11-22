@@ -1,10 +1,3 @@
-"""La linea de tiempo del acudiente, sin base ni HTTP.
-
-Se defiende: la posicion sale del estado actual (no es lineal: una incidencia
-devuelve a preparacion), las fechas no se inventan, los desvios dicen que paso
-y el despacho solo trae el nombre del repartidor.
-"""
-
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
@@ -33,7 +26,6 @@ def _avance(desde: str, hacia: str, horas: int, tipo: str | None = None) -> Avan
     return AvanceVisto(estado_desde=desde, estado_hacia=hacia, tipo_incidencia=tipo, creado_en=_t(horas))
 
 
-# El camino feliz completo: cada fila llega al paso siguiente.
 CAMINO = [
     _avance("pagado", "en_preparacion", 2),
     _avance("en_preparacion", "despachado", 3),
@@ -80,7 +72,7 @@ def test_pendiente_vigente_dice_cuando_vence():
     assert linea["pago_pendiente"] == {"vence_en": _t(24).isoformat(), "vencido": False}
 
 
-def test_pendiente_vencido():
+def test_un_pedido_pendiente_pasado_su_plazo_marca_el_pago_como_vencido():
     linea = _linea("pendiente_pago", pagos=(), envio=None, ahora=_t(25))
     assert linea["pago_pendiente"]["vencido"] is True
 
@@ -104,7 +96,6 @@ def test_volver_a_preparacion_tras_una_incidencia_reabre_los_pasos_siguientes():
     ]
     linea = _linea("en_preparacion", historial=historial)
     assert _estados(linea) == ["hecho", "hecho", "actual", "futuro", "futuro", "futuro"]
-    # La fecha de preparacion es la de la vuelta, no la primera.
     assert linea["pasos"][2]["fecha"] == _t(7).isoformat()
     assert linea["pasos"][3]["fecha"] is None
     assert linea["pasos"][3]["repartidor_nombre"] is None
@@ -135,7 +126,6 @@ def test_cancelado_tras_incidencia_queda_donde_estaba_sin_paso_en_curso():
 
 
 def test_cancelado_sin_historial_y_sin_pago_es_un_pendiente_que_vencio():
-    # El barredor cancela sin dejar fila: no hay fecha que mostrar.
     linea = _linea("cancelado", pagos=(PagoVisto("rechazado", _t(1)),), envio=None)
     assert _estados(linea) == ["hecho"] + ["futuro"] * 5
     assert linea["especial"] == {"tipo": "cancelado", "fecha": None}
@@ -143,14 +133,12 @@ def test_cancelado_sin_historial_y_sin_pago_es_un_pendiente_que_vencio():
 
 
 def test_cancelado_sin_historial_tras_un_retracto_llega_hasta_pagado_sin_inventar_la_fecha():
-    # El reembolso pisa `actualizado_en`: esa fecha no es la del pago.
     linea = _linea("cancelado", pagos=(PagoVisto("reembolsado", _t(30)),))
     assert _estados(linea) == ["hecho", "hecho"] + ["futuro"] * 4
     assert linea["pasos"][1]["fecha"] is None
 
 
 def test_sin_historial_los_pasos_alcanzados_quedan_sin_fecha():
-    # Un pedido movido por fuera de `/avanzar` (o de antes del historial).
     linea = _linea("en_reparto", pagos=(PagoVisto("aprobado", None),), envio=None)
     assert _estados(linea) == ["hecho"] * 4 + ["actual", "futuro"]
     assert [p["fecha"] for p in linea["pasos"]] == [T0.isoformat(), None, None, None, None, None]

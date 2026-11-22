@@ -1,50 +1,14 @@
-"""Da de alta lo que una lista NUEVA pide y el catalogo todavia no tiene.
+"""Da de alta lo que una lista nueva pide y el catalogo todavia no tiene.
 
-El catalogo es propio y curado, y solo tiene cosas que nos vemos en capacidad
-de conseguir. Por eso funciona como un cache progresivo: el match de un
-acudiente corre SIEMPRE contra nuestra base, con trigramas y vectores sobre
-`concepto` y `producto_canonico`, y ninguna tienda participa de eso. Una
-tienda aparece en un solo momento: cuando entra la lista de un colegio que
-nadie ha revisado, un renglon no encuentra nada en casa, y hay que darlo de
-alta.
-
-La consecuencia de que sea un cache es que el gasto baja solo. La primera
-lista de un colegio nuevo consulta tiendas por sus renglones raros; al
-aprobarlos quedan en catalogo, y la siguiente lista -de ese colegio o de
-otro- los encuentra en casa. Las listas ya revisadas no consultan nada,
-nunca: `version_lista_oficial.revisada_en` lo cierra y no se vuelve a abrir.
-
-Esa regla no se sostiene con disciplina sino con la forma del modulo. El
-codigo que sale a una tienda solo es alcanzable a traves de una version de
-lista sin revisar; `--probar`, que es el match del acudiente, no tiene por
-donde llegar a la red aunque uno quiera.
-
-Lo que este modulo NO hace es decidir. Escribe propuestas, nunca productos.
-La razon esta en lo que devuelve una busqueda por texto: pedirle `punzon
-punta metalica` a la tienda trae lapices correctores de PUNTA FINA, que son
-productos reales, con foto, con existencias y al precio esperado. Lo que
-falla es el significado, y contra eso no hay umbral que valga. Una persona lo
-ve en dos segundos; un puntaje de similitud, nunca.
-
-Para los libros el alta casi nunca es una busqueda. Lo que identifica un
-libro es el ISBN de una edicion concreta, y eso no sale de buscar por titulo,
-asi que `--crear` deja escribirlo a mano. Tambien pasa por la misma cola.
-
-Uso:
-
-    # el match del acudiente: solo nuestra base, sin red
-    python -m tukit_catalogo.descubrir --probar "aserrin de colores x 3 bolsas"
-
-    # revisar un colegio nuevo: aqui, y solo aqui, se consulta una tienda
-    python -m tukit_catalogo.descubrir --listas
-    python -m tukit_catalogo.descubrir --revisar <version>
-    python -m tukit_catalogo.descubrir --revisar <version> --crear-libro \\
-        --isbn 9789587050585 --titulo "..." --precio 52000 --tienda panamericana
-
-    python -m tukit_catalogo.descubrir --pendientes
-    python -m tukit_catalogo.descubrir --aprobar <id> --nivel economico
-    python -m tukit_catalogo.descubrir --rechazar <id> --motivo "es un corrector"
-    python -m tukit_catalogo.descubrir --cerrar <version>
+Decisiones:
+- El catalogo es propio y curado, y crece como una cache progresiva: el emparejamiento de un
+  acudiente corre siempre contra la base propia y una tienda solo interviene cuando entra la lista
+  de un colegio que nadie ha revisado y un renglon no encuentra nada.
+- Las listas ya revisadas nunca consultan tiendas: `version_lista_oficial.revisada_en` las cierra
+  y no se reabren. El codigo que sale a una tienda solo es alcanzable desde una version sin
+  revisar.
+- Escribe propuestas, nunca productos: una busqueda por texto trae resultados absurdos (para
+  "punzon punta metalica", correctores de punta fina), asi que decide una persona.
 """
 
 from __future__ import annotations
@@ -54,7 +18,6 @@ import asyncio
 import json
 import re
 import sys
-import unicodedata
 import urllib.parse
 import uuid
 from dataclasses import dataclass
@@ -64,111 +27,16 @@ from typing import Any
 
 from . import tiendas
 from .cargador import AGENTE_FIRECRAWL, _uuid_estable, ean13, isbn13_valido, normalizar_isbn
-from .embeddings import coseno
-from .enriquecer import Empaque, atributos_de_ficha, extraer_atributos, extraer_empaque, extraer_personaje
+from .clasificacion import _plano, clasificar, consulta_desde_renglon
+from .extraccion import Empaque, atributos_de_ficha, extraer_atributos, extraer_empaque, extraer_personaje
 
-# Cuanto puede costar algo de una lista escolar. Es un filtro grueso y basta:
-# lo que descarta son las garrafas industriales de veinte litros y los lotes
-# institucionales que la tienda mezcla con el articulo suelto.
 PRECIO_MINIMO = 1000
 PRECIO_MAXIMO = 400_000
 
 
-def _plano(texto: str) -> str:
-    sin_tildes = "".join(
-        c for c in unicodedata.normalize("NFD", texto.lower()) if unicodedata.category(c) != "Mn"
-    )
-    return re.sub(r"\s+", " ", sin_tildes).strip()
-
-
 def _ean_valido(ean: str | None) -> str | None:
-    """El EAN de una tienda solo se guarda si tiene la forma de un codigo real.
-
-    Una tienda pone cualquier cosa en ese campo (un SKU interno, un vacio). Un
-    EAN de verdad es 8, 12 o 13 digitos; lo demas se descarta a None para no
-    ensuciar el catalogo con una referencia que no sirve para casar productos.
-    """
     ean = (ean or "").strip()
     return ean if ean.isdigit() and len(ean) in (8, 12, 13) else None
-
-
-VACIAS = frozenset({"de", "del", "la", "el", "los", "las", "un", "una", "y", "o", "para", "con", "en"})
-
-# Ruido de las listas escolares que no ayuda a buscar en una tienda. La
-# cantidad y el empaque describen CUANTO, no QUE, y meterlos en la consulta
-# la empeora: buscar `3 bolsas de aserrin de colores` devuelve peor que
-# `aserrin de colores`.
-RUIDO = re.compile(
-    r"\b(\d+\s*)?(unidades?|unds?|uds?|paquetes?|bolsas?|cajas?|docenas?|pares?|"
-    r"rollos?|tarros?|frascos?|pliegos?|hojas?|juegos?|sets?|metros?|x\d+)\b"
-)
-# `metros?` entra porque "metro de cable estanado" es una medida, no lo pedido:
-# sin esto la cabeza era "metro" y se la llevaba Lentejuelas ("metro
-# lentejuelas..."). Una fraccion suelta ("(1/8 cartulina)") tampoco nombra la
-# cosa; el tamano que dice se lee aparte, en `extraer_atributos`.
-FRACCION = re.compile(r"\b\d+\s*/\s*\d+\b")
-
-# `Lapiz 2H-6B` no pide un lapiz 2H: pide la serie de durezas, que es el kit
-# de dibujo. Se reescribe como "serie durezas", que es como lo nombra ese
-# concepto, para que no caiga en el lapiz suelto con la primera dureza exigida.
-# Igual una lista de durezas (`Lapices HB, 2H, 2B, 6B`): dos o mas seguidas.
-RANGO_DUREZA = re.compile(r"\b\d?[hb]{1,2}(?:\s*(?:-|,|y|a|al|hasta)\s*\d?[hb]{1,2}\b)+")
-
-# `Escuadras 30° y 45°` es el par, que se vende como juego; una escuadra de 45°
-# sola sigue siendo una escuadra. Los numeros no cuentan en el parecido, asi que
-# sin esto el renglon empataba con `escuadras` y ganaba la escuadra suelta.
-PAR_DE_ESCUADRAS = re.compile(
-    r"\bescuadras?\b\D*\b(?:30|45|60)\s*(?:°|grados?)?\s*(?:y|,|-|/)?\s*(?:30|45|60)\b\s*(?:°|grados?)?"
-)
-
-
-# Palabras con que un colegio abre un grupo antes de los dos puntos: "Kit escolar:",
-# "Materiales para generar textura como:", "Para las ninas:". Es el atajo: no hace
-# falta mirar el catalogo para saber que son un encabezado. Con cualquier otra
-# palabra, `clasificar` decide con el catalogo (`_sin_encabezado_de_grupo`).
-_PREFIJO_DE_GRUPO = re.compile(r"^(kit|materiales?|para)\b")
-
-# Un encabezado de grupo es corto: con mas palabras es la descripcion de la cosa.
-_PALABRAS_MAXIMAS_DE_ENCABEZADO = 5
-
-# Lo que el colegio antepone a un libro para decir que clase de libro es: «Texto:
-# Cuaderno de actividades», «Novela: El gigante egoista», «Lecto Escritura:
-# Cuadernillo ALFA». No agrupa utiles, clasifica un libro; quitarlo deja un nombre
-# que se confunde con un util («cuaderno de actividades» -> cuaderno).
-_CLASES_DE_LIBRO = frozenset({"texto", "novela", "lecto", "lectoescritura"})
-
-
-def consulta_desde_renglon(renglon: str) -> str:
-    """Convierte el renglon del colegio en algo que una tienda entienda.
-
-    El colegio escribe `3 bolsas de aserrin de colores surtidos` y la tienda
-    responde mejor a `aserrin de colores`. Se quitan las cantidades y los
-    empaques porque dicen CUANTO y no QUE, y se dejan los adjetivos, que si
-    discriminan: `de colores` separa el aserrin escolar del aserrin de
-    carpinteria.
-    """
-    texto = _plano(renglon)
-    # "Kit de aseo personal: 1 caja de panuelos" pide los panuelos: ahi lo de antes
-    # de los dos puntos nombra un GRUPO, no la cosa (13-nov). Solo se salta cuando
-    # el prefijo empieza por una palabra de grupo; en "Cuaderno: grande empastado",
-    # "Carpeta ... con gancho: Ingles" o "... legajador. Color: Azul" lo pedido esta
-    # ANTES de los dos puntos y lo de despues es un detalle (tamano, materia, color).
-    grupo, dos_puntos, resto = texto.partition(":")
-    if dos_puntos and resto.strip() and _PREFIJO_DE_GRUPO.match(grupo.strip()):
-        texto = resto
-    texto = re.sub(r"[(),;:.]", " ", texto)
-    texto = FRACCION.sub(" ", texto)
-    texto = RUIDO.sub(" ", texto)
-    texto = re.sub(r"\b\d+\s*(gr?|grs|gramos?|ml|cc|cm|mm|mts?|metros?)\b", " ", texto)
-    texto = re.sub(r"^\s*\d+\s+", "", texto)
-    # La cantidad tambien se escribe en palabras ("Una caja de", "dos paquetes de").
-    texto = re.sub(
-        r"^\s*(un|una|unos|unas|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|doce)\s+", "", texto
-    )
-    palabras = [
-        p for p in texto.split() if len(p) > 1 and p not in ("de", "del", "la", "el", "y", "o", "para", "con")
-    ]
-    return " ".join(palabras[:6])
 
 
 @dataclass(frozen=True)
@@ -179,222 +47,7 @@ class Propuesta:
     oferta: tiendas.Oferta
 
 
-def _parecido(a: str, b: str) -> float:
-    """Cuanto se parecen dos textos, por palabras compartidas.
-
-    Es un Jaccard sobre palabras, no un embedding. Aqui solo hace falta
-    decidir si el renglon cae en un concepto que ya existe o si hay que
-    proponer uno nuevo, y para eso un empate de palabras alcanza. La busqueda
-    fina, con trigramas y vectores, corre contra el catalogo ya curado y es
-    trabajo del resolutor, no de esto.
-
-    Las preposiciones no cuentan como coincidencia. Parece quisquilloso y
-    decidia casos: `chaquiras de colores` contra `colores de madera` comparten
-    `colores` y `de`, y ese `de` subia el parecido a 0.5 justo hasta el umbral,
-    con lo que unas chaquiras entraban al concepto de los lapices de colores.
-    Compartir una preposicion no es parecerse.
-    """
-    pa = _significativas(a)
-    pb = _significativas(b)
-    if not pa or not pb:
-        return 0.0
-    return len(pa & pb) / len(pa | pb)
-
-
-def _significativas(texto: str) -> set[str]:
-    """Las palabras que aportan, en singular y sin numeros.
-
-    El singular importa aqui por la misma razon que en la cabeza, y no
-    haberlo puesto tenia una consecuencia que se veia: `2 lapices negros` y
-    el sinonimo `lapiz negro` no compartian NINGUNA palabra, porque ambas
-    diferian en la flexion. El parecido salia 0 y el renglon se decidia por
-    el orden de la tabla, que lo mandaba a esfero.
-
-    Los numeros se caen porque cuentan, no describen: `2` no acerca ni aleja
-    un renglon de un concepto, pero sí infla el denominador del Jaccard y
-    hunde el parecido de las frases con cantidad.
-    """
-    return {singular(p) for p in _plano(texto).split() if p not in VACIAS and not p.isdigit() and len(p) > 1}
-
-
-def cabeza(renglon: str) -> str:
-    """El sustantivo que nombra la cosa pedida.
-
-    En espanol el nucleo del sintagma va primero: en `pompones de colores` lo
-    pedido son pompones y `de colores` solo los describe. Basta con tomar la
-    primera palabra util, despues de quitar cantidades y empaques.
-    """
-    # Un numero cuenta, no nombra: en "paquete de 20 resistencias" el empaque se
-    # cae y el 20 quedaba de cabeza (13-nov).
-    palabras = [p for p in consulta_desde_renglon(renglon).split() if not p.isdigit()]
-    return palabras[0] if palabras else ""
-
-
-def singular(palabra: str) -> str:
-    """El singular de una palabra en espanol, para poder comparar raices.
-
-    Existe por un error concreto: `lapices de colores x 12` se clasificaba
-    como esfero. Comparando los primeros cinco caracteres, `lapices` da
-    `lapic` y el sinonimo `lapiz colores` del concepto correcto empieza por
-    `lapiz`, que no empareja porque el plural de `-z` en espanol es `-ces`.
-    En cambio `lapicero`, sinonimo de esfero, si empieza por `lapic`, y se
-    ganaba el renglon.
-
-    Cortar prefijos mas cortos habria emparejado tambien `lapida`. Lo que
-    falla no es la longitud del corte sino comparar formas flexionadas, asi
-    que se comparan singulares.
-    """
-    if len(palabra) > 4 and palabra.endswith("ces"):
-        return palabra[:-3] + "z"
-    if len(palabra) > 4 and palabra.endswith("es"):
-        return palabra[:-2]
-    # `tres` y `mes` acaban en `es` sin ser plurales de nada, y quitarselo
-    # las convertia en `tre` y `me`. Van antes de la regla general de la `s`
-    # para que no las alcance.
-    if palabra.endswith("es"):
-        return palabra
-    if len(palabra) > 3 and palabra.endswith("s"):
-        return palabra[:-1]
-    return palabra
-
-
-def _sin_encabezado_de_grupo(renglon: str, conceptos: list[dict[str, Any]]) -> str:
-    """El renglon sin su encabezado: «Utiles: lapiz negro» -> «lapiz negro».
-
-    Ante «X: resto», X es un encabezado cuando no nombra nada de nuestro
-    catalogo y es corto. Si X es un concepto o un sinonimo —«Cuaderno: grande
-    empastado», «Colores: caja x 12»— es la cosa pedida y lo de despues es un
-    detalle: el renglon se deja como esta. «Nombrar» es que la cabeza de X sea,
-    en singular, la primera palabra de un nombre o sinonimo; la comparacion por
-    raiz de cinco letras de `_misma_cosa` no sirve aqui, porque `papeleria` y
-    `papel` quedan iguales y el encabezado se tomaria por un concepto.
-    """
-    grupo, dos_puntos, resto = renglon.partition(":")
-    if not dos_puntos or not resto.strip():
-        return renglon
-    if _PREFIJO_DE_GRUPO.match(grupo.strip()):
-        return resto
-    # Un encabezado es una frase corta sin punto: «La casa sonambula. Autor: X» es
-    # el titulo de un libro y su autor, no un grupo.
-    if not grupo.split() or len(grupo.split()) > _PALABRAS_MAXIMAS_DE_ENCABEZADO or "." in grupo:
-        return renglon
-    nucleo = singular(cabeza(grupo))
-    if not nucleo or nucleo in _CLASES_DE_LIBRO:
-        return renglon
-    # «Editorial: Actualidad. Serie Eficaz.» nombra una coleccion de libros; la
-    # editorial suelta («Editorial: McGraw Hill») no pide nada.
-    if nucleo == "editorial" and "serie" in resto.split():
-        return renglon
-    for concepto in conceptos:
-        for candidato in [concepto["nombre"], *(concepto["sinonimos"] or [])]:
-            palabras = _plano(candidato).split()
-            if palabras and singular(palabras[0]) == nucleo:
-                return renglon
-    return resto
-
-
-def _misma_cosa(a: str, b: str) -> bool:
-    """Si dos palabras nombran la misma cosa, comparando singulares."""
-    sa, sb = singular(a), singular(b)
-    return sa[:5] == sb[:5] if min(len(sa), len(sb)) >= 5 else sa == sb
-
-
-# Cuanto pesa el coseno cuando el lexico YA acerto la cabeza. Pequeno y solo
-# suma: la fusion nunca hunde un match lexico (hibrido >= lexico), solo desempata
-# entre los que aciertan la cabeza usando el significado del resto de la frase.
-_APORTE_COSENO = 0.15
-
-
-def clasificar(
-    renglon: str,
-    conceptos: list[dict[str, Any]],
-    *,
-    embedding_renglon: list[float] | None = None,
-) -> tuple[uuid.UUID | None, str, float]:
-    """A que concepto de NUESTRO catalogo corresponde el renglon.
-
-    Corre contra la tabla `concepto`, no contra ninguna tienda. Esa es la
-    unica forma correcta: el papa pide algo y lo primero es mirar si ya
-    sabemos que es y si ya lo tenemos. Salir a una tienda antes de haber
-    mirado en casa es como no tener catalogo.
-
-    La contencion literal solo cuenta si cae en la CABEZA de la frase, y esa
-    condicion arreglo un error que se veia feo: `pompones de colores` y
-    `chaquiras de colores` se clasificaban ambos al concepto `colores`, el de
-    los lapices de colores, porque la palabra estaba contenida. Ahi `colores`
-    es un adjetivo, no lo pedido. Con la cabeza anclada, `pompones` cae en el
-    concepto pompones y `chaquiras`, que no tenemos, se reconoce como
-    concepto nuevo, que es justo lo que es.
-
-    El canal semantico (OE3) entra por `embedding_renglon`: el vector del
-    renglon entrante, que se compara contra `concepto["embedding"]` (el centro
-    de los productos del concepto, poblado por `enriquecer`). Solo cuenta cuando
-    el lexico ya acerto la cabeza: el coseno SUMA un aporte pequeno para
-    desempatar por significado y nunca resta, asi que el hibrido no puede dar
-    menos que el lexico solo, que es lo que la tesis afirma. Sin una cabeza
-    anclada por el lexico el puntaje es 0 y el renglon queda sin correspondencia.
-
-    Sin `embedding_renglon` la funcion es identica al lexico de siempre, y por
-    eso los callers que aun no calculan el vector siguen valiendo.
-    """
-    mejor_id, mejor_nombre, mejor = None, "", 0.0
-    renglon = RANGO_DUREZA.sub(" serie durezas ", _plano(renglon))
-    renglon = PAR_DE_ESCUADRAS.sub(" escuadras juego ", renglon)
-    renglon = _sin_encabezado_de_grupo(renglon, conceptos)
-    nucleo = cabeza(renglon)
-    for concepto in conceptos:
-        # Recortado en 0: un coseno negativo no es "menos parecido que nada",
-        # y dejarlo restaria en las ramas lexicas. Con el modelo de produccion
-        # los cosenos medidos no bajan de 0.43, pero la garantia hibrido >=
-        # lexico no puede depender de que modelo haya.
-        cos = (
-            max(0.0, coseno(embedding_renglon, concepto["embedding"]))
-            if embedding_renglon is not None and concepto.get("embedding")
-            else 0.0
-        )
-        for candidato in [concepto["nombre"], *(concepto["sinonimos"] or [])]:
-            palabras_candidato = _plano(candidato).split()
-            en_la_cabeza = bool(nucleo) and any(_misma_cosa(nucleo, w) for w in palabras_candidato[:1])
-            # Si el candidato no nombra la cabeza en NINGUNA de sus palabras,
-            # no esta hablando de la misma cosa. Sin esta condicion, un
-            # concepto de una sola palabra saca 0.5 contra cualquier frase de
-            # dos que lo mencione de refilon: `chaquiras de colores` contra
-            # `colores` comparte una de dos palabras y se colaba por el
-            # umbral. Exigir que la cosa pedida este nombrada es mas claro
-            # que subir el umbral, que solo habria movido el problema.
-            nombra_la_cabeza = bool(nucleo) and any(_misma_cosa(nucleo, w) for w in palabras_candidato)
-            if en_la_cabeza:
-                # Acertar la cabeza da el piso, y el resto de la frase decide
-                # entre los que la aciertan. Con un 1.0 plano empataban
-                # `lapiz` (esfero) y `lapiz colores`, y el empate lo rompia el
-                # orden de la tabla, que es como no decidir. Lo que distingue
-                # a los lapices de colores de un lapiz es justamente lo que
-                # sobra de la frase. El coseno suma, no resta.
-                puntaje = min(1.0, 0.6 + 0.4 * _parecido(renglon, candidato) + _APORTE_COSENO * cos)
-            elif nombra_la_cabeza:
-                puntaje = min(1.0, _parecido(renglon, candidato) + _APORTE_COSENO * cos)
-            else:
-                puntaje = 0.0
-            if puntaje > mejor:
-                mejor_id, mejor_nombre, mejor = concepto["id"], concepto["nombre"], puntaje
-    return mejor_id, mejor_nombre, mejor
-
-
 def buscar_candidatos(consulta: str, ancla: str = "", cuantos: int = 3) -> list[tiendas.Oferta]:
-    """Los mejores candidatos de las dos tiendas, repartidos por precio.
-
-    El `ancla` es la palabra que nombra la cosa, y el candidato tiene que
-    traerla en su nombre o no entra. Suena burdo y resuelve el fallo mas
-    comun de estas busquedas: pedirle `aserrin colores surtidos` a Exito
-    devuelve velas y un trapero, porque su buscador se queda con `colores
-    surtidos` y suelta el sustantivo. Ninguna de esas velas se llama aserrin,
-    asi que el filtro las tumba todas sin necesidad de entender nada.
-
-    Se piden tres y no diez porque quien revisa no compara diez: mira los dos
-    primeros y aprueba. Una cola de revision larga se abandona, y una cola
-    abandonada es peor que no tenerla, porque aparenta un control que nadie
-    ejerce.
-    """
     encontrados: list[tiendas.Oferta] = []
     for tienda in tiendas.DOMINIOS:
         encontrados += [
@@ -405,9 +58,6 @@ def buscar_candidatos(consulta: str, ancla: str = "", cuantos: int = 3) -> list[
 
     raiz = _plano(ancla or consulta).split()
     if raiz:
-        # Se compara contra la raiz de la palabra y no contra la palabra
-        # entera, para que `lapices` encuentre `lapiz` y `pompones` encuentre
-        # `pompon`. Cinco letras alcanzan para no emparejar cosas distintas.
         prefijo = raiz[0][:5]
         encontrados = [o for o in encontrados if prefijo in _plano(o.nombre)]
 
@@ -417,9 +67,6 @@ def buscar_candidatos(consulta: str, ancla: str = "", cuantos: int = 3) -> list[
     ordenados = sorted(encontrados, key=lambda o: o.precio_cop)
     if len(ordenados) <= cuantos:
         return ordenados
-    # Uno barato, uno de en medio y uno caro. Los extremos se evitan: el mas
-    # barato de una busqueda suele ser un accesorio suelto y el mas caro un
-    # empaque institucional.
     posiciones = [len(ordenados) // 6, len(ordenados) // 2, (5 * len(ordenados)) // 6]
     vistos, salida = set(), []
     for posicion in posiciones:
@@ -431,11 +78,6 @@ def buscar_candidatos(consulta: str, ancla: str = "", cuantos: int = 3) -> list[
 
 
 NIVEL_POR_POSICION = ("economico", "confiable", "premium")
-
-
-# ---------------------------------------------------------------------------
-# Base de datos
-# ---------------------------------------------------------------------------
 
 
 async def _contexto():
@@ -471,16 +113,12 @@ async def _contexto():
                 )
             ]
             slugs = {f.slug: f.id for f in await conexion.execute(select(tienda.c.slug, tienda.c.id))}
-            # Que niveles cubre ya NUESTRO catalogo para cada concepto. Es lo
-            # que decide si hace falta salir a una tienda o no.
             producto = Base.metadata.tables["producto_canonico"]
             cobertura: dict[str, set[str]] = {}
             for f in await conexion.execute(
                 select(producto.c.concepto_id, producto.c.nivel).where(producto.c.activo)
             ):
                 cobertura.setdefault(str(f.concepto_id), set()).add(f.nivel)
-            # Lo ya decidido, para no volver a preguntarlo. Es lo que hace que
-            # rechazar sirva de algo.
             decididos = {
                 (str(f.tienda_id), f.referencia_externa)
                 for f in await conexion.execute(select(propuesta.c.tienda_id, propuesta.c.referencia_externa))
@@ -499,16 +137,11 @@ async def _contexto():
     return conceptos, slugs, decididos | ofertados, cobertura
 
 
-# Claves de `especificaciones` que no vienen de la ficha de la tienda sino de
-# quien propuso el producto, despues de verificarlo contra esa ficha. Viajan en
-# la propuesta para no perderse al aprobar: `resolver` vuelve a leer los
-# atributos del nombre, y un nombre que no dice el color lo dejaba sin color.
 ATRIBUTOS_VERIFICADOS = "atributos_verificados"
 EMPAQUE_VERIFICADO = "unidades_por_empaque_verificado"
 
 
 def atributos_verificados(especificaciones: dict[str, Any]) -> dict[str, Any]:
-    """Los atributos verificados de una propuesta, o {} si no trae o no se leen."""
     crudo = especificaciones.get(ATRIBUTOS_VERIFICADOS)
     if not crudo:
         return {}
@@ -522,13 +155,6 @@ def atributos_verificados(especificaciones: dict[str, Any]) -> dict[str, Any]:
 def atributos_al_aprobar(
     nombre: str, especificaciones: dict[str, Any], attrs_concepto: tuple[str, ...]
 ) -> dict[str, Any]:
-    """Los atributos con que nace el producto si se aprueba sin corregir nada.
-
-    De menor a mayor prioridad: la ficha de la tienda, lo que dice el nombre, y
-    lo que quien propuso verifico contra la ficha (el color o el tamano que el
-    nombre no dice). Las correcciones de la cola pisan todo esto. La cola lo
-    muestra antes de aprobar, para que lo que se ve sea lo que queda.
-    """
     return {
         **atributos_de_ficha(especificaciones, attrs_concepto),
         **extraer_atributos(nombre, attrs_concepto),
@@ -557,23 +183,10 @@ async def _encolar(propuestas: list[dict[str, Any]]) -> int:
 
 
 class PuertaCerrada(Exception):
-    """Se intento salir a una tienda por una lista que ya esta revisada.
-
-    Es un error y no un aviso. Si esto fuera tolerable, cada corrida volveria
-    a consultar tiendas por listas resueltas hace meses: el catalogo dejaria
-    de ser un cache que se llena y volveria a ser un buscador que paga lo
-    mismo cada vez.
-    """
+    pass
 
 
 def exigir_sin_revisar(id_corto: str, existe: bool, revisada_en: datetime | None) -> None:
-    """La decision de la puerta, aparte de la consulta que trae los datos.
-
-    Vive suelta para poder probarla. Enterrada dentro de la consulta, la
-    unica forma de comprobar que una lista revisada no consulta tiendas
-    seria montar una base y contar llamadas de red, que es justo la clase de
-    prueba que nadie escribe.
-    """
     if not existe:
         raise PuertaCerrada(f"No existe ninguna version de lista que empiece por {id_corto}")
     if revisada_en is not None:
@@ -585,13 +198,6 @@ def exigir_sin_revisar(id_corto: str, existe: bool, revisada_en: datetime | None
 
 @dataclass(frozen=True)
 class Revision:
-    """Una version de lista abierta a revision, con sus renglones.
-
-    Es la llave: `proponer` y `crear_libro` piden esto y no un texto, y lo
-    unico que construye uno es `abrir_revision`, que comprueba la puerta. Por
-    eso la regla no depende de que nadie se equivoque al llamar.
-    """
-
     version_id: uuid.UUID
     colegio: str
     grado: str
@@ -600,12 +206,6 @@ class Revision:
 
 
 async def abrir_revision(id_corto: str) -> Revision:
-    """Carga la version y comprueba la puerta ANTES de devolver los renglones.
-
-    El orden importa: la comprobacion va aqui, en el unico sitio por el que
-    se consiguen los renglones que disparan una busqueda. Ponerla en quien
-    llama seria confiar en que todos los que llamen se acuerden.
-    """
     from sqlalchemy import Text, cast, select
     from tukit_comun.bd import crear_motor
 
@@ -667,23 +267,12 @@ async def proponer(revision: Revision) -> None:
         concepto_id, nombre_concepto, parecido = clasificar(renglon, conceptos)
         consulta = consulta_desde_renglon(renglon)
 
-        # Por debajo de este parecido no se fuerza el renglon dentro de un
-        # concepto existente. Es preferible proponer un concepto nuevo, que
-        # una persona puede fusionar en un minuto, a colgar pompones del
-        # concepto de plastilina porque se parecian un poco.
         if parecido < 0.5:
             print(f"  {renglon[:44]:46} -> CONCEPTO NUEVO: {consulta}")
             concepto_id, sugerido = None, consulta[:128]
         else:
             concepto_id, sugerido = concepto_id, None
             nuestros = cobertura.get(str(concepto_id), set())
-            # LA PREGUNTA QUE VA PRIMERO: ya lo tenemos?
-            #
-            # Salir a una tienda por algo que el catalogo ya surte es no
-            # tener catalogo. La tienda es una fuente de ALTA, no de
-            # consulta: solo se acude a ella cuando nuestra base no puede
-            # responder, y aun asi lo que trae pasa por revision humana antes
-            # de existir para un papa.
             if len(nuestros) >= 3:
                 en_casa += 1
                 print(f"  {renglon[:44]:46} -> {nombre_concepto}: YA LO TENEMOS")
@@ -694,9 +283,6 @@ async def proponer(revision: Revision) -> None:
             print(f"     lo tenemos a medias: falta {', '.join(sorted(faltan))}")
 
         fuera += 1
-        # El ancla es el nombre del concepto cuando se reconocio: es mas
-        # fiable que la primera palabra del renglon, que a veces es un
-        # adjetivo o un resto de cantidad.
         candidatos = buscar_candidatos(consulta, ancla=nombre_concepto if concepto_id else consulta)
         nuevos = [c for c in candidatos if (str(slugs.get(c.tienda)), c.sku) not in ya_decididos]
         print(f"     se consulta la tienda: {len(candidatos)} candidatos, {len(nuevos)} sin decidir")
@@ -784,30 +370,6 @@ async def resolver(
     no_surtir: bool = False,
     overrides: dict[str, Any] | None = None,
 ) -> int:
-    """Aprueba o rechaza, y si aprueba crea el producto con su oferta y precio.
-
-    Aprobar no es marcar una casilla: es el momento en que nace el producto
-    canonico, su oferta en esa tienda y su primer precio observado. Se hace en
-    una sola transaccion porque un producto sin oferta no se puede comprar y
-    una oferta sin precio no se puede sumar al kit; las tres cosas valen
-    juntas o no valen.
-
-    `overrides` es la correccion a mano que hace una persona en la cola ANTES
-    de aprobar: nombre, marca, imagen_url, personaje y atributos. Cada clave
-    presente pisa el valor que la propuesta traia (o lo que se derivo del
-    nombre/ficha); las ausentes conservan el comportamiento automatico de
-    siempre, asi que aprobar sin `overrides` es identico a como era. Es el
-    unico momento con permiso de editar estos campos aqui: despues de aprobar,
-    el producto ya existe y se corrige por el editor de catalogo (su PATCH).
-
-    Rechazar tiene dos sabores. El corriente descarta ESTA propuesta y deja el
-    concepto abierto para otra: quiza el candidato no servia pero el util si se
-    ofrece. Con `no_surtir`, el rechazo es sobre el concepto entero: se marca
-    `tipo_item = 'no_comprar'`, que es como el catalogo dice "esto existe en la
-    lista del colegio pero nosotros no lo vendemos". Eso saca al concepto del
-    conteo de huecos (`_medir_carencias` ya excluye `no_comprar`) y es la senal
-    que el flujo del papa lee para mandarselo aparte en vez de sumarlo al kit.
-    """
     from sqlalchemy import Text, cast, func, select, update
     from sqlalchemy.dialects.postgresql import insert
     from tukit_comun.bd import crear_motor
@@ -873,10 +435,6 @@ async def resolver(
             if especificaciones.get(EMPAQUE_VERIFICADO, "").isdigit():
                 empaque = Empaque(int(especificaciones[EMPAQUE_VERIFICADO]), empaque.unidad_base)
 
-            # Correcciones a mano hechas en la cola. Cada clave presente pisa el
-            # valor automatico; las ausentes lo conservan. `atributos` se
-            # REEMPLAZA entero (misma semantica que el editor de catalogo), no
-            # se fusiona: la persona ve el mapa completo y lo deja como quiere.
             ov = overrides or {}
             nombre_final = str(ov["nombre"]).strip() if ov.get("nombre") else fila.nombre
             marca_final = ov.get("marca", fila.marca)
@@ -887,12 +445,6 @@ async def resolver(
             pid = _uuid_estable("aprobado", str(fila.tienda_id), fila.referencia_externa)
             nivel_final = nivel or fila.nivel_sugerido or "confiable"
             producto = Base.metadata.tables["producto_canonico"]
-            # El mismo articulo (mismo EAN) puede estar ya en el catalogo con la
-            # oferta de otra tienda: la plastilina Norma gigante x12 entro por
-            # Panamericana y despues llego por Exito. Crear otro producto chocaba
-            # con el EAN unico, el ON CONFLICT se lo callaba y la oferta quedaba
-            # apuntando a un producto inexistente (500 al aprobar). Es otra tienda
-            # para el mismo producto: la oferta se cuelga del que ya esta.
             ean_final = ean13(fila.ean)
             existente = (
                 await conexion.scalar(select(producto.c.id).where(producto.c.ean == ean_final))
@@ -901,11 +453,6 @@ async def resolver(
             )
             if existente is not None:
                 pid = existente
-            # El primero que entra a una celda (concepto, nivel, personaje) es su
-            # representante; los siguientes son profundidad de compra. Antes
-            # siempre entraba en False y la primera aprobacion de un concepto
-            # nuevo dejaba la celda sin representante (la invariante de
-            # `test_una_celda_util_tiene_exactamente_un_representante`).
             ya_hay_representante = await conexion.scalar(
                 select(func.count())
                 .select_from(producto)
@@ -937,9 +484,6 @@ async def resolver(
                     es_propio=False,
                     es_representante_canonico=not ya_hay_representante,
                     activo=True,
-                    # Lo miro una persona: vale mas que cualquier sugerencia
-                    # automatica y menos que la curaduria original hecha sobre
-                    # la lista del colegio en la mano.
                     quality_score=0.85,
                     curado_por=AGENTE_FIRECRAWL,
                 )
@@ -995,14 +539,6 @@ async def resolver(
 
 
 async def probar(renglones: list[str]) -> None:
-    """Lo que veria un acudiente: el match contra NUESTRA base y nada mas.
-
-    No existe aqui ninguna forma de llegar a una tienda, y es a proposito.
-    Esta funcion es la que responde una lista en produccion, y en produccion
-    una lista se responde con el catalogo: si no esta, no esta, y se muestra
-    como no resuelto. Consultar Exito en ese momento seria mostrarle al
-    acudiente un producto que nadie ha verificado que podamos conseguir.
-    """
     conceptos, _slugs, _decididos, cobertura = await _contexto()
     print(f"Contra nuestro catalogo, sin salir a ninguna tienda: {len(renglones)} renglones\n")
     resueltos = 0
@@ -1023,7 +559,6 @@ async def probar(renglones: list[str]) -> None:
 
 
 async def listar_listas() -> None:
-    """Las versiones sin revisar, que son las unicas que abren la puerta."""
     from sqlalchemy import func as f_sql
     from sqlalchemy import select
     from tukit_comun.bd import crear_motor
@@ -1090,18 +625,6 @@ async def crear_libro(
     imagen: str | None,
     concepto: str | None,
 ) -> int:
-    """Alta a mano de un libro, dentro de una revision abierta.
-
-    Los libros no se dan de alta buscando. Lo que identifica un libro es el
-    ISBN de una edicion concreta -misma obra, distinto ISBN, distinto precio
-    y distinto contenido-, y una busqueda por titulo no distingue ediciones.
-    Asi que quien revisa escribe el ISBN que el colegio pidio.
-
-    Pasa por la misma cola que lo que trae el scraper, aunque lo haya
-    escrito una persona. Encolarlo no es desconfianza: es que el alta de un
-    producto es siempre el mismo camino, con los mismos datos minimos, y dos
-    caminos distintos para lo mismo se separan con el tiempo.
-    """
     revision = await abrir_revision(id_corto)
 
     from sqlalchemy import select
@@ -1109,10 +632,6 @@ async def crear_libro(
 
     from .modelos import Base
 
-    # El digito de control se comprueba antes de tocar la base. Un ISBN mal
-    # copiado no falla ruidosamente: entra, y el dia de la compra resulta ser
-    # otra edicion o ningun libro. Es el tipo de error que solo se descubre
-    # cuando ya hay alguien esperando su pedido.
     isbn = normalizar_isbn(isbn) or ""
     if not isbn13_valido(isbn):
         print(f"El ISBN '{isbn}' no pasa el digito de control. Revisalo antes de darlo de alta.")
@@ -1160,8 +679,6 @@ async def crear_libro(
                 "disponible": True,
                 "especificaciones": {"isbn": isbn},
                 "nivel_sugerido": "confiable",
-                # Lo escribio una persona con la lista del colegio delante,
-                # que es mejor evidencia que cualquier busqueda por texto.
                 "puntaje": 0.9,
                 "estado": "pendiente",
                 "origen": "manual",
@@ -1185,29 +702,6 @@ async def crear_util(
     consulta: str,
     elegir: int | None,
 ) -> int:
-    """Alta de un util APOYADA en las tiendas, no un formulario a ciegas.
-
-    Un util no se identifica por ISBN, asi que a diferencia de un libro hay que
-    encontrarlo. En vez de que el administrador copie a mano nombre, precio,
-    marca e imagen, este comando consulta las tres tiendas que ya usa el
-    catalogo -Exito y Panamericana por VTEX, Grancentral por Shopify- reusando
-    el mismo cliente con cache y el mismo quinto filtro (`_coincide`: todas las
-    palabras de la consulta tienen que estar en el nombre) que impide que entre
-    un cuchillo cuando se busca una tabla de picar.
-
-    El flujo es en dos pasos, a proposito:
-
-      1. Sin `--elegir`, LISTA los candidatos numerados y no escribe nada. Es la
-         pantalla de "esto encontre" que el administrador mira.
-      2. Con `--elegir N`, ENCOLA ese candidato como propuesta contra el
-         concepto dado. No lo mete al catalogo: pasa por la misma cola que todo
-         lo demas, y solo se vuelve producto cuando se aprueba (`--aprobar`),
-         que es cuando `resolver` le saca empaque y atributos del nombre.
-
-    Pasa por `abrir_revision` igual que `crear_libro`: salir a una tienda exige
-    una lista sin revisar. El util nuevo, al aprobarse, queda en el catalogo y
-    surte a la siguiente lista que lo pida: eso es el cache que se llena.
-    """
     revision = await abrir_revision(id_corto)
 
     from sqlalchemy import select
@@ -1215,9 +709,6 @@ async def crear_util(
 
     from .modelos import Base
 
-    # El concepto tiene que existir: un util cuelga de una necesidad que el
-    # colegio ya pidio, no de un texto suelto. Se resuelve su id y su nombre
-    # antes de gastar una sola consulta a las tiendas.
     motor = crear_motor("catalogo")
     try:
         async with motor.engine.begin() as conexion:
@@ -1239,8 +730,6 @@ async def crear_util(
     finally:
         await motor.cerrar()
 
-    # Las tres tiendas, con su quinto filtro puesto. Se marca de que tienda vino
-    # cada oferta para poder encolarla despues contra la `tienda_id` correcta.
     candidatos: list[tuple[str, Any]] = []
     for slug in ("exito", "panamericana", "grancentral"):
         if slug not in slugs:
@@ -1252,8 +741,6 @@ async def crear_util(
                 continue
             candidatos.append((slug, oferta))
 
-    # De mas barato a mas caro: es el orden en que el administrador razona los
-    # tres niveles, y el mismo que usa `completar`.
     candidatos.sort(key=lambda par: par[1].precio_cop)
 
     if not candidatos:
@@ -1288,15 +775,10 @@ async def crear_util(
                 "marca": oferta.marca,
                 "ean": _ean_valido(oferta.ean),
                 "imagen_url": oferta.imagen_url,
-                # La ficha cruda de la tienda, para que al aprobar `resolver`
-                # pueda leer los atributos que el nombre no diga.
                 "especificaciones": oferta.especificaciones or {},
                 "precio_centavos": oferta.precio_cop * 100,
                 "disponible": oferta.disponible,
                 "nivel_sugerido": None,
-                # Lo eligio una persona de una lista de candidatos, mas alto que
-                # lo que `completar` encola solo pero por debajo de un libro con
-                # ISBN verificado: sigue siendo una tienda, no una ficha exacta.
                 "puntaje": 0.6,
                 "estado": "pendiente",
                 "origen": "manual",
@@ -1315,13 +797,6 @@ async def crear_util(
 
 
 async def cerrar(id_corto: str) -> int:
-    """Marca la version como revisada y cierra la puerta para siempre.
-
-    Se niega si queda algo pendiente. Cerrar con propuestas sin decidir seria
-    dejar el renglon sin producto y sin forma de volver a intentarlo: la
-    puerta cerrada impide reabrir la busqueda, asi que el renglon quedaria
-    mudo en todos los kits futuros de ese grado.
-    """
     from sqlalchemy import Text, cast, func, select, update
     from tukit_comun.bd import crear_motor
 
@@ -1476,17 +951,11 @@ def main() -> int:
     return 2
 
 
-# --- Libros: buscalibre y Libreria Nacional --------------------------------
-# Verificado 2026-11-12 sin gastar Firecrawl: buscalibre responde 200 a un GET
-# simple (HTML) y Libreria Nacional es VTEX: su /catalogsearch/result da 404 y la
-# busqueda real es la API JSON de VTEX (como en tiendas.py). Estas funciones solo arman la URL y
-# normalizan lo que vuelve, sin salir a la red.
 TIENDAS_LIBROS: dict[str, str] = {
     "buscalibre": "https://www.buscalibre.com.co",
     "libreria_nacional": "https://www.librerianacional.com",
 }
 
-# Slug en tiendas.csv de cada clave.
 SLUG_TIENDA_LIBRO = {"buscalibre": "buscalibre", "libreria_nacional": "librerianacional"}
 
 _RUTA_BUSQUEDA = {
@@ -1496,21 +965,15 @@ _RUTA_BUSQUEDA = {
 
 
 def consulta_libro_en(tienda: str, titulo: str, isbn13: str | None) -> str:
-    """URL de busqueda en la tienda indicada. Con ISBN, busca por el
-    (identifica la edicion); sin el, por titulo. Tildes y espacios van
-    codificados."""
     termino = (normalizar_isbn(isbn13) if isbn13 else None) or titulo.strip()
     return TIENDAS_LIBROS[tienda] + _RUTA_BUSQUEDA[tienda] + urllib.parse.quote(termino)
 
 
 def consulta_libro(titulo: str, isbn13: str | None) -> str:
-    """URL de busqueda en la primera tienda de libros (buscalibre)."""
     return consulta_libro_en("buscalibre", titulo, isbn13)
 
 
 def _precio_cop(valor: Any) -> str:
-    """`"$ 54.900"` -> `"54900"`. En Colombia el punto separa miles; si hay
-    coma decimal (`54.900,00`) se descarta la parte decimal."""
     if valor is None:
         return ""
     texto = str(valor).split(",")[0]
@@ -1525,13 +988,6 @@ def fila_libro(
     nivel: str = "confiable",
     observado_en: str | None = None,
 ) -> dict[str, str]:
-    """Una fila con EXACTAMENTE las columnas de `libros_firecrawl.csv`.
-
-    Lo ausente queda "" (nunca None): la carga lo trata como vacio. El
-    `concepto_codigo` lo lee la carga sin mirar si existe, asi que siempre va
-    la columna; si queda vacio la carga lo reporta como concepto desconocido
-    en vez de cargar el libro mal clasificado.
-    """
     if tienda not in TIENDAS_LIBROS:
         raise ValueError(f"tienda de libros desconocida: {tienda!r}")
 

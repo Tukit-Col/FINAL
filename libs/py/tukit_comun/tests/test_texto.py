@@ -1,5 +1,3 @@
-"""La normalizacion de personajes que comparten Catalogo e Inteligencia."""
-
 from __future__ import annotations
 
 import pytest

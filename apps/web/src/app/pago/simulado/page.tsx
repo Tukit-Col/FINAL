@@ -1,9 +1,6 @@
 import styles from "../Pago.module.css";
 import ProcesandoPrueba from "./ProcesandoPrueba";
 
-// Pasarela de mentira para WOMPI_MODO=falso: el backend manda aqui en vez de a
-// Wompi. Aprueba sola; `?resultado=rechazado` fuerza el rechazo para las
-// pruebas automaticas y no hay nada que pulsar para quien paga.
 export default async function PaginaPagoSimulado({
   searchParams,
 }: {

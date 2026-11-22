@@ -1,8 +1,3 @@
-// Lo que el acudiente lee sobre su derecho de retracto (Ley 1480 de 2011, art. 47).
-//
-// El plazo y la decision de si puede o no los toma Comercio; aqui solo se dicen
-// en palabras llanas, separado del componente para probarlo sin pintar nada.
-
 import type { EstadoRetracto } from "@tukit/contrato";
 
 const MENSAJE_SIN_RETRACTO: Record<NonNullable<EstadoRetracto["razon"]>, string> = {
@@ -15,7 +10,6 @@ const MENSAJE_SIN_RETRACTO: Record<NonNullable<EstadoRetracto["razon"]>, string>
   estado_no_permite: "Este pedido no admite retracto en su estado actual.",
 };
 
-/** "viernes 6 de marzo de 2026", en la hora de Colombia. */
 export function fechaLarga(iso: string): string {
   return new Date(iso).toLocaleDateString("es-CO", {
     weekday: "long",
@@ -26,7 +20,6 @@ export function fechaLarga(iso: string): string {
   });
 }
 
-/** "6 mar 2026, 3:05 p. m." para un paso de la linea de tiempo. */
 export function fechaYHora(iso: string): string {
   return new Date(iso).toLocaleString("es-CO", {
     day: "numeric",
@@ -38,10 +31,6 @@ export function fechaYHora(iso: string): string {
   });
 }
 
-/**
- * La frase sobre el retracto de un pedido y si se ofrece el boton. Mientras el
- * pedido no llega no hay fecha limite: el plazo empieza a correr con la entrega.
- */
 export function textoDeRetracto(retracto: EstadoRetracto | undefined): {
   frase: string;
   puedePedir: boolean;

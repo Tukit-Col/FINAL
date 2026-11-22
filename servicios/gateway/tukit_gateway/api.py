@@ -1,73 +1,47 @@
-"""Ruteo por prefijo. Una URL para el frontend, tres servicios detras.
+"""Puerta de enlace: ruteo por prefijo hacia los servicios del backend.
 
-El manifiesto declara este componente "sin dominio y sin base", y esta
-version lo cumple al pie de la letra: no hay una sola consulta, ni un modelo,
-ni una decision de negocio. Solo mira el prefijo de la ruta y reenvia.
-
-Por que existe teniendo los tres servicios con CORS puesto. Porque el
-frontend tendria que conocer tres origenes, y esa es una forma de acoplarse
-al despliegue que se paga cada vez que algo se mueve: cambiar un puerto
-obligaria a tocar el otro repositorio. Con la puerta, el contrato dice
-`http://localhost:8010` y donde vive cada servicio es un detalle del backend.
-
-Sobre la autenticacion. Identidad ya publica `/v1/sesiones*` (correo+clave ->
-token con roles, ADR 0013/0016) y la puerta la rutea como cualquier otra. El
-`Authorization: Bearer` viaja intacto hacia atras -no esta en
-`CABECERAS_SALTADAS`-, y la validacion AUTORITATIVA del token vive en
-`GET /v1/sesiones/actual` de Identidad, que es quien tiene la `version_permisos`
-vigente para poder revocar. El frontend la consulta en cada render protegido, y
-esa consulta pasa por aqui: la puerta ya es parte del camino de validacion.
-
-Lo que si exige es sesion del equipo para la consola interna: toda ruta
-`/v1/admin/*` (salvo la sugerencia que manda la web publica) pide un Bearer que
-identidad reconozca y que traiga rol admin u operador; si no, 401 o 403 y la
-peticion no llega atras. Va aqui porque catalogo e inteligencia sirven rutas de
-consola que no miraban el token, confiando en que nadie de fuera llegara, y la
-puerta es justo ese "de fuera". Se pregunta a `GET /v1/sesiones/actual`, la
-misma validacion autoritativa, asi que revocar sigue funcionando. Las llamadas
-internas entre servicios no pasan por aqui y no cambian. Lo que **no** hace
-todavia, a proposito: exigir sesion en las rutas del pipeline del acudiente;
-cada servicio decide alli, sobre el mismo token que la puerta deja pasar.
-
-Lo que si hace antes de rutear es limitar la tasa (`limite.py`, ADR 0047): por
-token y por IP, en un nivel general y en uno estricto para las rutas que
-cuestan, con un 429 y `Retry-After`. Es el unico punto por el que pasa todo el
-trafico de fuera, igual que para la validacion del token.
-
-El mapa de prefijos es explicito y no un comodin. Una ruta que no este aqui
-devuelve 404 con la lista de las que si existen, en vez de reenviarla a un
-servicio al azar y dejar que el error salga seis capas mas abajo.
-
-    python -m tukit_gateway.api            # localhost:8010
+Decisiones:
+- Sin dominio y sin base: solo mira el prefijo de la ruta y reenvia. Las apps conocen una sola URL
+  (`:8010`) y donde vive cada servicio es un detalle del backend.
+- `Authorization: Bearer` viaja intacto hacia atras. La validacion autoritativa del token vive en
+  `GET /v1/sesiones/actual` de Identidad, que conoce la `version_permisos` vigente y por eso puede
+  revocar.
+- Las rutas servicio a servicio que no se exponen (por ejemplo `/v1/comercio/pedidos-pagados`)
+  responden como si no existieran.
+- Las rutas del contrato que aun no tiene nadie detras responden 501 con la seccion del contrato.
+- Un solo cliente httpx para todo el proceso: construir un `AsyncClient` por peticion arma un
+  `SSLContext` de forma sincrona (~480 ms en Windows) con el bucle congelado.
 """
 
 from __future__ import annotations
 
 import argparse
+import asyncio
 import os
 import re
+import weakref
 
 import httpx
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from tukit_comun.http import CABECERA_CORRELACION, crear_app, crear_pool, id_de_correlacion
+from tukit_comun.resiliencia import CircuitoAbierto, Disyuntor
 
 from . import limite
 
 PUERTO_POR_OMISION = 8010
 
-# Generoso porque detras hay un pipeline que tarda minutos. El proxy del
-# frontend actual ya convive con eso con una espera de 300 s.
 ESPERA_SEGUNDOS = 300.0
+# Solo inteligencia corre el pipeline y justifica esperar minutos; un destino mudo no puede tener a
+# la puerta colgada mas de lo que ESC-R2 tolera (30 s), asi que los demas tienen un tope corto.
+ESPERA_CORTA_SEGUNDOS = 25.0
+DESTINOS_LENTOS = frozenset({"inteligencia"})
 
-# Cuantas conexiones puede tener en vuelo el cliente compartido, sumando los
-# cinco servicios. Mas que el pool de un servicio (20 por destino) porque aqui
-# confluye todo el trafico de fuera.
+# 10 MiB de archivo (el tope de la subida) mas el sobre multipart.
+TOPE_CUERPO_BYTES = 10 * 1024 * 1024 + 64 * 1024
+
 CONEXIONES = 100
 
-# Cabeceras que NO se copian. `host` porque apunta a la puerta y confundiria
-# al de atras; las de longitud y codificacion porque httpx las recalcula y
-# copiarlas produce respuestas truncadas que parecen un fallo de red.
 CABECERAS_SALTADAS = frozenset({"host", "content-length", "transfer-encoding", "connection", "keep-alive"})
 
 
@@ -81,138 +55,61 @@ def _servicios() -> dict[str, str]:
     }
 
 
-# Prefijo de ruta -> servicio que lo atiende. El orden importa: se busca el
-# prefijo mas largo primero, para que `/v1/admin/` gane sobre `/v1/`.
 RUTAS: dict[str, str] = {
     "/v1/catalogo": "catalogo",
     "/v1/listas": "catalogo",
-    # La SUBIDA de listas (percepcion del PDF + alta de version pendiente) la
-    # sirve INTELIGENCIA, no catalogo. Prefijo mas largo que `/v1/listas`
-    # —`destino` busca el mas largo primero— para que gane el POST /subir.
     "/v1/listas/subir": "inteligencia",
-    # La revision de listas por HTTP la sirve CATALOGO (es su curaduria); la
-    # ingesta de PDF y la percepcion las sirve INTELIGENCIA. Ambas cuelgan de
-    # `/v1/admin`, asi que las de catalogo se nombran con su prefijo mas largo
-    # —`destino` busca el mas largo primero— y `/v1/admin` a secas queda para
-    # inteligencia.
     "/v1/admin/listas": "catalogo",
     "/v1/admin/propuestas": "catalogo",
-    # La curaduria proactiva del catalogo (cola de propuestas, alta de util y
-    # libro, buscar en tienda, aprobar) la sirve CATALOGO bajo este prefijo mas
-    # largo. Gana a `/v1/admin` -> inteligencia; `rechazar` sigue yendo a
-    # catalogo por `/v1/admin/propuestas`, que ya esta ruteado arriba.
     "/v1/admin/catalogo": "catalogo",
-    # El backlog de sugerencias de padres lo escribe CATALOGO (crea la
-    # tarea_importacion). Sin este prefijo mas largo caeria en `/v1/admin` e
-    # iria a inteligencia, que no la sirve.
     "/v1/admin/sugerencias": "catalogo",
-    # Lo que el equipo corrigio en la cola y lo que el catalogo aprendio con eso.
     "/v1/admin/correcciones": "catalogo",
     "/v1/admin/acudientes": "identidad",
     "/v1/colegios": "identidad",
-    # Bloque DUEB de un colegio del directorio, para pre-llenar el perfil del
-    # colegio nuevo en la revisión (logo/sitio/dirección/contacto).
     "/v1/directorio": "identidad",
     "/v1/grados": "identidad",
     "/v1/contactos": "identidad",
-    # Nombres de acudientes adultos por id, para el panel del back-office
-    # (tras `usuario:leer:nombre`). Es de identidad, la unica que cifra nombres.
     "/v1/usuarios": "identidad",
-    # Alta del acudiente y sus hijos desde `/empezar` (camino "soy nuevo
-    # usuario"): crea la credencial y las matriculas. Sin auth, como
-    # `/v1/contactos`; la sirve IDENTIDAD.
     "/v1/registro": "identidad",
     "/v1/sesiones": "identidad",
-    # "Mi cuenta" del acudiente: identidad y libreta de direcciones, sobre el
-    # token que emite `/v1/sesiones`.
     "/v1/cuenta": "identidad",
     "/v1/trabajos": "inteligencia",
-    # "Mis solicitudes" del acudiente: sus listas subidas + sus trabajos, unidas.
-    # Prefijo propio y no bajo `/v1/trabajos` para no chocar con
-    # `/v1/trabajos/{trabajo_id}` (que toma un UUID); la sirve INTELIGENCIA.
     "/v1/mis-solicitudes": "inteligencia",
-    # El asistente NL2C: interpretar y decision viven bajo /v1/nl2c; el pedido sobre
-    # un kit cuelga de /v1/kits/{id}/asistente. Las sirve INTELIGENCIA tras TUKIT_ASISTENTE.
     "/v1/nl2c": "inteligencia",
     "/v1/kits": "inteligencia",
-    # Los (colegio, grado) con cache bendita, para la ruta rapida de /empezar.
-    # Cuelga fuera de `/v1/trabajos` (no es un trabajo, es el indice de la cache).
     "/v1/grados-canonicos": "inteligencia",
     "/v1/admin": "inteligencia",
-    # El panel del colegio: kits armados, cobertura y ahorro, calculados en vivo
-    # sobre los kits. Cuelga de `/v1/metricas` y no de `/v1/colegios` (que es de
-    # identidad) para que este ruteo por prefijo lo mande a inteligencia.
     "/v1/metricas": "inteligencia",
-    # El back-office de logistica (tablero de pedidos) y la bandeja de casos/PQRS.
     "/v1/comercio": "comercio",
     "/v1/operacion": "operacion",
-    # El checkout del acudiente y el webhook de la pasarela: ya tienen detras la
-    # superficie de escritura de Comercio (§9), asi que salen de PENDIENTES.
     "/v1/ordenes": "comercio",
-    # La sincronización de pagos con Wompi.
     "/v1/pagos": "comercio",
     "/v1/webhooks/wompi": "comercio",
 }
 
 
-# Rutas que el contrato define y que todavia no tiene nadie detras. Se
-# responden con 501 y con la seccion del contrato donde estan especificadas,
-# en vez de con el 404 de "esa ruta no existe".
-#
-# La diferencia le importa a quien integra: un 404 dice "te equivocaste de
-# URL" y manda a revisar el cliente; un 501 dice "la URL es la correcta y el
-# backend todavia no la sirve" y manda a esperar. Confundirlas cuesta una
-# tarde de buscar un error que no esta.
 PENDIENTES: dict[str, str] = {}
 
 
-# Rutas servicio-a-servicio que la puerta NO expone. Existen para llamadas
-# internas directas —p. ej. inteligencia lee `/v1/comercio/pedidos-pagados`
-# pegandole a `TUKIT_COMERCIO_URL`, sin pasar por aqui— y desde fuera deben
-# verse como si no existieran, no como "prohibidas": revelar que hay una
-# superficie interna es informacion que no le hace falta a nadie de fuera. Van
-# en un set aparte de RUTAS a proposito: asi `sorted(RUTAS)` nunca las lista y
-# el 404 que responde la puerta es indistinguible del de una ruta desconocida.
 RUTAS_BLOQUEADAS: frozenset[str] = frozenset({"/v1/comercio/pedidos-pagados"})
 
-# Bajo /v1/ordenes la puerta solo expone el avance: es back-office y comercio lo
-# protege por rol. Crear la orden, pagarla, leerla o retractarla son llamadas
-# internas (inteligencia le pega directo a comercio). Es lista de PERMITIDAS y
-# no de bloqueadas a proposito: una ruta nueva bajo /v1/ordenes nace cerrada.
 _PREFIJO_ORDENES = "/v1/ordenes"
 _ORDENES_EXPUESTAS = re.compile(r"/v1/ordenes/[^/]+/avanzar")
 
 
-# La consola interna (`apps/admin`): todo lo que cuelga de este prefijo es del
-# equipo de Tukit. Los mismos roles que identidad acepta en `/v1/admin/acudientes`
-# y que inteligencia y comercio llaman `_ROLES_STAFF`.
 _PREFIJO_CONSOLA = "/v1/admin"
 _ROLES_EQUIPO = frozenset({"admin", "operador"})
 
-# Las unicas (metodo, ruta) bajo `/v1/admin` que NO son de la consola. La
-# sugerencia de (colegio, grado) la manda la web publica por un acudiente que
-# puede no tener cuenta; leer el backlog (`GET`) si es del equipo. Lista de
-# abiertas y no de cerradas a proposito: una ruta nueva de consola nace cerrada.
 _CONSOLA_ABIERTA: frozenset[tuple[str, str]] = frozenset({("POST", "/v1/admin/sugerencias")})
 
-# Escrituras de la consola que nacieron fuera de `/v1/admin`: editar, retirar y
-# reclasificar un producto del catalogo, y editar el perfil de un colegio. Solo
-# las escrituras: leer un producto o un colegio es publico (lo hace la web).
 _CONSOLA_FUERA_DE_ADMIN: tuple[tuple[frozenset[str], re.Pattern[str]], ...] = (
     (frozenset({"PATCH", "DELETE"}), re.compile(r"/v1/catalogo/productos/[^/]+")),
     (frozenset({"POST"}), re.compile(r"/v1/catalogo/productos/[^/]+/reclasificar")),
     (frozenset({"PATCH"}), re.compile(r"/v1/colegios/[^/]+")),
 )
 
-# Leer un contacto (`GET /v1/contactos/{usuario_id}`) devuelve correo y celular:
-# es de servicio a servicio (comercio y operacion le pegan directo a
-# identidad). Por la puerta lo leia cualquiera, y el usuario_id es un uuid5 que
-# se calcula desde el correo. El alta (`POST /v1/contactos`, ruta exacta) sigue
-# expuesta, como dice el contrato.
 _PREFIJO_CONTACTOS = "/v1/contactos"
 
-# Cuanto se espera a identidad para validar la sesion. Corto: lo espera una
-# persona delante de la consola, y un 503 claro le sirve mas que el minuto.
 ESPERA_SESION_SEGUNDOS = 10.0
 
 
@@ -231,20 +128,10 @@ def pendiente(ruta: str) -> str | None:
 
 
 def ambigua(ruta: str) -> bool:
-    """`True` si la ruta trae segmentos `.`/`..` o barras invertidas.
-
-    La puerta decide sobre la ruta tal como llega, pero httpx la normaliza al
-    reenviarla: `/v1/comercio/x/../pedidos-pagados` pasaria aqui como una ruta
-    cualquiera de comercio y llegaria al servicio como `/v1/comercio/pedidos-pagados`,
-    saltandose `RUTAS_BLOQUEADAS`. Starlette ya decodifico `%2e`/`%2f`, asi que
-    el chequeo sobre la ruta decodificada cubre tambien las variantes codificadas.
-    Ningun cliente legitimo manda estos segmentos, asi que se rechazan sin mas.
-    """
     return "\\" in ruta or any(segmento in (".", "..") for segmento in ruta.split("/"))
 
 
 def bloqueada(ruta: str) -> bool:
-    """`True` si la ruta es interna (o ambigua) y la puerta no debe exponerla."""
     if ambigua(ruta):
         return True
     if any(ruta == p or ruta.startswith(p + "/") for p in RUTAS_BLOQUEADAS):
@@ -255,12 +142,6 @@ def bloqueada(ruta: str) -> bool:
 
 
 async def _arrancar(app: FastAPI) -> None:
-    # UN cliente httpx para todo el proceso, y no uno por peticion. Construir un
-    # `AsyncClient` arma un `SSLContext` de forma sincrona (~480 ms en Windows)
-    # con el bucle congelado: con uno por peticion, cada reenvio tardaba medio
-    # segundo aunque el de atras respondiera en 9 ms, 100 concurrentes daban
-    # ReadTimeout y las esperas de Redis del limite vencian. Ademas reusa las
-    # conexiones con los servicios en vez de abrir una cada vez.
     app.state.cliente = crear_pool(espera=ESPERA_SEGUNDOS, conexiones=CONEXIONES)
 
 
@@ -270,12 +151,25 @@ async def _apagar(app: FastAPI) -> None:
         await cliente.aclose()
 
 
-def _cliente() -> httpx.AsyncClient:
-    """El cliente compartido que cuelga de `app.state`.
+# Un disyuntor por destino, atado al pool: cuando se cierra el pool, se olvida el estado.
+_DISYUNTORES: weakref.WeakKeyDictionary[httpx.AsyncClient, dict[str, Disyuntor]] = weakref.WeakKeyDictionary()
 
-    Si nadie corrio el arranque (un cliente de prueba sobre `ASGITransport`, que
-    no dispara el ciclo de vida) se crea en el primer uso y queda colgado igual:
-    sigue siendo uno por proceso, no uno por peticion."""
+
+def _disyuntor(cliente: httpx.AsyncClient, nombre: str) -> Disyuntor:
+    return _DISYUNTORES.setdefault(cliente, {}).setdefault(nombre, Disyuntor(nombre))
+
+
+def _cuerpo_demasiado_grande() -> JSONResponse:
+    return JSONResponse(
+        status_code=413,
+        content={
+            "error": "cuerpo_demasiado_grande",
+            "mensaje": f"La puerta no recibe cuerpos de mas de {TOPE_CUERPO_BYTES // (1024 * 1024)} MB.",
+        },
+    )
+
+
+def _cliente() -> httpx.AsyncClient:
     cliente = getattr(app.state, "cliente", None)
     if cliente is None:
         cliente = crear_pool(espera=ESPERA_SEGUNDOS, conexiones=CONEXIONES)
@@ -284,7 +178,6 @@ def _cliente() -> httpx.AsyncClient:
 
 
 def es_consola(metodo: str, ruta: str) -> bool:
-    """`True` si la ruta es de la consola interna y exige sesion del equipo."""
     metodo = metodo.upper()
     camino = ruta.rstrip("/")
     if any(metodo in metodos and patron.fullmatch(camino) for metodos, patron in _CONSOLA_FUERA_DE_ADMIN):
@@ -295,8 +188,6 @@ def es_consola(metodo: str, ruta: str) -> bool:
 
 
 def _token_bearer(authorization: str | None) -> str | None:
-    """El token del encabezado `Authorization`. Como `_token_del_encabezado` de
-    identidad: acepta `Bearer <token>` y tambien el token pelado."""
     if not authorization:
         return None
     partes = authorization.split(" ", 1)
@@ -310,14 +201,6 @@ def _rechazo(estado: int, error: str, mensaje: str) -> JSONResponse:
 
 
 async def _exigir_equipo(peticion: Request) -> JSONResponse | None:
-    """La puerta de la consola: `None` si el portador es admin u operador, o la
-    respuesta que corta la peticion.
-
-    Misma semantica que `/v1/admin/acudientes` en identidad y `_exigir_staff` en
-    inteligencia: 401 sin token o con uno que identidad no reconoce (invalido,
-    vencido o revocado por `version_permisos`), 403 si es valido pero sin rol del
-    equipo. Falla CERRADA (503) si identidad no responde: no poder preguntar no
-    es razon para abrir la consola."""
     token = _token_bearer(peticion.headers.get("authorization"))
     if token is None:
         return _rechazo(401, "sesion_invalida", "El token no es valido o expiro.")
@@ -344,7 +227,7 @@ app = crear_app(
     titulo="Tukit Gateway",
     descripcion=(
         "Unica URL base del backend. Rutea por prefijo hacia catalogo, identidad e "
-        "inteligencia. Contrato: docs/arquitectura/CONTRATO_API.md seccion 12.1."
+        "inteligencia. Contrato: CONTRATO_API.md seccion 12.1."
     ),
     al_arrancar=_arrancar,
     al_apagar=_apagar,
@@ -358,10 +241,6 @@ async def servicios() -> dict[str, object]:
     Sin esto, `GET /salud` en la puerta responde `ok` con los tres servicios
     caidos, que es la clase de sonda que hace perder una tarde.
     """
-    # Se pregunta por READINESS, no liveness (ADR 0021): "arriba" tiene que
-    # significar "listo para atender" (base incluida), no solo "el proceso
-    # responde". Un servicio vivo con su base caida da 503 aqui, que es la verdad
-    # que evita perder la tarde con un 502 rio abajo.
     estado = {}
     cliente = _cliente()
     for nombre, base in _servicios().items():
@@ -380,8 +259,6 @@ async def servicios() -> dict[str, object]:
 )
 async def reenviar(ruta: str, peticion: Request) -> Response:
     camino = "/" + ruta
-    # Antes que todo lo demas: una ruta desconocida o bloqueada tambien gasta
-    # cupo, o un escaner tendria las 404 gratis.
     rechazo = await limite.revisar(peticion, camino)
     if rechazo is not None:
         return rechazo
@@ -400,9 +277,6 @@ async def reenviar(ruta: str, peticion: Request) -> Response:
             },
         )
 
-    # Las rutas internas se responden EXACTAMENTE igual que una desconocida
-    # (mismo cuerpo, misma lista de rutas que no las incluye): desde fuera no hay
-    # forma de distinguir "no existe" de "existe pero es interna".
     if bloqueada(camino) or destino(camino) is None:
         return JSONResponse(
             status_code=404,
@@ -415,9 +289,6 @@ async def reenviar(ruta: str, peticion: Request) -> Response:
 
     nombre = destino(camino)
 
-    # La consola interna pide sesion del equipo ANTES de reenviar: un 401/403
-    # aqui no llega nunca al servicio de atras. El token sigue viajando intacto
-    # para que el servicio aplique sus permisos finos (p. ej. ver nombres).
     if es_consola(peticion.method, camino):
         rechazo = await _exigir_equipo(peticion)
         if rechazo is not None:
@@ -425,29 +296,43 @@ async def reenviar(ruta: str, peticion: Request) -> Response:
 
     base = _servicios()[nombre]
     cabeceras = {k: v for k, v in peticion.headers.items() if k.lower() not in CABECERAS_SALTADAS}
+    declarado = peticion.headers.get("content-length", "")
+    if declarado.isdigit() and int(declarado) > TOPE_CUERPO_BYTES:
+        return _cuerpo_demasiado_grande()
     cuerpo = await peticion.body()
+    if len(cuerpo) > TOPE_CUERPO_BYTES:
+        return _cuerpo_demasiado_grande()
 
-    # La puerta es el borde de entrada: aqui se acuña el id de correlacion. El
-    # middleware compartido ya leyo-o-acuñó uno para ESTA peticion; se estampa en
-    # las cabeceras salientes para que el servicio de atras —y los que el llame
-    # despues— compartan el mismo id. El hook del cliente compartido tambien lo
-    # estamparia, pero se pega a mano para no depender de que lo traiga quien
-    # sustituya el cliente (las pruebas).
     cid = id_de_correlacion()
     if cid:
         cabeceras[CABECERA_CORRELACION] = cid
 
+    cliente = _cliente()
     try:
-        respuesta = await _cliente().request(
-            peticion.method,
-            f"{base}{camino}",
-            params=dict(peticion.query_params),
-            headers=cabeceras,
-            content=cuerpo,
+        async with _disyuntor(cliente, nombre):
+            try:
+                # El tope va aparte del timeout del pool (300 s): un destino mudo no cuelga la puerta.
+                async with asyncio.timeout(
+                    ESPERA_SEGUNDOS if nombre in DESTINOS_LENTOS else ESPERA_CORTA_SEGUNDOS
+                ):
+                    respuesta = await cliente.request(
+                        peticion.method,
+                        f"{base}{camino}",
+                        params=dict(peticion.query_params),
+                        headers=cabeceras,
+                        content=cuerpo,
+                    )
+            except TimeoutError as error:
+                raise httpx.ReadTimeout(f"{nombre} no contesto a tiempo") from error
+    except CircuitoAbierto:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "error": "servicio_no_disponible",
+                "mensaje": f"El servicio de {nombre} esta caido; la puerta deja de insistir unos segundos.",
+            },
         )
     except httpx.HTTPError as error:
-        # 503 y no 502: el de atras no fallo, no esta. La distincion le dice
-        # a quien opera si hay que mirar un log o levantar un proceso.
         return JSONResponse(
             status_code=503,
             content={
@@ -474,10 +359,6 @@ def main(argv: list[str] | None = None) -> int:
 
     import uvicorn
 
-    # Sin `proxy_headers`: de quien es `X-Forwarded-For` lo decide el limite con
-    # `TUKIT_PROXIES_CONFIANZA`. uvicorn lo lee por omision y confia en
-    # 127.0.0.1 (`FORWARDED_ALLOW_IPS`), asi que reescribiria la conexion antes
-    # del limite, y una lista que no confia en la maquina local no serviria.
     uvicorn.run(app, host=argumentos.host, port=argumentos.puerto, log_level="info", proxy_headers=False)
     return 0
 

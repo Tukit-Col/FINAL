@@ -1,10 +1,3 @@
-"""El panel de privacidad del titular: consulta, exportacion y supresion (Ley 1581).
-
-Contra la app real sobre SQLite en memoria. Los otros servicios se sustituyen
-por un doble en `app.state.inventario` que guarda con que token se le pregunto:
-asi se prueba que Identidad pregunta por EL titular del token y por nadie mas.
-"""
-
 from __future__ import annotations
 
 import json
@@ -31,8 +24,6 @@ CONFIRMACION = {"confirmacion": FRASE_CONFIRMACION}
 
 
 class InventarioDoble:
-    """Hace de Comercio, Operacion e Inteligencia. Responde por titular."""
-
     def __init__(self) -> None:
         self.pedidos: dict[str, list[dict]] = {}
         self.preguntas: list[str] = []
@@ -97,9 +88,6 @@ async def _con_hijo_y_direccion(http, tok) -> None:
     assert r.status_code == 201, r.text
 
 
-# ----------------------------------------------------------------- puras
-
-
 def test_la_confirmacion_ignora_mayusculas_tildes_y_espacios():
     assert confirmacion_valida("eliminar  mis datos ")
     assert confirmacion_valida("Eliminar mis datos")
@@ -111,9 +99,6 @@ def test_el_contacto_sale_enmascarado():
     assert enmascarar_correo("ana.maria@ejemplo.com") == "a***@ejemplo.com"
     assert enmascarar_telefono("+57 300 555 4567") == "*** *** 4567"
     assert enmascarar_telefono(None) is None
-
-
-# ----------------------------------------------------------------- inventario
 
 
 async def test_el_inventario_lista_cuenta_hijos_matriculas_y_consentimientos(entorno):
@@ -131,7 +116,7 @@ async def test_el_inventario_lista_cuenta_hijos_matriculas_y_consentimientos(ent
     assert [h["apodo"] for h in datos["hijos"]] == ["Pepito"]
     assert datos["matriculas"][0]["grado"] == "Tercero"
     assert len(datos["direcciones"]) == 1
-    assert "Calle" not in json.dumps(datos["direcciones"])  # la linea no sale en la vista
+    assert "Calle" not in json.dumps(datos["direcciones"])
     assert datos["consentimientos"][0]["version"]
     assert datos["consentimientos"][0]["aceptado_en"]
     assert datos["pedidos"]["total"] == 1
@@ -153,7 +138,6 @@ async def test_el_inventario_de_otro_titular_no_trae_lo_mio(entorno):
     assert datos["hijos"] == [] and datos["direcciones"] == []
     assert datos["pedidos"]["total"] == 0
     assert "Pepito" not in r.text and "ana@" not in r.text
-    # Identidad le pregunta a los otros servicios con el token del portador.
     assert doble.preguntas[-1] == tok_b["Authorization"].removeprefix("Bearer ")
 
 
@@ -168,13 +152,9 @@ async def test_la_exportacion_es_un_adjunto_json_completo(entorno):
     disposicion = r.headers["content-disposition"]
     assert disposicion.startswith("attachment;") and "tukit-mis-datos-" in disposicion
     datos = r.json()
-    # Es la copia del titular: el contacto va completo.
     assert datos["cuenta"]["correo"] == "ana@ejemplo.com"
     assert datos["direcciones"][0]["linea"] == "Calle 1 # 2-3"
     assert datos["exportado_en"]
-
-
-# ----------------------------------------------------------------- supresion
 
 
 async def test_suprimir_sin_la_frase_es_422_y_no_toca_nada(entorno):
@@ -204,7 +184,6 @@ async def test_suprimir_borra_lo_personal_conserva_pedidos_y_cierra_la_cuenta(en
     assert "1480" in conservado["garantia"]["fundamento"]
     assert cuerpo["pedidos_conservados"] == 1
 
-    # La sesion quedo revocada y ya no se puede volver a entrar.
     assert (await http.get("/v1/cuenta", headers=tok)).status_code == 401
     login = await http.post("/v1/sesiones", json={"correo": "ana@ejemplo.com", "clave": CLAVE})
     assert login.status_code == 401
@@ -228,11 +207,9 @@ async def test_suprimir_borra_lo_personal_conserva_pedidos_y_cierra_la_cuenta(en
         assert solicitud.estado == "propagando"
         evento = (await c.execute(select(t["bandeja_salida"]))).one()
         assert evento.tipo == "titular_suprimido"
-        # El evento auditable no lleva datos personales.
         assert "ana@" not in json.dumps(evento.carga) and "Ana" not in json.dumps(evento.carga)
         assert evento.carga["usuario_id"] == uid
 
-    # El correo queda libre: quien lo use despues abre una cuenta nueva y vacia.
     nuevo_uid, _ = await _cuenta(http, "ana@ejemplo.com")
     assert nuevo_uid != uid
 
@@ -244,7 +221,6 @@ async def test_suprimir_con_el_token_de_otro_no_toca_mi_cuenta(entorno):
     r = await http.post("/v1/cuenta/supresion", headers=tok_b, json=CONFIRMACION)
     assert r.status_code == 200
     assert r.json()["estado"] == "propagando"
-    # Se suprimio el portador del token (Beto) y Ana sigue intacta.
     assert (await http.get("/v1/cuenta", headers=tok_b)).status_code == 401
     cuenta_a = await http.get("/v1/cuenta", headers=tok_a)
     assert cuenta_a.status_code == 200
@@ -263,9 +239,6 @@ async def test_revocar_consentimiento_sin_suprimir(entorno):
     assert r.json()["revocados"] >= 1
     datos = (await http.get("/v1/cuenta/mis-datos", headers=tok)).json()
     assert all(c["revocado_en"] for c in datos["consentimientos"])
-
-
-# ----------------------------------------------------------------- remoto
 
 
 async def test_el_inventario_remoto_reenvia_el_bearer_y_degrada_por_seccion():

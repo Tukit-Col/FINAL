@@ -1,25 +1,11 @@
-"""Los dos servicios de los que depende el pipeline, detras de un puerto.
+"""Los servicios de los que depende el pipeline, detras de un puerto.
 
-Inteligencia no puede leer la base del catalogo ni importar su paquete: son
-los invariantes 1 y 3, y son la razon de ser del rediseno entero. Lo que el
-pipeline necesita del catalogo (emparejar renglones, leer la lista oficial de
-un colegio) llega por HTTP, y lo que necesita de identidad (registrar el
-contacto y devolver un identificador) tambien.
-
-Que esten los dos en un solo modulo no es pereza: es que comparten la unica
-decision interesante de esta capa, que es **como degradar**. La seccion 8 del
-contrato dice que ningun fallo externo devuelve 500 si hay una respuesta
-parcial honesta, y aqui eso se concreta asi:
-
-- Sin catalogo no hay pipeline. Se levanta `RemotoCaido`, el trabajo queda
-  `fallido` con su diagnostico y es reintentable. No se arma un kit vacio:
-  un kit sin productos se parece demasiado a un kit sin huecos.
-- Sin identidad si hay pipeline. El trabajo corre sin `usuario_id`, se anota
-  la degradacion y al final no hay a quien avisarle. Perder el aviso es malo;
-  perder el kit por no poder avisar es peor.
-
-Las URL salen del entorno y no se derivan de ningun nombre de base: este
-modulo no sabe donde vive el dato del otro servicio, solo con quien habla.
+Decisiones:
+- Inteligencia no lee la base del Catalogo ni importa su paquete: lo que necesita llega por HTTP,
+  y las URL salen del entorno.
+- Como degradar: sin Catalogo no hay pipeline (`RemotoCaido`, el trabajo queda `fallido` y es
+  reintentable; no se arma un kit vacio). Sin Identidad si hay pipeline: corre sin `usuario_id`, se
+  anota la degradacion y no hay a quien avisar; perder el aviso es mejor que perder el kit.
 """
 
 from __future__ import annotations
@@ -32,29 +18,14 @@ import httpx
 from tukit_comun.http import cliente_efimero
 from tukit_comun.resiliencia import CircuitoAbierto, disyuntor_de, reintentar_get
 
-# Puertos por omision del arranque local. Coinciden con los que documenta el
-# contrato y con los que levanta el ejecutor de tareas; se sobreescriben con
-# TUKIT_CATALOGO_URL y TUKIT_IDENTIDAD_URL.
 URL_CATALOGO_POR_OMISION = "http://127.0.0.1:8012"
 URL_IDENTIDAD_POR_OMISION = "http://127.0.0.1:8011"
 URL_COMERCIO_POR_OMISION = "http://127.0.0.1:8014"
 
-# Generoso a proposito. El emparejamiento de una lista entera carga el indice
-# del catalogo y compara cada renglon contra 100 conceptos; medio segundo de
-# tiempo de espera convertiria una lista larga en un fallo intermitente, que
-# es la peor clase de fallo que se puede tener en un pipeline asincrono.
 ESPERA_SEGUNDOS = 60.0
 
 
 class RemotoCaido(Exception):
-    """Una dependencia externa no respondio. No es un defecto del kit.
-
-    `estado` es el codigo HTTP cuando el otro servicio SI respondio, con un
-    error; queda en None cuando no respondio (conexion, tiempo de espera,
-    circuito abierto). La diferencia importa a quien decide si reintentar: un
-    4xx que no es 408 ni 429 es un rechazo, y reintentarlo daria lo mismo.
-    """
-
     def __init__(self, servicio: str, detalle: str, estado: int | None = None) -> None:
         super().__init__(f"{servicio}: {detalle}")
         self.servicio = servicio
@@ -63,7 +34,6 @@ class RemotoCaido(Exception):
 
     @property
     def transitorio(self) -> bool:
-        """Una caida que puede pasar sola: sin respuesta, 5xx, 408 o 429."""
         return self.estado is None or self.estado >= 500 or self.estado in (408, 429)
 
 
@@ -83,11 +53,6 @@ _ORDEN_NIVEL = {"confiable": 0, "economico": 1, "premium": 2}
 
 
 def elegir_producto_de_personaje(productos: list[dict[str, Any]]) -> dict[str, Any] | None:
-    """El candidato de personaje, sin depender del orden de la respuesta.
-
-    Con precio primero; luego nivel confiable < economico < premium; luego el
-    menor `precio_desde`; el sku ascendente desempata.
-    """
 
     return min(productos, key=_clave_de_personaje) if productos else None
 
@@ -99,14 +64,6 @@ def _clave_de_personaje(p: dict[str, Any]) -> tuple[Any, ...]:
 
 @dataclass
 class ClienteCatalogo:
-    """Lo que el pipeline le pide al catalogo, y nada mas.
-
-    Es una clase y no cuatro funciones sueltas para poder sustituirla entera
-    en las pruebas: el doble implementa los mismos tres metodos y el pipeline
-    no se entera. Sin eso, probar la orquestacion exigiria levantar el otro
-    servicio, y una prueba que necesita dos procesos no se corre.
-    """
-
     base: str = ""
     cliente: httpx.AsyncClient | None = None
 
@@ -114,15 +71,6 @@ class ClienteCatalogo:
         return self.base or url_catalogo()
 
     async def _pedir(self, metodo: str, ruta: str, **kw: Any) -> Any:
-        """Una llamada al catalogo, protegida por disyuntor (ADR 0020).
-
-        El disyuntor por-destino corta la tormenta si el catalogo esta caido; se
-        aplica a GET y POST por igual (aislar el fallo no es reintentarlo). El
-        REINTENTO, en cambio, solo envuelve los GET idempotentes: reintentar el
-        POST de `emparejar`/`importar` a nivel de transporte podria duplicar una
-        importacion, asi que esos se dejan fallar y el pipeline los reintenta con
-        su propia semantica de estado. `CircuitoAbierto` degrada como `RemotoCaido`.
-        """
 
         async def _una_vez() -> Any:
             async with (
@@ -147,7 +95,6 @@ class ClienteCatalogo:
     async def emparejar(
         self, renglones: list[str], conceptos: list[str | None] | None = None
     ) -> list[dict[str, Any]]:
-        """`conceptos`, si viene, es el codigo ya asignado a cada renglon (o None)."""
         pedido: dict[str, Any] = {"renglones": renglones}
         if conceptos is not None:
             pedido["conceptos"] = conceptos
@@ -165,31 +112,12 @@ class ClienteCatalogo:
         return await self._pedir("GET", f"/v1/listas/{lista_id}")
 
     async def revision(self, version_id: str) -> dict[str, Any]:
-        """Los items de una version EXPLICITA (vigente o no, revisada o no).
-
-        `lista()` siempre devuelve la version vigente de una lista; esto sirve
-        para previsualizar un borrador de edicion —que nace SIN vigencia— por su
-        `version_id`. La respuesta tiene la misma forma que `lista()` (trae
-        `items`, `lista_id`, `grado`, `total_items`, `revisada`), asi que el
-        pipeline la consume por el mismo camino. 404 si la version no existe.
-        """
         return await self._pedir("GET", f"/v1/admin/listas/{version_id}/revision")
 
     async def producto(self, sku: str) -> dict[str, Any]:
-        """El producto autoritativo por sku, con precio y empaque frescos.
-
-        Se usa al fijar un producto en una linea que NO era candidato del item
-        (p. ej. un personaje que el optimizador deprioriza): la linea no puede
-        copiar campos de un CANDIDATO que no existe, asi que los pide aqui.
-        """
         return await self._pedir("GET", f"/v1/catalogo/productos/{sku}")
 
     async def productos_del_concepto(self, concepto: str, *, maximo: int = 40) -> list[dict[str, Any]]:
-        """Los productos con precio de un concepto, para ofrecer opciones del mismo tipo.
-
-        Es lo que alimenta el carrusel de "cambiar por otra opcion": mismo
-        concepto (la misma clase de util), de cualquier marca, nivel o empaque.
-        """
         cuerpo = await self._pedir(
             "GET",
             "/v1/catalogo/productos",
@@ -200,15 +128,6 @@ class ClienteCatalogo:
     async def productos_de_personaje(
         self, concepto: str, personaje: str, *, limite: int = 8
     ) -> list[dict[str, Any]]:
-        """Las variantes activas de un concepto ancla para un personaje, en orden estable.
-
-        Es la misma consulta que el interruptor de personaje del Fan hace en la
-        consola (concepto + personaje), pero del lado del servidor y con TODAS
-        las variantes (hasta `limite`): el unico cuaderno Spiderman multimaterias
-        no tapa a uno cosido de una materia que si cabe en la lista. El orden es
-        el de `elegir_producto_de_personaje` (con precio, nivel, precio, sku),
-        asi la primera es la que la consulta de un solo producto devolvia.
-        """
         cuerpo = await self._pedir(
             "GET",
             "/v1/catalogo/productos",
@@ -218,31 +137,16 @@ class ClienteCatalogo:
         return sorted(productos, key=_clave_de_personaje)
 
     async def producto_de_personaje(self, concepto: str, personaje: str) -> dict[str, Any] | None:
-        """El primer producto de `productos_de_personaje`, o None (para quien pide uno solo)."""
         productos = await self.productos_de_personaje(concepto, personaje, limite=20)
         return productos[0] if productos else None
 
     async def listas_por_contacto(self, contacto_referencia: str) -> list[dict[str, Any]]:
-        """Las listas que subio un acudiente, para su panel "Mis solicitudes".
-
-        Cuelga de `/interno` A PROPOSITO: la puerta no rutea ese prefijo, asi que
-        esta lectura servicio-a-servicio no existe hacia el navegador (nadie de
-        fuera pide "las listas de un contacto"). Inteligencia le pega directo al
-        Catalogo con el `usuario_id` de la sesion que ya valido: `contacto_referencia`
-        JAMAS viene del navegador.
-        """
         cuerpo = await self._pedir("GET", f"/interno/listas-por-contacto/{contacto_referencia}")
         return list(cuerpo.get("listas") or ())
 
     async def retirar_de_contacto(
         self, contacto_referencia: str, *, tarea_id: str | None = None, version_id: str | None = None
     ) -> int:
-        """El acudiente cancela una lista que subio: deja de ser suya.
-
-        La lista sigue en el Catalogo (es del colegio); solo se desvinculan las
-        tareas del contacto. Mismo `/interno` y misma regla que
-        `listas_por_contacto`: el `contacto_referencia` sale de la sesion.
-        """
         cuerpo = {k: v for k, v in (("tarea_id", tarea_id), ("version_id", version_id)) if v}
         respuesta = await self._pedir(
             "POST", f"/interno/listas-por-contacto/{contacto_referencia}/retirar", json=cuerpo
@@ -250,14 +154,6 @@ class ClienteCatalogo:
         return int(respuesta.get("retiradas") or 0)
 
     async def resueltos(self, version_id: str) -> dict[str, Any]:
-        """La ruta rapida: items ya resueltos + candidatos curados de una lista revisada.
-
-        Para una version REVISADA, el catalogo devuelve cada item con su
-        concepto y los productos candidatos curados (los mismos que devolveria
-        `emparejar`, pero indexados por el concepto ya resuelto: sin busqueda de
-        texto, sin recomputo). Es la fuente de datos de la optimizacion cuando
-        la lista ya paso por revision humana, y por eso no toca Gemini.
-        """
         return await self._pedir("GET", f"/v1/admin/listas/{version_id}/resueltos")
 
     async def importar_lista(
@@ -276,32 +172,6 @@ class ClienteCatalogo:
         clave_idempotencia: str | None = None,
         referencias: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Escribe una lista percibida en el catalogo, con su evidencia.
-
-        El PDF viaja en base64 y la percepcion cruda por pagina viaja al lado
-        para que la revision humana del catalogo pueda contrastar lo que se
-        importo contra lo que el modelo leyo. Inteligencia no escribe en la
-        base del catalogo: le entrega el renglon y la evidencia por HTTP y es
-        el catalogo quien decide como guardarlo (invariantes 1 y 3).
-
-        Cuando la subida viene de un acudiente, `contacto_referencia` es su
-        `usuario_id` (nunca su correo ni telefono): la traza que deja al padre
-        esperando para poder avisarle cuando la version se apruebe.
-
-        `colegio_datos` viaja cuando el colegio AUN NO existe en Tukit (lo eligio
-        del directorio de Bogota o lo escribio a mano): trae su nombre y DANE
-        para que la cola lo muestre y la aprobacion cree su identidad. Un colegio
-        aliado ya conocido no lo trae.
-
-        `referencias` son las de los hijos del formulario que apuntan a esta
-        lista (`["hijo-2"]`): el catalogo las reenvia en `lista_verificada` y
-        el kit del padre las usa como clave de `personaje_por_hijo`.
-
-        `clave_idempotencia` hace seguro el reintento de este POST (ADR 0040):
-        con una clave que ya entro, el catalogo devuelve la version que creo en
-        vez de hacer otra. La subida de un acudiente la manda siempre, una por
-        subida y destino; el onboarding no la necesita, porque no reintenta.
-        """
         cuerpo: dict[str, Any] = {
             "colegio_id": colegio_id,
             "grado": grado,
@@ -328,13 +198,6 @@ class ClienteCatalogo:
 
 @dataclass
 class ClienteIdentidad:
-    """Registrar el contacto y quedarse con el identificador, nunca el correo.
-
-    Es la mitad que hace cumplible la nota del manifiesto: el trabajo guarda
-    `usuario_id` y no el correo, asi que el derecho al olvido alcanza el dato
-    de contacto borrandolo en un solo sitio.
-    """
-
     base: str = ""
     cliente: httpx.AsyncClient | None = None
 
@@ -342,11 +205,6 @@ class ClienteIdentidad:
         return self.base or url_identidad()
 
     async def registrar_contacto(self, correo: str, celular: str | None = None) -> str | None:
-        """Devuelve el identificador del usuario, o `None` si identidad no esta.
-
-        `None` y no una excepcion: la caida de identidad degrada el trabajo,
-        no lo tumba. Quien llama anota la degradacion.
-        """
         try:
             async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
                 respuesta = await cliente.post(
@@ -359,9 +217,6 @@ class ClienteIdentidad:
             return None
 
     async def usuario_del_token(self, token: str) -> str | None:
-        """Resuelve el Bearer a un usuario_id contra Identidad. `None` si no vale
-        o Identidad no responde: la subida degrada al flujo por contacto, no se
-        cae (mismo criterio que `registrar_contacto`)."""
         try:
             async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
                 respuesta = await cliente.get(
@@ -374,14 +229,6 @@ class ClienteIdentidad:
             return None
 
     async def sesion(self, token: str) -> dict[str, Any] | None:
-        """La sesion del portador del token contra identidad
-        (`GET /v1/sesiones/actual`), o `None` si el token no vale (401).
-
-        A diferencia del resto de este cliente, la autorizacion FALLA CERRADA:
-        una caida de identidad es `RemotoCaido` (no `None`), para que quien
-        valida NUNCA abra el acceso por no poder preguntar. Devuelve el JSON con
-        `roles`, que es lo que la puerta de inteligencia necesita para exigir
-        operador/admin con la misma semantica que `/v1/admin/acudientes`."""
         try:
             async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
                 respuesta = await cliente.get(
@@ -396,19 +243,10 @@ class ClienteIdentidad:
             raise RemotoCaido("identidad", str(error)) from error
 
     async def tiene_credencial(self, usuario_id: str) -> bool:
-        """Si el usuario puede iniciar sesion (`GET /v1/contactos/{id}/credencial`).
-
-        FALLA CERRADA: si identidad no responde es `RemotoCaido` y no `False`.
-        Contestar "no tiene clave" por no poder preguntar dejaria leer por id el
-        kit de una cuenta con clave, que es justo lo que esta puerta evita."""
         try:
             async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
                 respuesta = await cliente.get(f"{self._base()}/v1/contactos/{usuario_id}/credencial")
                 if respuesta.status_code == 404:
-                    # La ruta no se pregunta por un id inexistente (da `False`): un
-                    # 404 aqui es una identidad vieja, sin la ruta. Se sigue
-                    # fallando cerrado, pero con un mensaje que nombra la causa
-                    # real en vez de un "no se pudo validar" opaco.
                     raise RemotoCaido(
                         "identidad",
                         "identidad no tiene GET /v1/contactos/{id}/credencial: reiniciala antes",
@@ -419,10 +257,6 @@ class ClienteIdentidad:
             raise RemotoCaido("identidad", str(error)) from error
 
     async def datos_directorio(self, dane: str) -> dict[str, Any] | None:
-        """Los datos DUEB (direccion, contacto, sitio) del colegio con ese DANE,
-        para pre-llenar el perfil del colegio nuevo. `None` si el DANE no esta en
-        el directorio o identidad no responde: la subida degrada a nombre+dane,
-        no se cae (el revisor completa a mano lo que falte)."""
         try:
             async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
                 respuesta = await cliente.get(f"{self._base()}/v1/directorio/{dane}")
@@ -434,10 +268,6 @@ class ClienteIdentidad:
             return None
 
     async def colegios_conocidos(self) -> list[dict[str, Any]]:
-        """Los colegios que Identidad ya tiene (`GET /v1/colegios`): `colegio_id`,
-        `nombre` y `dane`. Sirve para que un colegio escrito a mano o elegido del
-        directorio reuse el id del que ya existe en vez de derivar otro. Lista
-        vacia si identidad no responde: la subida degrada al id derivado."""
         try:
             async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
                 respuesta = await cliente.get(f"{self._base()}/v1/colegios")
@@ -449,19 +279,6 @@ class ClienteIdentidad:
 
 @dataclass
 class ClienteComercio:
-    """El checkout server-to-server: Inteligencia arma la orden, Comercio cobra.
-
-    El navegador nunca habla con Comercio directo: manda solo `trabajo_id` +
-    perfil + direccion, e Inteligencia -que tiene el `usuario_id` del trabajo y
-    las lineas del kit- monta la orden aqui. Asi el id canonico de cada producto
-    (que Comercio necesita para reservar) jamas sale a la superficie publica
-    (RPO cero, ADR 0017): la orden viaja con sku y Comercio resuelve el id.
-
-    Devuelve `(estado_http, cuerpo)` en vez de levantar en los rechazos de
-    negocio: un `422 precio_cambiado` es una respuesta legitima que el acudiente
-    tiene que ver, no un fallo. Solo la caida de red o un 5xx es `RemotoCaido`.
-    """
-
     base: str = ""
     cliente: httpx.AsyncClient | None = None
 
@@ -475,10 +292,6 @@ class ClienteComercio:
         return await self._postear(f"/v1/ordenes/{pedido_id}/pago", cuerpo)
 
     async def pedidos_pagados(self) -> list[dict[str, Any]]:
-        """Los pedidos en estado confirmado con su trabajo: `{trabajo_id,
-        usuario_id, estado}`. Comercio es el dueno de la definicion de "pagado";
-        aqui solo se lee para cruzar con los hijos del trabajo. Una caida de
-        Comercio es `RemotoCaido`, no un cruce a medias."""
         try:
             async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
                 respuesta = await cliente.get(f"{self._base()}/v1/comercio/pedidos-pagados")
@@ -488,14 +301,6 @@ class ClienteComercio:
         return list(respuesta.json().get("pedidos") or ())
 
     async def pedidos_de(self, token: str) -> list[dict[str, Any]]:
-        """Los pedidos del portador del token (`{pedido_id, trabajo_id, estado, ...}`).
-
-        Lo usa cancelar una solicitud: un kit ya comprado no se cancela. Va con
-        el Bearer del acudiente porque Comercio saca al dueno de la sesion, no de
-        un `usuario_id` que le manden. Una caida de Comercio (o una sesion que
-        Comercio no acepta) es `RemotoCaido`: sin saber si hay pedido, no se
-        cancela a ciegas.
-        """
         try:
             async with cliente_efimero(self.cliente, ESPERA_SEGUNDOS) as cliente:
                 respuesta = await cliente.get(
@@ -508,9 +313,6 @@ class ClienteComercio:
         return list(respuesta.json().get("pedidos") or ())
 
     async def _postear(self, ruta: str, cuerpo: dict[str, Any]) -> tuple[int, dict[str, Any]]:
-        # Disyuntor, pero SIN reintento: es un POST (crear orden / iniciar pago).
-        # Reintentar un checkout a ciegas es un doble cobro; si Comercio esta
-        # caido se degrada a `RemotoCaido` y el checkout responde 502.
         try:
             async with (
                 disyuntor_de("comercio"),

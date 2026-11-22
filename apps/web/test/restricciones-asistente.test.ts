@@ -1,6 +1,3 @@
-// Del payload que confirma el asistente de /empezar a los campos del formulario.
-// `npm test` en apps/web.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {

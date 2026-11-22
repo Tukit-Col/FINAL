@@ -1,28 +1,3 @@
-"""El repartidor: la mitad de ENTREGA del contrato de eventos (§10, ADR 0041/0042/0046).
-
-Se prueba con bases SQLite en memoria: la de Operacion (donde nace la
-notificacion) y una o varias de origen que imitan la bandeja de
-Inteligencia/Comercio. No se levanta Postgres, RabbitMQ ni la red: el
-`Notificador` es el falso, que registra lo enviado, y el cliente de Identidad es
-un doble que devuelve un contacto fijo.
-
-Lo que se defiende, por comportamiento:
-
-- **Sondeo de la bandeja.** Un evento no publicado da EXACTAMENTE una
-  notificacion y queda publicado; el destinatario de `kits_publicados` sale de
-  `trabajo_pipeline.usuario_id` y el de los pedidos, de la carga. Ni la
-  notificacion guardada ni el cuerpo llevan correo o celular (Ley 1581).
-- **Un evento, un aviso** (H-B-03, CH-15). Si publicar al broker falla y la
-  bandeja vuelve atras, la reentrega no envia otra vez; lo que no se aviso
-  (un envio fallido) si se reintenta. El mismo `id` desde otra bandeja es otro
-  evento.
-- **Consumo de la cola** `operacion.avisos` (ADR 0046): el mismo aviso, el
-  destinatario de la carga, ninguna base ajena; lo que no tiene destinatario
-  pide reintentar.
-- **Vuelve tras una caida** de Postgres o de RabbitMQ (H-B-02): el bucle espera,
-  reintenta y entrega; un error de programacion lo sigue terminando.
-"""
-
 from __future__ import annotations
 
 import socket
@@ -66,13 +41,6 @@ APODO = "Sofi-la-pilosa"
 _INTERVALO = 5.0
 
 
-# ---------------------------------------------------------------------------
-# Dobles
-# ---------------------------------------------------------------------------
-
-
-# La bandeja y los trabajos del servicio de origen, declarados igual que en el
-# repartidor (no se importan: regla 1). `carga` usa el tipo portable.
 def _tablas_origen() -> tuple[MetaData, Table, Table]:
     metadatos = MetaData()
     bandeja = Table(
@@ -96,11 +64,6 @@ def _tablas_origen() -> tuple[MetaData, Table, Table]:
 
 
 class IdentidadContacto:
-    """Doble del cliente de Identidad: devuelve un contacto fijo por id.
-
-    Registra a quien le preguntaron para comprobar que el repartidor resuelve el
-    contacto al vuelo (y no lo guarda)."""
-
     def __init__(self, correo: str | None = CORREO, celular: str | None = CELULAR) -> None:
         self.correo = correo
         self.celular = celular
@@ -112,8 +75,6 @@ class IdentidadContacto:
 
 
 class _IdentidadConColegios(IdentidadContacto):
-    """Ademas nombra colegios; registra cuales le pidieron."""
-
     def __init__(self, nombres: dict[str, str]) -> None:
         super().__init__()
         self.nombres = nombres
@@ -125,8 +86,6 @@ class _IdentidadConColegios(IdentidadContacto):
 
 
 class _NotificadorQueFallaPrimero(NotificadorFalso):
-    """El primer envio no sale (el proveedor de correo no responde); los demas si."""
-
     def __init__(self) -> None:
         super().__init__()
         self.intentos = 0
@@ -138,9 +97,6 @@ class _NotificadorQueFallaPrimero(NotificadorFalso):
         return await super().enviar(contacto, plantilla, datos)
 
 
-# aiormq no se importa: las pruebas de los servicios corren sin el. Estas clases
-# tienen los nombres y las bases de las de aiormq (`AMQPConnectionError` es un
-# `ConnectionError`; `ChannelInvalidStateError`, un `RuntimeError`).
 class AMQPConnectionError(ConnectionError):
     pass
 
@@ -150,8 +106,6 @@ class ChannelInvalidStateError(RuntimeError):
 
 
 class _SinkIntermitente:
-    """Un `BrokerSink` con RabbitMQ caido: lanza los errores dados, en orden, y despues publica."""
-
     def __init__(self, *errores: BaseException) -> None:
         self.errores = list(errores)
         self.publicados: list[int] = []
@@ -170,13 +124,6 @@ def _broker_caido(veces: int) -> _SinkIntermitente:
 
 
 class _EngineIntermitente:
-    """Un `AsyncEngine` cuya base no responde las primeras veces que se abre.
-
-    Lanza los errores dados, en orden, al abrir una transaccion, como asyncpg
-    con Postgres caido; despues delega en el engine de verdad. No se cierra: la
-    base en memoria de la prueba se perderia.
-    """
-
     def __init__(self, real: Any, *errores: BaseException) -> None:
         self.real = real
         self.errores = list(errores)
@@ -196,8 +143,6 @@ class _EngineIntermitente:
 
 
 class _MotorDePrueba:
-    """El `MotorServicio` de Operacion de la prueba, que no se cierra."""
-
     def __init__(self, real: MotorServicio) -> None:
         self.real = real
         self.engine = real.engine
@@ -211,7 +156,7 @@ class _MotorDePrueba:
 
 
 class _Corte(Exception):
-    """La lanza el `dormir` de la prueba para salir del bucle infinito."""
+    pass
 
 
 def _dormir_que_corta(esperas: list[float]):
@@ -221,11 +166,6 @@ def _dormir_que_corta(esperas: list[float]):
             raise _Corte
 
     return dormir
-
-
-# ---------------------------------------------------------------------------
-# Bases y siembra
-# ---------------------------------------------------------------------------
 
 
 @pytest_asyncio.fixture
@@ -255,7 +195,6 @@ async def motor_origen() -> AsyncIterator[tuple[AsyncEngine, Table, Table]]:
 
 @pytest_asyncio.fixture
 async def otro_origen() -> AsyncIterator[tuple[AsyncEngine, Table, Table]]:
-    """Una segunda bandeja, que numera sus eventos por su cuenta."""
     origen = await _base_de_origen()
     yield origen
     await origen[0].dispose()
@@ -263,8 +202,6 @@ async def otro_origen() -> AsyncIterator[tuple[AsyncEngine, Table, Table]]:
 
 @pytest_asyncio.fixture
 async def origenes() -> AsyncIterator[dict[str, tuple[AsyncEngine, Table]]]:
-    """Las bases de Inteligencia, Comercio y Operacion (respuestas a tickets, S5),
-    cada una con su bandeja: `correr_una_vez` recorre las tres."""
     bandejas: dict[str, tuple[AsyncEngine, Table]] = {}
     for origen in ("inteligencia", "comercio", "operacion"):
         engine, bandeja, _trabajo = await _base_de_origen()
@@ -332,11 +269,6 @@ def _repartidor(
     )
 
 
-# ---------------------------------------------------------------------------
-# Sondeo de la bandeja de origen
-# ---------------------------------------------------------------------------
-
-
 class TestSondeoDeLaBandeja:
     async def test_una_pasada_crea_una_notificacion_y_marca_publicado(self, motor_operacion, motor_origen):
         engine, bandeja, trabajo = motor_origen
@@ -347,10 +279,8 @@ class TestSondeoDeLaBandeja:
         assert await _repartidor(motor_operacion, engine, notificador, identidad).pasada() == 1
 
         [fila] = await _notificaciones(motor_operacion)
-        # El destinatario se resolvio desde trabajo_pipeline.usuario_id, no de la carga.
         assert fila.usuario_id == USUARIO
         assert await _pendientes(engine, bandeja) == []
-        # Se resolvio el contacto al vuelo y el notificador registro un envio.
         assert identidad.consultados == [str(USUARIO)]
         assert len(notificador.enviados) == 1
 
@@ -398,7 +328,6 @@ class TestSondeoDeLaBandeja:
     ):
         monkeypatch.setenv("TUKIT_WEB_URL", "https://tukit.co")
         engine, bandeja, trabajo = motor_origen
-        # La carga real no trae apodo; aun si lo trajera, no se usa.
         carga = {"colegio_id": "c1", "grado": "3", "apodo": APODO}
         await _sembrar_kits_publicados(engine, bandeja, trabajo, TRABAJO, carga)
         notificador = NotificadorFalso()
@@ -435,7 +364,6 @@ class TestSondeoDeLaBandeja:
         await _repartidor(motor_operacion, engine, notificador, identidad).pasada()
 
         assert "Colegio A, grados Septimo y Jardin y Colegio B, grado 5" in notificador.enviados[0]["texto"]
-        # Un nombre por colegio distinto, no por lista.
         assert sorted(identidad.colegios) == ["c1", "c2"]
 
     async def test_pedido_pagado_saca_el_usuario_de_la_carga(self, motor_operacion, motor_origen):
@@ -450,8 +378,6 @@ class TestSondeoDeLaBandeja:
     async def test_pedido_despachado_avisa_con_el_repartidor_y_sin_su_celular(
         self, motor_operacion, motor_origen
     ):
-        # Comercio solo pone el NOMBRE en la carga; aun si un evento trajera mas, lo
-        # que se guarda son las variables de la plantilla, no la carga entera.
         engine, bandeja, _trabajo = motor_origen
         pedido_id = uuid.UUID("abcd1234-0000-4000-8000-000000000000")
         await _sembrar_pedido(
@@ -499,11 +425,6 @@ class TestSondeoDeLaBandeja:
             await _repartidor(motor_operacion, None, origen=None).pasada()
 
 
-# ---------------------------------------------------------------------------
-# Un evento, un aviso (H-B-03, ADR 0042)
-# ---------------------------------------------------------------------------
-
-
 class TestUnEventoAvisaUnaVez:
     async def test_si_el_broker_falla_la_reentrega_no_vuelve_a_avisar(self, motor_operacion, motor_origen):
         engine, bandeja, _trabajo = motor_origen
@@ -513,17 +434,13 @@ class TestUnEventoAvisaUnaVez:
         sink = _broker_caido(1)
         reparto = _repartidor(motor_operacion, engine, notificador, identidad, origen="comercio", sink=sink)
 
-        # Primera pasada: el aviso sale y queda registrado, pero publicar falla
-        # y la bandeja vuelve atras. Es lo que paso en CH-15.
         with pytest.raises(AMQPConnectionError):
             await reparto.pasada()
         assert not await _publicado(engine, bandeja, evento_id)
 
-        # Segunda pasada, con el broker de vuelta: el mismo evento llega otra vez.
         assert await reparto.pasada() == 1
 
         assert [envio["plantilla"] for envio in notificador.enviados] == ["pedido_pagado"]
-        # Ni siquiera se resolvio otra vez el contacto del acudiente.
         assert identidad.consultados == [str(USUARIO)]
         [fila] = await _notificaciones(motor_operacion)
         assert (fila.plantilla, fila.estado) == ("pedido_pagado", "enviada")
@@ -578,8 +495,6 @@ class TestUnEventoAvisaUnaVez:
     async def test_el_mismo_id_en_otra_bandeja_es_otro_evento(
         self, motor_operacion, motor_origen, otro_origen
     ):
-        # Cada bandeja numera sus eventos por su cuenta: el evento 1 de Comercio
-        # y el evento 1 de Inteligencia son dos avisos distintos.
         engine_comercio, bandeja_comercio, _ = motor_origen
         engine_inteligencia, bandeja_inteligencia, trabajo = otro_origen
         id_comercio = await _sembrar_pedido(engine_comercio, bandeja_comercio)
@@ -624,11 +539,6 @@ class TestUnEventoAvisaUnaVez:
         assert await _publicado(engine, bandeja, evento_id)
 
 
-# ---------------------------------------------------------------------------
-# Consumo de la cola operacion.avisos (ADR 0046)
-# ---------------------------------------------------------------------------
-
-
 def _de_la_cola(motor_operacion: MotorServicio, notificador: Any = None) -> Repartidor:
     return _repartidor(motor_operacion, None, notificador, origen=None)
 
@@ -666,7 +576,6 @@ class TestConsumoDeLaCola:
         reparto = _de_la_cola(motor_operacion, notificador)
 
         assert await reparto.manejar(_evento_kits()) is Resultado.HECHO
-        # El broker lo entrega otra vez (un ack perdido, una publicacion repetida).
         assert await reparto.manejar(_evento_kits()) is Resultado.HECHO
 
         assert len(await _notificaciones(motor_operacion)) == 1
@@ -766,18 +675,9 @@ class TestConsumoDeLaCola:
         assert "operacion.avisos: 3" in capsys.readouterr().out
 
 
-# ---------------------------------------------------------------------------
-# El proceso vuelve tras una caida (H-B-02, ADR 0041)
-# ---------------------------------------------------------------------------
-
-
 def _conectar(
     monkeypatch, motor_operacion, origenes, *, comercio: Any = None, sink: Any = None
 ) -> NotificadorFalso:
-    """Cambia lo que `correr_una_vez` saca del entorno por las piezas de la prueba.
-
-    `correr_una_vez` cierra los motores de origen en cada vuelta: sin el
-    envoltorio, la base en memoria se perderia tras la primera."""
     notificador = NotificadorFalso()
     motores = {origen: _EngineIntermitente(engine) for origen, (engine, _bandeja) in origenes.items()}
     if comercio is not None:
@@ -794,7 +694,6 @@ class TestVuelveTrasUnaCaida:
     async def test_tras_una_caida_de_postgres_entrega_el_aviso(self, motor_operacion, origenes, monkeypatch):
         engine, bandeja = origenes["comercio"]
         evento_id = await _sembrar_pedido(engine, bandeja)
-        # En Docker el nombre del contenedor muerto deja de resolver: `socket.gaierror`.
         comercio = _EngineIntermitente(
             engine,
             ConnectionRefusedError(61, "Connect call failed ('127.0.0.1', 5432)"),
@@ -827,8 +726,6 @@ class TestVuelveTrasUnaCaida:
         assert esperas == [1.0, 2.0, _INTERVALO]
         assert sink.publicados == [evento_id]
         assert await _publicado(engine, bandeja, evento_id)
-        # El evento se entrego tres veces, pero el acudiente recibe un solo aviso y
-        # queda una sola notificacion, que es lo que mide CH-15 (H-B-03, ADR 0042).
         assert [envio["plantilla"] for envio in notificador.enviados] == ["pedido_pagado"]
         assert [f.plantilla for f in await _notificaciones(motor_operacion)] == ["pedido_pagado"]
 
@@ -847,8 +744,6 @@ class TestVuelveTrasUnaCaida:
         assert esperas == []
 
     async def test_el_bucle_duerme_con_el_asyncio_sleep_de_cuando_corre(self, monkeypatch):
-        # Sin `dormir`, el bucle usa el `asyncio.sleep` que ve el modulo al correr,
-        # no el de cuando se definio: asi lo sustituyen las pruebas de los procesos.
         vueltas: list[int] = []
 
         async def _nada() -> dict[str, int]:

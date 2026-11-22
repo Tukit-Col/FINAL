@@ -1,8 +1,3 @@
-// `/clientes/[id]` — la ficha de una familia: cuenta, hijos matriculados,
-// pedidos, tickets y actividad. Solo staff (identidad, comercio y operacion
-// validan el Bearer). Del menor solo se muestra posicion, grado y colegio:
-// nunca apodo ni nombre (Ley 1581).
-
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { AcudienteAdmin, BandejaOperacion, Pedido } from "@tukit/contrato";
@@ -48,8 +43,6 @@ function Migas({ correo }: { correo?: string }) {
   );
 }
 
-/** Pedidos y casos del titular son un adorno de la ficha: si un servicio no
- *  responde, esa seccion dice que no cargo y el resto sigue. */
 async function intentar<T>(promesa: Promise<T>): Promise<T | null> {
   try {
     return await promesa;

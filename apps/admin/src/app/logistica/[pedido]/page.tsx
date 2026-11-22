@@ -1,12 +1,3 @@
-// `/logistica/[pedido]` — el detalle de un pedido para moverlo de estado.
-//
-// Trae lo que el operador necesita para entregar y atender (acudiente con datos
-// enmascarados, hijos por colegio y grado, cada linea con su imagen, pago con el
-// id de Wompi, la direccion congelada, la linea de tiempo con quien y cuando, y
-// los retractos con su plazo de la Ley 1480). Solo staff lo lee: comercio
-// responde 401/403 a cualquier otro, y aqui eso se vuelve el mismo aviso del
-// tablero.
-
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { AcudienteAdmin, CorreoEnviado, EstadoPedido, PedidoAdmin, TipoIncidencia } from "@tukit/contrato";
@@ -57,13 +48,9 @@ function Estado({ estado }: { estado: EstadoPedido }) {
 }
 
 function etiquetaIncidencia(tipo: string): string {
-  // Un tipo nuevo en comercio que aun no tenga etiqueta aqui se muestra crudo.
   return ETIQUETA_TIPO_INCIDENCIA[tipo as TipoIncidencia] ?? tipo;
 }
 
-/** Nombres de quienes movieron el pedido. Es un adorno: si identidad no los
- *  da (sin permiso de leer nombres, o caida), el historial muestra el id
- *  corto en vez de romper la pagina. */
 async function nombresDeActores(pedido: PedidoAdmin, token: string): Promise<Record<string, string>> {
   const ids = [...new Set(pedido.historial.map((h) => h.actor_id))];
   if (ids.length === 0) return {};
@@ -74,10 +61,6 @@ async function nombresDeActores(pedido: PedidoAdmin, token: string): Promise<Rec
   }
 }
 
-/** La imagen y la tienda de referencia de cada linea, del catalogo publico. Es
- *  un adorno: sin catalogo la linea se pinta con su sku y sin foto. La tienda es
- *  la de la oferta vigente mas barata, no la que cumplio el pedido (el pedido no
- *  guarda tienda). */
 interface ExtraLinea {
   imagen: string | null;
   tienda: string | null;
@@ -102,9 +85,6 @@ async function productosDeLineas(skus: string[]): Promise<Map<string, ExtraLinea
   return new Map(pares);
 }
 
-/** Los avisos que el sistema mandó por este pedido (el código corto del pedido
- *  va en cada aviso). Es un adorno: si operacion no responde, el bloque dice que
- *  no se pudo leer en vez de romper la página. */
 async function correosDelPedido(token: string, pedidoId: string): Promise<CorreoEnviado[] | null> {
   try {
     const { correos } = await origenDeDatos().correos(token, { pedido: pedidoId.slice(0, 8).toUpperCase() });
@@ -114,8 +94,6 @@ async function correosDelPedido(token: string, pedidoId: string): Promise<Correo
   }
 }
 
-/** Los hijos del acudiente en los colegios del pedido, con su grado. Del menor
- *  no viaja nada que lo identifique (Ley 1581). */
 async function hijosDelPedido(
   token: string,
   usuarioId: string,
@@ -148,7 +126,6 @@ export default async function DetallePedido({ params }: Props) {
     pedido = await origenDeDatos().pedidoAdmin(token, pedidoId);
   } catch (causa) {
     if (!(causa instanceof ErrorTukit)) throw causa;
-    // 400: el id ni siquiera es un UUID; para quien lo pego es lo mismo que no existir.
     if (causa.estado === 404 || causa.estado === 400) notFound();
     return (
       <div className={styles.pagina}>
@@ -169,8 +146,6 @@ export default async function DetallePedido({ params }: Props) {
   const pasos = construirLineaDeTiempo(pedido);
   const correoAcudiente = etiquetas.correos.get(pedido.usuario_id);
   const envio = pedido.envio;
-  // El historial llega en orden de avance; lo mas reciente arriba es lo que
-  // el operador busca primero.
   const historial = [...pedido.historial].reverse();
 
   return (
@@ -257,8 +232,6 @@ export default async function DetallePedido({ params }: Props) {
               <dt>Dirección</dt>
               <dd>
                 {envio.direccion}
-                {/* Sin coordenadas: Maps busca por el texto y, si el checkout
-                    guardo el lugar de Google, abre ese exacto (ADR 0044). */}
                 <a
                   href={enlaceGoogleMaps(envio)}
                   target="_blank"
@@ -292,7 +265,6 @@ export default async function DetallePedido({ params }: Props) {
                     ) : null}
                   </>
                 ) : envio.transportadora ? (
-                  // Envio viejo, de cuando se despachaba por transportadora.
                   `${envio.transportadora}${envio.guia ? ` · guía ${envio.guia}` : ""}`
                 ) : (
                   "Sin asignar"

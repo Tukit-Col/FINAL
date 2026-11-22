@@ -1,6 +1,3 @@
-"""La lista que sugiere un padre y el backlog de sugerencias, sin PII."""
-
-# El fixture `cliente` llega de `_ayudas_api_admin` y los tests lo reciben por nombre.
 # ruff: noqa: F811
 
 from __future__ import annotations
@@ -27,7 +24,6 @@ class TestSugerenciaDeUnPadre:
         assert env["estado"] == "pendiente"
         assert env["tarea_id"]
 
-        # La tarea quedo en el backlog con origen y destino declarados.
         motor = app.state.motor
         async with motor.sesion() as db:
             conexion = await db.connection()
@@ -41,12 +37,9 @@ class TestSugerenciaDeUnPadre:
         assert fila.anio_lectivo == 2026
         assert str(fila.contacto_referencia) == cuerpo["contacto_referencia"]
         assert fila.documento == PDF_FALSO
-        # No hay version: es una sugerencia por atender, no una lista escrita.
         assert fila.version_id is None
 
     async def test_no_guarda_pii_solo_el_contacto_por_id(self, cliente):
-        # El web nunca manda correo/telefono, pero si un cliente los cuela, ni
-        # se aceptan ni se echan de vuelta: la respuesta solo trae id y estado.
         referencia = str(uuid.uuid4())
         cuerpo = _cuerpo_sugerencia(
             contacto_referencia=referencia,
@@ -66,7 +59,6 @@ class TestSugerenciaDeUnPadre:
                 await conexion.execute(TAREA.select().where(TAREA.c.id == uuid.UUID(env["tarea_id"])))
             ).one()
         assert str(fila.contacto_referencia) == referencia
-        # No hay ninguna columna donde el correo/telefono pudiera haber caido.
         assert "mama@ejemplo.com" not in str(dict(fila._mapping))
 
     async def test_sin_documento_ni_contacto_igual_se_encola(self, cliente):
@@ -95,14 +87,6 @@ class TestSugerenciaDeUnPadre:
 
 
 class TestElBacklogDeSugerencias:
-    """La lista de sugerencias de padres que el administrador atiende.
-
-    Solo las tareas con origen='sugerencia_padre' —no las de onboarding— y solo
-    los campos seguros: el `contacto_referencia` es un id, nunca un correo ni un
-    telefono, que son PII que vive unicamente en Identidad. No se hace ningun
-    join para resolverlos.
-    """
-
     async def test_lista_solo_las_sugerencias_con_campos_seguros(self, cliente):
         referencia = str(uuid.uuid4())
         await cliente.post("/v1/admin/sugerencias", json=_cuerpo_sugerencia(contacto_referencia=referencia))
@@ -137,16 +121,12 @@ class TestElBacklogDeSugerencias:
         assert s["contacto_referencia"] is None
 
     async def test_no_incluye_las_tareas_de_onboarding(self, cliente):
-        # Onboarding escribe una tarea con origen='onboarding': no es sugerencia
-        # de padre y no debe salir en este backlog.
         await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())
         await cliente.post("/v1/admin/sugerencias", json=_cuerpo_sugerencia())
         cuerpo = (await cliente.get("/v1/admin/sugerencias")).json()
         assert len(cuerpo["sugerencias"]) == 1
 
     async def test_nunca_devuelve_correo_ni_telefono(self, cliente):
-        # Aunque un cliente cuele PII en el POST, ni se guarda ni puede aflorar
-        # aqui: la respuesta solo trae el id de contacto.
         correo = "papa-secreto@ejemplo.com"
         telefono = "+573009998877"
         await cliente.post(

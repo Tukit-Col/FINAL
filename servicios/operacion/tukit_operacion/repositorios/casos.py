@@ -1,14 +1,3 @@
-"""El SQL de Operacion contra su propia base, detras de nombres de metodo.
-
-Todo lo que aqui vive salio, verbatim, de los manejadores de `api.py`: los
-conteos de la bandeja, la lectura de un caso, el alta de una PQRS y la serie de
-metricas congeladas. El router abre la sesion y la unidad de trabajo (`async
-with motor.sesion()`), construye un `RepoCasos` atado a esa conexion y le pide
-cada paso; el repo no decide nada de negocio —eso es de `dominio/`— ni conoce
-HTTP. No hay un Protocol de repositorio: es una sola implementacion, que las
-pruebas ejercen contra SQLite real, no un doble (ADR 0019).
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -29,9 +18,6 @@ AUDITORIA = Base.metadata.tables["registro_auditoria"]
 
 
 def serializar_detalle_caso(fila: Any) -> dict[str, Any]:
-    """El caso para el back-office: lo de `serializar_caso` mas el cuerpo de la
-    PQRS y el `usuario_id` del titular (con el que el admin resuelve su correo
-    contra Identidad; el contacto nunca se guardo aqui)."""
     return serializar_caso(fila) | {
         "descripcion": fila.descripcion,
         "usuario_id": str(fila.usuario_id) if fila.usuario_id is not None else None,
@@ -39,19 +25,11 @@ def serializar_detalle_caso(fila: Any) -> dict[str, Any]:
     }
 
 
-# Los eventos de un caso son mas que mensajes (asignaciones, notas internas);
-# los del acudiente llevan este tipo y son los unicos que vuelven a su pantalla.
 TIPO_COMENTARIO_ACUDIENTE = "comentario_acudiente"
-# La respuesta del equipo (back-office, `responder_caso`): el acudiente la lee aqui.
 TIPO_RESPUESTA_EQUIPO = "respuesta"
 
 
 def serializar_caso(fila: Any) -> dict[str, Any]:
-    """Una fila de `caso` en la forma del contrato de lectura.
-
-    No expone el contacto (correo/celular) porque no vive en `caso`: se resolvio
-    a `usuario_id` al abrir y no se guardo (deuda del manifiesto, Ley 1581).
-    """
     return {
         "caso_id": str(fila.id),
         "origen": fila.origen,
@@ -68,18 +46,10 @@ def serializar_caso(fila: Any) -> dict[str, Any]:
 
 
 class RepoCasos:
-    """El repositorio de casos y metricas, atado a una conexion de una unidad de
-    trabajo. Se construye dentro del `async with motor.sesion()` del router, con
-    la conexion ya abierta; no abre ni cierra la sesion: eso es del router.
-    """
-
     def __init__(self, conexion: Any) -> None:
         self.conexion = conexion
 
-    # -- lectura: bandeja --------------------------------------------------
-
     async def resumen(self, ahora: datetime) -> dict[str, Any]:
-        """El consolidado de las tarjetas de la bandeja, sin recontar por pantalla."""
         inactivos = tuple(e.value for e in EstadoCaso.inactivos())
         fin_dia = ahora.replace(hour=23, minute=59, second=59, microsecond=0)
         hace_una_semana = ahora - timedelta(days=7)
@@ -118,23 +88,14 @@ class RepoCasos:
         }
 
     async def listar_casos(self) -> list[Any]:
-        """Todas las filas de `caso`. El orden de la bandeja lo pone el dominio."""
         return list(await self.conexion.execute(select(CASO)))
 
     async def obtener(self, caso_id: uuid.UUID) -> Any:
         return (await self.conexion.execute(select(CASO).where(CASO.c.id == caso_id))).one_or_none()
 
-    # -- lectura: metricas -------------------------------------------------
-
     async def serie_metricas(
         self, *, dimension: str | None, dimension_id: str | None, desde: date | None
     ) -> list[Any]:
-        """Las filas crudas de `metrica_diaria`, ordenadas por fecha.
-
-        `desde` llega ya parseada a `date` por el router (la validacion de la
-        forma ISO y su 422 son de la superficie). Sin filtros devuelve toda la
-        traza; el frontend la agrupa por metrica en series.
-        """
         consulta = select(
             METRICA.c.fecha,
             METRICA.c.dimension,
@@ -150,8 +111,6 @@ class RepoCasos:
             consulta = consulta.where(METRICA.c.fecha >= desde)
         return list(await self.conexion.execute(consulta))
 
-    # -- escritura: alta de PQRS ------------------------------------------
-
     async def insertar_caso(
         self,
         *,
@@ -166,8 +125,6 @@ class RepoCasos:
         vence_en: datetime | None,
         pedido_id: uuid.UUID | None = None,
     ) -> None:
-        """Abre un caso de origen ACUDIENTE. El contacto ya se resolvio a
-        `usuario_id` fuera de aqui y no se guarda."""
         await self.conexion.execute(
             insert(CASO).values(
                 id=caso_id,
@@ -185,12 +142,11 @@ class RepoCasos:
             )
         )
 
-    # -- back-office: conversacion, estado y respuesta ----------------------
-
     async def eventos_de(self, caso_id: uuid.UUID) -> list[dict[str, Any]]:
-        """La historia del caso (respuestas y cambios de estado) en orden cronologico."""
         filas = await self.conexion.execute(
-            select(EVENTO).where(EVENTO.c.caso_id == caso_id).order_by(EVENTO.c.creado_en.asc(), EVENTO.c.id.asc())
+            select(EVENTO)
+            .where(EVENTO.c.caso_id == caso_id)
+            .order_by(EVENTO.c.creado_en.asc(), EVENTO.c.id.asc())
         )
         return [
             {
@@ -214,8 +170,6 @@ class RepoCasos:
     async def cambiar_estado(
         self, *, caso_id: uuid.UUID, desde: str, hacia: str, resuelto_en: datetime | None
     ) -> bool:
-        """Mueve el caso solo si SIGUE en `desde`: si otro operador lo movio entre
-        la lectura y la escritura, devuelve `False` y no pisa su cambio."""
         resultado = await self.conexion.execute(
             update(CASO)
             .where(CASO.c.id == caso_id, CASO.c.estado == desde)
@@ -224,7 +178,6 @@ class RepoCasos:
         return bool(resultado.rowcount == 1)
 
     async def asignar(self, *, caso_id: uuid.UUID, desde: uuid.UUID | None, hacia: uuid.UUID | None) -> bool:
-        """Cambia el dueno solo si SIGUE siendo `desde` (patron de `cambiar_estado`)."""
         actual = CASO.c.asignado_a_id.is_(None) if desde is None else CASO.c.asignado_a_id == desde
         resultado = await self.conexion.execute(
             update(CASO).where(CASO.c.id == caso_id, actual).values(asignado_a_id=hacia)
@@ -232,7 +185,6 @@ class RepoCasos:
         return bool(resultado.rowcount == 1)
 
     async def cambiar_prioridad(self, *, caso_id: uuid.UUID, desde: str, hacia: str) -> bool:
-        """Cambia la prioridad solo si SIGUE siendo `desde`."""
         resultado = await self.conexion.execute(
             update(CASO).where(CASO.c.id == caso_id, CASO.c.prioridad == desde).values(prioridad=hacia)
         )
@@ -242,10 +194,6 @@ class RepoCasos:
         await self.conexion.execute(update(CASO).where(CASO.c.id == caso_id).values(pedido_id=pedido_id))
 
     async def encolar_respuesta(self, *, caso_id: uuid.UUID, usuario_id: uuid.UUID) -> None:
-        """Outbox: el aviso al acudiente de que su caso tiene respuesta, en la
-        MISMA transaccion que la respuesta. El texto NO viaja en la carga: el
-        repartidor entrega un aviso por plantilla y el acudiente lee la respuesta
-        dentro de Tukit."""
         await self.conexion.execute(
             insert(BANDEJA).values(
                 tipo="caso_respuesta",
@@ -258,8 +206,6 @@ class RepoCasos:
     async def auditar(
         self, *, actor_id: uuid.UUID, accion: str, caso_id: uuid.UUID, datos: dict[str, Any], ahora: datetime
     ) -> None:
-        """Una fila en `registro_auditoria`: quien hizo que sobre el caso. Sin el
-        texto de la respuesta, que ya vive en la historia del caso."""
         await self.conexion.execute(
             insert(AUDITORIA).values(
                 id=uuid.uuid4(),
@@ -272,10 +218,7 @@ class RepoCasos:
             )
         )
 
-    # -- lo que el acudiente ve de SUS casos ---------------------------------
-
     async def listar_de_usuario(self, usuario_id: uuid.UUID) -> list[Any]:
-        """Los casos cuyo titular es `usuario_id`, los mas recientes primero."""
         return list(
             await self.conexion.execute(
                 select(CASO).where(CASO.c.usuario_id == usuario_id).order_by(CASO.c.abierto_en.desc())
@@ -283,14 +226,12 @@ class RepoCasos:
         )
 
     async def comentarios_de(self, caso_id: uuid.UUID) -> list[dict[str, Any]]:
-        """La conversacion que el acudiente ve de su caso, en orden cronologico:
-        sus mensajes y las respuestas del equipo (`autor` = "acudiente" | "equipo").
-
-        Los demas eventos (cambio de estado, vinculo con un pedido) son del
-        back-office y no salen por esta puerta; tampoco el `actor_id` del staff."""
         filas = await self.conexion.execute(
             select(EVENTO)
-            .where(EVENTO.c.caso_id == caso_id, EVENTO.c.tipo.in_([TIPO_COMENTARIO_ACUDIENTE, TIPO_RESPUESTA_EQUIPO]))
+            .where(
+                EVENTO.c.caso_id == caso_id,
+                EVENTO.c.tipo.in_([TIPO_COMENTARIO_ACUDIENTE, TIPO_RESPUESTA_EQUIPO]),
+            )
             .order_by(EVENTO.c.creado_en)
         )
         return [
@@ -310,8 +251,6 @@ class RepoCasos:
                 tipo=TIPO_COMENTARIO_ACUDIENTE,
                 datos={"texto": texto},
                 actor_id=usuario_id,
-                # Con hora de la app (microsegundos), como `registrar_evento`: la
-                # conversacion acudiente+equipo se ordena por `creado_en`.
                 creado_en=datetime.now(UTC),
             )
         )

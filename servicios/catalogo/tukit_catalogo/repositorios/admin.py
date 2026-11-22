@@ -1,15 +1,3 @@
-"""El SQL de la revision de listas y la curaduria proactiva (ADR 0019).
-
-`RepoAdmin` reune, atado a una conexion, cada consulta que los endpoints de
-`routers/admin.py` corrian inline: leer versiones y sus renglones, escribir la
-importacion de onboarding, editar/agregar/quitar renglones, cerrar (aprobar) y
-clonar una version, y la cola de propuestas de curaduria. No abre ni cierra la
-sesion —quien lo usa lo hace dentro de su `async with motor.sesion()`— ni alza
-`ErrorDominio`: eso vive en el router, que es donde el HTTP tiene sentido. El
-SQL es verbatim del que estaba en `admin_http`; esto solo lo mueve detras de un
-nombre.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -32,15 +20,10 @@ CORRECCION = Base.metadata.tables["correccion_lista"]
 
 
 class RepoAdmin:
-    """Las consultas de administracion de listas y curaduria, sobre una conexion."""
-
     def __init__(self, conexion: Any) -> None:
         self.c = conexion
 
-    # -- Cabecera y contexto de una version -------------------------------
-
     async def version_y_lista(self, version_id: uuid.UUID) -> Any:
-        """La cabecera de una version con el grado/colegio de su lista, o None."""
         return (
             await self.c.execute(
                 select(
@@ -58,7 +41,6 @@ class RepoAdmin:
         ).first()
 
     async def colegio_datos_de(self, version_id: uuid.UUID) -> dict[str, Any] | None:
-        """Los `colegio_datos` de la tarea mas reciente de una version, o None."""
         fila = (
             await self.c.execute(
                 select(TAREA.c.colegio_datos)
@@ -80,8 +62,6 @@ class RepoAdmin:
         return (
             await self.c.execute(select(CONCEPTO.c.nombre_canonico).where(CONCEPTO.c.id == concepto_id))
         ).scalar_one()
-
-    # -- Listar versiones (cola de administracion) ------------------------
 
     async def listar_versiones(
         self,
@@ -113,9 +93,6 @@ class RepoAdmin:
         procedencia = select(TAREA.c.origen).where(TAREA.c.id == tarea_reciente).scalar_subquery()
         contacto = select(TAREA.c.contacto_referencia).where(TAREA.c.id == tarea_reciente).scalar_subquery()
         colegio_datos = select(TAREA.c.colegio_datos).where(TAREA.c.id == tarea_reciente).scalar_subquery()
-        # Retirada por el acudiente (H-07): alguna tarea de la version se retiro
-        # y ninguna sigue viva. Una version con otra tarea viva (onboarding, otro
-        # acudiente) sigue en la cola.
         tareas_de_version = select(TAREA.c.id).where(TAREA.c.version_id == VERSION.c.id).correlate(VERSION)
         retirada = and_(
             tareas_de_version.where(TAREA.c.retirada_en.is_not(None)).exists(),
@@ -142,8 +119,6 @@ class RepoAdmin:
         if revisada is True:
             consulta = consulta.where(VERSION.c.revisada_en.is_not(None))
         elif revisada is False:
-            # La cola de verificacion: lo que alguien tiene que revisar. Una
-            # lista que su acudiente retiro ya no la espera nadie.
             consulta = consulta.where(VERSION.c.revisada_en.is_(None), ~retirada)
         if colegio_id is not None:
             consulta = consulta.where(LISTA.c.colegio_id == colegio_id)
@@ -153,8 +128,6 @@ class RepoAdmin:
             consulta = consulta.where(LISTA.c.anio_lectivo == anio_lectivo)
         consulta = consulta.order_by(VERSION.c.revisada_en.is_(None).desc(), LISTA.c.grado)
         return list(await self.c.execute(consulta))
-
-    # -- Ver revision -----------------------------------------------------
 
     async def items_de_revision(self, version_id: uuid.UUID) -> list[Any]:
         return list(
@@ -203,10 +176,7 @@ class RepoAdmin:
             )
         )
 
-    # -- Ruta rapida (version revisada) -----------------------------------
-
     async def productos_por_conceptos(self, codigos: list[str]) -> list[Any]:
-        """Los productos crudos con precio vigente de un conjunto de conceptos."""
         from .catalogo import CONCEPTO as _CONCEPTO
         from .catalogo import _consulta_productos, _precio_minimo_vigente
 
@@ -216,7 +186,6 @@ class RepoAdmin:
         )
 
     async def reglas_por_codigo(self, codigos: list[str]) -> dict[str, tuple[tuple[str, ...], bool, str]]:
-        """Por codigo de concepto: atributos que filtran, si es uno por estudiante y su tipo."""
         if not codigos:
             return {}
         filas = await self.c.execute(
@@ -233,7 +202,6 @@ class RepoAdmin:
         }
 
     async def discriminantes_de_concepto(self, concepto_id: uuid.UUID | None) -> tuple[str, ...]:
-        """Los atributos que filtran de un concepto; ninguno si no hay concepto."""
         if concepto_id is None:
             return ()
         valor = await self.c.scalar(
@@ -242,7 +210,6 @@ class RepoAdmin:
         return tuple(valor or ())
 
     async def descartar_aviso(self, item_id: uuid.UUID, version_id: uuid.UUID, clave: str) -> bool:
-        """Agrega `clave` a los avisos descartados del renglon. False si no existe."""
         actual = await self.c.scalar(
             select(ITEM.c.avisos_descartados).where(ITEM.c.id == item_id, ITEM.c.version_id == version_id)
         )
@@ -278,10 +245,7 @@ class RepoAdmin:
             )
         )
 
-    # -- Importar lista / sugerencia --------------------------------------
-
     async def cargar_conceptos(self) -> list[dict[str, Any]]:
-        """El vocabulario activo, con la forma que `clasificar` consume."""
         filas = await self.c.execute(
             select(CONCEPTO.c.id, CONCEPTO.c.nombre_canonico, CONCEPTO.c.sinonimos).where(CONCEPTO.c.activo)
         )
@@ -336,11 +300,6 @@ class RepoAdmin:
         await self.c.execute(TAREA.insert().values(**valores))
 
     async def importacion_por_clave(self, clave: uuid.UUID) -> dict[str, Any] | None:
-        """La importacion que ya entro con esta clave, con la respuesta que dio.
-
-        Es la que devuelve `importar_lista` cuando inteligencia reintenta
-        (ADR 0040): la misma version, la misma tarea y sus renglones.
-        """
         fila = (
             await self.c.execute(
                 select(TAREA.c.id, TAREA.c.version_id, VERSION.c.revisada_en)
@@ -379,8 +338,6 @@ class RepoAdmin:
             )
         )
 
-    # -- Evidencia (documento + percepcion) -------------------------------
-
     async def tarea_con_evidencia(self, version_id: uuid.UUID) -> Any:
         return (
             await self.c.execute(
@@ -398,10 +355,6 @@ class RepoAdmin:
                 .order_by(ITEM.c.orden)
             )
         )
-
-    # -- Editar renglones -------------------------------------------------
-
-    # -- Correcciones: lo que el equipo cambia y lo que el sistema aprende ----
 
     async def registrar_correccion(self, **valores: Any) -> None:
         await self.c.execute(CORRECCION.insert().values(id=uuid.uuid4(), **valores))
@@ -428,11 +381,6 @@ class RepoAdmin:
     async def aprender_sinonimo(
         self, sinonimo: str, concepto_id: uuid.UUID, anterior_id: uuid.UUID | None
     ) -> bool:
-        """Agrega `sinonimo` al concepto corregido y lo quita del que se equivoco.
-
-        Lo lee el clasificador en la importacion siguiente (no hay cache): el mismo
-        texto en otra lista ya cae en el concepto correcto. Devuelve si agrego algo.
-        """
         actuales = list(
             await self.c.scalar(select(CONCEPTO.c.sinonimos).where(CONCEPTO.c.id == concepto_id)) or []
         )
@@ -456,7 +404,6 @@ class RepoAdmin:
     async def cerrar_avisos_de_version(
         self, version_id: uuid.UUID, claves_por_item: dict[uuid.UUID, list[str]]
     ) -> int:
-        """Marca como descartados los avisos que quedaban abiertos al aprobar."""
         cerrados = 0
         for item_id, claves in claves_por_item.items():
             actual = list(
@@ -501,13 +448,6 @@ class RepoAdmin:
         return int(resultado.rowcount)
 
     async def borrar_version(self, version_id: uuid.UUID) -> None:
-        """Borra la version con su tarea (el PDF) y le devuelve la vigencia a otra.
-
-        Subir una lista nueva le QUITA la vigencia a la anterior. Si la que se
-        borra era la vigente, la vigencia vuelve a la ultima revisada de esa
-        lista, para que el acudiente no se quede sin la lista que ya estaba
-        aprobada. Si no queda ninguna version, se borra la lista.
-        """
         version = (
             await self.c.execute(
                 select(VERSION.c.lista_id, VERSION.c.vigente).where(VERSION.c.id == version_id)
@@ -543,8 +483,6 @@ class RepoAdmin:
     async def actualizar_colegio_datos(self, tarea_id: uuid.UUID, datos: dict[str, Any]) -> None:
         await self.c.execute(update(TAREA).where(TAREA.c.id == tarea_id).values(colegio_datos=datos))
 
-    # -- Decidir propuestas -----------------------------------------------
-
     async def propuesta_estado(self, prop_id: uuid.UUID) -> Any:
         return (
             await self.c.execute(select(PROPUESTA.c.id, PROPUESTA.c.estado).where(PROPUESTA.c.id == prop_id))
@@ -556,8 +494,6 @@ class RepoAdmin:
             .where(PROPUESTA.c.id == prop_id)
             .values(estado="rechazada", motivo=motivo, resuelta_en=resuelta_en)
         )
-
-    # -- Cerrar (aprobar) una version -------------------------------------
 
     async def contar_propuestas_pendientes(self, version_id: uuid.UUID) -> int:
         return (
@@ -593,16 +529,9 @@ class RepoAdmin:
         ).first()
 
     async def emitir_evento(self, **valores: Any) -> None:
-        """Un evento en la bandeja de salida. Va en la MISMA transaccion que su
-        cambio de estado (el llamador no hace commit hasta cerrar la sesion).
-
-        Estampa el `correlacion_id` de la peticion en la carga (§A.6), para que el
-        trabajo que el drenador dispare al consumir el evento herede el hilo."""
         if "carga" in valores:
             valores["carga"] = con_correlacion(valores["carga"])
         await self.c.execute(BANDEJA.insert().values(**valores))
-
-    # -- Nueva version (clonar para corregir) -----------------------------
 
     async def version_vigente(self, lista_id: uuid.UUID) -> Any:
         return (
@@ -651,8 +580,6 @@ class RepoAdmin:
             )
         ).first()
 
-    # -- Cola de propuestas de curaduria ----------------------------------
-
     async def cola_propuestas(self, concepto: str | None) -> list[Any]:
         consulta = (
             select(
@@ -682,8 +609,6 @@ class RepoAdmin:
 
     async def tienda_id_por_slug(self, slug: str) -> uuid.UUID | None:
         return (await self.c.execute(select(TIENDA.c.id).where(TIENDA.c.slug == slug))).scalar_one_or_none()
-
-    # -- Crear concepto ---------------------------------------------------
 
     async def concepto_codigo_por_nombre(self, nombre_lower: str) -> str | None:
         return (

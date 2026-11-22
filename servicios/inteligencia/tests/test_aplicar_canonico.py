@@ -1,12 +1,3 @@
-"""La ruta rapida del acudiente: aplicar el kit canonico, cambiarlo y ordenarlo.
-
-`aplicar_canonico` no re-optimiza ni copia kits: crea el trabajo del acudiente
-apuntando al canonico del grado y congela su pedido. Los cambios del acudiente
-viven en SU trabajo (`cambios`), nunca en las lineas del canonico, que son las
-que reciben los demas. Ordenar arma la orden hacia Comercio sin ids de base, y
-solo el dueno puede ordenar.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -26,8 +17,6 @@ from tukit_inteligencia.modelos import EstadoTrabajo
 
 
 class TestAplicarCanonico:
-    """La ruta rapida del acudiente: sin re-optimizar, sin cola, un pedido."""
-
     async def test_aplicar_no_copia_kits_y_congela_el_pedido(self, motor):
         from sqlalchemy import func, select
 
@@ -49,16 +38,13 @@ class TestAplicarCanonico:
         parent_id = uuid.UUID(resultado["trabajo_id"])
 
         async with motor.engine.begin() as conexion:
-            # Modelo por REFERENCIA: no nacieron kits nuevos.
             assert await conexion.scalar(select(func.count()).select_from(trabajos.KIT)) == kits_antes
-            # El trabajo del acudiente es parent_apply, publicado, sin etapas.
             fila = (
                 await conexion.execute(select(trabajos.TRABAJO).where(trabajos.TRABAJO.c.id == parent_id))
             ).one()
             assert fila.origen == "parent_apply"
             assert fila.estado == EstadoTrabajo.PUBLICADO.value
             assert fila.hijos[0]["canonico_trabajo_id"] == str(canonico)
-            # El pedido congelado quedo en la bandeja para Comercio.
             pedidos = [
                 e for e in await conexion.execute(select(trabajos.BANDEJA)) if e.tipo == "pedido_solicitado"
             ]
@@ -69,7 +55,6 @@ class TestAplicarCanonico:
     async def test_el_personaje_se_congela_en_las_anclas(self, motor):
         from sqlalchemy import select
 
-        # Catalogo con un personaje en el ancla C001, ademas del neutral.
         catalogo = catalogo_simple()
         catalogo.respuestas["2 cuadernos cuadriculados"]["opciones"].append(
             opcion("TK-C001-FAN", "confiable", 9000, personaje="cars")
@@ -109,8 +94,6 @@ class TestAplicarCanonico:
             )
 
     async def test_ver_sigue_el_puntero_y_pinta_el_kit_con_personaje(self, motor):
-        # ver() de un parent_apply no tiene kits propios: sigue el puntero al
-        # canonico y arma el unico kit del perfil, con el personaje en el ancla.
         catalogo = catalogo_simple()
         catalogo.respuestas["2 cuadernos cuadriculados"]["opciones"].append(
             opcion("TK-C001-FAN", "confiable", 9000, personaje="cars")
@@ -129,32 +112,23 @@ class TestAplicarCanonico:
         parent_id = uuid.UUID(resultado["trabajo_id"])
 
         vista = await trabajos.ver(motor, parent_id, catalogo=catalogo)
-        # Ahorrador y Premium del canonico, mas el Fan armado para este
-        # acudiente (el Ahorrador con el personaje); el elegido va marcado.
         assert [k["perfil"] for k in vista["kits"]] == ["Ahorrador", "Fan", "Premium"]
         assert vista["recomendado"]["perfil"] == "Fan"
         ahorrador = next(k for k in vista["kits"] if k["perfil"] == "Ahorrador")
         c001_ahorrador = next(linea for linea in ahorrador["lineas"] if linea.get("concepto") == "C001")
-        assert c001_ahorrador["producto_elegido"]["sku"] == "TK-C001-ECO"  # el personaje solo va en el Fan
+        assert c001_ahorrador["producto_elegido"]["sku"] == "TK-C001-ECO"
         elegido = next(k for k in vista["kits"] if k["perfil"] == "Fan")
         assert elegido["total"] == resultado["total"]
         c001 = next(linea for linea in elegido["lineas"] if linea.get("concepto") == "C001")
         assert c001["producto_elegido"]["sku"] == "TK-C001-FAN"
-        # Las lineas del kit aplicado son del canonico: el personaje pedido se
-        # nombra con esa misma clave, para que la web y el asistente lo casen.
         assert vista["personajes_por_hijo"] == {"canonico": ["cars"]}
         assert elegido["personaje_sin_encaje"] == []
-        # Los objetivos se calculan sobre las lineas aplicadas. Antes iban vacios
-        # y la web pintaba "NaN% con precio confirmado".
         objetivos = elegido["objetivos"]
         assert objetivos["costo"] == resultado["total"]
         assert 0.0 <= objetivos["disponibilidad"] <= 1.0
         assert 0.0 <= objetivos["fidelidad"] <= 1.0
 
     async def test_ordenar_arma_la_orden_server_to_server_sin_ids_de_base(self, motor):
-        # El checkout: del kit publicado a la orden. Se verifica que Inteligencia
-        # manda a Comercio SOLO sku+precio (nunca un id canonico: RPO cero) y que
-        # devuelve la url de la pasarela para mandar al acudiente a pagar.
         await sembrar_canonico(motor)
         aplicado = await trabajos.aplicar_canonico(
             motor,
@@ -194,7 +168,6 @@ class TestAplicarCanonico:
         )
         assert resultado["url_redireccion"] == "https://pasarela/xy"
         assert resultado["pedido_id"] == "ped-1"
-        # RPO cero: ni una linea lleva id canonico, solo sku.
         assert comercio.orden_enviada["lineas"]
         lineas_enviadas = comercio.orden_enviada["lineas"]
         assert all("producto_canonico_id" not in linea for linea in lineas_enviadas)
@@ -218,7 +191,7 @@ class TestAplicarCanonico:
             async def crear_orden(self, cuerpo):
                 return 422, {"error": "precio_cambiado", "mensaje": "cambio"}
 
-            async def iniciar_pago(self, pedido_id, cuerpo):  # no se llega
+            async def iniciar_pago(self, pedido_id, cuerpo):
                 raise AssertionError
 
         with pytest.raises(trabajos.CheckoutRechazado) as exc:
@@ -236,8 +209,6 @@ class TestAplicarCanonico:
         assert exc.value.cuerpo["error"] == "precio_cambiado"
 
     async def test_ordenar_un_trabajo_ajeno_se_rechaza_sin_tocar_comercio(self, motor):
-        # El id del trabajo viaja en enlaces (/kits, /esperando): sin la sesion
-        # de su dueno no se arma orden ni pago, ni anonimo ni con otra cuenta.
         await sembrar_canonico(motor)
         aplicado = await trabajos.aplicar_canonico(
             motor,
@@ -251,10 +222,10 @@ class TestAplicarCanonico:
         parent_id = uuid.UUID(aplicado["trabajo_id"])
 
         class ComercioIntacto:
-            async def crear_orden(self, cuerpo):  # no se llega
+            async def crear_orden(self, cuerpo):
                 raise AssertionError
 
-            async def iniciar_pago(self, pedido_id, cuerpo):  # no se llega
+            async def iniciar_pago(self, pedido_id, cuerpo):
                 raise AssertionError
 
         for portador in (None, uuid.uuid4()):
@@ -274,13 +245,6 @@ class TestAplicarCanonico:
 
 
 class TestElAcudienteCambiaSuKit:
-    """El papa cambia un producto por una de sus alternativas, o se cambia de kit.
-
-    Sus cambios se guardan en SU trabajo (`cambios`), nunca en las lineas del
-    kit: esas lineas pueden ser el kit canonico del grado, el que reciben los
-    demas acudientes por la ruta rapida.
-    """
-
     async def _ruta_rapida(self, motor, usuario_id=None):
         canonico = await sembrar_canonico(motor)
         resultado = await trabajos.aplicar_canonico(
@@ -297,7 +261,6 @@ class TestElAcudienteCambiaSuKit:
     async def test_la_ruta_rapida_trae_los_kits_del_canonico_y_marca_el_elegido(self, motor):
         _, parent_id = await self._ruta_rapida(motor)
         vista = await trabajos.ver(motor, parent_id, catalogo=catalogo_simple())
-        # Sin personaje no hay Fan: solo los dos del canonico.
         assert [k["perfil"] for k in vista["kits"]] == ["Ahorrador", "Premium"]
         assert vista["recomendado"]["perfil"] == "Ahorrador"
 
@@ -324,10 +287,8 @@ class TestElAcudienteCambiaSuKit:
         cuaderno = linea_del_kit(vista, "Ahorrador", "2 cuadernos")
         assert cuaderno["producto_elegido"]["sku"] == "TK-C001-PRE"
         assert cuaderno["subtotal_linea"] == 2 * 12000
-        # El que dejo pasa a ser una alternativa: siempre se puede volver.
         assert "TK-C001-ECO" in {a["sku"] for a in cuaderno["alternativas"]}
         assert total_del_kit(vista, "Ahorrador") == total_antes + 2 * (12000 - 4500)
-        # El canonico sigue intacto para los demas acudientes.
         del_canonico = await trabajos.ver(motor, canonico, incluir_kits=True)
         assert (
             linea_del_kit(del_canonico, "Ahorrador", "2 cuadernos")["producto_elegido"]["sku"]
@@ -395,8 +356,6 @@ class TestElAcudienteCambiaSuKit:
 
         vista = await trabajos.ver(motor, trabajo_id)
         assert linea_del_kit(vista, "Ahorrador", "2 cuadernos")["producto_elegido"]["sku"] == "TK-C001-PRE"
-        # La linea del Ahorrador en la base sigue con el economico: el cambio
-        # vive en el trabajo, no en `linea_kit`.
         from sqlalchemy import select
 
         async with motor.engine.begin() as conexion:
@@ -409,7 +368,7 @@ class TestElAcudienteCambiaSuKit:
 
     async def test_sin_publicar_no_se_cambia(self, motor):
         catalogo = catalogo_simple()
-        trabajo_id, _ = await crear_y_procesar(motor, catalogo)  # queda en revision
+        trabajo_id, _ = await crear_y_procesar(motor, catalogo)
         vista = await trabajos.ver(motor, trabajo_id, incluir_kits=True)
         item = uuid.UUID(linea_del_kit(vista, "Ahorrador", "2 cuadernos")["item_id"])
         with pytest.raises(trabajos.CambioNoPermitido) as error:
@@ -424,7 +383,6 @@ class TestElAcudienteCambiaSuKit:
         catalogo = catalogo_simple()
         vista = await trabajos.ver(motor, parent_id, catalogo=catalogo)
         item = uuid.UUID(linea_del_kit(vista, "Premium", "2 cuadernos")["item_id"])
-        # Se cambia de kit (Premium) y en ese kit baja el cuaderno al economico.
         await trabajos.cambiar_producto_del_acudiente(
             motor, parent_id, "Premium", item, "TK-C001-ECO", usuario_id=dueno, catalogo=catalogo
         )
@@ -456,9 +414,6 @@ class TestElAcudienteCambiaSuKit:
 
 class TestLosPersonajesDelKitAplicado:
     async def test_parent_apply_nombra_al_hijo_de_las_lineas_no_canonico_fijo(self, motor):
-        # Un canonico nacido de un preview: sus lineas dicen hijo "preview", no
-        # "canonico". `personajes_por_hijo` debe usar la clave REAL de las lineas,
-        # o la franja Fan de la web no casa y se queda vacia.
         catalogo = catalogo_simple()
         catalogo.respuestas["2 cuadernos cuadriculados"]["opciones"].append(
             opcion("TK-C001-FAN", "confiable", 9000, personaje="cars")
@@ -486,8 +441,6 @@ class TestLosPersonajesDelKitAplicado:
         assert vista["personajes_por_hijo"] == {h: ["cars"] for h in hijos_de_lineas}
 
     async def test_unas_preferencias_ilegibles_no_tumban_la_vista(self, motor):
-        # Una rotacion de llave o un VARIABLE_LLAVE mal puesto no debe tumbar ver()
-        # (y con el, checkout, opciones y el chat): sin personajes, y sigue.
         from sqlalchemy import update
 
         trabajo_id, _ = await crear_y_procesar(
@@ -506,10 +459,6 @@ class TestLosPersonajesDelKitAplicado:
 
 
 class TestElApodoEnLaRutaRapida:
-    """El apodo es justo el dato que se guarda para nombrar al hijo en su kit. La
-    ruta rapida (kit canonico) lo dejaba fuera del trabajo y el kit tenia que
-    adivinarlo cruzando colegio y grado con las matriculas."""
-
     async def test_la_ruta_rapida_guarda_el_apodo_y_el_kit_lo_muestra(self, motor):
         from sqlalchemy import select
 
@@ -527,10 +476,8 @@ class TestElApodoEnLaRutaRapida:
         trabajo_id = uuid.UUID(aplicado["trabajo_id"])
         vista = await trabajos.ver(motor, trabajo_id, catalogo=catalogo_simple())
         assert vista["hijos"][0]["apodo"] == "Tomi"
-        # La consola interna nunca recibe el apodo de un menor.
         admin = await trabajos.ver(motor, trabajo_id, catalogo=catalogo_simple(), incluir_admin=True)
         assert "apodo" not in admin["hijos"][0]
-        # El pedido congelado (evento hacia Comercio) tampoco lo lleva.
         async with motor.engine.begin() as conexion:
             cargas = [
                 e.carga

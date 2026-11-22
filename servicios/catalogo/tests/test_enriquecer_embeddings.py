@@ -1,5 +1,3 @@
-"""El enriquecedor puebla el canal semantico (OE3): un vector por producto, sin recalcular."""
-
 from __future__ import annotations
 
 from tukit_catalogo.embeddings import DIMENSION_EMBEDDING, MODELO_FALSO, embeder_falso
@@ -9,9 +7,6 @@ from tukit_catalogo.enriquecer import (
 
 
 class TestPoblarEmbeddings:
-    """El canal semantico se puebla una vez y no se recalcula sin necesidad
-    (OE3). La fuente del vector es un puerto: aqui, el embeder falso, sin red."""
-
     PRODUCTOS = [
         {
             "id": "p1",
@@ -38,24 +33,20 @@ class TestPoblarEmbeddings:
             vistos.extend(textos)
             return embeder_falso(textos)
 
-        espia.modelo = MODELO_FALSO  # un espia refleja el contrato del puerto
+        espia.modelo = MODELO_FALSO
 
         cambios = embeddings_a_actualizar(self.PRODUCTOS, espia)
 
         assert {c["pid"] for c in cambios} == {"p1", "p2"}
         assert all(len(c["embedding"]) == DIMENSION_EMBEDDING for c in cambios)
         assert all(c["embedding_model"] == MODELO_FALSO for c in cambios)
-        # El texto guardado deja ver de que se calculo: nombre + concepto + attrs.
         p1 = next(c for c in cambios if c["pid"] == "p1")
         assert "cuaderno" in p1["texto_embedding"].lower()
         assert "cuadriculado" in p1["texto_embedding"].lower()
-        # Una sola llamada por producto, no una por atributo.
         assert len(vistos) == 2
 
     def test_es_idempotente_no_recalcula_lo_que_no_cambio(self):
-        # Primera pasada: se calcula todo.
         cambios = embeddings_a_actualizar(self.PRODUCTOS, embeder_falso)
-        # La base ya tiene el vector y el texto con el que se calculo.
         ya_poblados = [
             {
                 **p,
@@ -82,8 +73,6 @@ class TestPoblarEmbeddings:
             }
             for p in self.PRODUCTOS
         ]
-        # Al primero le cambia el nombre: su texto ya no coincide, se recalcula;
-        # el segundo, intacto, no.
         poblados[0]["nombre"] = "Cuaderno argollado 80 hojas"
         rehechos = embeddings_a_actualizar(poblados, embeder_falso)
         assert [c["pid"] for c in rehechos] == ["p1"]

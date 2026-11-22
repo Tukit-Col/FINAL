@@ -1,15 +1,12 @@
-// `POST /api/registro`: alta del acudiente y sus hijos (camino "soy nuevo").
+// `POST /api/registro`: alta del acudiente y sus hijos.
 //
-// Mismo motivo que `/api/sesion` y `/api/trabajos`: el navegador no habla con
-// el backend. Aqui la peticion va al backend real (gateway→identidad).
-//
-// Tras un alta exitosa INICIA SESION y pone la cookie httpOnly igual que
-// `/api/sesion`, para que el padre quede logueado sin pasar por `/ingresar`. La
-// clave llega en el body una sola vez y nunca vuelve al cliente; el token va SOLO
-// en la cookie, jamas en el cuerpo ni en logs. Si el login falla despues del alta
-// (p. ej. el correo ya existia con OTRA clave → 401 de identidad), el registro NO
-// se anula: se devuelve `resultado` sin cookie y el padre entra luego por
-// `/ingresar`. Asi esta ruta publica nunca abre una cuenta ajena con otra clave.
+// Decisiones:
+// - El navegador no habla con el backend: la petición va al gateway desde el servidor.
+// - Tras un alta exitosa inicia sesión y pone la cookie httpOnly. La clave llega en el cuerpo una sola
+//   vez y no vuelve al cliente; el token va solo en la cookie, nunca en el cuerpo ni en los registros.
+// - Si el login falla después del alta (por ejemplo, el correo ya existía con otra clave), el registro
+//   no se anula: se devuelve `resultado` sin cookie y el padre entra luego por `/ingresar`. Así esta
+//   ruta pública nunca abre una cuenta ajena con otra clave.
 
 import { NextResponse } from "next/server";
 import { ErrorTukit, origenDeDatos, type RegistroAcudiente } from "@tukit/contrato/servidor";
@@ -31,14 +28,8 @@ export async function POST(peticion: Request): Promise<Response> {
 
   try {
     const resultado = await origenDeDatos().registrarAcudiente(datos);
-    // La respuesta al cliente sigue siendo `resultado` ({ usuario_id, creado }):
-    // ni la clave ni el token salen nunca en el cuerpo.
     const respuesta = NextResponse.json(resultado);
     try {
-      // Inicia sesion con la MISMA credencial del alta y pone la cookie tal cual
-      // `/api/sesion` (misma constante y mismas opciones). En `api`, identidad
-      // valida la clave: si el correo ya existia con otra, esto da 401 y caemos al
-      // catch de abajo sin cookie (no hay toma de cuenta).
       const { token } = await origenDeDatos().iniciarSesion({
         correo: datos.correo,
         clave: datos.clave,
@@ -51,14 +42,6 @@ export async function POST(peticion: Request): Promise<Response> {
         maxAge: 60 * 60 * 8,
       });
     } catch (causa) {
-      // El alta ya fue exitosa; un login fallido no la invalida. Devolvemos
-      // `resultado` sin cookie y el padre podra entrar luego por `/ingresar`.
-      // Salvo un 429 (entrar comparte el cupo estricto de la IP, ADR 0047): ese
-      // sale como 429 con su espera y `cuenta_creada`, para que /empezar se lo
-      // diga y vuelva a entrar al reintentar en vez de seguir sin sesion.
-      // El correo ya tenia cuenta con OTRA clave: identidad no escribio nada
-      // (`creado=false`) y el login dio 401. Seguir sin sesion dejaria un kit
-      // huerfano, sin dueno al que avisar por correo: se le dice que entre.
       if (!resultado.creado && causa instanceof ErrorTukit && causa.estado === 401) {
         return NextResponse.json(
           {

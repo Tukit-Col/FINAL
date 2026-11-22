@@ -1,10 +1,5 @@
 "use client";
 
-// El detalle de un pedido en "Mis pedidos": la línea de tiempo, lo que pagó, a
-// dónde va y el derecho de retracto (Ley 1480 de 2011, art. 47) con su fecha
-// límite. Pedir el retracto pide confirmación y muestra el resultado; el plazo
-// y el dueño los verifica Comercio, esto solo lo dice con palabras claras.
-
 import Link from "next/link";
 import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -102,7 +97,6 @@ export default function DetallePedido({ pedido }: { pedido: Pedido }) {
           </dl>
 
           <ul className={styles.productosPedido}>
-            {/* El mismo sku puede venir en dos renglones (un libro pedido dos veces). */}
             {pedido.lineas.map((l, i) => (
               <li key={`${l.sku}-${i}`}>
                 <span>
@@ -113,7 +107,6 @@ export default function DetallePedido({ pedido }: { pedido: Pedido }) {
             ))}
           </ul>
 
-          {/* ---- Retracto ---- */}
           {pedido.retracto && (retracto.frase || hecho) && (
             <div className={styles.cajaRetracto}>
               <h3>

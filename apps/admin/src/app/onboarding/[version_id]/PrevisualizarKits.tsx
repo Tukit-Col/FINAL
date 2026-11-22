@@ -1,13 +1,5 @@
 "use client";
 
-// Región 4 del revisor: "Previsualizar los kits" (P4, cierre de la brecha).
-//
-// El administrador, parado sobre una versión curada, pide ver los tres kits que
-// saldrían de ella ANTES de publicar. Esto arma un trabajo de preview (no el del
-// acudiente) con `previewDeVersion` y navega a la página de vista previa, que lo
-// lee con `trabajoAdmin`. Previsualizar NO aprueba: el botón "Aprobar y publicar"
-// (`cerrarLista`) sigue siendo el único que publica, y vive aparte.
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye } from "lucide-react";
@@ -35,10 +27,6 @@ export default function PrevisualizarKits({ versionId, colegioId, grado, anioLec
         grado,
         anio_lectivo: anioLectivo,
       });
-      // El preview es un TrabajoAdmin real: se abre en la MISMA consola de
-      // revisión que el resto de la cola (`/trabajos/{id}`, ConsolaRevision), no
-      // en la vista de solo lectura aparte. Es la vista que el revisor ya conoce
-      // y sobre la que puede validar/editar/cambiar personaje antes de publicar.
       router.push(`/trabajos/${encodeURIComponent(trabajo_id)}`);
     } catch (causa) {
       setError(

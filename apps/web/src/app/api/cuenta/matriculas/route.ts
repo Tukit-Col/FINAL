@@ -1,8 +1,3 @@
-// `POST /api/cuenta/matriculas`: el acudiente autenticado agrega a sus hijos.
-// El navegador no habla con el backend; el token sale de la cookie httpOnly aqui,
-// en el servidor, y viaja como Bearer a identidad. Solo escribe tenencia del
-// portador. El guardado es un extra sobre el armado del kit: la web decide si un
-// fallo bloquea o no (aqui solo se traduce el error).
 import { cookies } from "next/headers";
 import { ErrorTukit, origenDeDatos, type HijoNuevo } from "@tukit/contrato/servidor";
 import { respuestaDeError } from "@/lib/respuesta";

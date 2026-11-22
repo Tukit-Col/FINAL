@@ -1,9 +1,5 @@
 "use client";
 
-// El mapita de la ficha del colegio: un pin en su direccion. Solo navegador (lo
-// importa `MapaColegioCarga` con `ssr: false`) porque Leaflet toca `window`. El
-// punto ya viene geocodificado del servidor (Nominatim con cache en disco).
-
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { MapContainer, Marker, TileLayer } from "react-leaflet";

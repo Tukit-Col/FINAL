@@ -1,23 +1,3 @@
-"""los canonicos que eran el kit de un papa vuelven a su lista
-
-Revision: 8b2e4d6f0a13
-Anterior: 3c7d9e1f5a28
-Fecha:    2026-10-25 12:00:00.000000+00:00
-
-Por que este cambio: hasta ahora, aprobar en la cola de revision el trabajo de
-un acudiente lo fijaba ademas como kit canonico de su grado, y los papas
-siguientes recibian por la ruta rapida un kit armado con el presupuesto, la
-prioridad o el personaje de otro. Desde que aprobar solo publica, el canonico
-sale de la lista aprobada (`canonico_lista`) o de un preview fijado. Esta
-migracion arregla los punteros que quedaron de antes: cada grado que apunta al
-trabajo de un papa pasa al ultimo `canonico_lista` publicado de su (colegio,
-grado, anio). Un grado sin canonico de lista se queda como esta: quitarle el
-puntero lo dejaria sin ruta rapida.
-
-No hay downgrade de datos: el puntero viejo era justamente el defecto, y no se
-guarda a que trabajo apuntaba.
-"""
-
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -31,10 +11,8 @@ down_revision: str | None = "3c7d9e1f5a28"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-# Los origenes que SI son canonicos: sin acudiente ni preferencias.
 _SIN_ACUDIENTE = ("canonico_lista", "preview_onboarding")
 _ORIGEN_LISTA = "canonico_lista"
-# El anio bajo el que se arma un kit cuyo hijo no lo trajo (`trabajos.py`).
 _ANIO_POR_OMISION = 2026
 
 _TRABAJO = sa.table(
@@ -76,11 +54,7 @@ def upgrade() -> None:
     if not de_papa:
         return
 
-    # El ultimo canonico de lista publicado por (colegio, grado, anio). Los
-    # `hijos` se leen en Python para que la migracion sea la misma en Postgres
-    # y en SQLite; son pocos trabajos (uno por cada vez que se aprobo una lista).
     def _orden(fila: sa.Row) -> tuple[float, str]:
-        # Sin `terminado_en` va de ultimo; el id desempata para que sea estable.
         return (fila.terminado_en.timestamp() if fila.terminado_en else 0.0, str(fila.id))
 
     ultimo: dict[tuple[str, str, int], sa.Row] = {}

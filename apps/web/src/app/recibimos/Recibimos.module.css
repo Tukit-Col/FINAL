@@ -1,8 +1,3 @@
-/* La pantalla de "ya recibimos tu lista". Reusa la tarjeta y las etapas de
- * Espera.module.css; esto solo agrega el remate de arriba —el sello y el
- * titulo centrados— para que la confirmacion se sienta como un cierre y no
- * como una lista de pasos mas. */
-
 .hero {
   display: grid;
   justify-items: center;

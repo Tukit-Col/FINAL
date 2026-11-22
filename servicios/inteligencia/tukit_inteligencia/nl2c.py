@@ -1,18 +1,3 @@
-"""NL2C: del lenguaje libre del acudiente a restricciones que el motor ya entiende.
-
-El agente NO escribe nada. Cada llamada hace un solo turno: el modelo recibe el
-texto del padre (dato, nunca instruccion), elige entre las funciones de una lista
-fija por endpoint y devuelve argumentos. El servidor valida esos argumentos,
-los proyecta a dominios validos y los traduce a las estructuras que ya existen
-(`Preferencias`, el cambio de producto). Lo que sale es una PROPUESTA; aplicarla
-es una accion del acudiente por los endpoints de siempre.
-
-Por que asi (docs/diseno/nl2c.md): plan fijo por endpoint y selector de accion
-(Beurer-Kellner et al., 2025), el resultado de una funcion no vuelve al modelo
-(no hay segundo turno que una inyeccion pueda dirigir), y todo texto que ve el
-padre sale de plantillas del servidor, no del modelo (OWASP LLM05).
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -38,17 +23,14 @@ from .nombres_comunes import NOMBRES_COMUNES
 
 log = logging.getLogger("tukit.nl2c.auditoria")
 
-# --- Topes (LLM10: consumo sin limite) -------------------------------------
 MAX_CARACTERES_TEXTO = 1000
 MAX_LINEAS_EN_PROMPT = 80
 MAX_CARACTERES_DESCRIPCION = 80
-MAX_PROPUESTAS = 5  # llamadas sueltas del modelo (un renglon cada una)
-# Un pedido por categoria ("todos los cuadernos") lo expande el SERVIDOR con reglas sobre el
-# catalogo del kit, no el modelo: por eso tiene su propio tope, mayor que el de llamadas sueltas.
+MAX_PROPUESTAS = 5
 MAX_PROPUESTAS_LOTE = 12
 MAX_TOKENS_SALIDA = 400
 ESPERA_MODELO_SEGUNDOS = 12.0
-MAX_TURNOS = 1  # un solo turno: el resultado de una funcion no vuelve al modelo
+MAX_TURNOS = 1
 MAX_PERSONAJES_CATALOGO = 60
 
 PRESUPUESTO_MIN_COP = 50_000
@@ -60,7 +42,6 @@ SOBREPRECIO_MAX_PCT = 20.0
 ESTILOS = ("economico", "punto_medio", "estirarse")
 CLAVES_PESO = ("precio", "marca_exigida", "calidad", "personaje")
 
-# Los mismos tres juegos de pesos que el paso 3 de /empezar (FormularioEmpezar.tsx).
 PESOS_POR_ESTILO: dict[str, dict[str, float]] = {
     "economico": {"precio": 0.60, "marca_exigida": 0.15, "calidad": 0.20, "personaje": 0.05},
     "punto_medio": {"precio": 0.35, "marca_exigida": 0.30, "calidad": 0.25, "personaje": 0.10},
@@ -71,11 +52,9 @@ SOBREPRECIO_POR_ESTILO = {"economico": 0.0, "punto_medio": 0.05, "estirarse": 0.
 
 
 def activo() -> bool:
-    """El interruptor del backend: `TUKIT_ASISTENTE=1`."""
     return os.environ.get("TUKIT_ASISTENTE", "").strip() == "1"
 
 
-# --- Limite de tasa y de gasto por sesion (LLM10) -----------------------------
 MAX_LLAMADAS_POR_MINUTO = 20
 MAX_TOKENS_POR_HORA = 60_000
 _VENTANA_TASA = 60.0
@@ -83,21 +62,13 @@ _VENTANA_GASTO = 3600.0
 
 
 class LimiteExcedido(Exception):
-    """El portador paso su cupo de llamadas o de tokens; el cliente cae al formulario clasico."""
-
     def __init__(self, motivo: Literal["tasa", "tokens"], espera: int) -> None:
         super().__init__(motivo)
         self.motivo = motivo
-        self.espera = espera  # segundos hasta que vuelva a haber cupo
+        self.espera = espera
 
 
 class LimitadorSesion:
-    """Ventana deslizante por portador, en memoria de este proceso.
-
-    Cuenta llamadas por minuto y tokens por hora (los que reporta el modelo). Es una baranda
-    de costo, no de seguridad: con varios procesos el tope real es N veces mayor (ver el informe).
-    """
-
     def __init__(self) -> None:
         self._llamadas: dict[str, deque[float]] = {}
         self._tokens: dict[str, deque[tuple[float, int]]] = {}
@@ -119,7 +90,7 @@ class LimitadorSesion:
         if len(cola) >= MAX_LLAMADAS_POR_MINUTO:
             raise LimiteExcedido("tasa", int(_VENTANA_TASA - (ahora - cola[0])) + 1)
         cola.append(ahora)
-        if len(self._llamadas) > 5000:  # no crecer sin fin con portadores anonimos
+        if len(self._llamadas) > 5000:
             for k in [k for k, v in self._llamadas.items() if not v or ahora - v[-1] >= _VENTANA_TASA][:1000]:
                 self._llamadas.pop(k, None)
                 self._tokens.pop(k, None)
@@ -133,16 +104,14 @@ class LimitadorSesion:
 LIMITADOR = LimitadorSesion()
 
 
-# --- Errores ----------------------------------------------------------------
 class AsistenteNoDisponible(Exception):
-    """El modelo no respondio a tiempo o fallo; el cliente cae al formulario clasico."""
+    pass
 
 
 class ArgumentosInvalidos(Exception):
-    """El modelo devolvio algo que no cumple el esquema; se descarta entero."""
+    pass
 
 
-# --- Sanitizacion de PII ----------------------------------------------------
 _CORREO = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 _URL = re.compile(r"(?:https?://|www\.)\S+", re.I)
 _TELEFONO = re.compile(r"(?<!\w)\+?\d[\d\s().-]{5,}\d(?!\w)")
@@ -150,13 +119,10 @@ _DIRECCION = re.compile(
     r"\b(?:calle|cll?|carrera|cra?|kr|transversal|tv|diagonal|dg|avenida|av|autopista)\.?\s*#?\s*\d+[\w\s#-]{0,24}",
     re.I,
 )
-# "mi hijo Juan", "se llama Maria Paula", "mi hija: Sofia"
 _NOMBRE = re.compile(
     r"\b(?i:(?:mi|mis|el|la)\s+(?:hij[oa]s?|ni[ñn][oa]s?|chic[oa]|peque[ñn][oa])|se\s+llama|llamad[oa]|me\s+llamo|soy)"
     r"\s*:?\s+(?!(?i:que|el|la|un|una)\b)[A-ZÁÉÍÓÚÑ][\wáéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][\wáéíóúñ]+){0,2}"
 )
-# "Conjunto Los Pinos torre 3 apto 402", "edificio Altamira", "urbanizacion El Bosque": la
-# via con numero ya la cubre `_DIRECCION`; esto cubre el nombre del conjunto y la torre/apto.
 _CONJUNTO = re.compile(
     r"\b(?:conjunto(?:\s+residencial)?|conj\.?|edificio|edf\.?|urbanizaci[oó]n|urb\.?|barrio|unidad\s+residencial)"
     r"(?:\s+(?:de|del|la|las|el|los|san|santa|[A-ZÁÉÍÓÚÑ0-9][\wáéíóúñ]*)){1,4}",
@@ -188,9 +154,6 @@ def _sin_tildes(palabra: str) -> str:
 
 
 def _redactar_nombres_comunes(texto: str, conservar: frozenset[str]) -> tuple[str, int]:
-    """Cambia por "hijo" cada corrida de nombres de pila frecuentes ("Sofia Valentina",
-    "juan esteban"), con o sin mayuscula y sin frase gatillo. `conservar` son palabras que
-    el modelo si necesita (los personajes del catalogo)."""
     cuenta = 0
 
     def es_nombre(palabra: str) -> bool:
@@ -203,8 +166,6 @@ def _redactar_nombres_comunes(texto: str, conservar: frozenset[str]) -> tuple[st
     en_colegio = False
     for m in _PALABRA.finditer(texto):
         palabra = m.group(0)
-        # "San Jose Maria", "Gimnasio Santa Maria", "Liceo Juan Ramon": nombre de colegio, no
-        # del menor. Desde la palabra que lo abre, lo que sigue con mayuscula es del colegio.
         if _sin_tildes(palabra) in _ANTES_DE_NOMBRE_DE_COLEGIO:
             en_colegio, dentro = True, False
             continue
@@ -227,7 +188,6 @@ def _redactar_nombres_comunes(texto: str, conservar: frozenset[str]) -> tuple[st
 
 
 def _apellidos_tras_hijo(texto: str) -> str:
-    # "hijo Gomez Perez": lo que va con mayuscula justo despues del nombre redactado es apellido.
     texto = re.sub(r"\bhijo(?:\s+[A-ZÁÉÍÓÚÑ][\wáéíóúñ]+){1,3}\b", "hijo", texto)
     return re.sub(r"\b(hij[oa]s?)\s+hijo\b", r"\1", texto, flags=re.I)
 
@@ -239,14 +199,7 @@ def sanitizar(
     del_padre: bool = True,
     conservar: frozenset[str] | None = None,
 ) -> TextoLimpio:
-    """Quita PII y caracteres que sirven para escapar del bloque de datos.
-
-    Los hijos quedan como "hijo": el modelo no necesita un nombre para entender
-    "mi hijo ama Spiderman". Devuelve cuantas redacciones hizo, no el contenido.
-    """
     original = unicodedata.normalize("NFKC", texto or "")
-    # Cf (ancho cero, bidi, caracteres "tag" U+E0000 que viajan invisibles) y selectores de
-    # variacion: no los ve el padre pero el modelo si, asi que son un canal para esconder ordenes.
     limpio = "".join(
         " "
         if unicodedata.category(c) == "Cf" or "\ufe00" <= c <= "\ufe0f" or "\U000e0100" <= c <= "\U000e01ef"
@@ -267,8 +220,6 @@ def sanitizar(
     limpio, n = _NOMBRE.subn(lambda m: re.split(r"[\s:]", m.group(0).strip())[0] + " hijo", limpio)
     cuenta += n
     if del_padre:
-        # Solo el texto del padre: una descripcion de la lista trae "Juan Salvador Gaviota"
-        # o "bloque 5 materias", y redactarlos le quitaria al modelo el renglon.
         for patron in (_CONJUNTO, _TORRE_APTO):
             limpio, n = patron.subn("[direccion]", limpio)
             cuenta += n
@@ -283,7 +234,6 @@ def sanitizar(
     return TextoLimpio(limpio, cuenta, huella, len(original))
 
 
-# --- El objeto de restriccion R --------------------------------------------
 class FiltrosDuros(BaseModel):
     model_config = ConfigDict(extra="forbid")
     presupuesto_max_cop: int | None = None
@@ -315,8 +265,6 @@ class PreferenciasPRM(BaseModel):
 
 
 class RestriccionesR(BaseModel):
-    """R = <filtros_duros, pesos_NSGA, preferencias_PRM> (propuesta VFP)."""
-
     model_config = ConfigDict(extra="forbid")
     filtros_duros: FiltrosDuros
     pesos_NSGA: PesosNSGA
@@ -330,14 +278,6 @@ def _numero(valor: Any) -> float | None:
 
 
 def normalizar_pesos(crudos: dict[str, float]) -> dict[str, float]:
-    """Pesos en [PESO_MIN, PESO_MAX] que suman 1.00 con dos decimales.
-
-    Cada peso parte del piso; el resto (1 - 4 * piso) se reparte en proporcion a lo
-    pedido y, si alguno pasa el tope, el sobrante se reparte entre los que no lo
-    alcanzaron (por igual si ninguno pidio nada). Siempre hay solucion porque
-    4 * PESO_MAX >= 1. Un reparto proporcional puro no basta: con ceros en lo pedido
-    los pesos quedan en el piso y la suma no llega a 1.
-    """
     p = {k: max(0.0, crudos.get(k, 0.0)) for k in CLAVES_PESO}
     if sum(p.values()) <= 0:
         return dict(PESOS_POR_ESTILO["punto_medio"])
@@ -356,8 +296,6 @@ def normalizar_pesos(crudos: dict[str, float]) -> dict[str, float]:
             resto -= PESO_MAX - w[k]
             w[k] = PESO_MAX
         libres -= pasados
-    # Centavos enteros por mayor resto, sin pasar el tope:
-    # el residuo del redondeo no puede sacar un peso del rango.
     tope, piso = round(PESO_MAX * 100), round(PESO_MIN * 100)
     centavos = {k: min(tope, max(piso, int(v * 100 + 1e-9))) for k, v in w.items()}
     faltan = 100 - sum(centavos.values())
@@ -376,7 +314,6 @@ def _clave_personaje(nombre: str) -> str:
 
 
 def _en_texto(fragmento: str, texto: str) -> bool:
-    """El fragmento aparece en el texto, sin importar mayusculas ni tildes."""
 
     def plano(x: str) -> str:
         base = unicodedata.normalize("NFKD", x).encode("ascii", "ignore").decode()
@@ -388,16 +325,6 @@ def _en_texto(fragmento: str, texto: str) -> bool:
 def proyectar_R(
     args: dict[str, Any], catalogo_personajes: list[str], *, texto_base: str | None = None
 ) -> tuple[RestriccionesR, list[str]]:
-    """Valida los argumentos del modelo y los proyecta a dominios validos.
-
-    Lo que no tiene forma (clave desconocida, tipo equivocado) se rechaza con
-    `ArgumentosInvalidos`; lo que tiene forma pero sale del rango se recorta y
-    queda anotado en `ajustes` para mostrarselo al padre.
-
-    Con `texto_base` (el texto ya saneado del padre), una marca o un nombre de
-    personaje que el modelo devuelva y que no aparezca en ese texto se descarta:
-    el texto libre que llega a la pantalla tiene que venir de lo que el padre escribio.
-    """
     if not isinstance(args, dict) or set(args) - {"filtros_duros", "pesos_NSGA", "preferencias_PRM"}:
         raise ArgumentosInvalidos("argumentos con claves fuera del esquema")
     ajustes: list[str] = []
@@ -496,13 +423,6 @@ def proyectar_R(
 
 
 def a_preferencias(r: RestriccionesR, *, hijo: str = "hijo-1") -> dict[str, Any]:
-    """R traducido a la forma que ya consume el recomendador (`Preferencias`).
-
-    `marcas_excluidas` y `solo_disponibles` viajan como filtros duros: el
-    optimizador (`aplicar_filtros_duros`) saca esos candidatos ANTES de armar
-    el frente. Solo se incluyen cuando el padre los pidio, para que unas
-    preferencias sin filtros queden byte a byte iguales a las de antes.
-    """
     prm = r.preferencias_PRM
     salida: dict[str, Any] = {
         "pesos": r.pesos_NSGA.model_dump(),
@@ -520,7 +440,6 @@ def a_preferencias(r: RestriccionesR, *, hijo: str = "hijo-1") -> dict[str, Any]
     return salida
 
 
-# --- Funciones permitidas (la lista blanca) ---------------------------------
 _PESO = {"type": "NUMBER", "description": "Importancia relativa entre 0 y 1."}
 DECLARACION_FIJAR = {
     "name": "fijar_restricciones",
@@ -565,8 +484,6 @@ DECLARACION_SIN_ACCION = {
     },
 }
 MOTIVOS_DESCARTE = ("ya_lo_tengo", "no_lo_necesito", "otro")
-# El modelo solo CLASIFICA la intencion de un pedido por categoria; que renglones entran y
-# que producto se propone lo decide el servidor (nl2c_kit.py), de forma determinista.
 ACCIONES_LOTE = ("mas_barato", "mejor_calidad", "variar", "igual_que_antes")
 PERFILES = ("Ahorrador", "Fan", "A tu Medida", "Premium")
 DECLARACIONES_KIT = [
@@ -630,7 +547,6 @@ DECLARACIONES_KIT = [
     DECLARACION_SIN_ACCION,
 ]
 
-# El plan fijo de cada endpoint: que funciones existen. Nada mas se ejecuta.
 HERRAMIENTAS_INTERPRETAR = frozenset({"fijar_restricciones", "sin_accion"})
 HERRAMIENTAS_KIT = frozenset(
     {
@@ -671,7 +587,6 @@ SISTEMA_KIT = (
 )
 
 
-# --- El puerto hacia Gemini --------------------------------------------------
 @dataclass
 class RespuestaModelo:
     llamadas: list[dict[str, Any]] = field(default_factory=list)
@@ -687,7 +602,7 @@ def _llamar_gemini(
 ) -> RespuestaModelo:
     try:
         clave, modelo = gemini._clave_y_modelo()
-    except Exception as error:  # falta la llave: se cae al formulario clasico
+    except Exception as error:
         raise AsistenteNoDisponible("sin credencial") from error
     cuerpo = {
         "systemInstruction": {"parts": [{"text": sistema}]},
@@ -706,7 +621,6 @@ def _llamar_gemini(
         with urllib.request.urlopen(pedido, timeout=ESPERA_MODELO_SEGUNDOS) as respuesta:
             crudo = json.loads(respuesta.read().decode())
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as error:
-        # Sin reintento: el padre tiene el formulario clasico a un toque.
         raise AsistenteNoDisponible(type(error).__name__) from error
     uso = crudo.get("usageMetadata") or {}
     try:
@@ -727,11 +641,6 @@ _LLAMAR: Llamador = _llamar_gemini
 
 
 def usar_llamador(llamador: Llamador | None) -> None:
-    """Cambia quien contesta por el modelo; `None` vuelve a Gemini.
-
-    Es la costura de las pruebas y del banco de ensayos: el doble recibe lo que
-    recibiria Gemini (sistema, texto del padre, declaraciones, lista blanca) y
-    devuelve una `RespuestaModelo`, sin red ni llave."""
     global _LLAMAR
     _LLAMAR = llamador if llamador is not None else _llamar_gemini
 
@@ -739,7 +648,6 @@ def usar_llamador(llamador: Llamador | None) -> None:
 async def consultar_modelo(
     sistema: str, usuario: str, declaraciones: list[dict[str, Any]], permitidas: frozenset[str]
 ) -> tuple[RespuestaModelo, int]:
-    """Un turno, con plazo. Devuelve la respuesta y los ms que tardo."""
     inicio = time.perf_counter()
     try:
         respuesta = await asyncio.wait_for(
@@ -749,7 +657,6 @@ async def consultar_modelo(
     except TimeoutError as error:
         raise AsistenteNoDisponible("tiempo agotado") from error
     ms = round((time.perf_counter() - inicio) * 1000)
-    # La lista blanca se aplica de nuevo aqui, por si el modelo devuelve otra funcion.
     respuesta.llamadas = [c for c in respuesta.llamadas if c.get("name") in permitidas]
     return respuesta, ms
 
@@ -759,7 +666,6 @@ def armar_usuario(texto: TextoLimpio, *, contexto: str = "") -> str:
     return f"{contexto}\n{bloque}" if contexto else bloque
 
 
-# --- UI spec (la lista blanca de componentes) --------------------------------
 COMPONENTES_UI = frozenset(
     {
         "TarjetaPersonaje",
@@ -775,7 +681,6 @@ COMPONENTES_UI = frozenset(
 
 
 def construir_ui_empezar(r: RestriccionesR, *, dijo_presupuesto: bool) -> dict[str, Any]:
-    """La spec la compila el servidor desde R validada; el modelo no emite estructura."""
     comps: list[dict[str, Any]] = []
     for nombre in r.preferencias_PRM.personajes:
         comps.append({"tipo": "TarjetaPersonaje", "props": {"nombre": nombre}})
@@ -796,7 +701,6 @@ def construir_ui_empezar(r: RestriccionesR, *, dijo_presupuesto: bool) -> dict[s
     return {"version": 1, "componentes": comps}
 
 
-# --- Auditoria ---------------------------------------------------------------
 BITACORA: deque[dict[str, Any]] = deque(maxlen=1000)
 
 
@@ -807,7 +711,6 @@ def huella_usuario(usuario_id: str | uuid.UUID | None) -> str | None:
 
 
 def auditar(evento: str, **datos: Any) -> None:
-    """Una linea JSON por propuesta o decision. Sin texto del padre ni PII."""
     registro = {"evento": evento, "ts": round(time.time(), 3), **datos}
     BITACORA.append(registro)
     log.info(json.dumps(registro, ensure_ascii=False, default=str))

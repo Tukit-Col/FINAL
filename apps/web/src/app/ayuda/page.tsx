@@ -17,12 +17,6 @@ import SobreSoporte from "./SobreSoporte";
 import FormularioCaso from "./FormularioCaso";
 import styles from "./Ayuda.module.css";
 
-// El centro de ayuda tiene dos mitades: las preguntas frecuentes (informativas)
-// y un formulario REAL para abrir una PQRS. El formulario escribe en `operacion`
-// (vía `/api/casos`), así que el caso queda de verdad en la cola del back-office
-// —no fingimos un canal que no existe—. La primera tarjeta de la sección de
-// soporte lleva la ilustración claymorphism del sobre a la derecha.
-
 const PREGUNTAS = [
   {
     Icono: ListChecks,
@@ -112,8 +106,6 @@ export default async function AyudaPage() {
           ¿No encontraste tu respuesta?
         </h2>
 
-        {/* Primera tarjeta: la introducción, con el SVG claymorphism a la
-            derecha. En móvil el SVG se apila arriba. */}
         <Revelar as="div" className={styles.introSoporte} modo="una">
           <div className={styles.introTexto}>
             <p className={styles.introAntetitulo}>
@@ -133,7 +125,6 @@ export default async function AyudaPage() {
           </div>
         </Revelar>
 
-        {/* Segunda tarjeta: el formulario real. */}
         <Revelar as="div" className={styles.tarjetaForma} modo="una" retraso={0.08}>
           <FormularioCaso conSesion={Boolean(sesion)} />
         </Revelar>

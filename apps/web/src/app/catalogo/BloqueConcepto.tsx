@@ -12,10 +12,6 @@ import estilos from "./Catalogo.module.css";
 
 const NIVELES_EN_ORDEN = [...NIVELES].sort((a, b) => ORDEN_NIVEL[a] - ORDEN_NIVEL[b]);
 
-// Lo que significa cada tipo de renglon cuando NO es un util. Un concepto
-// `no_comprar` sin productos no es un hueco de catalogo: es una instruccion
-// del colegio de no comprar nada, y contarlo como carencia empujaria a
-// taparlo con un producto inventado.
 const ETIQUETA_TIPO: Partial<Record<ConceptoCatalogo["tipo_item"], string>> = {
   texto: "texto escolar",
   libro_libre: "libro de edición libre",
@@ -29,7 +25,6 @@ const ETIQUETA_TIPO: Partial<Record<ConceptoCatalogo["tipo_item"], string>> = {
 interface Props {
   concepto: ConceptoCatalogo;
   cobertura: CoberturaConcepto;
-  /** Los productos que pasaron los filtros, no necesariamente todos. */
   productos: ProductoCatalogo[];
   ocultos: number;
 }
@@ -40,9 +35,6 @@ export default function BloqueConcepto({ concepto, cobertura, productos, ocultos
 
   const grupos = NIVELES_EN_ORDEN.map((nivel) => ({
     nivel,
-    // Dentro de un nivel lo unico que queda por comparar es el precio: el
-    // nivel ya dijo la calidad. Los que no tienen precio conocido van al final
-    // porque no se pueden comparar, no porque sean caros.
     productos: productos.filter((producto) => producto.nivel === nivel).sort(porPrecio),
   })).filter((grupo) => grupo.productos.length > 0);
 
@@ -89,12 +81,6 @@ export default function BloqueConcepto({ concepto, cobertura, productos, ocultos
           </div>
         </div>
 
-        {/* Los dos grupos de atributos se ven distintos porque hacen cosas
-            distintas: los discriminantes descartan candidatos y los
-            descriptivos solo le cuentan al acudiente que esta comprando. Quien
-            cura el catalogo necesita esa diferencia de un vistazo, porque de
-            ella depende si un atributo que casi ningun producto declara esta
-            dejando sin resolver a un concepto entero. */}
         <div className={estilos.atributos}>
           <div className={estilos.grupoAtributos}>
             <span className={estilos.rotuloAtributos} title="Descartan candidatos al resolver la lista.">

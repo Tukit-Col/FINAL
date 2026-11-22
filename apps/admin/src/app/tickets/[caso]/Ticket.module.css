@@ -114,7 +114,6 @@
   box-shadow: inset 0 0 0 1px var(--color-info-border);
 }
 
-/* La nota interna: ámbar y con rótulo; nunca se confunde con lo que lee el acudiente. */
 .mensajeNota {
   align-self: flex-end;
   background: var(--color-aviso-bg);

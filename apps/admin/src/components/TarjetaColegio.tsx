@@ -1,18 +1,3 @@
-// Tarjeta de un colegio en la BD de colegios y listas (P4). Muestra el logo del
-// colegio (`logo`, ya resuelto con la regla de `logoDeColegio`: el de Identidad
-// y si no, el del directorio por DANE; sin ninguno, iniciales), su nombre, si ya es aliado (tiene al menos un grado
-// revisado) y sus grados verificados.
-//
-// La tarjeta ENTERA es clicable hacia la ficha del colegio (patrón "stretched
-// link"): el enlace del nombre lleva un `::after` absoluto que cubre la tarjeta.
-// Por eso adentro no puede haber otro enlace (un `<a>` no anida en otro `<a>`):
-// los grados pasan a ser `<span>` visuales y el CTA de "sube una lista" —que sí
-// es un enlace— se movió a la ficha, no vive aquí.
-//
-// Server Component: no tiene estado, solo pinta. La atribución dudosa se marca
-// porque el §2.2 la convierte en un bloqueante de corrección de la ruta del
-// acudiente.
-
 import Link from "next/link";
 import type { Colegio } from "@tukit/contrato";
 import LogoColegio from "@/components/LogoColegio";
@@ -51,14 +36,10 @@ export default function TarjetaColegio({ colegio, logo }: { colegio: Colegio; lo
 
       <div className={styles.grados}>
         {colegio.grados.length === 0 ? (
-          // Sin enlace: el detalle (con su CTA para subir lista) se abre al
-          // clicar la tarjeta entera; aquí solo se informa el estado.
           <p className={styles.sinGrados}>Ningún grado revisado todavía.</p>
         ) : (
           <ul>
             {colegio.grados.map((grado) => (
-              // Chip visual (no enlace): reusa el look de `.grados li` sin ser
-              // un `<a>`, para no anidar dentro del enlace de la tarjeta.
               <li key={grado} className={styles.gradoChip}>
                 {grado}
                 <span className={styles.gradoEstado}>revisado</span>

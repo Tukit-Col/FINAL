@@ -26,7 +26,7 @@ postgres = ["asyncpg>=0.29"]
 # extras van juntos porque una migracion sin driver no se puede aplicar.
 migraciones = ["alembic>=1.13"]
 
-# OpenTelemetry (ADR 0021). Opcional a proposito: sin `OTEL_EXPORTER_OTLP_ENDPOINT`
+# OpenTelemetry. Opcional a proposito: sin `OTEL_EXPORTER_OTLP_ENDPOINT`
 # la instrumentacion es no-op TOTAL (ni siquiera importa esto), asi que la tesis
 # corre sin collector y la CI no lo instala. Quien quiera trazas contra Jaeger
 # instala `tukit-comun[otel]` y levanta la infra (`make infra-arriba`).

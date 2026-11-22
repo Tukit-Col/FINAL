@@ -1,16 +1,3 @@
-"""cuenta del acudiente: celular del titular y apodo cifrado del hijo
-
-Revision: a1b2c3d4e5f6
-Anterior: 5c1a7e0d9b34
-Fecha:    2026-09-27 00:01:00.000000+00:00
-
-Por que este cambio: la cuenta del acudiente es ahora el primer paso de
-/empezar. El titular aporta un celular para el aviso (hoy la API lo devuelve
-None fijo), y cada hijo se refiere por un apodo. Ley 1581 / Anexo M: el nombre
-del menor nunca se guarda en claro, y hasta el apodo va cifrado porque
-singulariza al menor. `celular` va en claro (dato del adulto).
-"""
-
 from __future__ import annotations
 
 from collections.abc import Sequence

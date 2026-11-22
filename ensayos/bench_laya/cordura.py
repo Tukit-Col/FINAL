@@ -135,7 +135,7 @@ def main():
                     flush=True,
                 )
         del agente
-    salida = Path(__file__).resolve().parents[2] / "docs" / "informes" / "benchmark-laya" / "cordura.json"
+    salida = Path(__file__).resolve().parents[2] / "ensayos" / "bench_laya" / "salidas" / "cordura.json"
     salida.write_text(json.dumps(resumen, indent=2), encoding="utf-8")
 
 

@@ -1,11 +1,3 @@
-"""Lo que comparten las pruebas de la superficie de escritura de listas (`/v1/admin/listas/*`).
-
-Las pruebas corren contra la app con `ASGITransport` y un motor SQLite inyectado
-a mano, igual que `test_api_catalogo`, porque el arranque normal abriria
-Postgres. La siembra deja una lista sin revisar (con una propuesta pendiente) y
-otra ya revisada, para ejercer la puerta de revision.
-"""
-
 from __future__ import annotations
 
 import base64
@@ -38,12 +30,6 @@ CURADOR = uuid.UUID("22222222-2222-5222-8222-222222222222")
 
 
 def _siembra(sesion) -> dict[str, uuid.UUID]:
-    """Una lista sin revisar y otra ya revisada, para ejercer la puerta.
-
-    La sin revisar tiene una propuesta pendiente, que es lo que `cerrar` mira
-    para negarse; la revisada existe para probar que editarla se rechaza y que
-    `nueva-version` la clona en una nueva sin revisar.
-    """
     cuaderno = Concepto(codigo="C001", nombre_canonico="cuaderno", categoria="Cuadernos")
     colores = Concepto(codigo="C002", nombre_canonico="colores", categoria="Arte")
     sesion.add_all([cuaderno, colores])
@@ -53,9 +39,6 @@ def _siembra(sesion) -> dict[str, uuid.UUID]:
     sesion.add(tienda)
     sesion.flush()
 
-    # Productos curados para el concepto cuaderno (C001): uno por nivel, con
-    # precio vigente. Es lo que la ruta rapida devuelve como `candidatos`,
-    # keyed por concepto y sin buscar por texto.
     for nivel, sku, precio in (
         ("economico", "TK-C001-ECO", 4500),
         ("confiable", "TK-C001-CON", 9900),
@@ -94,7 +77,6 @@ def _siembra(sesion) -> dict[str, uuid.UUID]:
         )
     sesion.flush()
 
-    # Lista SIN revisar (v1 vigente) con dos renglones y una propuesta pendiente.
     lista = ListaOficial(colegio_id=COLEGIO, grado="Cuarto", anio_lectivo=2026)
     sesion.add(lista)
     sesion.flush()
@@ -132,14 +114,11 @@ def _siembra(sesion) -> dict[str, uuid.UUID]:
             precio_centavos=350000,
             nivel_sugerido="economico",
             estado="pendiente",
-            # Atada a la version sin revisar: es lo que la vista de revision
-            # muestra como candidato y lo que `cerrar` cuenta para negarse.
             version_lista_id=abierta.id,
             item_lista_id=item.id,
         )
     )
 
-    # Lista YA revisada (otro grado), v1 vigente y revisada.
     lista2 = ListaOficial(colegio_id=COLEGIO, grado="Quinto", anio_lectivo=2026)
     sesion.add(lista2)
     sesion.flush()
@@ -157,8 +136,6 @@ def _siembra(sesion) -> dict[str, uuid.UUID]:
                 cantidad=1,
                 concepto_id=cuaderno.id,
             ),
-            # Renglon de compra directa al colegio (no surtible): sin concepto,
-            # linea informativa. La ruta rapida lo devuelve con candidatos [].
             ItemListaOficial(
                 version_id=cerrada.id,
                 orden=2,
@@ -207,7 +184,6 @@ PNG_FALSO = b"\x89PNG\r\n\x1a\n" + b"lista de utiles de prueba"
 
 
 def _cuerpo_importar(**extra) -> dict:
-    """El cuerpo del contrato que inteligencia manda a `importar`."""
     cuerpo = {
         "colegio_id": str(COLEGIO),
         "grado": "Sexto",
@@ -233,8 +209,6 @@ async def _bandeja_de(cliente) -> list:
 
 
 async def _con_cuadernos_extra(cliente, discriminantes: list[str] | None = None) -> None:
-    """Dos cuadernos mas en C001: uno rayado aprobado en la cola y uno de
-    personaje doble linea. Con `discriminantes`, C001 filtra por ellos."""
     async with app.state.motor.sesion() as db:
         conexion = await db.connection()
         concepto = Base.metadata.tables["concepto"]
@@ -271,7 +245,6 @@ async def _con_cuadernos_extra(cliente, discriminantes: list[str] | None = None)
 
 
 async def _version_revisada_con(cliente, texto: str, atributos: dict | None = None) -> uuid.UUID:
-    """Una lista revisada de un solo renglon de cuaderno con ese texto."""
     async with app.state.motor.sesion() as db:
         conexion = await db.connection()
         tablas = Base.metadata.tables
@@ -322,7 +295,6 @@ async def _marcar_uno_por_estudiante(cliente, concepto: str) -> None:
 
 
 async def _version_revisada_con_renglones(cliente, renglones: list[tuple[str, str]]) -> uuid.UUID:
-    """Una lista revisada con esos (texto, concepto) en orden 1, 2, ..."""
     async with app.state.motor.sesion() as db:
         conexion = await db.connection()
         tablas = Base.metadata.tables
@@ -364,11 +336,6 @@ async def _version_revisada_con_renglones(cliente, renglones: list[tuple[str, st
 
 
 def _cuerpo_sugerencia(**extra) -> dict:
-    """El cuerpo que el web manda cuando un padre sugiere su lista.
-
-    Trae solo (colegio, grado, ano), un contacto por identificador y el PDF en
-    base64. NO trae correo ni telefono: esa PII no cruza hacia Catalogo.
-    """
     cuerpo = {
         "colegio_id": str(COLEGIO),
         "grado": "Septimo",

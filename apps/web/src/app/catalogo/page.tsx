@@ -3,9 +3,6 @@ import { origenDeDatos } from "@tukit/contrato/servidor";
 import ExploradorCatalogo from "./ExploradorCatalogo";
 import estilos from "./Catalogo.module.css";
 
-// Esta es la pantalla que el equipo abre para saber si el catalogo crecio
-// desde la ultima carga. Servida desde cache contestaria con la foto anterior,
-// que es justo la pregunta que no se puede contestar mal.
 export const dynamic = "force-dynamic";
 
 type TonoCifra = "neutro" | "aviso" | "alerta";
@@ -18,14 +15,6 @@ interface Cifra {
   tono: TonoCifra;
 }
 
-/**
- * Las siete cifras del resumen, cada una con su tono.
- *
- * Los tonos no son decoracion: que 17 conceptos no tengan un solo producto es
- * el dato mas util del encabezado, y pintarlo igual que "99 conceptos" lo
- * esconderia entre los numeros que si son buenos. La pantalla se usa para
- * decidir que curar, asi que la carencia tiene que resaltar mas que el logro.
- */
 function cifrasDe(resumen: ResumenCatalogo): Cifra[] {
   return [
     {

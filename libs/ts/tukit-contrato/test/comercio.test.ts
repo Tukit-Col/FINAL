@@ -1,10 +1,3 @@
-// Los catalogos de nombres de Comercio que comparten la web y el admin: los
-// pasos de la linea de tiempo del pedido, las fases que ve el acudiente y los
-// tipos de incidencia. La forma del JSON la prueba Comercio
-// (`test_dominio_linea_de_tiempo.py` y `test_logistica.py`).
-//
-// Runner nativo de Node sobre TypeScript. Correr: `node --test test/comercio.test.ts`.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {

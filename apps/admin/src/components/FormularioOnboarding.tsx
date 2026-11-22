@@ -1,15 +1,5 @@
 "use client";
 
-// El formulario de subida del onboarding (P4). Elegir (colegio, grado, año),
-// adjuntar el PDF de ESE grado y mandarlo a percibir. El colegio sale de
-// `BuscadorColegioOnboarding`: uno de Tukit, uno del directorio de Bogotá o uno
-// escrito a mano.
-//
-// La UX de validación del archivo es la misma que la de `apps/web` (empezar):
-// se comprueba el formato y el tamaño ANTES de subir y se avisa que hay que
-// mandar solo las páginas del grado, no el PDF completo del colegio. La lógica
-// se copia (no se importa entre apps: son dos despliegues independientes).
-
 import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UploadCloud } from "lucide-react";
@@ -23,11 +13,7 @@ import BuscadorColegioOnboarding from "@/components/BuscadorColegioOnboarding";
 import { subirOnboarding, FalloApi } from "@/lib/api-onboarding";
 import styles from "@/app/onboarding/Onboarding.module.css";
 
-// El año lectivo por defecto: el próximo, que es el que se está armando cuando
-// se hace el onboarding (las listas salen antes de que empiece el año).
 function anioPorDefecto(): number {
-  // Server y cliente coinciden porque este componente solo se hidrata en el
-  // navegador; no hay render de servidor de este valor que pueda diverger.
   return new Date().getFullYear() + 1;
 }
 
@@ -77,8 +63,6 @@ export default function FormularioOnboarding({ colegios }: Props) {
     } catch (causa) {
       if (causa instanceof FalloApi) {
         setError(causa.message);
-        // El 422 del §2.1 trae los grados que detectó en el archivo: son la
-        // parte útil del rechazo, dicen qué páginas recortar.
         const detectados = causa.detalle["grados_detectados"];
         if (Array.isArray(detectados)) setGradosDetectados(detectados.map(String));
       } else {
@@ -119,9 +103,6 @@ export default function FormularioOnboarding({ colegios }: Props) {
       </div>
 
       <div className={styles.zonaArchivo}>
-        {/* El aviso va ANTES de subir, no como error después de esperar: una
-            restricción que solo aparece cuando ya perdiste el tiempo está mal
-            puesta. Misma regla que la subida del acudiente en `web`. */}
         <p className={styles.reglaArchivo}>
           Sube solo las páginas del grado, no el PDF completo del colegio con los trece grados.
           Un revisor que empieza con la lista de otro grado revisa lo que no es.

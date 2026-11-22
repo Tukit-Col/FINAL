@@ -1,12 +1,3 @@
-"""Quien vende cada producto y a que precio publico observado.
-
-Esta capa es la que el modelo anterior no tenia separada, y su ausencia
-producia el peor efecto del esquema viejo: `precio`, `stock`, `proveedor` y
-`url` eran columnas del producto, de modo que un producto solo podia tener un
-precio y un vendedor. Comparar precio entre tiendas, que es el nucleo de la
-propuesta de valor, era literalmente inexpresable.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -37,9 +28,6 @@ _FUENTES = ", ".join(f"'{f.value}'" for f in FuentePrecio)
 
 
 class Tienda(Base):
-    """Quien vende. Reemplaza la columna `proveedor` de texto libre, cuyo
-    valor por omision era la cadena `"manual"`."""
-
     __tablename__ = "tienda"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -57,15 +45,6 @@ class Tienda(Base):
 
 
 class CorridaScraper(Base):
-    """Una ejecucion de la ingesta. Da procedencia a cada precio observado.
-
-    El perfilado encontro que la semilla del catalogo anterior NO era
-    reproducible: 1.164 de 7.475 URL no tenian origen en ningun fichero
-    versionado y el script generador no estaba en el repositorio. Esta tabla
-    existe para que eso no vuelva a pasar: todo precio apunta a la corrida que
-    lo vio.
-    """
-
     __tablename__ = "corrida_scraper"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -89,8 +68,6 @@ class CorridaScraper(Base):
 
 
 class OfertaTienda(Base):
-    """Que una tienda concreta ofrece un producto concreto."""
-
     __tablename__ = "oferta_tienda"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -106,14 +83,8 @@ class OfertaTienda(Base):
     metodo_vinculacion: Mapped[str] = mapped_column(String(16), nullable=False)
     confianza_vinculacion: Mapped[float] = mapped_column(Numeric(4, 3), nullable=False, default=1.000)
 
-    # De TRES valores a proposito. `None` significa "no se", no "no hay".
-    # La fuente mayorista no reporta stock, y forzar `False` haria que el
-    # optimizador descarte ofertas legitimas por una observacion que nunca se
-    # hizo. Un booleano que admite nulo y se lee como si/no/no-se es la
-    # representacion honesta de una observacion que puede faltar.
     disponible: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
-    # Apaga un mapeo puntual sin borrar el registro curado.
     activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     visto_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
@@ -124,10 +95,6 @@ class OfertaTienda(Base):
         CheckConstraint(
             "confianza_vinculacion >= 0 AND confianza_vinculacion <= 1", name="oferta_confianza_en_rango"
         ),
-        # Cola de revision manual. Vincular por atributos no es un caso
-        # degradado: es el camino normal del canal mayorista, donde el EAN
-        # valido es del 0,00 %. Este indice es el que hace operativa la
-        # revision en vez de dejarla como intencion.
         Index(
             "ix_oferta_revision_manual",
             "confianza_vinculacion",
@@ -150,22 +117,12 @@ class OfertaTienda(Base):
 
 
 class PrecioOferta(Base):
-    """Un tramo de precio con vigencia, no una columna que se sobreescribe.
-
-    El precio publico observado y el costo contractual que un mayorista le
-    cobra a Tukit NO son el mismo dato y no se unifican: viven en servicios
-    distintos porque estan en lados opuestos de la asimetria de recuperacion.
-    Este se reconstruye raspando; el otro no se puede perder.
-    """
-
     __tablename__ = "precio_oferta"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     oferta_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("oferta_tienda.id", ondelete="CASCADE"), nullable=False
     )
-    # En centavos y entero: un precio en punto flotante acumula error al
-    # sumarse sobre los 30 o 40 renglones de un kit.
     valor_centavos: Mapped[int] = mapped_column(BigInteger, nullable=False)
     moneda: Mapped[str] = mapped_column(String(3), nullable=False, default="COP")
     fuente: Mapped[str] = mapped_column(String(16), nullable=False)
@@ -184,14 +141,6 @@ class PrecioOferta(Base):
         CheckConstraint(
             "vigente_hasta IS NULL OR vigente_hasta > vigente_desde", name="precio_vigencia_coherente"
         ),
-        # En Postgres esto va acompanado de una restriccion de exclusion sobre
-        # el rango temporal, que es lo que impide dos precios solapados para
-        # la misma oferta. SQLAlchemy no la expresa de forma portable, asi que
-        # vive en la migracion:
-        #   EXCLUDE USING gist (oferta_id WITH =,
-        #                       tstzrange(vigente_desde, vigente_hasta) WITH &&)
-        # Sin ella, "el precio de hoy" es una consulta ambigua, que es
-        # exactamente lo que les pasaba a las dos tablas de precio anteriores.
         Index(
             "uq_precio_vigente_por_oferta",
             "oferta_id",

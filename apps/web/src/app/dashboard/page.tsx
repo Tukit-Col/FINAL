@@ -1,18 +1,14 @@
-// El panel del acudiente. El saludo, los pedidos y ahora los perfiles de los
-// hijos salen del backend real (identidad emite la sesion y sirve
-// `/v1/cuenta/matriculas`; comercio sirve `/v1/comercio/mis-pedidos`). La
-// superficie de menores ya NO se finge: se lee la tenencia del PROPIO portador
-// (`matriculasDeLaSesion`), que expone solo colegio+grado+anio y el `apodo`
-// descifrado —nunca nombre legal, documento ni estudiante_id (minimizacion,
-// Ley 1581)—, y el `colegio_id` se resuelve a nombre con `colegios()`.
+// El panel del acudiente (Server Component).
 //
-// Es un Server Component: lee la sesion de la cookie httponly (`sesionActual`)
-// y pide los pedidos por el `usuario_id` del portador. Sin sesion, redirige a
-// /ingresar, fail-closed como el resto de las rutas protegidas. Si la lectura
-// de hijos falla, la seccion degrada a un aviso y el resto del panel sigue vivo.
+// Decisiones:
+// - Lee la sesión de la cookie httpOnly y, sin sesión, redirige a `/ingresar`: falla cerrado como el
+//   resto de las rutas protegidas.
+// - De los menores se lee solo la tenencia del propio portador (`matriculasDeLaSesion`): colegio,
+//   grado, año y el apodo descifrado; nunca nombre legal, documento ni `estudiante_id`.
+// - Si la lectura de hijos falla, la sección degrada a un aviso y el resto del panel sigue vivo.
+
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Fragment } from "react";
 import {
   Clock,
   LifeBuoy,
@@ -27,7 +23,6 @@ import {
   GRADOS_CANONICOS,
   formatearPesos,
   type Colegio,
-  type EstadoTrabajo,
   type MiCaso,
   type MatriculaAcudiente,
   type Pedido,
@@ -52,6 +47,14 @@ import {
   type TonoEstado,
 } from "@/lib/pagar-pedido";
 import { saludoDeCuenta } from "@/lib/cuenta";
+import {
+  PALABRAS_ESTADO,
+  chipDeSolicitud,
+  fechaLegible,
+  rangoDeChip,
+  type ChipEstado,
+  type TonoChip,
+} from "@/lib/panel-cuenta";
 import AccionesPedido from "./AccionesPedido";
 import ActualizarSolo from "./ActualizarSolo";
 import DetallePedido from "./DetallePedido";
@@ -64,39 +67,6 @@ import styles from "./Dashboard.module.css";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Mi cuenta — Tukit" };
 
-// La fecha viene del pedido (dato de servidor, ISO 8601), no del reloj del
-// cliente: no hay riesgo de desajuste de zona entre render de servidor y de
-// cliente. Misma disciplina que `fechaLegible` en el formulario de casos.
-function fechaLegible(iso: string): string {
-  return new Date(iso).toLocaleDateString("es-CO", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-// El estado de un trabajo, en las mismas palabras que ve el acudiente en
-// `/esperando`: nunca el nombre tecnico del estado. `fallido` no dice "error":
-// dice que alguien lo esta mirando, porque un trabajo fallido es reintentable y
-// no una via muerta para el padre.
-const PALABRAS_ESTADO: Record<EstadoTrabajo, string> = {
-  encolado: "Estamos armando tu kit",
-  procesando: "Estamos armando tu kit",
-  espera_revision: "Una persona lo está revisando",
-  publicado: "Listo",
-  fallido: "Hubo un problema, lo estamos revisando",
-  cancelado: "Cancelaste esta solicitud",
-};
-
-// El estado de una solicitud como chip de color, en palabras del acudiente:
-// "Listo", "En revisión", "Armando". Un pedido ya armado con ese kit manda
-// sobre el estado del trabajo ("Comprado" / "Pago pendiente").
-type TonoChip = TonoEstado | "info" | "neutro";
-interface ChipEstado {
-  texto: string;
-  tono: TonoChip;
-}
-
 const CLASE_CHIP: Record<TonoChip, string> = {
   exito: styles.badgeExito,
   aviso: styles.badgeAviso,
@@ -105,43 +75,6 @@ const CLASE_CHIP: Record<TonoChip, string> = {
   neutro: styles.badgeNeutro,
 };
 
-function chipDeSolicitud(
-  solicitud: Solicitud,
-  compra: { estado: "comprado" | "pendiente_pago" | string } | null,
-): ChipEstado {
-  if (compra) {
-    return compra.estado === "comprado"
-      ? { texto: "Comprado", tono: "exito" }
-      : { texto: "Pago pendiente", tono: "aviso" };
-  }
-  if (solicitud.tipo === "recibida")
-    return { texto: "En revisión", tono: "aviso" };
-  if (solicitud.tipo === "aprobada") return { texto: "Listo", tono: "exito" };
-  switch (solicitud.estado) {
-    case "publicado":
-      return { texto: "Listo", tono: "exito" };
-    case "encolado":
-    case "procesando":
-      return { texto: "Armando", tono: "info" };
-    case "cancelado":
-      return { texto: "Cancelada", tono: "neutro" };
-    default:
-      return { texto: "En revisión", tono: "aviso" };
-  }
-}
-
-// De varias solicitudes del mismo colegio y grado, la del hijo muestra la mas
-// avanzada: un kit listo gana a uno que se esta armando, y este a uno en revision.
-const RANGO_CHIP: Record<string, number> = {
-  Listo: 4,
-  Comprado: 4,
-  Armando: 3,
-  "Pago pendiente": 2,
-  "En revisión": 1,
-};
-
-// Una imagen de la marca con un titulo, un texto y un CTA: el estado vacio de
-// una seccion. La imagen es decorativa (el titulo ya dice de que trata).
 function EstadoVacio(props: {
   Icono: LucideIcon;
   titulo: string;
@@ -166,17 +99,12 @@ function EstadoVacio(props: {
   );
 }
 
-// La clase de la etiqueta de estado segun su tono (verde, amarillo, rojo).
 const CLASE_TONO: Record<TonoEstado, string> = {
   exito: styles.badgeExito,
   aviso: styles.badgeAviso,
   peligro: styles.badgePeligro,
 };
 
-// Los pedidos del portador, cada uno con si ya vencio su ventana de pago (24
-// horas). Si comercio esta caido, no se tumba el panel entero: se muestran las
-// demas secciones y una fila vacia, sin inventar pedidos que no existen. El
-// "ahora" se toma al cargar los datos, una vez por peticion, no al pintar.
 async function pedidosConVigencia(): Promise<{
   filas: { pedido: Pedido; vencido: boolean }[];
   ahora: number;
@@ -184,10 +112,8 @@ async function pedidosConVigencia(): Promise<{
   const ahora = Date.now();
   let pedidos: Pedido[];
   try {
-    // Comercio saca al acudiente de la sesion: viaja el token, no el id.
     pedidos = await pedidosDeLaSesion();
   } catch (causa) {
-    // Con el cupo agotado (429) no se finge una tabla vacia: va al aviso.
     if (esLimiteDeTasa(causa)) throw causa;
     return { filas: [], ahora };
   }
@@ -200,8 +126,6 @@ async function pedidosConVigencia(): Promise<{
   };
 }
 
-// Los casos del portador. Si Operación no responde, la sección avisa y el resto
-// del panel sigue vivo (`null` = no se pudieron leer, distinto de "no hay").
 async function casosDeLaSesion(): Promise<MiCaso[] | null> {
   const token = await tokenDeSesion();
   if (!token) return [];
@@ -213,8 +137,6 @@ async function casosDeLaSesion(): Promise<MiCaso[] | null> {
   }
 }
 
-// Un 429 en cualquiera de las lecturas (sesion incluida) pinta el aviso del
-// limite con su espera: ni "no tienes hijos" ni la vuelta a /ingresar.
 export default async function DashboardPage() {
   return conAvisoDeLimite(panel);
 }
@@ -226,14 +148,6 @@ async function panel() {
   const { filas: pedidos, ahora } = await pedidosConVigencia();
   const casos = await casosDeLaSesion();
 
-  // Los perfiles de los hijos del portador. `matriculasDeLaSesion()` es
-  // fail-closed a [] (no distingue "sin hijos" de "lectura fallida"), asi que
-  // usamos `colegios()` —que SI lanza— como centinela de salud del backend y,
-  // de paso, para resolver el nombre del colegio de cada matricula. Un fallo
-  // aqui pinta un aviso y no tumba las demas secciones, igual que pedidos. Gap
-  // conocido: si SOLO cae el endpoint de matriculas y catalogo responde,
-  // degradamos al mensaje "sin hijos" en vez de romper. Va en su PROPIO
-  // try/catch: un fallo de colegios no debe vaciar la tabla de pedidos.
   let hijos: MatriculaAcudiente[] = [];
   let colegios: Colegio[] = [];
   let errorHijos = false;
@@ -247,13 +161,6 @@ async function panel() {
     errorHijos = true;
   }
 
-  // Las solicitudes del portador: sus listas subidas + sus trabajos, unidas.
-  // En su PROPIO try/catch (degradacion por seccion). Dos niveles de fallo:
-  //  - `errorSolicitudes`: fallo de sesion o de inteligencia -> aviso de TODA
-  //    la seccion (no distinguimos "sin solicitudes" de "no se pudo leer").
-  //  - `listasDisponibles === false`: solo catalogo cayo -> inteligencia
-  //    devolvio los trabajos igual, y arriba de ellos avisamos que faltan las
-  //    listas subidas (§Decisiones 5).
   let solicitudes: Solicitud[] = [];
   let listasDisponibles = true;
   let errorSolicitudes = false;
@@ -266,15 +173,12 @@ async function panel() {
     errorSolicitudes = true;
   }
 
-  // colegio_id -> nombre para resolver el colegio de cada hijo sin O(n^2).
   const nombrePorColegio = new Map(
     colegios.map((c) => [c.colegio_id, c.nombre]),
   );
 
-  // sesion.nombre puede venir vacio; caemos al correo para no mostrar un hueco.
   const nombreCuenta = sesion.nombre.trim() || sesion.correo;
 
-  // Resumen del encabezado, todo calculado de lo ya leido (nada se inventa).
   const chipsDeSolicitudes = solicitudes.map((s) => {
     const trabajoId = s.tipo === "recibida" ? null : s.trabajo_id;
     const compra = trabajoId
@@ -289,15 +193,13 @@ async function panel() {
   const kitsListos = chipsDeSolicitudes.filter(
     (c) => c.tono === "exito",
   ).length;
-  // Estado por hijo: la solicitud mas avanzada del mismo colegio y grado.
   const estadoPorHijo = new Map<string, ChipEstado>();
   solicitudes.forEach((s, i) => {
     const chip = chipsDeSolicitudes[i];
     const clave = `${s.colegio_id}|${s.grado}`;
     const previo = estadoPorHijo.get(clave);
     if (
-      (RANGO_CHIP[chip.texto] ?? 0) >
-      (previo ? (RANGO_CHIP[previo.texto] ?? 0) : 0)
+      rangoDeChip(chip) > (previo ? rangoDeChip(previo) : 0)
     ) {
       estadoPorHijo.set(clave, chip);
     }
@@ -309,9 +211,7 @@ async function panel() {
         <div className={styles.main}>
           <Sidebar nombreCuenta={nombreCuenta} />
 
-          {/* ======== Columna de contenido ======== */}
           <Revelar modo="cascada" cadaUno={0.06} className={styles.content}>
-            {/* Encabezado: saludo + resumen */}
             <header className={styles.pageHeader}>
               <div className={styles.pageHeader__titles}>
                 <h1>{saludoDeCuenta(sesion.nombre)}</h1>
@@ -333,7 +233,6 @@ async function panel() {
               </dl>
             </header>
 
-            {/* ---- Perfiles de hijos ---- */}
             <section id="hijos" className={styles.card}>
               <div className={styles.sectionHeader}>
                 <h2>Perfiles de hijos</h2>
@@ -353,9 +252,7 @@ async function panel() {
               ) : (
                 <ul className={styles.hijos}>
                   {hijos.map((hijo, i) => {
-                    // apodo null, vacio o solo espacios -> "Hijo N" en base 1.
                     const titulo = hijo.apodo?.trim() || `Hijo ${i + 1}`;
-                    // Nombre del colegio; el id crudo solo si no se encuentra.
                     const colegio =
                       nombrePorColegio.get(hijo.colegio_id) ?? hijo.colegio_id;
                     return (
@@ -387,7 +284,6 @@ async function panel() {
               )}
             </section>
 
-            {/* ---- Mis solicitudes ---- */}
             <section id="solicitudes" className={styles.card}>
               <div className={styles.sectionHeader}>
                 <h2>Mis solicitudes</h2>
@@ -407,9 +303,6 @@ async function panel() {
                 />
               ) : (
                 <>
-                  {/* Catalogo caido: mostramos los trabajos que inteligencia SI
-                      tiene y avisamos que faltan las listas subidas, sin fingir
-                      que no existen ni tumbar la seccion. */}
                   {!listasDisponibles && (
                     <p className={styles.hijosError}>
                       No pudimos cargar las listas que subiste; vuelve a
@@ -418,17 +311,11 @@ async function panel() {
                   )}
                   <ul className={styles.solicitudes}>
                     {solicitudes.map((solicitud, i) => {
-                      // Nombre del colegio: primero el mapa de identidad (colegio
-                      // aliado conocido), luego el que trajo catalogo (colegio
-                      // nuevo), y el id crudo solo si no hay ninguno.
                       const colegio =
                         nombrePorColegio.get(solicitud.colegio_id) ??
                         solicitud.colegio_nombre ??
                         solicitud.colegio_id;
                       const clave = `${solicitud.tipo}-${solicitud.colegio_id}-${solicitud.grado}-${i}`;
-                      // El cruce con "Mis pedidos" por kit: no se guarda, se
-                      // calcula, asi que un pedido cancelado devuelve la
-                      // solicitud a "Listo" sin escribir nada.
                       const trabajoId =
                         solicitud.tipo === "recibida"
                           ? null
@@ -530,8 +417,6 @@ async function panel() {
                                     ? "Ver mis kits"
                                     : "Ver el estado"}
                                 </Link>
-                                {/* Mientras el pipeline lo arma no se cancela: se
-                                    escribiría a medias. */}
                                 {solicitud.estado !== "procesando" && (
                                   <CancelarSolicitud
                                     trabajoId={solicitud.trabajo_id}
@@ -548,7 +433,6 @@ async function panel() {
               )}
             </section>
 
-            {/* ---- Mis pedidos ---- */}
             <section id="pedidos" className={styles.card}>
               <div className={styles.sectionHeader}>
                 <h2>Mis pedidos</h2>
@@ -609,10 +493,6 @@ async function panel() {
                             </div>
                           </div>
 
-                          {/* Las fases llegan de Comercio (la misma linea de tiempo
-                            de /pedidos/[id]). Sin ella (comercio sin reiniciar) la
-                            tarjeta queda con su estado, sin inventar fases. Un
-                            pedido por pagar no tiene fases que mostrar aun. */}
                           {pedido.linea_de_tiempo && !pendiente && (
                             <SeguimientoPedido linea={pedido.linea_de_tiempo} />
                           )}
@@ -651,7 +531,6 @@ async function panel() {
               )}
             </section>
 
-            {/* ---- Mis casos ---- */}
             <section id="casos" className={styles.card}>
               <div className={styles.sectionHeader}>
                 <h2>Mis casos</h2>
@@ -666,7 +545,6 @@ async function panel() {
               )}
             </section>
 
-            {/* ---- Ayuda ---- */}
             <section className={styles.ayudaCard}>
               <div className={styles.ayudaCard__header}>
                 <div className={styles.ayudaCard__icon}>
@@ -690,7 +568,6 @@ async function panel() {
               </Link>
             </section>
 
-            {/* ---- Privacidad (Ley 1581) ---- */}
             <section className={styles.card}>
               <div className={styles.sectionHeader}>
                 <h2>Privacidad y mis datos</h2>

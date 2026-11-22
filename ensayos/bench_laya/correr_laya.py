@@ -1,23 +1,4 @@
-"""El retador: Laya armando los mismos kits, en cuatro modalidades.
-
-Corre en `.venv-laya` (torch + laya), sin importar nada del proyecto: lee
-`instancias.json.gz` y `escenarios.json` y escribe `laya_<modalidad>.json` con una
-asignacion `{orden: sku}` por (instancia, escenario). La evaluacion la hace
-`evaluar.py` con las funciones de produccion, igual que para el NSGA-II.
-
-Modalidades:
-  A  linea aislada: una pregunta por linea, viendo solo ese renglon.
-  B  lista completa: el estado es la lista entera (con presupuesto si lo hay) y
-     se pregunta por cada linea; varias preguntas por pasada.
-  C  secuencial: decide en orden y cada pregunta ve el presupuesto restante y lo
-     minimo que cuestan las lineas que faltan.
-  D  juez de kits: se arman 5 kits completos con reglas simples (sin NSGA-II) y
-     Laya elige uno.
-
-El formato de las preguntas (opciones descritas en espanol, checkpoint
-`typed-decisions`) se eligio con la prueba de cordura sobre casos sinteticos,
-no mirando estas instancias.
-"""
+"""El retador: Laya armando los mismos kits, en cuatro modalidades."""
 
 from __future__ import annotations
 
@@ -39,14 +20,7 @@ LETRAS = "ABCDEFGHIJ"
 PREGUNTAS_POR_PASADA = 8
 TOKENS_POR_PASADA = 8000
 
-# Laya, ante una falta de memoria en GPU, reintenta la llamada en CPU; con estados
-# de miles de tokens eso tarda minutos por llamada y colgo una corrida dos horas.
-# Se vuelve error para manejarlo aqui (tandas de una pregunta).
 warnings.filterwarnings("error", message="Warning: GPU memory exceeded")
-
-
-# ------------------------------------------------------- utilidades de dominio
-# Copias minimas de la aritmetica del optimizador (este entorno no tiene pymoo).
 
 
 def rango(c: dict) -> int:
@@ -89,7 +63,6 @@ def describir(r: dict, c: dict) -> str:
 
 
 def criterios(r: dict) -> tuple[dict[str, str], dict[str, str]]:
-    """Opciones de una linea: {letra: descripcion} y {letra: sku}."""
     adm = admisibles(r)
     return (
         {LETRAS[i]: describir(r, c) for i, c in enumerate(adm)},
@@ -120,9 +93,6 @@ def instruccion(esc: dict) -> str:
 
 def renglon_txt(r: dict) -> str:
     return f"Renglon de la lista escolar: {r['texto']} (cantidad pedida {r['cantidad']})"
-
-
-# ------------------------------------------------------------- modalidades
 
 
 def _elige(respuesta: dict, qid: str, skus: dict[str, str]) -> tuple[str, float]:
@@ -172,8 +142,6 @@ def modalidad_b(agente, inst, esc):
             asign[str(r["orden"])] = next(iter(skus.values()))
         else:
             pendientes.append((r, crit, skus))
-    # Laya repite el estado por cada pregunta de la pasada: con listas de miles de
-    # tokens, 8 preguntas por pasada no caben en 6 GB. La tanda se ajusta al largo.
     tokens = len(agente.tok(estado)["input_ids"])
     por_pasada = max(1, min(PREGUNTAS_POR_PASADA, TOKENS_POR_PASADA // max(1, tokens)))
     for i in range(0, len(pendientes), por_pasada):
@@ -232,12 +200,6 @@ def modalidad_c(agente, inst, esc):
 
 
 def kits_por_reglas(dec: list[dict], personaje: str | None) -> list[dict]:
-    """5 kits armados con reglas simples, sin NSGA-II.
-
-    Barato por linea; Premium por linea; y tres intermedios que suben de nivel
-    las lineas en orden de menor costo extra por nivel ganado (25/50/75 % de las
-    subidas posibles). Si hay personaje pedido, el Fan reemplaza al 75 %.
-    """
     barato = {str(r["orden"]): min(admisibles(r), key=lambda c: (costo(r, c), -rango(c))) for r in dec}
     premium = {str(r["orden"]): min(admisibles(r), key=lambda c: (-rango(c), costo(r, c))) for r in dec}
     pasos = []
@@ -340,7 +302,6 @@ def main() -> int:
     agente = laya.load(args.modelo)
     agente.predict("calentamiento", {"q": {"type": "noul", "instructions": "¿si?"}})
     for m in args.modalidades:
-        # Avance fila por fila en un .jsonl: una corrida cortada se retoma donde quedo.
         avance = CARPETA / f"laya_{m}{args.sufijo}.avance.jsonl"
         filas = []
         if avance.exists():
@@ -356,10 +317,7 @@ def main() -> int:
             try:
                 asign, confs = MODALIDADES[m](agente, inst, esc)
                 error = None
-            except Exception as exc:  # una falla de Laya en una lista se registra, no tumba la corrida
-                # Una falta de memoria en GPU deja al agente con tensores repartidos entre
-                # CPU y GPU y todo lo que sigue falla; se recarga y se reintenta una vez
-                # con tandas mas chicas.
+            except Exception as exc:
                 error = f"{type(exc).__name__}: {exc}"[:300]
                 agente = _recargar(lib_laya, args.modelo)
                 global PREGUNTAS_POR_PASADA

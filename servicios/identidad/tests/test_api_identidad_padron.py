@@ -1,5 +1,3 @@
-"""`GET /v1/admin/acudientes`: el padron de familias para el equipo interno."""
-
 from __future__ import annotations
 
 from tukit_comun.identificadores import derivar
@@ -8,11 +6,6 @@ from tests._ayudas_identidad import sembrar_usuario_con_rol
 
 
 class TestElPadronDeAcudientes:
-    """`GET /v1/admin/acudientes`: la unica ruta que abre dato de menor, gateada
-    a admin/operador y podada a lo minimo. Los acudientes de prueba nacen por
-    `/v1/registro` (credencial real + hijos, sin rol) para que caigan dentro del
-    filtro de poblacion."""
-
     async def _registrar(self, cliente, correo, apodo=None):
         hijo = {"colegio_id": str(derivar("colegio", "2.4")), "grado": "Quinto"}
         if apodo is not None:
@@ -38,7 +31,7 @@ class TestElPadronDeAcudientes:
         r = await cliente.get("/v1/admin/acudientes", headers={"Authorization": f"Bearer {token}"})
         assert r.status_code == 403
         assert r.json()["error"] == "acceso_denegado"
-        assert "Pipe" not in r.text  # el dato de menor NO se filtro a un no-staff
+        assert "Pipe" not in r.text
 
     async def test_admin_ve_al_acudiente_con_apodo_descifrado(self, cliente):
         await self._registrar(cliente, "familia@ejemplo.com", apodo="Pipe")
@@ -47,7 +40,7 @@ class TestElPadronDeAcudientes:
         assert r.status_code == 200
         fila = next(a for a in r.json()["acudientes"] if a["correo"] == "familia@ejemplo.com")
         assert fila["celular"] == "3001112233"
-        assert fila["creado_en"]  # ISO-8601 presente
+        assert fila["creado_en"]
         assert fila["hijos"][0] == {
             "apodo": "Pipe",
             "colegio_id": str(derivar("colegio", "2.4")),
@@ -93,7 +86,7 @@ class TestElPadronDeAcudientes:
                 f"/v1/admin/acudientes?ids={interno}", headers={"Authorization": f"Bearer {token}"}
             )
         ).json()
-        assert forzado["acudientes"] == []  # el acote va SOBRE el filtro de poblacion
+        assert forzado["acudientes"] == []
 
     async def test_no_expone_campos_prohibidos(self, cliente):
         await self._registrar(cliente, "familia@ejemplo.com", apodo="Pipe")

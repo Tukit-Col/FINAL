@@ -1,16 +1,14 @@
-"use client";
-
-// Los botones del detalle de un pedido: uno por transicion que el back-office
-// puede hacer desde su estado (la matriz vive en `lib/logistica.ts`, espejo de
-// la de comercio).
+// Los botones del detalle de un pedido: uno por transición que el back-office puede hacer.
 //
-// Los pasos simples van directo porque se deshacen con el siguiente (un
-// "Salio a reparto" equivocado se corrige con una incidencia). Despachar e
-// incidencia abren su formulario porque comercio exige datos (repartidor;
-// tipo y nota). Cancelar pide confirmacion en dos pasos: es terminal y marca el
-// pago para reembolso. La validacion la hace comercio; aqui solo se pinta su
-// mensaje y se marca el `campo` culpable, para no tener dos reglas que se
-// desalineen.
+// Decisiones:
+// - La matriz de transiciones vive en `lib/logistica.ts`, espejo de la de Comercio.
+// - Los pasos simples van directo porque se deshacen con el siguiente; despachar e incidencia abren un
+//   formulario porque Comercio exige datos; cancelar pide confirmación en dos pasos porque es terminal y
+//   marca el pago para reembolso.
+// - La validación la hace Comercio: aquí solo se pinta su mensaje y se marca el `campo` culpable, para
+//   no tener dos reglas que se desalineen.
+
+"use client";
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
@@ -35,7 +33,6 @@ import styles from "./AccionesPedido.module.css";
 interface Props {
   pedidoId: string;
   estado: EstadoPedido;
-  /** Enlace de ingreso de la web, para el banner de sesión vencida. */
   urlIngresar?: string;
 }
 
@@ -70,8 +67,6 @@ export default function AccionesPedido({
         const campo =
           typeof causa.detalle.campo === "string" ? causa.detalle.campo : null;
         setFallo({ mensaje: causa.message, campo, estado: causa.estado });
-        // 409: otro operador lo movio (o la matriz cambio). El refresco trae
-        // el estado real y con el los botones que si aplican.
         if (causa.estado === 409) router.refresh();
       } else {
         setFallo({
@@ -114,7 +109,6 @@ export default function AccionesPedido({
         });
       }
     } finally {
-      // El botón nunca queda en "cargando" para siempre, pase lo que pase.
       setEnviando(false);
     }
   }

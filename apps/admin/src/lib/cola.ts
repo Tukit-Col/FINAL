@@ -1,11 +1,3 @@
-// Logica pura de la cola de verificacion: filtros desde la URL, grupos por
-// colegio, orden y paginacion. SOLO importa tipos del contrato para poder
-// probarse con `node --test` sin runner de componentes.
-//
-// El endpoint `GET /v1/admin/listas` solo filtra por grado y anio; busqueda
-// por colegio y origen se resuelven aqui, en el servidor de Next, sobre la
-// respuesta ya traida.
-
 export const POR_PAGINA = 25;
 
 export type OrigenCola = "todos" | "acudiente" | "colegio";
@@ -18,7 +10,6 @@ export interface FiltrosCola {
   pagina: number;
 }
 
-/** Lo minimo que la cola lee de una version (VersionListaAdmin lo cumple). */
 export interface VersionCola {
   version_id: string;
   colegio_id: string;
@@ -56,7 +47,6 @@ export function leerFiltrosCola(p: Params): FiltrosCola {
   };
 }
 
-/** Sin tildes ni mayusculas: "Bogota" encuentra "Bogotá". */
 export function normalizar(s: string): string {
   return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
@@ -81,11 +71,6 @@ export function filtrarVersiones<V extends VersionCola>(
   });
 }
 
-/**
- * Agrupa por colegio. Orden: colegios con acudiente esperando primero (mas
- * acudientes arriba), luego por nombre. Dentro del grupo, el grado segun
- * `ordenGrado` (pedagogico).
- */
 export function agruparPorColegio<V extends VersionCola>(
   versiones: readonly V[],
   nombreDe: (v: V) => string,
@@ -127,7 +112,6 @@ export function paginar<T>(
   return { items: items.slice((p - 1) * porPagina, p * porPagina), pagina: p, paginas, total: items.length };
 }
 
-/** Querystring de los filtros activos (sin valores por defecto). */
 export function hrefCola(f: FiltrosCola, pagina = 1): string {
   const u = new URLSearchParams();
   if (f.q) u.set("q", f.q);

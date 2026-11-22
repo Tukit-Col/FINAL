@@ -1,11 +1,3 @@
-// Panel de re-clasificación de un producto (P4c): mover el producto bajo otro
-// concepto. Es una escritura aparte del PATCH de campos porque tiene un efecto
-// distinto —el backend limpia el `texto_embedding` para que se recalcule— y
-// conviene que el revisor lo vea como una acción deliberada, no un campo más.
-//
-// Presentación pura: recibe la lista de conceptos y el concepto actual, avisa
-// hacia arriba con el código elegido. La llamada la hace `GestorCatalogo`.
-
 import { useState } from "react";
 import Desplegable from "./Desplegable";
 import styles from "./CatalogoSpa.module.css";
@@ -13,10 +5,6 @@ import styles from "./CatalogoSpa.module.css";
 export interface OpcionConcepto {
   codigo: string;
   nombre: string;
-  // El esquema de atributos que el concepto declara. Lo consume el editor para
-  // pre-poblar todas las claves (discriminantes + descriptivos), no solo las
-  // que el producto ya trae. El selector de re-clasificación no lo usa; por eso
-  // son opcionales y no rompen a los consumidores que solo arman `{codigo, nombre}`.
   atributos_discriminantes?: string[];
   atributos_descriptivos?: string[];
 }

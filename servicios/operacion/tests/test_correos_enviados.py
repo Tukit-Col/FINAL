@@ -1,7 +1,3 @@
-"""El panel de correos enviados: solo staff, sin contacto, con filtros y resumen.
-
-Contra la app real con SQLite en memoria, como `test_admin_tickets`."""
-
 from __future__ import annotations
 
 import uuid
@@ -36,7 +32,9 @@ async def cliente() -> AsyncIterator[httpx.AsyncClient]:
     await engine.dispose()
 
 
-async def _aviso(plantilla: str, *, exito: bool = True, omitida: bool = False, minutos: int = 0, **datos) -> None:
+async def _aviso(
+    plantilla: str, *, exito: bool = True, omitida: bool = False, minutos: int = 0, **datos
+) -> None:
     async with app.state.motor.sesion() as db:
         await RepoNotificaciones(await db.connection()).registrar(
             usuario_id=USUARIO,
@@ -68,7 +66,11 @@ async def test_lista_lo_mas_reciente_primero_con_resumen_y_sin_direccion(cliente
 
     cuerpo = (await cliente.get("/v1/operacion/correos", headers=STAFF)).json()
 
-    assert [c["plantilla"] for c in cuerpo["correos"]] == ["kits_publicados", "pedido_despachado", "pedido_pagado"]
+    assert [c["plantilla"] for c in cuerpo["correos"]] == [
+        "kits_publicados",
+        "pedido_despachado",
+        "pedido_pagado",
+    ]
     assert cuerpo["resumen"] == {"enviada": 1, "fallida": 1, "omitida": 1}
     omitido = cuerpo["correos"][0]
     assert (omitido["estado"], omitido["detalle"], omitido["destino_dominio"]) == (

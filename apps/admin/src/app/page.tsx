@@ -1,12 +1,3 @@
-// `/` — el panel del operador. Arriba lo que pide acción (tarjetas > 0; los en
-// cero, compactos); abajo el pulso: flujo de pedidos, tickets, listas por
-// verificar por colegio y actividad reciente. Todo sale de lo que ya devuelven
-// pedidos(), casos(), cola(), listasAdmin() y colegios(); cada número enlaza a
-// su vista filtrada.
-//
-// Lecturas independientes con `allSettled`: si un servicio cae, se avisa de ESE
-// y el resto se pinta. "Todo al día" solo si todo lo accionable es cero.
-
 import Link from "next/link";
 import { ArrowRight, CircleCheck, TriangleAlert } from "lucide-react";
 import {
@@ -42,9 +33,6 @@ const NOMBRE_FUENTE: Record<FuentePanel, string> = {
   cola: "la cola de revisión",
 };
 
-// Color por etapa: del cielo claro al azul de marca a medida que el pedido
-// avanza; ambar lo que espera el pago, verde lo entregado (mismo criterio
-// semantico que las columnas del tablero de logistica).
 const COLOR_ETAPA: Record<string, string> = {
   pendiente_pago: "var(--clay-estrella-oscuro)",
   pagado: "var(--clay-cielo-claro)",
@@ -70,7 +58,6 @@ function sinPermiso(r: PromiseSettledResult<unknown>): boolean {
 
 export default async function PaginaPanel() {
   const api = origenDeDatos();
-  // Pedidos y casos son solo de operador/admin: sin cookie ni se pregunta.
   const token = await tokenDeSesion();
   const sinSesion = () =>
     Promise.reject(new ErrorTukit(401, "sesion_invalida", "Sin sesion."));
@@ -98,7 +85,6 @@ export default async function PaginaPanel() {
     cola: sinPermiso(colaR),
   };
 
-  // Un solo reloj para toda la página.
   // eslint-disable-next-line react-hooks/purity
   const ahora = Date.now();
   const nombres = new Map(
@@ -124,8 +110,6 @@ export default async function PaginaPanel() {
   });
 
   const hayPendientes = widgets.length > 0;
-  // La tarjeta con mas urgencia (alta primero, luego la de mas casos) es la
-  // unica que lleva haz de luz y ocupa el tile grande.
   const urgente = [...widgets].sort(
     (x, y) => Number(y.urgencia === "alta") - Number(x.urgencia === "alta") || y.cantidad - x.cantidad,
   )[0];

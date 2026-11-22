@@ -1,34 +1,15 @@
-"""El limite de tasa de la puerta (ADR 0047).
+"""Limite de tasa del gateway.
 
-Dos niveles, y en cada uno dos claves que tienen que pasar las dos:
-
-- **General**, todo `/v1/*`: 300 por token y 1.200 por IP cada 60 s.
-- **Supresion**, solo `POST /v1/cuenta/supresion`: 5 por token y 10 por IP
-  cada hora, en lugar del estricto.
-- **Estricto**, por ruta, en las que cuestan (leer un PDF, crear un trabajo,
-  derivar una clave): 30 por token y 60 por IP cada 600 s. Una ruta estricta
-  cuenta tambien en el general, y cada una tiene su propio cupo: los intentos de
-  entrar no gastan el de las subidas.
-
-La IP tiene mas cupo que el token porque detras de una IP puede haber muchas
-familias (un colegio, el NAT de un operador movil). Sin token solo cuenta la IP;
-con un token inventado en cada peticion tambien, asi que inventarlos no da cupo.
-
-**La IP del cliente.** Si la conexion viene de un proxy de confianza
-(`TUKIT_PROXIES_CONFIANZA`; por omision `127.0.0.1,::1`, que es donde corre la
-web), se recorre `X-Forwarded-For` de derecha a izquierda y la IP es la primera
-que no es de confianza. Si no viene de uno, la cabecera se ignora: la escribio
-el cliente. Esta regla es la unica: `api.main` lanza uvicorn sin
-`proxy_headers`, porque uvicorn confia en 127.0.0.1 por su lado y reescribiria
-la conexion antes de que el limite la vea.
-
-**El conteo** es por ventana fija, en Redis si responde y en la memoria del
-proceso si no (`tukit_comun.cache`). Las claves llevan el SHA-256 del token y
-el de la IP, nunca uno ni otra en claro, y no salen en ningun log.
-
-Quedan fuera `/v1/servicios`, `/v1/webhooks/*` (la pasarela no reintenta un
-429 como una familia), las preflight `OPTIONS` y lo que no es `/v1/*`. Una ruta
-desconocida si cuenta: un escaner tambien gasta cupo.
+Decisiones:
+- Tres niveles, y en cada uno deben pasar las dos claves (token e IP): general para todo `/v1/*`
+  (300 por token y 1.200 por IP cada 60 s), estricto por ruta en las que cuestan (leer un PDF,
+  crear un trabajo, derivar una clave: 30 por token y 60 por IP cada 600 s) y supresion para
+  `POST /v1/cuenta/supresion` (5 por token y 10 por IP cada hora). Una ruta estricta cuenta tambien
+  en el general y tiene su propio cupo.
+- La IP tiene mas cupo que el token porque detras de una IP puede haber muchas familias. Sin token
+  cuenta solo la IP; un token inventado en cada peticion tambien, asi que inventarlos no da cupo.
+- La IP del cliente sale de `X-Forwarded-For`, de derecha a izquierda, solo si la conexion viene de
+  un proxy de confianza (`TUKIT_PROXIES_CONFIANZA`); si no, la cabecera se ignora.
 """
 
 from __future__ import annotations
@@ -49,7 +30,6 @@ from tukit_comun.red import ip_del_cliente, proxies_de_confianza
 
 log = logging.getLogger(__name__)
 
-# (nombre en la clave, ruta) de las estrictas; solo cuentan con POST.
 RUTAS_ESTRICTAS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("listas-subir", re.compile(r"/v1/listas/subir")),
     ("trabajos", re.compile(r"/v1/trabajos")),
@@ -61,19 +41,13 @@ RUTAS_ESTRICTAS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("cuenta", re.compile(r"/v1/cuenta")),
     ("registro", re.compile(r"/v1/registro")),
     ("catalogo-emparejar", re.compile(r"/v1/catalogo/emparejar")),
-    # La sugerencia del acudiente sube un archivo sin sesion: misma cuenta que
-    # una lista subida, no la general de lectura.
     ("sugerencias", re.compile(r"/v1/admin/sugerencias")),
-    # Cada llamada del asistente cuesta una llamada a un modelo de pago (OWASP LLM10).
     ("nl2c", re.compile(r"/v1/nl2c/(?:interpretar|decision)")),
     ("nl2c-kit", re.compile(r"/v1/kits/[^/]+/asistente/proponer")),
-    # Suprimir los datos del titular no tiene vuelta atras: cuenta en su propio
-    # nivel, mas corto que el estricto (`nivel_supresion`).
     ("cuenta-supresion", re.compile(r"/v1/cuenta/supresion")),
     ("cuenta-consentimientos", re.compile(r"/v1/cuenta/consentimientos/revocar")),
 )
 
-# Las estrictas que, ademas, van con el nivel de supresion y no con el estricto.
 RUTAS_SUPRESION = frozenset({"cuenta-supresion"})
 
 
@@ -87,8 +61,6 @@ class Nivel:
 
 @dataclass(frozen=True)
 class Cuenta:
-    """Una clave que se cuenta en esta peticion."""
-
     clave: str
     ventana: int
     tope: int
@@ -97,7 +69,6 @@ class Cuenta:
     tipo: str
 
     def __str__(self) -> str:
-        # Lo que sale en el log: sin la huella.
         return f"{self.nivel}:{self.ruta}:{self.tipo}"
 
 
@@ -109,14 +80,11 @@ _VARIABLES = tuple(
 
 
 def niveles() -> tuple[Nivel, Nivel]:
-    """El general y el estricto, del entorno; un `0` apaga esa ventana o ese tope."""
     return _niveles(tuple(os.environ.get(variable, "") for variable in _VARIABLES))
 
 
 @functools.cache
 def _niveles(_crudos: tuple[str, ...]) -> tuple[Nivel, Nivel]:
-    # Se arma una vez por cada combinacion del entorno: un valor mal escrito
-    # deja un WARNING, no uno por peticion.
     def nivel(nombre: str, ventana: int, por_token: int, por_ip: int) -> Nivel:
         prefijo = f"TUKIT_LIMITE_{nombre.upper()}_"
         return Nivel(
@@ -130,8 +98,6 @@ def _niveles(_crudos: tuple[str, ...]) -> tuple[Nivel, Nivel]:
 
 
 def nivel_supresion() -> Nivel:
-    """5 por token y 10 por IP cada hora (`TUKIT_LIMITE_SUPRESION_*`). Un titular
-    suprime una vez; los reintentos de una red inestable caben, un barrido no."""
     return _nivel_supresion(
         tuple(os.environ.get(f"TUKIT_LIMITE_SUPRESION_{c}", "") for c in ("VENTANA", "TOKEN", "IP"))
     )
@@ -154,7 +120,6 @@ def exenta(metodo: str, camino: str) -> bool:
 
 
 def ruta_estricta(metodo: str, camino: str) -> str | None:
-    """El nombre de la ruta estricta de `metodo camino`, o `None`."""
     if metodo != "POST":
         return None
     camino = camino.rstrip("/")
@@ -177,7 +142,6 @@ def _huella(texto: str) -> str:
 
 
 def cuentas(metodo: str, camino: str, token: str | None, ip: str) -> list[Cuenta]:
-    """Las claves que cuenta una peticion; vacia si esta exenta."""
     if exenta(metodo, camino):
         return []
     general, estricto = niveles()
@@ -218,7 +182,6 @@ def demasiadas(segundos: int) -> JSONResponse:
 
 
 async def revisar(peticion: Request, camino: str) -> JSONResponse | None:
-    """El 429 si la peticion pasa de algun tope; `None` si puede seguir."""
     conexion = peticion.client.host if peticion.client else None
     reenviada = ", ".join(peticion.headers.getlist("x-forwarded-for")) or None
     ip = ip_del_cliente(conexion, reenviada, proxies_de_confianza())

@@ -1,20 +1,6 @@
 """Experimento D: hipervolumen del frente y de los kits por perfil, en las listas de PRUEBA.
-
-Espacio de los 4 objetivos normalizado a [0, 1] con 0 como lo mejor (ver
-`nucleo.hipervolumen`) y punto de referencia (1,1; 1,1; 1,1; 1,1). Por lista:
-
-- HV del frente de produccion (30 semillas cuando corre NSGA-II) dividido entre el
-  HV del frente exacto (poda por linea);
-- HV de cada perfil: el volumen que domina el punto de ese kit hasta la
-  referencia, dividido entre el HV del frente exacto (Ahorrador, Premium y el
-  punto MAUT con los pesos P21);
-- cobertura de los kits: HV del conjunto {Ahorrador, Premium} dividido entre el HV
-  del frente exacto, o sea que parte del volumen del frente dominan los dos kits
-  que siempre se muestran.
-
 Uso: uv run python ensayos/calibracion/hipervolumen_prueba.py
-Salida: docs/informes/calibracion/hipervolumen_prueba.json
-"""
+Salida: ensayos/calibracion/salidas/hipervolumen_prueba.json"""
 
 from __future__ import annotations
 

@@ -1,5 +1,3 @@
-// `POST /api/trabajos/{id}/lineas/{item_id}/sin-coincidencia` — AD-02.
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { SinCoincidencia } from "@tukit/contrato";
 import { cuerpoJson, respuestaDeError, SIN_CONTENIDO } from "@/lib/respuesta";
@@ -22,9 +20,6 @@ export async function POST(
   }
 
   try {
-    // El motivo obligatorio lo impone el origen (400 `motivo_requerido`) y
-    // aqui no se repite la validacion: duplicarla es como el mensaje del
-    // backend y el de la pantalla acaban diciendo cosas distintas.
     await origenDeDatos().marcarSinCoincidencia(trabajo_id, item_id, cuerpo ?? { motivo: "" });
     return SIN_CONTENIDO();
   } catch (causa) {

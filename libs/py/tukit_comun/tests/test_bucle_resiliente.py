@@ -1,21 +1,3 @@
-"""Pruebas del bucle de fondo que sobrevive a las caidas (H-B-02, ADR 0041).
-
-Con Postgres o RabbitMQ caidos, los cinco procesos de fondo morian con codigo 1
-y no volvian: su bucle era `while True: await correr_una_vez(); sleep` sin un
-solo `except`. `bucle_resiliente` es la pieza comun que los cinco usan ahora.
-Lo que fija esta prueba:
-
-1. **Que es una caida.** `es_caida_transitoria` separa lo que se arregla solo
-   (la base o el broker no responden, el nombre del contenedor muerto no
-   resuelve) de un error de programacion, que tiene que seguir tumbando el
-   proceso.
-2. **El bucle espera y vuelve.** Una caida no lo mata: espera 1, 2, 4… segundos
-   hasta un tope, deja un WARNING con el proceso y la excepcion, y vuelve a
-   intentar la misma vuelta. Tras una vuelta buena, la espera empieza de nuevo.
-3. **Lo demas sube.** Un `ValueError` o una cancelacion salen del bucle sin
-   esperar, como antes.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -29,13 +11,9 @@ from tukit_comun.resiliencia import bucle_resiliente, es_caida_transitoria
 
 
 class _Corte(Exception):
-    """Lo lanza el `dormir` de la prueba para salir del bucle infinito."""
+    pass
 
 
-# asyncpg es opcional (el extra `postgres`): estas clases imitan su jerarquia,
-# con los mismos nombres, porque `es_caida_transitoria` reconoce los errores
-# del driver por el nombre de la clase y no los importa. La ultima prueba
-# confirma los nombres contra el asyncpg de verdad, si esta instalado.
 class PostgresError(Exception):
     pass
 
@@ -88,7 +66,6 @@ def _con_causa(error: BaseException, causa: BaseException) -> BaseException:
         socket.gaierror(8, "nodename nor servname provided, or not known"),
         TimeoutError(),
         ConnectionResetError(54, "Connection reset by peer"),
-        # Lo que da asyncio al conectar a `localhost`, que resuelve a ::1 y a 127.0.0.1.
         OSError("Multiple exceptions: [Errno 61] Connect call failed ('::1', 5432, 0, 0)"),
         CannotConnectNowError("the database system is starting up"),
         AdminShutdownError("terminating connection due to administrator command"),
@@ -97,7 +74,6 @@ def _con_causa(error: BaseException, causa: BaseException) -> BaseException:
         aiormq.exceptions.AMQPConnectionError("Connection refused"),
         aiormq.exceptions.ConnectionClosed(320, "CONNECTION_FORCED"),
         aiormq.exceptions.ChannelInvalidStateError("No active transport in channel"),
-        # El broker respondio nack a una publicacion confirmada.
         aiormq.exceptions.DeliveryError(None, None),
         _dbapi(Exception("connection is closed"), invalidada=True),
         _dbapi(ConnectionDoesNotExistError("connection was closed")),
@@ -117,7 +93,6 @@ def test_es_caida_transitoria(error):
         RuntimeError("estado imposible"),
         exc.IntegrityError("INSERT", {}, Exception("duplicate key value")),
         exc.ProgrammingError("SELECT", {}, Exception("syntax error")),
-        # Una tabla que no existe es un error de programacion, tambien en SQLite.
         exc.OperationalError("SELECT", {}, Exception("no such table: reserva_inventario")),
         _dbapi(Exception("division by zero")),
         _dbapi(UndefinedTableError('relation "reserva_inventario" does not exist')),
@@ -134,8 +109,6 @@ def test_no_es_caida_transitoria(error):
 
 
 class _Vuelta:
-    """Una vuelta que falla con los errores dados, en orden, y despues responde."""
-
     def __init__(self, *errores: BaseException | None) -> None:
         self.errores = list(errores)
         self.llamadas = 0
@@ -149,7 +122,6 @@ class _Vuelta:
 
 
 def _dormir_que_corta(esperas: list[float], *, intervalo: float, vueltas_buenas: int = 1):
-    """Registra cada espera y corta el bucle tras `vueltas_buenas` esperas de `intervalo`."""
     restantes = [vueltas_buenas]
 
     async def dormir(segundos: float) -> None:

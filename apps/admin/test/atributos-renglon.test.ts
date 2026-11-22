@@ -1,14 +1,9 @@
-// Prueba de la lógica pura de «Atributos que se exigen» del editor de renglón.
-// Mismo patrón que `atributos-editor.test.ts`: sin runner de componentes, se
-// prueba la función extraída con `node --test`.
-//
-// Correr:  node --test test/atributos-renglon.test.ts
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { serializarAtributos } from "../../../libs/ts/tukit-contrato/src/catalogo.ts";
 import {
   NO_EXIGIR,
+  candidatosDe,
   exigidoDe,
   filasDeExigencia,
   mismosAtributos,
@@ -17,8 +12,6 @@ import {
   valoresDeProductos,
 } from "../src/lib/atributos-renglon.ts";
 
-// La bitácora de la guía (§5.6): el texto dice octavo y cartulina; el revisor
-// cura `tipo=dibujo` y que el tamaño no se exija.
 const bitacora = {
   atributos_discriminantes: ["tipo", "tamano", "hojas"],
   atributos_leidos: { tipo: "cartulina", tamano: "octavo" },
@@ -31,7 +24,6 @@ test("una fila por atributo leído o curado, en el orden del concepto", () => {
     { clave: "tipo", leido: "cartulina", curado: "dibujo", ajena: false, deducido: false },
     { clave: "tamano", leido: "octavo", curado: "*", ajena: false, deducido: false },
   ]);
-  // `hojas` ni se lee ni se cura: es lo que se puede agregar.
   assert.deepEqual(porAgregar(filas, bitacora.atributos_discriminantes), ["hojas"]);
 });
 
@@ -40,7 +32,6 @@ test("lo exigido: lo curado manda, * lo quita, sin curar vale lo leído", () => 
   assert.equal(exigidoDe(tipo), "dibujo");
   assert.equal(exigidoDe(tamano), null);
   assert.equal(exigidoDe({ ...tamano, curado: null }), "octavo");
-  // Una curaduría vacía no afirma nada: vale lo leído.
   assert.equal(exigidoDe({ ...tamano, curado: "  " }), "octavo");
 });
 
@@ -74,7 +65,6 @@ test("guardar manda solo lo curado, tipado, con el * tal cual", () => {
   const filas = [
     ...filasDeExigencia(bitacora),
     { clave: "hojas", leido: null, curado: "15", ajena: false, deducido: false },
-    // Quitar la curaduría = volver a lo leído: no viaja.
     { clave: "gramaje", leido: "40 g", curado: null, ajena: false, deducido: false },
   ];
   const cuerpo = serializarAtributos(paresCurados(filas));
@@ -102,4 +92,15 @@ test("sugiere los valores que declaran los productos del concepto", () => {
     { codigo: "C999", atributos_discriminantes: ["color"], productos: [{ atributos: {} }] },
   ]);
   assert.deepEqual(valores, { C003: { tipo: ["cartulina", "dibujo"], hojas: ["20", "100"] } });
+});
+
+test("las candidatas de un ítem son las suyas por id o, sin id, por el texto de origen", () => {
+  const item = { id: "i1", texto_original: "Lápiz HB" };
+  const propuestas = [
+    { item_id: "i1", texto_origen: "otro" },
+    { item_id: "i2", texto_origen: "Lápiz HB" },
+    { item_id: null, texto_origen: "Lápiz HB" },
+    { item_id: null, texto_origen: "Borrador" },
+  ];
+  assert.deepEqual(candidatosDe(item, propuestas), [propuestas[0], propuestas[2]]);
 });

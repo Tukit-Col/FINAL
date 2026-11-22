@@ -1,19 +1,3 @@
-"""La subida de listas de un acudiente: PDFs entran, se vuelven versiones pendientes.
-
-A diferencia de `POST /v1/trabajos` (que arma un kit desechable) y de
-`POST /v1/admin/onboarding` (la subida de un administrador, un PDF por vez),
-`POST /v1/listas/subir` es la puerta del acudiente del §2: el hogar sube el PDF
-de cada hijo y cada uno se percibe y se importa al catalogo como una VERSION
-PENDIENTE de esa (colegio, grado), ligada al padre por su `contacto_referencia`
-(el `usuario_id` que Identidad emite; nunca su correo ni telefono). No se crea
-ningun trabajo: el padre espera a que un administrador apruebe la version.
-
-Lo que se fija aqui es el contrato de esa puerta: que el contacto se registre
-una sola vez, que cada hijo se percibe y se importe, que dos hijos del mismo
-(colegio, grado) compartan una sola version (no una que pise a la otra), y que
-un archivo rechazado por percepcion no toque el catalogo ni devuelva el archivo.
-"""
-
 from __future__ import annotations
 
 import base64
@@ -35,8 +19,6 @@ OTRO_COLEGIO = "22222222-2222-5222-8222-222222222222"
 
 
 class CatalogoImportador:
-    """Doble del puerto del catalogo: registra cada `importar_lista`."""
-
     def __init__(self) -> None:
         self.llamadas: list[dict] = []
         self._proximo = 0
@@ -79,15 +61,11 @@ class CatalogoImportador:
 
 
 class IdentidadDoble:
-    """Doble de Identidad: devuelve un id fijo y guarda con que se le llamo."""
-
     def __init__(self, usuario_id: str | None = "usr-1") -> None:
         self.usuario_id = usuario_id
         self.llamadas: list[dict] = []
-        # DANE -> datos DUEB que devolveria `/v1/directorio/{dane}`.
         self.directorio: dict[str, dict] = {}
         self.usuario_por_token: dict[str, str] = {}
-        # Los colegios que Identidad ya tiene (`GET /v1/colegios`).
         self.conocidos: list[dict] = []
 
     async def colegios_conocidos(self) -> list[dict]:
@@ -101,8 +79,6 @@ class IdentidadDoble:
         return self.usuario_por_token.get(token)
 
     async def datos_directorio(self, dane: str) -> dict | None:
-        # Un DANE fuera del directorio (o Identidad caida) devuelve None: la
-        # subida degrada a nombre+dane.
         return self.directorio.get(dane)
 
 
@@ -122,8 +98,6 @@ async def cliente(motor, catalogo, identidad):
     app.state.catalogo = catalogo
     app.state.identidad = identidad
 
-    # Percepcion por omision: una pagina, grado "Cuarto", dos items (uno sin
-    # cantidad). Cada prueba que necesite otra cosa cambia `app.state.leer`.
     def _renderizar(_contenido: bytes) -> list[bytes]:
         return [b"p1"]
 
@@ -151,8 +125,6 @@ def _subida(
     preferencias: dict | None = None,
     archivos: list[tuple[str, bytes]] | None = None,
 ):
-    """Arma el multipart de la subida: `hijos`, `contacto` y `preferencias` como
-    JSON, un `archivo`+`referencia` por PDF."""
     if archivos is None:
         archivos = [(h["referencia"], b"%PDF-falso") for h in hijos]
     data: dict[str, str] = {"hijos": json.dumps(hijos)}
@@ -184,14 +156,9 @@ class TestSubirFeliz:
         assert llamada["grado"] == "Cuarto"
         assert llamada["anio_lectivo"] == 2026
         assert llamada["items"][0]["texto_original"] == "2 cuadernos cuadriculados"
-        # La subida del acudiente entra como 'sugerencia_padre', no 'onboarding':
-        # de eso depende que la cola diga "Un acudiente la subió" y no "El colegio
-        # la envió". Regresion de un bug donde `importar_lista` fijaba onboarding.
         assert llamada["origen"] == "sugerencia_padre"
 
     async def test_cada_lista_viaja_con_la_referencia_de_su_hijo(self, cliente, catalogo):
-        # El catalogo la reenvia en `lista_verificada`: el kit del padre la usa
-        # como clave de `personaje_por_hijo` en vez de un `hijo-1` fijo.
         cuerpo = _subida(
             [
                 {"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Cuarto"},
@@ -215,18 +182,14 @@ class TestSubirFeliz:
 
         assert respuesta.status_code == 202
         env = respuesta.json()
-        # Identidad se llama UNA vez para el hogar, no una por hijo.
         assert len(identidad.llamadas) == 1
         assert identidad.llamadas[0]["correo"] == "mama@ejemplo.com"
-        # Lo que viaja al catalogo es el id, jamas el correo/telefono.
         assert env["contacto_referencia"] == "usr-1"
         assert all(ll["contacto_referencia"] == "usr-1" for ll in catalogo.llamadas)
         assert "mama@ejemplo.com" not in respuesta.text
         assert "+573001112233" not in respuesta.text
 
     async def test_con_sesion_no_reregistra_contacto(self, cliente, catalogo, identidad):
-        # El acudiente ya viene autenticado (Bearer): su usuario_id sale de la
-        # sesion y ES el contacto_referencia. No se re-registra el contacto.
         identidad.usuario_por_token["tok-acudiente"] = "usr-sesion"
         cuerpo = _subida(
             [{"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Cuarto"}],
@@ -238,14 +201,11 @@ class TestSubirFeliz:
 
         assert respuesta.status_code == 202
         env = respuesta.json()
-        # Ya venia autenticado: cero registros, y el id de la sesion es la traza.
         assert len(identidad.llamadas) == 0
         assert env["contacto_referencia"] == "usr-sesion"
         assert all(ll["contacto_referencia"] == "usr-sesion" for ll in catalogo.llamadas)
 
     async def test_dos_hijos_del_mismo_colegio_y_grado_comparten_una_version(self, cliente, catalogo):
-        # No se importa dos veces la misma (colegio, grado): la segunda pisaria
-        # a la primera. Se importa una vez y los dos hijos apuntan a esa version.
         cuerpo = _subida(
             [
                 {"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Cuarto"},
@@ -263,8 +223,6 @@ class TestSubirFeliz:
         assert {s["referencia"] for s in env["subidas"]} == {"hijo-1", "hijo-2"}
 
     async def test_las_preferencias_del_hogar_viajan_a_cada_version(self, cliente, catalogo):
-        # El paso 3 es del HOGAR: las mismas preferencias viajan con cada version
-        # importada, para que el kit de la aprobacion las use.
         preferencias = {
             "pesos": {"precio": 0.6, "marca_exigida": 0.15, "calidad": 0.2, "personaje": 0.05},
             "disposicion_sobreprecio": 0.0,
@@ -304,8 +262,6 @@ class TestSubirFeliz:
             grado = "Cuarto" if numero == 1 else "Quinto"
             return PaginaLeida(grados=[grado], completa=True, items=[ItemExtraido(descripcion="lapiz")])
 
-        # Cada PDF rinde una pagina distinta segun su primer byte, para que el
-        # grado percibido difiera entre hijos.
         estado = {"n": 0}
 
         def _renderizar(_contenido: bytes) -> list[bytes]:
@@ -333,10 +289,6 @@ class TestSubirFeliz:
 
 
 class TestElApodoDeLaSubida:
-    """El apodo del hijo que sube su lista rotula su kit, pero NO viaja por el
-    Catalogo (Ley 1581): se queda cifrado en Inteligencia hasta que el poller
-    arma el kit."""
-
     async def test_el_apodo_no_viaja_al_catalogo_y_queda_guardado_aqui(self, cliente, catalogo, motor):
         from tukit_inteligencia import apodos_subida
 
@@ -359,12 +311,6 @@ class TestElApodoDeLaSubida:
 
 
 class TestColegioPorDirectorioOEscrito:
-    """El acudiente que sube su archivo designa el colegio de dos formas nuevas:
-    del directorio de Bogota (trae DANE) o escrito a mano (solo nombre). En los
-    dos casos el colegio NO existe todavia en Tukit: nace al aprobar. El backend
-    deriva el `colegio_id` de forma estable y pasa los datos del colegio para que
-    la cola los muestre y la aprobacion cree la identidad."""
-
     async def test_colegio_del_directorio_deriva_el_id_del_dane(self, cliente, catalogo):
         from tukit_comun import derivar
 
@@ -383,18 +329,13 @@ class TestColegioPorDirectorioOEscrito:
 
         assert respuesta.status_code == 202
         llamada = catalogo.llamadas[0]
-        # El id se deriva del DANE con el contrato compartido: el mismo que
-        # Identidad usara al crear el colegio en la aprobacion.
         assert llamada["colegio_id"] == str(derivar("colegio", "311001105731"))
-        # Los datos del colegio viajan para la cola y la creacion de identidad.
         assert llamada["colegio_datos"]["dane"] == "311001105731"
         assert llamada["colegio_datos"]["nombre"] == "ACADEMIA CENTRAL DE SISTEMAS"
 
     async def test_el_directorio_tapa_los_huecos_del_perfil_sin_pisar_la_subida(
         self, cliente, catalogo, identidad
     ):
-        # El DUEB pre-llena direccion y contacto del colegio nuevo; el nombre que
-        # trajo la subida manda sobre el del directorio.
         identidad.directorio["311001105731"] = {
             "dane": "311001105731",
             "nombre": "ACADEMIA CENTRAL DE SISTEMAS (DUEB)",
@@ -421,8 +362,6 @@ class TestColegioPorDirectorioOEscrito:
     async def test_colegio_escrito_a_mano_deriva_el_id_del_nombre_normalizado(self, cliente, catalogo):
         from tukit_comun import derivar
 
-        # Dos acudientes que escriben el MISMO colegio (aunque con espacios y
-        # mayusculas distintas) tienen que converger a la misma version.
         cuerpo = _subida(
             [{"referencia": "hijo-1", "colegio_nombre": "  Gimnasio  Del   Norte ", "grado": "Cuarto"}],
             contacto={"correo": "mama@ejemplo.com"},
@@ -436,8 +375,6 @@ class TestColegioPorDirectorioOEscrito:
         assert llamada["colegio_datos"].get("dane") is None
 
     async def test_escrito_a_mano_reusa_el_colegio_que_identidad_ya_tiene(self, cliente, catalogo, identidad):
-        # H-UG-01: Alamei existia en Identidad sin grado verificado, el papa lo
-        # escribio "tal cual" y la aprobacion dio de alta un segundo Alamei.
         identidad.conocidos = [
             {"colegio_id": "6375ea98-a4ff-5878-ad9d-8cb7e24574e3", "nombre": "Colegio Alamei", "dane": None}
         ]
@@ -450,7 +387,6 @@ class TestColegioPorDirectorioOEscrito:
         assert respuesta.status_code == 202
         llamada = catalogo.llamadas[0]
         assert llamada["colegio_id"] == "6375ea98-a4ff-5878-ad9d-8cb7e24574e3"
-        # Ya existe: no viajan datos, asi la aprobacion no da de alta otro.
         assert llamada["colegio_datos"] is None
 
     async def test_del_directorio_reusa_el_colegio_con_ese_dane(self, cliente, catalogo, identidad):
@@ -475,7 +411,6 @@ class TestColegioPorDirectorioOEscrito:
         assert llamada["colegio_datos"] is None
 
     async def test_un_homonimo_con_otro_dane_no_se_reusa(self, cliente, catalogo, identidad):
-        # Dos colegios con el mismo nombre y DANE distinto son dos colegios.
         identidad.conocidos = [{"colegio_id": "c-otro", "nombre": "Colegio Santa Ana", "dane": "111"}]
         cuerpo = _subida(
             [
@@ -495,7 +430,6 @@ class TestColegioPorDirectorioOEscrito:
         assert catalogo.llamadas[0]["colegio_id"] == str(derivar("colegio", "222"))
 
     async def test_sin_colegio_alguno_es_422(self, cliente, catalogo):
-        # Ni id, ni dane, ni nombre: no hay a que (colegio, grado) importar.
         cuerpo = _subida([{"referencia": "hijo-1", "grado": "Cuarto"}])
         respuesta = await cliente.post("/v1/listas/subir", **cuerpo)
 
@@ -503,8 +437,6 @@ class TestColegioPorDirectorioOEscrito:
         assert catalogo.llamadas == []
 
     async def test_colegio_id_de_aliado_conocido_importa_sin_datos_de_colegio(self, cliente, catalogo):
-        # La ruta "lista_oficial" (colegio ya aliado) manda `colegio_id` directo
-        # y no lleva datos de colegio: no hay identidad que crear.
         cuerpo = _subida([{"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Cuarto"}])
         respuesta = await cliente.post("/v1/listas/subir", **cuerpo)
 
@@ -534,13 +466,9 @@ class TestSubirRechazado:
         assert respuesta.json()["error"] == "lista_de_varios_grados"
         assert base64.b64encode(marcador).decode() not in respuesta.text
         assert "marcador-secreto" not in respuesta.text
-        # Nada se importa si un archivo se rechaza: es todo o nada por hogar.
         assert catalogo.llamadas == []
 
     async def test_sin_archivo_para_un_hijo_es_422(self, cliente, catalogo):
-        # Un hijo sin su PDF: falta el `archivo`. Se manda un multipart con los
-        # `hijos` pero sin parte `archivo` (un campo de relleno fuerza el
-        # encoding multipart en httpx aunque no haya archivos).
         hijos = [{"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Cuarto"}]
         cuerpo = {
             "data": {"hijos": json.dumps(hijos)},
@@ -555,9 +483,6 @@ class TestSubirRechazado:
 
 class TestSubirDegradado:
     async def test_sin_contacto_igual_importa_sin_referencia(self, cliente, catalogo, identidad):
-        # Un hogar que no deja contacto: la version igual se importa (perder el
-        # aviso es malo, perder la lista por no poder avisar es peor), sin
-        # `contacto_referencia`.
         cuerpo = _subida([{"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Cuarto"}])
         respuesta = await cliente.post("/v1/listas/subir", **cuerpo)
 
@@ -567,54 +492,20 @@ class TestSubirDegradado:
         assert catalogo.llamadas[0]["contacto_referencia"] is None
 
 
-# --- Con el catalogo caido: la subida se importa despues (H-B-01, ADR 0040) -----------------------
-
-
-# La subida de listas con el catalogo caido (H-B-01, ADR 0040).
-#
-# Antes, `POST /v1/listas/subir` percibia cada PDF y lo importaba al catalogo en
-# la misma peticion. Con el catalogo caido el `RemotoCaido` salia sin manejar: el
-# acudiente recibia un 500 y la lista, ya percibida, se perdia.
-#
-# Lo que se fija aqui:
-#
-# - con el catalogo caido la subida responde 202, cada hijo queda `pendiente` y
-#   lo percibido (renglones, percepcion cruda y PDF) queda guardado en
-#   `importacion_lista`;
-# - cuando el catalogo vuelve, el trabajador la importa una sola vez, con lo ya
-#   percibido y sin volver a percibir;
-# - dos reintentos, o una respuesta que se perdio, dan una sola version: cada
-#   destino viaja con la misma `clave_idempotencia`;
-# - con el catalogo arriba la respuesta es la de siempre y aqui no queda copia
-#   de la lista ni del PDF; si se cae a mitad de la subida, solo queda guardado
-#   lo que no alcanzo a entrar.
-
-
 IMPORTACION = Base.metadata.tables["importacion_lista"]
 PADRE = uuid.UUID("33333333-3333-5333-8333-333333333333")
 PDF = b"%PDF-falso"
 
 
 def _despues() -> datetime:
-    """Un momento en que cualquier espera de reintento ya vencio."""
     return datetime.now(UTC) + timedelta(hours=1)
 
 
 def _con_zona(momento: datetime) -> datetime:
-    """SQLite devuelve las fechas sin zona; se guardaron en UTC."""
     return momento if momento.tzinfo else momento.replace(tzinfo=UTC)
 
 
 class CatalogoIntermitente(CatalogoImportador):
-    """El catalogo que se cae y vuelve, con la idempotencia del de verdad.
-
-    Con `caido`, cada importacion lanza el `RemotoCaido` que lanza el cliente
-    cuando el catalogo no responde; con `caer_tras`, se cae despues de crear
-    esas versiones. Con una clave ya vista devuelve la version que ya tenia,
-    como `POST /v1/admin/listas/importar`. `llamadas` solo cuenta las
-    importaciones que de verdad crearon una version; `intentos`, todas.
-    """
-
     def __init__(self) -> None:
         super().__init__()
         self.caido = False
@@ -640,7 +531,6 @@ class CatalogoIntermitente(CatalogoImportador):
         if clave_idempotencia is not None:
             self._por_clave[clave_idempotencia] = respuesta
         if self.perder_respuesta:
-            # La importacion entro, pero la respuesta no llego (un timeout).
             self.perder_respuesta = False
             raise RemotoCaido("catalogo", "/v1/admin/listas/importar no respondio (ReadTimeout)")
         return respuesta
@@ -663,7 +553,6 @@ def identidad_padre():
 
 @pytest.fixture()
 def lecturas():
-    """Cuantas paginas se le pidieron al modelo: la percepcion es la etapa cara."""
     return {"n": 0}
 
 
@@ -776,9 +665,6 @@ class TestSubirConElCatalogoCaido:
     async def test_al_primer_destino_caido_no_insiste_con_el_resto(
         self, cliente_diferido, intermitente, motor
     ):
-        # Con el catalogo caido cada intento puede costar el tiempo de espera
-        # entero del cliente: la peticion no los encadena. El resto queda
-        # pendiente, listo para el trabajador.
         intermitente.caido = True
         respuesta = await cliente_diferido.post(
             "/v1/listas/subir",
@@ -791,7 +677,6 @@ class TestSubirConElCatalogoCaido:
         assert len(intermitente.intentos) == 1
         filas = await _filas(motor)
         assert {f.estado for f in filas} == {"pendiente"}
-        # Las dos quedan para dentro de segundos: el trabajador las toma pronto.
         pronto = datetime.now(UTC) + timedelta(seconds=30)
         assert all(_con_zona(f.proximo_intento_en) < pronto for f in filas)
 
@@ -810,7 +695,6 @@ class TestSubirCuandoElCatalogoVuelve:
         intermitente.caido = False
         assert await importaciones.reintentar_pendientes(motor, catalogo=intermitente, ahora=_despues()) == 1
 
-        # Una importacion, con lo que se percibio en la subida: sin volver a leer.
         assert lecturas["n"] == 1
         [llamada] = intermitente.llamadas
         assert llamada["colegio_id"] == COLEGIO
@@ -827,7 +711,6 @@ class TestSubirCuandoElCatalogoVuelve:
         [fila] = await _filas(motor)
         assert fila.estado == "importada"
         assert fila.version_id == "ver-1"
-        # Ya esta en el catalogo: aca no queda copia del PDF ni de lo percibido.
         assert fila.documento is None
         assert fila.carga is None
 
@@ -840,7 +723,6 @@ class TestSubirCuandoElCatalogoVuelve:
             "/v1/listas/subir", **_subida([hijo], contacto={"correo": "mama@ejemplo.com"})
         )
         [pendiente] = await _filas(motor)
-        # Mientras espera, el apodo no queda en claro en la fila.
         assert "Luca" not in str(pendiente.carga)
 
         intermitente.caido = False
@@ -856,12 +738,9 @@ class TestSubirCuandoElCatalogoVuelve:
         assert await importaciones.reintentar_pendientes(motor, catalogo=intermitente, ahora=_despues()) == 1
         assert await importaciones.reintentar_pendientes(motor, catalogo=intermitente, ahora=_despues()) == 0
         assert len(intermitente.llamadas) == 1
-        assert len(intermitente.intentos) == 2  # el de la subida y el del reintento
+        assert len(intermitente.intentos) == 2
 
     async def test_una_respuesta_perdida_no_duplica_la_version(self, cliente_diferido, intermitente, motor):
-        # La importacion entra al catalogo pero la respuesta se pierde: la
-        # subida la deja pendiente y el reintento manda la MISMA clave, asi que
-        # el catalogo devuelve la version que ya tenia en vez de crear otra.
         intermitente.perder_respuesta = True
         respuesta = await cliente_diferido.post("/v1/listas/subir", **_subida([_un_hijo()]))
         assert respuesta.json()["subidas"][0]["estado"] == "pendiente"
@@ -936,7 +815,6 @@ class TestSubirSinCopiaConElCatalogoArriba:
             {"referencia": "hijo-1", "version_id": "ver-1", "grado": "Cuarto"}
         ]
         assert uuid.UUID(intermitente.llamadas[0]["clave_idempotencia"])
-        # La lista y el PDF quedan en el catalogo y en ningun otro lado.
         assert await _filas(motor) == []
 
     async def test_si_se_cae_a_mitad_solo_se_guarda_lo_que_no_entro(
@@ -956,7 +834,6 @@ class TestSubirSinCopiaConElCatalogoArriba:
         ]
         [fila] = await _filas(motor)
         assert (fila.colegio_id, fila.referencias) == (quinto, ["hijo-2"])
-        # La segunda se intento con la misma clave que guarda la fila.
         assert intermitente.intentos[1] == str(fila.clave_idempotencia)
 
         intermitente.caer_tras = None
@@ -973,8 +850,6 @@ class TestSubirSinCopiaConElCatalogoArriba:
         assert len(set(claves)) == 2
 
     async def test_dos_subidas_iguales_son_dos_claves(self, cliente_diferido, intermitente):
-        # La clave es por subida y destino: un acudiente que vuelve a subir la
-        # misma lista hace una version nueva, igual que antes.
         await cliente_diferido.post("/v1/listas/subir", **_subida([_un_hijo()]))
         await cliente_diferido.post("/v1/listas/subir", **_subida([_un_hijo()]))
         assert len({ll["clave_idempotencia"] for ll in intermitente.llamadas}) == 2
@@ -984,8 +859,6 @@ class TestSubirConUnRechazoDelCatalogo:
     async def test_en_la_subida_un_4xx_sube_sin_guardar_nada_para_reintentar(
         self, cliente_diferido, intermitente, motor
     ):
-        # Un 4xx no es una caida: reintentarlo daria lo mismo. El error sube
-        # y no queda nada para el trabajador.
         intermitente.rechazo = 422
         with pytest.raises(RemotoCaido):
             await cliente_diferido.post("/v1/listas/subir", **_subida([_un_hijo()]))
@@ -1031,8 +904,6 @@ class TestLaSubidaPendienteEnMisSolicitudes:
             ),
         )
 
-        # Con el catalogo todavia caido: las listas del catalogo no estan, pero
-        # la que espera aca si.
         env = await trabajos.mis_solicitudes(motor, PADRE, catalogo=intermitente)
         assert env["listas_disponibles"] is False
         [solicitud] = env["solicitudes"]
@@ -1041,7 +912,6 @@ class TestLaSubidaPendienteEnMisSolicitudes:
         assert solicitud["colegio_nombre"] == "Gimnasio Ficticio"
         assert solicitud["grado"] == "Cuarto"
 
-        # Ya importada, la muestra el catalogo y no sale dos veces de aca.
         intermitente.caido = False
         await importaciones.reintentar_pendientes(motor, catalogo=intermitente, ahora=_despues())
         env = await trabajos.mis_solicitudes(motor, PADRE, catalogo=intermitente)

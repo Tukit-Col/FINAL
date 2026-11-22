@@ -1,6 +1,3 @@
-"""Los avisos de una lista revisada: repetidos, atributos ambiguos y renglones sin producto."""
-
-# El fixture `cliente` llega de `_ayudas_api_admin` y los tests lo reciben por nombre.
 # ruff: noqa: F811
 
 from __future__ import annotations
@@ -23,8 +20,6 @@ async def _aviso_de_repetido(cliente, version_id) -> dict | None:
 
 
 class TestAvisosDeUnaListaRevisada:
-    """Lo que una persona tiene que decidir y la pagina del grado muestra."""
-
     async def test_avisa_el_repetido_el_atributo_ambiguo_y_lo_que_no_tiene_producto(self, cliente):
         await _con_cuadernos_extra(cliente, discriminantes=["rayado"])
         vid = await _version_revisada_con_renglones(
@@ -74,10 +69,8 @@ class TestAvisosDeUnaListaRevisada:
         segundo = next(i for i in items if i["orden"] == 2)
         assert segundo["tipo_item"] == "no_comprar"
         assert "linea 1" in segundo["instruccion_colegio"]
-        # Aprobar la copia rearma los kits: el evento queda en la bandeja.
         eventos = [f for f in await _bandeja_de(cliente) if f.tipo == "lista_aprobada"]
         assert str(eventos[-1].agregado_id) == nueva
-        # Y el aviso de repetido ya no sale en la version nueva.
         assert await _aviso_de_repetido(cliente, nueva) is None
 
     async def test_solo_se_corrige_la_version_vigente(self, cliente):
@@ -106,7 +99,6 @@ def test_renglones_que_solo_cambian_de_color_no_son_repetidos():
         for i, c in enumerate(["Amarillo", "Azul", "Rojo", "Verde"], start=1)
     ]
     assert _posibles_repetidos(filas, {}) == {}
-    # Un repetido de verdad (mismo texto, mismo color) sigue avisandose.
     filas.append(
         SimpleNamespace(orden=9, concepto_codigo="C011", tipo_item="util", texto_original=base.format("Azul"))
     )
@@ -116,12 +108,10 @@ def test_renglones_que_solo_cambian_de_color_no_son_repetidos():
 class TestAprobarCierraLosAvisosAbiertos:
     async def test_aprobar_cierra_los_avisos_que_habia_y_los_registra(self, cliente):
         vid = cliente.ids["abierta"]
-        # Un repetido claro para que haya aviso antes de aprobar.
         await cliente.post(
             f"/v1/admin/listas/{vid}/items",
             json={"texto_original": "2 cuadernos cuadriculados", "concepto_codigo": "C001"},
         )
-        # La propuesta pendiente impide cerrar: se resuelve primero.
         async with app.state.motor.sesion() as db:
             from sqlalchemy import update
 

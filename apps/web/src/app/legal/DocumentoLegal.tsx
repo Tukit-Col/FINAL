@@ -9,7 +9,6 @@ const DOCUMENTOS = [
   { href: "/legal/retracto", texto: "Retracto y garantía" },
 ];
 
-/** Un dato del responsable: si todavía es un pendiente, se marca como tal. */
 export function Dato({ valor }: { valor: string }) {
   return esPendiente(valor) ? (
     <mark className={styles.pendiente} title="El equipo de Tukit debe completar este dato">

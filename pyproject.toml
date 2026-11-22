@@ -8,7 +8,7 @@ dependencies = []
 # Espacio de trabajo de uv: cada servicio y cada libreria es un paquete propio,
 # resueltos juntos con un solo uv.lock. Esto es lo que elimina el baile de subir
 # una version y crear un tag cada vez que cambia algo compartido, que es el costo
-# concreto que motivo el ADR 0014.
+# concreto que motivo el 
 [tool.uv.workspace]
 members = ["servicios/*", "libs/py/*"]
 # `ingesta` sigue fuera porque todavia no tiene ni paquete ni pyproject.
@@ -51,6 +51,9 @@ dev = [
 # de correr media hora de pruebas de dominio.
 testpaths = ["arquitectura", "libs", "servicios", "ensayos"]
 asyncio_mode = "auto"
+# Explicito: sin esto pytest-asyncio emite una DeprecationWarning al arrancar y
+# `filterwarnings` de abajo la vuelve error, tumbando la suite entera.
+asyncio_default_fixture_loop_scope = "function"
 # Cada servicio es un paquete raiz propio. Esto es lo que permite correr toda
 # la suite desde aqui sin instalar nada, y a la vez mantiene los paquetes
 # separados: `tukit_identidad` no queda dentro de `tukit_catalogo`.
@@ -65,8 +68,8 @@ pythonpath = [
     "libs/py/tukit_comun",
 ]
 filterwarnings = ["error::DeprecationWarning"]
-# Las pruebas contra un RabbitMQ de verdad (ADR 0046) y contra un Redis de verdad
-# (ADR 0047). Se saltan solas si no hay broker en `TUKIT_PRUEBAS_RABBITMQ_URL` (por
+# Las pruebas contra un RabbitMQ de verdad y contra un Redis de verdad
+#. Se saltan solas si no hay broker en `TUKIT_PRUEBAS_RABBITMQ_URL` (por
 # omision, el local de `.env.ejemplo`) o Redis en `TUKIT_PRUEBAS_REDIS_URL` (por
 # omision, la base 15 del local).
 markers = [
@@ -76,10 +79,10 @@ markers = [
 ]
 
 [tool.mypy]
-# Tipos incrementales (ADR 0026): laxo global para no exigir anotar 40k lineas de
+# Tipos incrementales: laxo global para no exigir anotar 40k lineas de
 # golpe, ESTRICTO en el codigo nuevo puro (`tukit_comun.*` y los `dominio/`), que es
 # donde vive la logica que un tipo mal puesto rompe callado. El circulo estricto
-# se ensancha con el tiempo; hoy arranca verde, que es la regla del ADR.
+# se ensancha con el tiempo; hoy arranca verde, que es la regla.
 python_version = "3.12"
 ignore_missing_imports = true
 strict = false
@@ -91,21 +94,13 @@ strict = true
 [tool.ruff]
 line-length = 110
 target-version = "py312"
-# Los worktrees efimeros de los agentes (.claude/worktrees, .worktrees) son
-# copias del arbol en otra rama: lintearlas aqui haria que el trabajo a medio
-# hacer de un agente rompiera la CI del arbol principal. Cada worktree se
-# revisa en su propia rama, no desde la raiz.
-#
-# `docs/` tampoco: desde la 0.16, ruff formatea los bloques de codigo de los
-# `.md`, y los de la documentacion son fragmentos que registran como estaba algo
-# en su momento (un plan, una spec). Reformatearlos reescribiria la historia.
-extend-exclude = [".claude/worktrees", ".worktrees", "docs"]
+extend-exclude = [".claude/worktrees", ".worktrees"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 # `Depends(...)` en un default de argumento es EL idiom de FastAPI, no el bug que
 # B008 persigue (un default mutable evaluado una vez). Se marca como llamada
-# inmutable para que el patron de inyeccion (`repo_dep`, ADR 0019) no dispare B008.
+# inmutable para que el patron de inyeccion (`repo_dep`) no dispare B008.
 [tool.ruff.lint.flake8-bugbear]
 extend-immutable-calls = ["fastapi.Depends"]
 
@@ -124,3 +119,12 @@ extend-immutable-calls = ["fastapi.Depends"]
 # version envuelta en seis lineas por diccionario esconde la tabla detras del
 # formato. Solo se perdona el ancho.
 "servicios/identidad/tukit_identidad/sembrar_acceso.py" = ["E501"]
+
+# Los scripts de calibracion y del ensayo acoplado son de una sola corrida: ya
+# produjeron las cifras que la tesis cita y no se importan desde ningun
+# servicio. Reescribirlos para el linter (un `zip(strict=True)`, borrar una
+# variable "sin usar") puede cambiar lo que calculan sin que nada se ponga
+# rojo, asi que se perdona el estilo y no se tocan. Las pruebas fuera de esas
+# dos carpetas siguen con todas las reglas.
+"ensayos/calibracion/*.py" = ["E501", "E741", "E731", "UP031", "F841", "B905", "B023", "B007", "SIM102", "SIM105", "SIM108"]
+"ensayos/acoplado/*.py" = ["E501", "E741", "E731", "UP031", "F841", "B905", "B023", "B007", "SIM102", "SIM105", "SIM108"]

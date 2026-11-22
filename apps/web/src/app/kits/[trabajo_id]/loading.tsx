@@ -1,8 +1,5 @@
 import estilos from "./Kits.module.css";
 
-// Estado de carga mientras el servidor trae el trabajo: esqueleto con la forma
-// de la pagina (titulo, selector, tarjeta del kit y primeros renglones) para
-// que no salte el layout al llegar. Sin datos ni logica: solo presentacion.
 export default function CargandoKits() {
   return (
     <div className={estilos.pagina} role="status" aria-busy="true">

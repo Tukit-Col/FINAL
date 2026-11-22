@@ -14,7 +14,7 @@
   font-weight: 700;
   text-decoration: none;
   transform: translate(var(--iman-x, 0), var(--iman-y, 0));
-  /* Al soltar vuelve con un pequeno rebote (la curva de plastilina). */
+
   transition:
     transform var(--dur-medio) var(--ease-clay),
     box-shadow var(--dur-rapido) var(--ease-suave);

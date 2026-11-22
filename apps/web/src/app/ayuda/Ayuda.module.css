@@ -4,8 +4,6 @@
   padding: 0 var(--espacio-4) var(--espacio-7);
 }
 
-/* ---------------------------------------------------------- Encabezado */
-
 .encabezado {
   position: relative;
   margin-top: var(--espacio-5);
@@ -62,8 +60,6 @@
   max-width: 58ch;
 }
 
-/* ----------------------------------------------------------------- Secciones */
-
 .tituloSeccion {
   font-family: var(--font-display);
   font-size: clamp(22px, 3vw, 28px);
@@ -71,8 +67,6 @@
   margin-bottom: var(--espacio-5);
 }
 
-/* Jerarquia: una barrita de acento bajo cada titulo de seccion ordena la
- * lectura (titulo, barra, contenido) sin sumar peso al texto. */
 .tituloSeccion::after {
   content: "";
   display: block;
@@ -82,8 +76,6 @@
   border-radius: var(--radius-full);
   background: linear-gradient(90deg, var(--clay-cielo) 0%, var(--color-primary) 100%);
 }
-
-/* ----------------------------------------------------------------- FAQ */
 
 .faq {
   padding: var(--espacio-7) 0 var(--espacio-6);
@@ -121,7 +113,6 @@
   color: var(--color-text-primary);
 }
 
-/* Quita el triángulo nativo del <summary> en todos los navegadores. */
 .resumen::-webkit-details-marker {
   display: none;
 }
@@ -158,7 +149,6 @@
   transform: rotate(180deg);
 }
 
-/* Respuesta corta, alineada con el titulo (no con el icono). */
 .cuerpo {
   padding: 0 var(--espacio-5) var(--espacio-5)
     calc(var(--espacio-5) + 42px + var(--espacio-3));
@@ -170,8 +160,6 @@
   color: var(--color-text-secondary);
   text-wrap: pretty;
 }
-
-/* ---- Tarjeta "Ingresa para abrir una solicitud" ---- */
 
 .acceso {
   display: grid;
@@ -225,14 +213,10 @@
   transform: translateY(-2px);
 }
 
-/* ----------------------------------------------------------------- Soporte */
-
 .soporte {
   padding: var(--espacio-6) 0;
 }
 
-/* Primera tarjeta: intro a dos columnas, texto a la izquierda y la ilustración
- * claymorphism del sobre a la derecha. */
 .introSoporte {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -279,8 +263,6 @@
   max-width: 54ch;
 }
 
-/* El envoltorio que da el "flotando sobre el papel" al SVG, misma sombra difusa
- * de los útiles del inicio. */
 .introArte {
   flex: none;
   width: clamp(150px, 20vw, 210px);
@@ -294,8 +276,6 @@
   height: auto;
   display: block;
 }
-
-/* ------------------------------------------------------------------- Formulario */
 
 .tarjetaForma {
   background: var(--color-white);
@@ -419,8 +399,6 @@
   color: var(--color-text-muted);
 }
 
-/* ------------------------------------------------------------------- Éxito */
-
 .exito {
   text-align: center;
   padding: var(--espacio-4) var(--espacio-2);
@@ -484,8 +462,6 @@
   transform: translateY(-2px);
 }
 
-/* ----------------------------------------------------------------- Cierre / CTA */
-
 .cierre {
   margin-top: var(--espacio-6);
   text-align: center;
@@ -538,8 +514,7 @@
 }
 
 @media (max-width: 720px) {
-  /* La intro pasa a una columna y la ilustración se centra arriba del texto,
-   * en tamaño moderado para que no empuje el contenido. */
+
   .introSoporte {
     grid-template-columns: 1fr;
     justify-items: center;
@@ -547,7 +522,7 @@
   }
 
   .introSoporte {
-    /* El arte va primero (arriba), luego el texto. */
+
     grid-auto-flow: row;
   }
 
@@ -582,7 +557,6 @@
     padding-left: var(--espacio-5);
   }
 
-  /* Correo y celular en una sola columna cuando no caben lado a lado. */
   .fila {
     grid-template-columns: 1fr;
   }

@@ -2,8 +2,7 @@
   position: sticky;
   top: 0;
   z-index: 20;
-  /* Crema translúcida con desenfoque: la barra flota sobre el contenido sin
-   * cortarlo con una línea dura, como pide el clay (superficies, no bordes). */
+
   background: rgba(253, 249, 238, 0.82);
   backdrop-filter: saturate(1.4) blur(10px);
   -webkit-backdrop-filter: saturate(1.4) blur(10px);
@@ -29,8 +28,6 @@
   letter-spacing: -0.01em;
 }
 
-/* El libro-tienda del logo, sin fondo: se ve tal cual, con un respingo al pasar
- * el cursor. El nombre al lado es texto real (lector de pantalla). */
 .marca {
   width: auto;
   height: 40px;
@@ -76,7 +73,6 @@
   transform: translateY(-1px);
 }
 
-/* Bloque de acciones a la derecha: ingresar/cuenta + el CTA principal. */
 .acciones {
   display: flex;
   align-items: center;
@@ -135,10 +131,7 @@
 }
 
 @media (max-width: 680px) {
-  /* En el celular la barra tiene que caber en ~360px de ancho sin desbordarse:
-   * logo + dos íconos de nav + ingresar + el CTA. Se aprietan los espacios, los
-   * enlaces quedan solo en ícono y el CTA baja de tamaño (sigue con texto: es
-   * la acción principal). Medido a 360px cabe con holgura. */
+
   .interior {
     padding: var(--espacio-3);
     gap: var(--espacio-2);
@@ -163,8 +156,6 @@
     display: none;
   }
 
-  /* Blanco táctil mínimo de 44 px (antes 34 px): con solo el ícono visible, el
-   * área se garantiza con tamaño fijo y el ícono centrado. */
   .enlace,
   .ingresar,
   .cuenta {
@@ -191,21 +182,16 @@
     font-size: 13.5px;
   }
 
-  /* En pantallas chicas, cerrar sesión se hace desde la cuenta, no en la barra. */
   .salir {
     display: none;
   }
 }
 
-/* Teléfonos muy estrechos (≤360px): el nombre de la marca cede el paso a los
- * controles para que el CTA nunca se corte. El logotipo sigue siendo tocable. */
 @media (max-width: 360px) {
   .nombre {
     display: none;
   }
 
-  /* Con los blancos táctiles de 44 px, a 360 px sobran solo ~6 px: se recorta
-   * el margen lateral para que el CTA no se corte. */
   .interior {
     padding-inline: var(--espacio-2);
   }

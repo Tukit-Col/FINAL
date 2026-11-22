@@ -1,14 +1,3 @@
-"""El enriquecedor separa el numero que cuenta EMPAQUES del que mide CONTENIDO.
-
-Todos los nombres de estas pruebas son reales, copiados del catalogo cargado.
-No son ejemplos inventados para que el codigo pase: son las formas concretas
-en que las tiendas colombianas escriben sus productos, con sus mayusculas
-irregulares, sus abreviaturas y sus cifras pegadas.
-
-Es la distincion que rompio el carrito: `Tempera de 12 ml x 12 unidades` tiene
-dos doces y solo uno de ellos multiplica lo que el papa paga.
-"""
-
 from __future__ import annotations
 
 import pytest
@@ -18,8 +7,6 @@ from tukit_catalogo.enriquecer import (
 
 
 class TestEmpaqueContraContenido:
-    """El corazon del asunto: cual de los numeros del nombre es el empaque."""
-
     @pytest.mark.parametrize(
         ("nombre", "esperado"),
         [
@@ -53,38 +40,15 @@ class TestEmpaqueContraContenido:
         assert extraer_empaque(nombre).unidades == 1, porque
 
     def test_el_caso_de_los_dos_doces(self):
-        """`Tempera gouache de colores de 12 ml x 12 unidades`.
-
-        El primer 12 es cuanta pintura trae cada tarrito y el segundo es
-        cuantos tarritos vienen. Si se toma el primero, el kit cobra doce
-        veces de mas por algo que ya venia junto.
-        """
         empaque = extraer_empaque("Témpera gouache de colores de 12 ml x 12 unidades")
         assert empaque.unidades == 12
         assert empaque.unidad_base == "unidad"
 
     def test_toma_el_conteo_y_no_la_longitud_cuando_vienen_los_dos(self):
-        """`Cinta Cellux 18mm X5 Metros X10 Unds`: tres numeros, uno solo cuenta.
-
-        18 mm es el ancho, 5 metros es lo que mide cada rollo y 10 es cuantos
-        rollos trae el taco. Es el nombre mas hostil del catalogo y por eso
-        esta aqui.
-        """
         assert extraer_empaque("Taco De Cinta Aislante Cellux 18mm X5 Metros X10 Unds Negra").unidades == 10
 
 
 class TestHojasSegunElConcepto:
-    """`N hojas` es empaque o atributo segun QUE cosa sea, no segun como se escriba.
-
-    Cien hojas de un cuaderno son una propiedad de ese cuaderno: sigue siendo
-    un cuaderno. Cinco hojas de acetato son cinco hojas: el paquete trae cinco.
-    La misma palabra y dos significados opuestos para el carrito.
-
-    Lo que decide no es una lista de excepciones a mano sino el concepto: si
-    declara `hojas` entre sus `atributos_discriminantes`, entonces las hojas
-    describen la cosa; si no, la cuentan.
-    """
-
     def test_las_hojas_de_un_cuaderno_no_son_cien_cuadernos(self):
         empaque = extraer_empaque(
             "Cuaderno cosido doble línea de 100 hojas (surtido)",
@@ -108,7 +72,6 @@ class TestHojasSegunElConcepto:
         assert empaque.unidades == 1
 
     def test_sin_saber_el_concepto_las_hojas_cuentan(self):
-        """Por omision se cuenta, porque es el caso mas comun fuera del cuaderno."""
         assert extraer_empaque("Block cuadriculado por 50 hojas").unidades == 50
 
 
@@ -122,8 +85,6 @@ class TestColoresComoConteo:
 
 class TestEmpaqueEscritoDeOtroModo:
     def test_la_x_pegada_a_un_punto_es_empaque(self):
-        """`Resaltadores..neon.x5 KIUT` es como lo escribio la tienda. Exigir
-        un espacio antes de la x contaba ese paquete de cinco como uno."""
         assert extraer_empaque("Resaltadores..neon.x5 KIUT").unidades == 5
 
     def test_paquete_de_doce_sin_la_x(self):

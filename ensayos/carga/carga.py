@@ -1,28 +1,4 @@
-"""Ensayo de carga de solo lectura contra el backend local (DP-02, DP-05).
-
-Simula acudientes que solo leen: los grados canonicos, el catalogo (productos y
-tiendas) y un trabajo ya publicado. Mide rendimiento (peticiones por segundo),
-latencia p50/p95/p99 y tasa de error por nivel de usuarios concurrentes.
-
-Dos modos, porque miden cosas distintas:
-
-- `capacidad` le pega DIRECTO a los puertos de los servicios (catalogo 8012,
-  inteligencia 8013). Se evita la puerta a proposito: el limite de tasa del
-  gateway corta a ~20 peticiones/s por IP, asi que medir por ahi mediria el
-  limite y no lo que aguanta el backend.
-- `limite` le pega a la puerta (8010) una sola vez, con pocos usuarios y poco
-  tiempo, para mostrar que el limite responde 429 y no un error del servidor.
-  Va con una IP de documentacion (RFC 5737) en `X-Forwarded-For`: 127.0.0.1 es
-  proxy de confianza del gateway, asi que el cupo que se gasta es el de esa IP
-  inventada y no el de 127.0.0.1, que es la que usa la web local.
-
-Reglas que el script se impone: solo GET, solo hosts locales (el tunel de
-Cloudflare lo usan los participantes del OE5 y no se toca) y nada escribe en la
-base. El id del trabajo publicado se pasa por argumento; el README dice como
-sacarlo.
-
-    uv run python ensayos/carga/carga.py --trabajo-id <uuid>
-"""
+"""Ensayo de carga de solo lectura contra el backend local (DP-02, DP-05)."""
 
 from __future__ import annotations
 
@@ -43,15 +19,12 @@ from urllib.parse import urlparse
 import httpx
 
 HOSTS_PERMITIDOS = {"127.0.0.1", "localhost", "::1"}
-# Rango TEST-NET-3 (RFC 5737): no es la IP de ningun cliente real.
 IP_DE_PRUEBA = "203.0.113.77"
 TIEMPO_MAXIMO_S = 10.0
 
 
 @dataclass(frozen=True)
 class Punto:
-    """Un endpoint de lectura que el ensayo recorre."""
-
     nombre: str
     base: str
     ruta: str
@@ -62,7 +35,7 @@ class Muestra:
     inicio: float
     fin: float
     punto: str
-    estado: int  # 0 = la peticion no llego a tener respuesta (tiempo agotado, conexion)
+    estado: int
     bytes: int
 
 
@@ -72,10 +45,6 @@ class Acumulado:
 
 
 def percentil(ordenados: list[float], p: float) -> float:
-    """Percentil por rango mas cercano sobre una lista ya ordenada.
-
-    Se usa este y no una interpolacion porque con pocas muestras (nivel de 1
-    usuario) interpolar inventa latencias que ninguna peticion tuvo."""
     if not ordenados:
         return math.nan
     rango = max(1, math.ceil(p / 100 * len(ordenados)))
@@ -83,18 +52,11 @@ def percentil(ordenados: list[float], p: float) -> float:
 
 
 def resumir(muestras: list[Muestra], duracion_s: float) -> dict:
-    """Throughput, latencias y errores de un conjunto de muestras.
-
-    Un 429 no cuenta como error: es el limite haciendo su trabajo y se reporta
-    aparte. Error es todo lo que no es 2xx ni 429 (incluida la peticion sin
-    respuesta)."""
     total = len(muestras)
     estados = Counter(m.estado for m in muestras)
     limitadas = estados.get(429, 0)
     exitosas = sum(n for e, n in estados.items() if 200 <= e < 300)
     errores = total - exitosas - limitadas
-    # La latencia solo de las que respondieron bien: un 429 contesta en
-    # microsegundos y bajaria artificialmente el p50.
     buenas = sorted((m.fin - m.inicio) * 1000 for m in muestras if 200 <= m.estado < 300)
     return {
         "peticiones": total,
@@ -129,10 +91,6 @@ async def _usuario(
     cabeceras: dict[str, str],
     desfase: int,
 ) -> None:
-    """Un acudiente virtual: recorre los endpoints en orden, sin pausa.
-
-    Cada usuario arranca en un endpoint distinto (`desfase`) para que el primer
-    segundo no sea todo la misma ruta."""
     async with httpx.AsyncClient(timeout=TIEMPO_MAXIMO_S, headers=cabeceras) as cliente:
         i = desfase
         while time.perf_counter() < fin_total:
@@ -155,8 +113,6 @@ async def correr_nivel(
     t0 = time.perf_counter()
     fin_total = t0 + calentamiento_s + duracion_s
     await asyncio.gather(*(_usuario(puntos, acumulado, fin_total, cabeceras, u) for u in range(usuarios)))
-    # El calentamiento (conexiones nuevas, caches frias) no entra a la medicion;
-    # tampoco lo que empezo dentro de la ventana pero termino despues de ella.
     desde = t0 + calentamiento_s
     medidas = [m for m in acumulado.muestras if m.inicio >= desde and m.fin <= fin_total]
     resultado = {"usuarios": usuarios, "duracion_s": duracion_s, "global": resumir(medidas, duracion_s)}
@@ -235,7 +191,7 @@ async def principal(argumentos: argparse.Namespace) -> dict:
                 f"error={g['tasa_error_pct']} %",
                 flush=True,
             )
-            await asyncio.sleep(2)  # que el backend respire entre niveles
+            await asyncio.sleep(2)
         salida["capacidad"] = {
             "destino": "puertos de los servicios (sin gateway)",
             "endpoints": [{"nombre": p.nombre, "url": p.base + p.ruta} for p in puntos],

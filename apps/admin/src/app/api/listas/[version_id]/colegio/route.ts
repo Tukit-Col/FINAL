@@ -1,14 +1,3 @@
-// `PATCH /api/listas/{version_id}/colegio` — P4/E4, completar el perfil del
-// colegio NUEVO de una versión antes de aprobarla.
-//
-// Cuando la versión la subió un acudiente de un colegio que aún no existe en
-// Tukit, el revisor puede llenar más datos (logo, sitio, dirección, contacto)
-// para que la aprobación cree la identidad completa y no solo con nombre y
-// grado. El cuerpo es un `ColegioNuevoEditable` (solo los campos presentes; el
-// backend hace merge sobre `colegio_datos`); la respuesta trae los datos ya
-// combinados. Las guardas (lista_ya_revisada 409, sin_colegio_por_crear 409)
-// las impone el backend; aquí solo se traduce el error tal cual (§11).
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { ColegioNuevoEditable } from "@tukit/contrato";
 import { cuerpoJson, respuestaDeError } from "@/lib/respuesta";

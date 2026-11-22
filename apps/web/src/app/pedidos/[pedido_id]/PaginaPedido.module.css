@@ -1,6 +1,3 @@
-/* `/pedidos/[id]`: cabecera, linea de tiempo y las tarjetas del pedido. Mismo
-   lenguaje clay de `/pago/resultado`. */
-
 .pagina {
   display: grid;
   justify-items: center;
@@ -91,7 +88,6 @@
   text-decoration: none;
 }
 
-/* Linea de tiempo: una columna de marcas unidas por un trazo vertical. */
 .linea {
   list-style: none;
   margin: 0;
@@ -111,7 +107,6 @@
   padding-bottom: 0;
 }
 
-/* El trazo hasta la marca siguiente. */
 .paso:not(:last-child)::before {
   content: "";
   position: absolute;
@@ -178,8 +173,6 @@
   color: var(--color-text-secondary);
 }
 
-/* Solo para lectores de pantalla: el estado de cada paso, que a la vista lo
-   dicen el color y la marca. */
 .paraLectores {
   position: absolute;
   width: 1px;
@@ -192,7 +185,6 @@
   border: 0;
 }
 
-/* Incidencia o cancelado, arriba de los pasos. */
 .desvio {
   display: grid;
   grid-template-columns: auto 1fr;

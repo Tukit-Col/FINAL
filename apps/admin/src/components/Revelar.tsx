@@ -1,24 +1,14 @@
 "use client";
 
-// Envoltorio de cliente para animar entradas sin convertir cada pantalla del
-// back-office en un componente de cliente. Las páginas siguen siendo Server
-// Components que leen del origen; solo la cáscara que anima es cliente. Todo
-// delega en el helper de motion del contrato, que respeta
-// `prefers-reduced-motion` — clave en una consola donde el motion no puede
-// hacer esperar a quien trabaja.
-
 import { useRef, type ElementType, type ReactNode } from "react";
 import { useGSAP, entrada, entradaEnCascada, revelarEnScroll } from "@tukit/contrato/motion";
 
 interface Props {
   children: ReactNode;
-  /** `una` entra el bloque entero; `cascada` escalona los hijos directos;
-   *  `scroll` revela cada hijo cuando entra en pantalla. */
   modo?: "una" | "cascada" | "scroll";
   retraso?: number;
   cadaUno?: number;
   className?: string;
-  /** Etiqueta semántica del contenedor (section, ul, div…). */
   as?: ElementType;
 }
 

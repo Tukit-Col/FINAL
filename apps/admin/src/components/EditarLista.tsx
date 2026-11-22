@@ -1,10 +1,5 @@
 "use client";
 
-// P4 — "Editar" una lista ya publicada. Clona la vigente en una versión nueva
-// SIN revisar (`nuevaVersion`) y cae en el revisor de cuatro paneles con esa
-// versión, para corregirla sin tocar la que ven los acudientes. Reemplaza el
-// enlace interino a /onboarding.
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { FalloListas, nuevaVersion } from "@/lib/api-listas";

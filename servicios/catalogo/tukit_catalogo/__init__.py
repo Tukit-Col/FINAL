@@ -1,1 +1,1 @@
-"""Servicio de Catalogo de Tukit."""
+pass

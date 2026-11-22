@@ -10,8 +10,6 @@ import styles from "./Ingresar.module.css";
 export default function FormularioIngreso({
   destino,
 }: {
-  // A donde volver tras entrar (p. ej. `/empezar` en el camino "ya tengo
-  // cuenta"). Si no viene, manda el destino por rol que decide el backend.
   destino?: string;
 }) {
   const router = useRouter();
@@ -38,14 +36,9 @@ export default function FormularioIngreso({
         return;
       }
       const url = cuerpo.url ?? "/dashboard";
-      // Salto entre apps (a otro origen, p. ej. la app interna) vs navegacion
-      // interna: lo primero necesita el navegador; lo segundo, el router.
       if (/^https?:\/\//.test(url)) {
         window.location.assign(url);
       } else {
-        // Navegación interna: `router.refresh()` tras `replace` obliga a la Cabecera
-        // (Server Component que lee la sesión) a repintarse ya, sin F5, igual que
-        // hace SalirBoton al cerrar sesión. La cookie de sesión ya está puesta.
         router.replace(url);
         router.refresh();
       }

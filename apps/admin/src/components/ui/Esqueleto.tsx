@@ -1,7 +1,3 @@
-// Esqueleto de carga para los `loading.tsx` de las rutas: la forma de la
-// pantalla (titulo, chips, filas) mientras llegan los datos. aria-busy en el
-// contenedor; los bloques son decorativos.
-
 import styles from "./ui.module.css";
 
 export function Bloque({ ancho = "100%", alto = 16 }: { ancho?: string | number; alto?: number }) {

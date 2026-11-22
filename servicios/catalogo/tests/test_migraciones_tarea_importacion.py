@@ -1,18 +1,3 @@
-"""Las migraciones de `tarea_importacion` van y vuelven en SQLite.
-
-Las pruebas del proyecto corren sobre SQLite en memoria y ahi las columnas
-nuevas aparecen solas por `create_all`; estas pruebas cubren el otro lado: que
-cada MIGRACION —la que si toca Postgres en produccion— sea correcta y reversible.
-
-La cadena base tiene una FK circular que solo Postgres admite, asi que no se
-puede `create_all` de todo el esquema y correr Alembic encima. En su lugar se
-arma a mano la tabla PREVIA a cada revision y se ejerce solo su par
-upgrade/downgrade, con `op` atado a la conexion SQLite via `MigrationContext`.
-`Operations.context()` instala esas operaciones como el proxy global
-`alembic.op`, de modo que el `batch_alter_table` de la revision actue sobre esta
-conexion.
-"""
-
 from __future__ import annotations
 
 import importlib.util
@@ -40,7 +25,6 @@ def _columnas(conexion: sa.Connection) -> set[str]:
 
 
 def _tarea(*columnas: sa.Column) -> sa.Table:
-    """`tarea_importacion` con solo `id`, `origen` y las `columnas` dadas."""
     return sa.Table(
         "tarea_importacion",
         sa.MetaData(),
@@ -75,7 +59,6 @@ def test_contacto_referencia_upgrade_agrega_la_columna_y_downgrade_la_quita():
 
 
 def _tarea_antes_de_la_clave(*extra: sa.Column) -> sa.Table:
-    """`tarea_importacion` como estaba ANTES de `clave_idempotencia`, mas `extra`."""
     return _tarea(
         sa.Column("estado", sa.String(24), nullable=False),
         sa.Column("contacto_referencia", sa.Uuid(), nullable=True),
@@ -91,7 +74,6 @@ def test_clave_idempotencia_upgrade_agrega_la_columna_unica_y_downgrade_la_quita
     with engine.begin() as conexion:
         tarea = _tarea_antes_de_la_clave()
         tarea.create(conexion)
-        # Las tareas que ya existian no tienen clave y tienen que seguir valiendo.
         conexion.execute(tarea.insert().values(id=uuid.uuid4(), origen="onboarding", estado="completada"))
         conexion.execute(tarea.insert().values(id=uuid.uuid4(), origen="onboarding", estado="completada"))
 

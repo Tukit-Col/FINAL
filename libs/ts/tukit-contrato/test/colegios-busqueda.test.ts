@@ -1,7 +1,3 @@
-// El buscador de colegio que comparten `/empezar` (web) y "Subir lista" de la
-// cola (admin), y la regla del logo. Puro: el directorio llega por parametro,
-// no se importa el JSON, para que corra con `node --test`.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -35,8 +31,6 @@ const SAN_JOSE: EntradaDirectorio = {
 };
 const DIRECTORIO = [SALITRE, NORTE, SAN_JOSE];
 
-// CACS existe en Tukit con el DANE de Ciudad Salitre y otro nombre: es el caso
-// que hay que reconducir para no duplicar el colegio.
 const CACS = { colegio_id: "cacs", nombre: "Colegio CACS", dane: "311001093652", logo_url: null };
 const SIN_DANE = { colegio_id: "libre", nombre: "Gimnasio Agustiniano Libre", dane: null, logo_url: null };
 
@@ -56,7 +50,6 @@ test("la entrada del directorio con el DANE de un colegio de Tukit se reconduce 
   assert.deepEqual(r.colegios, [
     { colegio: CACS, etiqueta: "COLEGIO AGUSTINIANO CIUDAD SALITRE · Colegio CACS" },
   ]);
-  // No vuelve a salir como entrada del directorio: elegirla duplicaria el colegio.
   assert.deepEqual(r.directorio, []);
 });
 
@@ -118,7 +111,6 @@ test("logo: manda el de Identidad, luego el del directorio por DANE, si no ningu
 });
 
 test("logo del directorio: solo cuando el colegio no tiene uno propio", () => {
-  // Lo usa la ficha del admin para decir de donde sale el logo que se ve.
   const imagenes = imagenesPorDane(DIRECTORIO);
   assert.equal(logoDelDirectorio({ logo_url: null, dane: SALITRE.dane }, imagenes), SALITRE.imageURL);
   assert.equal(logoDelDirectorio({ logo_url: " ", dane: SALITRE.dane }, imagenes), SALITRE.imageURL);

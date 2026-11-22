@@ -1,26 +1,12 @@
 """Los colegios de las listas curadas, de la base a git y de git a otra base.
 
-Es la mitad de Identidad del modulo `curaduria` del Catalogo. Una lista curada
-apunta a su colegio por `colegio_id`, y ese colegio vive aqui: si un compañero
-importa la lista y no el colegio, la lista queda colgando de un colegio que su
-Identidad no conoce y el acudiente nunca la encuentra.
+Decisiones:
+- Lee el archivo que exporta Catalogo (`datos/curaduria/listas_revisadas.csv`) para saber que
+  colegios hacen falta; no lee la base de Catalogo.
+- No viajan `contacto_nombre`, `contacto_email` ni `contacto_telefono`: son datos de una persona
+  del colegio y un repositorio no es donde deben vivir.
 
-Este servicio no lee la base del Catalogo (regla 3). Lee el ARCHIVO que el
-Catalogo exporto, `datos/curaduria/listas_revisadas.csv`, para saber que
-colegios hacen falta, y exporta solo esos:
-
-- `datos/curaduria/colegios.csv`
-- `datos/curaduria/sedes.csv`
-
-Lo que NO viaja: `contacto_nombre`, `contacto_email` y `contacto_telefono`.
-Son datos de una persona del colegio, y un repositorio no es donde deben vivir.
-
-    python -m tukit_identidad.curaduria exportar
-    python -m tukit_identidad.curaduria importar
-
-`importar` usa la misma regla que el poller de `colegio_verificado`: un colegio
-que no existe se crea con ESE identificador; uno que ya existe no se pisa, solo
-se le completan los campos que tenia vacios.
+Uso:  python -m tukit_identidad.curaduria exportar | importar
 """
 
 from __future__ import annotations
@@ -44,7 +30,6 @@ ARCHIVO_LISTAS = Path("curaduria") / "listas_revisadas.csv"
 ARCHIVO_COLEGIOS = Path("curaduria") / "colegios.csv"
 ARCHIVO_SEDES = Path("curaduria") / "sedes.csv"
 
-# Los campos que se completan si estaban vacios, sin pisar lo que haya.
 CAMPOS_PERFIL = ("nit", "dane", "logo_url", "sitio_web", "direccion")
 COLUMNAS_COLEGIOS = ["id", "nombre", *CAMPOS_PERFIL]
 COLUMNAS_SEDES = ["id", "colegio_id", "nombre"]
@@ -73,12 +58,6 @@ def colegios_nombrados(filas_listas: list[dict[str, str]]) -> set[uuid.UUID]:
 async def exportar(
     db: AsyncSession, ids: set[uuid.UUID], previos: list[dict[str, str]]
 ) -> tuple[list[dict[str, str]], list[dict[str, str]], list[str]]:
-    """Filas de colegios y sedes para `ids`. Devuelve (colegios, sedes, faltantes).
-
-    Un colegio que la base local no tiene (el poller no ha corrido, o la lista
-    vino de otro compañero y nadie importo sus colegios) conserva la fila que ya
-    estaba en el CSV, si la habia: exportar no debe borrar lo que otro subio.
-    """
     colegios = {c.id: c for c in (await db.execute(select(Colegio).where(Colegio.id.in_(ids)))).scalars()}
     sedes = (await db.execute(select(Sede).where(Sede.colegio_id.in_(ids)))).scalars().all()
     previos_por_id = {f["id"]: f for f in previos}
@@ -111,7 +90,6 @@ async def exportar(
 async def importar(
     db: AsyncSession, colegios: list[dict[str, str]], sedes: list[dict[str, str]]
 ) -> tuple[int, int, int]:
-    """Crea lo que falta y completa lo vacio. Devuelve (creados, completados, sedes)."""
     creados = completados = sedes_nuevas = 0
     for fila in colegios:
         colegio_id = uuid.UUID(fila["id"])

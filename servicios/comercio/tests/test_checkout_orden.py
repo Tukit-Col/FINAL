@@ -1,15 +1,3 @@
-"""Crear la orden: re-verificar el precio, congelarlo y congelar la entrega (§9).
-
-Lo que se defiende:
-
-- Re-verificacion antes de cobrar: si el precio de Catalogo cambio respecto al
-  aprobado, la orden no se cierra (`422 precio_cambiado`).
-- El precio queda congelado en la linea al confirmar (ADR 0012, R-PRECIO): la
-  linea guarda su propio `precio_unitario`, sin llave hacia el de Catalogo.
-- La direccion queda congelada en el envio (ADR 0015) con sus datos extendidos,
-  la localidad y el pin de OpenStreetMap (ADR 0049).
-"""
-
 from __future__ import annotations
 
 import pytest
@@ -29,8 +17,6 @@ from tukit_comercio.modelos import Base, EstadoPedido
 
 LINEA = Base.metadata.tables["linea_pedido"]
 
-# --- El precio congelado en la linea (a nivel de dato) ----------------------
-
 
 async def test_precio_de_linea_se_conserva(db):
     pedido = await crear_pedido(db)
@@ -46,23 +32,15 @@ async def test_dos_lineas_mismo_producto_precios_independientes(db):
     b = await agregar_linea(db, pedido, precio=5200)
     await db.refresh(a)
     await db.refresh(b)
-    # El precio vive en la linea: dos renglones pueden diferir aunque el
-    # catalogo tenga un solo precio publico hoy.
     assert a.precio_unitario == 4500
     assert b.precio_unitario == 5200
 
 
-# --- Crear la orden por HTTP ------------------------------------------------
-
-
 async def test_crear_orden_sin_id_canonico_lo_resuelve_por_sku(cliente):
-    # Quien arma la orden nunca ve el id canonico (RPO cero): manda solo sku,
-    # y Comercio lo resuelve contra Catalogo. La orden se cierra igual.
     orden = nueva_orden()
     orden["lineas"][0].pop("producto_canonico_id")
     respuesta = await cliente.post("/v1/ordenes", json=orden)
     assert respuesta.status_code == 201
-    # El contrato no expone el id canonico; se mira la linea guardada.
     (linea,) = await filas_de(LINEA, respuesta.json()["pedido_id"])
     assert linea.producto_canonico_id == CatalogoFalso.id_canonico(SKU)
 
@@ -75,16 +53,11 @@ async def test_crear_orden_congela_precio_y_reserva(cliente):
     assert cuerpo["estado"] == EstadoPedido.PENDIENTE_PAGO.value
     assert cuerpo["total"] == total_de(orden)
     assert cuerpo["lineas"][0]["precio_unitario"] == PRECIO
-    # La direccion quedo congelada en el envio (ADR 0015).
     assert cuerpo["envio"]["ciudad"] == "Bogota"
-    # Y la reserva de inventario quedo tomada.
     assert await reservas_de(cuerpo["pedido_id"]) == ["activa"]
 
 
 async def test_crear_orden_congela_los_datos_extendidos_de_entrega(cliente):
-    # telefono/departamento/documento/indicaciones son parte de la copia
-    # congelada del hecho de entrega (ADR 0015): entran por la solicitud y
-    # vuelven en el envio serializado, no apuntan a la libreta de Identidad.
     orden = nueva_orden()
     orden["entrega"].update(
         {
@@ -103,8 +76,6 @@ async def test_crear_orden_congela_los_datos_extendidos_de_entrega(cliente):
 
 
 async def test_crear_orden_sin_datos_extendidos_los_deja_nulos(cliente):
-    # Una entrega con solo destinatario/direccion/ciudad cierra igual: los
-    # campos opcionales son nullable y quedan en None.
     cuerpo = (await cliente.post("/v1/ordenes", json=nueva_orden())).json()
     envio = cuerpo["envio"]
     assert envio["telefono"] is None
@@ -115,8 +86,6 @@ async def test_crear_orden_sin_datos_extendidos_los_deja_nulos(cliente):
 
 
 async def test_crear_orden_congela_la_localidad_y_las_indicaciones(cliente):
-    # El checkout manda la localidad canonica y las indicaciones; quedan en la
-    # copia del envio.
     orden = nueva_orden()
     orden["entrega"].update(
         {
@@ -128,14 +97,11 @@ async def test_crear_orden_congela_la_localidad_y_las_indicaciones(cliente):
     envio = cuerpo["envio"]
     assert envio["localidad"] == "Chapinero"
     assert envio["indicaciones"] == "Apto 502, torre 2"
-    # Y vuelve igual al leer el pedido.
     leido = (await cliente.get(f"/v1/comercio/pedidos/{cuerpo['pedido_id']}", headers=OPERADOR_HDR)).json()
     assert leido["envio"]["localidad"] == "Chapinero"
 
 
 async def test_crear_orden_congela_el_pin_confirmado_en_openstreetmap(cliente):
-    # Sin Google, el acudiente confirma su direccion en un mapa de OSM y el
-    # punto queda en la copia del envio (ADR 0049).
     orden = nueva_orden()
     orden["entrega"].update({"latitud": 4.651818, "longitud": -74.051003})
     cuerpo = (await cliente.post("/v1/ordenes", json=orden)).json()
@@ -152,9 +118,9 @@ async def test_sin_pin_el_envio_trae_coordenadas_nulas(cliente):
 @pytest.mark.parametrize(
     "coordenadas",
     [
-        {"latitud": 4.65},  # una sola no sirve
+        {"latitud": 4.65},
         {"longitud": -74.05},
-        {"latitud": 40.4, "longitud": -3.7},  # Madrid: homonimo de otro pais
+        {"latitud": 40.4, "longitud": -3.7},
         {"latitud": 4.65, "longitud": -140.0},
     ],
 )
@@ -165,7 +131,6 @@ async def test_coordenadas_incompletas_o_fuera_de_colombia_se_rechazan(cliente, 
 
 
 async def test_una_localidad_demasiado_larga_se_rechaza(cliente):
-    # Como todo cuerpo que no cumple el esquema en Comercio: 400.
     orden = nueva_orden()
     orden["entrega"]["localidad"] = "x" * 65
     respuesta = await cliente.post("/v1/ordenes", json=orden)
@@ -173,7 +138,6 @@ async def test_una_localidad_demasiado_larga_se_rechaza(cliente):
 
 
 async def test_reverificacion_rechaza_si_el_precio_cambio(cliente):
-    # El acudiente aprobo un precio, pero Catalogo ahora dice otro.
     app.state.catalogo = CatalogoFalso({SKU: PRECIO + 700})
     respuesta = await cliente.post("/v1/ordenes", json=nueva_orden(precio=PRECIO))
     assert respuesta.status_code == 422
@@ -181,7 +145,7 @@ async def test_reverificacion_rechaza_si_el_precio_cambio(cliente):
 
 
 async def test_reverificacion_rechaza_si_no_hay_precio(cliente):
-    app.state.catalogo = CatalogoFalso({})  # producto sin precio vigente
+    app.state.catalogo = CatalogoFalso({})
     respuesta = await cliente.post("/v1/ordenes", json=nueva_orden())
     assert respuesta.status_code == 422
     assert respuesta.json()["error"] == "precio_cambiado"

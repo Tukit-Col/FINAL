@@ -1,13 +1,3 @@
-// `PATCH /api/listas/{version_id}/items/{item_id}` — P4, edición de un renglón.
-//
-// El revisor reescribe una línea (concepto, cantidad, unidad, modo de
-// adquisición directa del colegio + instrucción libre…). El cuerpo es un
-// `ItemListaEditable` con solo lo que cambió. DELETE quita un renglón que sobra
-// (p. ej. "Todo debidamente marcado"): solo sobre una versión sin revisar, el
-// backend alza 409 `lista_ya_revisada` si no. Las guardas de dominio las impone
-// el backend; aquí solo se traduce el error tal cual (§11), sin devolver lo que
-// el cliente mandó. 204 sin cuerpo cuando el backend acepta el cambio.
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import type { ItemListaEditable } from "@tukit/contrato";
 import { cuerpoJson, respuestaDeError, SIN_CONTENIDO } from "@/lib/respuesta";

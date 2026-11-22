@@ -1,6 +1,3 @@
-"""La cola de revision de listas por HTTP: listar, ver y eliminar versiones."""
-
-# El fixture `cliente` llega de `_ayudas_api_admin` y los tests lo reciben por nombre.
 # ruff: noqa: F811
 
 from __future__ import annotations
@@ -34,16 +31,12 @@ class TestListarVersionesParaRevisar:
         assert cuerpo["listas"][0]["grado"] == "Quinto"
 
     async def test_una_lista_sin_tarea_no_declara_procedencia(self, cliente):
-        # Las versiones sembradas a mano no nacen de una importacion, asi que la
-        # cola no puede atribuirles una procedencia ni un padre esperando.
         cuerpo = (await cliente.get("/v1/admin/listas")).json()
         cuarto = next(v for v in cuerpo["listas"] if v["grado"] == "Cuarto")
         assert cuarto["procedencia"] is None
         assert cuarto["tiene_contacto"] is False
 
     async def test_una_version_importada_declara_su_procedencia(self, cliente):
-        # Una version que nace de `importar` (onboarding) la trae etiquetada,
-        # para que la cola distinga "el colegio la envio" de "un padre la subio".
         vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()["version_id"]
         cuerpo = (await cliente.get("/v1/admin/listas?revisada=false")).json()
         importada = next(v for v in cuerpo["listas"] if v["version_id"] == vid)
@@ -51,9 +44,6 @@ class TestListarVersionesParaRevisar:
         assert importada["tiene_contacto"] is False
 
     async def test_una_subida_de_acudiente_declara_sugerencia_padre(self, cliente):
-        # La subida del acudiente manda origen='sugerencia_padre' en el cuerpo:
-        # la cola tiene que verlo asi para decir "un acudiente la subio". Sin
-        # esto, `importar` fijaba siempre 'onboarding' y mentia en la insignia.
         vid = (
             await cliente.post(
                 "/v1/admin/listas/importar",
@@ -65,14 +55,9 @@ class TestListarVersionesParaRevisar:
         cuerpo = (await cliente.get("/v1/admin/listas?revisada=false")).json()
         subida = next(v for v in cuerpo["listas"] if v["version_id"] == vid)
         assert subida["procedencia"] == "sugerencia_padre"
-        # Y el nombre del colegio nuevo viaja para que la cola no muestre el id.
         assert subida["colegio_nombre"] == "Colegio San Ejemplo"
 
     async def test_el_onboarding_de_un_colegio_nuevo_entra_con_su_nombre_y_sin_contacto(self, cliente):
-        # El staff sube desde la cola la lista de un colegio del directorio que
-        # Tukit no tiene: `origen` onboarding, sin acudiente detras, con
-        # `colegio_datos`. La cola lo muestra por su nombre y la revision trae
-        # los datos para `CompletarColegio`.
         colegio_datos = {"dane": "311001105731", "nombre": "ACADEMIA CENTRAL DE SISTEMAS"}
         vid = (
             await cliente.post(
@@ -93,8 +78,6 @@ class TestListarVersionesParaRevisar:
         return (await cliente.post("/v1/admin/listas/importar", json=cuerpo)).json()["version_id"]
 
     async def test_la_lista_que_el_acudiente_cancela_sale_de_la_cola(self, cliente):
-        # H-07: tras cancelar ya nadie la espera; seguia como pendiente y sin
-        # contacto. Sale de `revisada=false` y queda marcada en el listado.
         padre = uuid.uuid4()
         vid = await self._subida_de(cliente, padre)
         retiro = await cliente.post(f"/interno/listas-por-contacto/{padre}/retirar", json={"version_id": vid})
@@ -108,7 +91,6 @@ class TestListarVersionesParaRevisar:
         assert retirada["tiene_contacto"] is False
 
     async def test_una_lista_sin_acudiente_que_nadie_retiro_queda_en_la_cola(self, cliente):
-        # Sin contacto no es lo mismo que retirada: el onboarding nunca lo tuvo.
         vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()["version_id"]
 
         cola = (await cliente.get("/v1/admin/listas?revisada=false")).json()
@@ -132,10 +114,8 @@ class TestLaVistaDeRevision:
         assert [i["orden"] for i in cuerpo["items"]] == [1, 2]
         cuaderno = cuerpo["items"][0]
         assert cuaderno["concepto"]["codigo"] == "C001"
-        # El renglon sin concepto se ve como no resuelto, no desaparece.
         assert cuerpo["items"][1]["concepto"] is None
         assert cuerpo["items"][1]["requiere_revision"] is True
-        # Las propuestas pendientes son los candidatos de la region 3.
         assert len(cuerpo["propuestas"]) == 1
         assert cuerpo["propuestas"][0]["precio"] == 3500
         assert cuerpo["propuestas"][0]["nombre"].startswith("Chaquiras")
@@ -151,16 +131,12 @@ class TestEliminarUnaVersionDeLaCola:
         assert all(v["version_id"] != str(vid) for v in pendientes["listas"])
 
     async def test_una_version_revisada_no_se_elimina(self, cliente):
-        """La revisada es la que ve el acudiente y contra la que alguien pudo
-        comprar: no sale por la puerta de la cola."""
         vid = cliente.ids["cerrada"]
         respuesta = await cliente.delete(f"/v1/admin/listas/{vid}")
         assert respuesta.status_code == 409
         assert respuesta.json()["error"] == "lista_ya_revisada"
 
     async def test_eliminar_la_subida_nueva_le_devuelve_la_vigencia_a_la_aprobada(self, cliente):
-        """Subir una lista nueva le quita la vigencia a la aprobada. Si esa
-        subida se elimina, el acudiente no puede quedarse sin la aprobada."""
         cerrada = cliente.ids["cerrada"]
         nueva = (
             await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar(grado="Quinto"))

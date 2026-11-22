@@ -1,6 +1,3 @@
-"""Crear conceptos y aprender de las correcciones de la cola."""
-
-# El fixture `cliente` llega de `_ayudas_api_admin` y los tests lo reciben por nombre.
 # ruff: noqa: F811
 
 from __future__ import annotations
@@ -17,8 +14,6 @@ from tukit_catalogo.modelos import (
 
 class TestCrearConcepto:
     async def test_autogenera_el_siguiente_codigo_y_parte_sinonimos(self, cliente):
-        # La semilla tiene C001 y C002: el nuevo nace C003. Los sinonimos llegan
-        # separados por "|" y se guardan como lista para que el matcher los use.
         respuesta = await cliente.post(
             "/v1/admin/catalogo/conceptos",
             json={
@@ -31,7 +26,6 @@ class TestCrearConcepto:
         assert respuesta.status_code == 201
         assert respuesta.json()["codigo"] == "C003"
 
-        # El concepto quedo activo y con sus sinonimos: aparece en el vocabulario.
         from sqlalchemy import select
         from tukit_catalogo.admin_http import CONCEPTO, _motor
 
@@ -45,11 +39,6 @@ class TestCrearConcepto:
         assert fila.tipo_item == "licencia_digital"
 
     async def test_guarda_los_atributos_que_filtran_y_los_que_informan(self, cliente):
-        # El alta trae los dos papeles del atributo: el discriminante descarta
-        # productos (un cuaderno cuadriculado no pasa por uno rayado) y el
-        # descriptivo solo cuenta que se compra. Se normalizan a la forma del
-        # corpus y un nombre repetido entre listas se queda solo como filtro,
-        # porque la base prohibe que este en las dos.
         respuesta = await cliente.post(
             "/v1/admin/catalogo/conceptos",
             json={
@@ -79,8 +68,6 @@ class TestCrearConcepto:
         assert list(fila.atributos_descriptivos) == ["talla"]
 
     async def test_nombre_repetido_es_409(self, cliente):
-        # "cuaderno" ya existe (C001): duplicarlo partiria el vocabulario, asi que
-        # se rechaza y se invita a agregarle productos en vez de crear otro.
         respuesta = await cliente.post(
             "/v1/admin/catalogo/conceptos",
             json={"nombre_canonico": "Cuaderno", "categoria": "Cuadernos"},
@@ -104,10 +91,8 @@ class TestCrearConcepto:
 
 
 class TestLaCorreccionVuelveAlCatalogo:
-    """Lo que el equipo corrige en la cola no vuelve a fallar en la lista siguiente (13-nov)."""
-
     async def test_corregir_el_concepto_lo_aprende_como_sinonimo(self, cliente):
-        from tukit_catalogo.descubrir import clasificar
+        from tukit_catalogo.clasificacion import clasificar
 
         vid = cliente.ids["abierta"]
         revision = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()
@@ -131,7 +116,6 @@ class TestLaCorreccionVuelveAlCatalogo:
         ]
         colores = next(f for f in filas if f.codigo == "C002")
         assert "chaquiras de colores" in (colores.sinonimos or [])
-        # Una lista NUEVA con el mismo texto ya cae en el concepto corregido.
         concepto_id, _, puntaje = clasificar("2 chaquiras de colores", conceptos)
         assert concepto_id == colores.id and puntaje >= 0.5
 
@@ -145,7 +129,6 @@ class TestLaCorreccionVuelveAlCatalogo:
         assert sinonimo_de_renglon("Una caja de pasteles secos") == "caja de pasteles secos"
         assert sinonimo_de_renglon("2 cuadernos cuadriculados") == "cuadernos cuadriculados"
         assert sinonimo_de_renglon("x") is None
-        # Un titulo de libro o una frase larga son unicos: no generalizan y ensuciarian el concepto.
         assert sinonimo_de_renglon("Te amo, peladita. Albeiro Echavarría. Editorial Norma") is None
         assert (
             sinonimo_de_renglon(

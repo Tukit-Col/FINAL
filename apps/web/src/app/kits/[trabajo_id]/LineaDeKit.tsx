@@ -23,15 +23,6 @@ import {
 } from "@tukit/contrato";
 import styles from "./Kits.module.css";
 
-/**
- * Un renglon del kit.
- *
- * El contrato las modela todas con la misma forma, pero en pantalla no se
- * parecen: una tiene precio y foto, otra tiene un link de pago externo, otra
- * es una disculpa con alternativas. Lo que si comparten es que TODAS se
- * muestran. Ocultar la que no se puede vender deja al acudiente con un hueco
- * que descubre tarde, que es justo el dolor que vino a evitar.
- */
 export default function LineaDeKit({
   linea,
   clase,
@@ -41,8 +32,6 @@ export default function LineaDeKit({
 }: {
   linea: LineaKit;
   clase: ClaseLinea;
-  // El apodo del hijo (o "Hijo N"); `linea.hijo` es una referencia interna y
-  // no se pinta nunca.
   nombreHijo?: string;
   trabajoId: string;
   perfil: string;
@@ -52,10 +41,6 @@ export default function LineaDeKit({
   const [quitando, setQuitando] = useState(false);
   const [errorDescarte, setErrorDescarte] = useState<string | null>(null);
   const producto = linea.producto_elegido;
-  // Transicion al cambiar de producto (feedback): el bloque principal se vuelve
-  // a montar con otra `key` y entra con un fundido corto. Solo desde el segundo
-  // producto: en la primera carga no se anima nada. Se ajusta durante el render
-  // (patron de React), sin efecto ni ref.
   const [skuVisto, setSkuVisto] = useState(producto?.sku);
   const [huboCambio, setHuboCambio] = useState(false);
   if (producto?.sku !== skuVisto) {
@@ -66,7 +51,6 @@ export default function LineaDeKit({
   const pista = producto ? pistaDeTienda(producto.ofertas ?? []) : null;
   const precio = estadoDePrecio(linea);
   const descartado = linea.descartado === true;
-  // Se puede cambiar o quitar lo que Tukit vende (tiene producto elegido).
   const sePuedeTocar = clase === "comprable" && Boolean(producto);
 
   async function descartar(quitar: boolean) {
@@ -114,8 +98,6 @@ export default function LineaDeKit({
                   : ""}
               </span>
             )}
-            {/* Los tres numeros del §5 separados, que es todo el arreglo de
-                unidades: doce lapices no son doce cajas. */}
             {typeof linea.unidades_por_empaque === "number" &&
               linea.unidades_por_empaque > 1 && (
                 <span>empaque de {linea.unidades_por_empaque}</span>
@@ -196,8 +178,6 @@ export default function LineaDeKit({
         </div>
 
         <div className={styles.lineaPrecio}>
-          {/* Nunca "$ 0": o hay un precio real o una frase que dice por que no
-              se cobra y donde se consigue. */}
           {precio.tipo === "precio" ? (
             <span className={`${styles.subtotal} cifra`}>{formatearPesos(precio.valor)}</span>
           ) : precio.tipo === "descartado" ? (
@@ -208,9 +188,6 @@ export default function LineaDeKit({
           ) : (
             <span className={styles.noCobrado}>{precio.titulo}</span>
           )}
-          {/* Las ofertas por tienda son opcionales: el backend las omite en la
-              línea del kit (el producto ya trae su `precio`). Se pinta la pista
-              de tienda solo cuando trae un nombre, en vez de un "en" vacío. */}
           {pista && !descartado && <span className={styles.tienda}>{pista}</span>}
         </div>
       </div>
@@ -270,13 +247,6 @@ export default function LineaDeKit({
   );
 }
 
-/**
- * Las opciones del MISMO tipo de útil (mismo concepto) para un renglón, como un
- * carrusel horizontal: foto, marca, precio, empaque y cuánto cambia el total.
- * Elegir una la guarda en el trabajo del acudiente y el servidor recalcula el
- * total (`router.refresh()` trae el kit nuevo). La sugerida por Tukit queda
- * siempre a la vista para volver a ella.
- */
 function CarruselDeOpciones({
   linea,
   trabajoId,
@@ -302,7 +272,6 @@ function CarruselDeOpciones({
       })
       .catch((causa) => {
         if (!vivo) return;
-        // Si no se pudieron traer todas, se ofrecen al menos las ya revisadas.
         setOpciones(opcionesDeRespaldo(linea));
         setError(
           causa instanceof FalloApi
@@ -331,15 +300,12 @@ function CarruselDeOpciones({
     }
   }
 
-  // Hay más opciones a cada lado de la pista? Decide qué flechas se muestran y
-  // qué borde se difumina, para que quien mira sepa que se puede seguir.
   const [hayIzq, setHayIzq] = useState(false);
   const [hayDer, setHayDer] = useState(false);
 
   const medirBordes = useCallback(() => {
     const el = pista.current;
     if (!el) return;
-    // 2 px de holgura: con zoom o subpíxeles scrollLeft nunca llega justo al tope.
     setHayIzq(el.scrollLeft > 2);
     setHayDer(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
   }, []);
@@ -348,7 +314,6 @@ function CarruselDeOpciones({
     const el = pista.current;
     if (!el) return;
     medirBordes();
-    // La pista cambia de ancho al girar el celular o al cambiar el panel.
     const observador = new ResizeObserver(medirBordes);
     observador.observe(el);
     return () => observador.disconnect();
@@ -462,7 +427,6 @@ function CarruselDeOpciones({
       {opciones !== null && opciones.length > 1 && (
         <p className={styles.pistaCarrusel}>
           {opciones.length} opciones
-          {/* Solo se invita a deslizar si de verdad hay algo fuera de la vista. */}
           {(hayIzq || hayDer) && " · desliza para ver más"}
         </p>
       )}
@@ -478,7 +442,6 @@ function CarruselDeOpciones({
   );
 }
 
-/** Si el servidor no responde, las ya revisadas (la del kit y sus alternativas). */
 function opcionesDeRespaldo(linea: LineaKit): OpcionDeLinea[] {
   const actual = linea.producto_elegido;
   if (!actual) return [];
@@ -527,10 +490,6 @@ function Foto({ producto }: { producto: ProductoKit }) {
       </span>
     );
   }
-  // Las fotos son de las tiendas y se sirven desde su origen, igual que en el
-  // volcado de catalogo del backend. Se usa `img` y no `next/image` para no
-  // atar la pantalla a una lista cerrada de dominios que cambia cada vez que
-  // se agrega una tienda.
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img className={styles.foto} src={producto.imagen_url} alt="" loading="lazy" />

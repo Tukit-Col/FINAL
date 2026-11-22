@@ -26,14 +26,6 @@ import styles from "./Clientes.module.css";
 
 export const dynamic = "force-dynamic";
 
-// El padrón de familias registradas. Vive detrás del token: identidad gatea el
-// endpoint (401 sin token, 403 sin rol admin/operador), así que esta página lee
-// la cookie de sesión —la misma que puso la web al entrar— y la pasa como
-// Bearer. Sin sesión o sin permiso NO se muestra un error crudo, sino un aviso
-// claro. No muestra ningún dato que identifique a un menor (ni apodo): Ley 1581.
-
-/** El aviso de guardia: nunca un stack trace, siempre una frase que dice qué
- *  hacer. Cubre "no hay sesión", "la sesión expiró" y "no tienes el rol". */
 function Aviso({ titulo, cuerpo }: { titulo: string; cuerpo: string }) {
   return (
     <div className={styles.pagina}>
@@ -45,8 +37,6 @@ function Aviso({ titulo, cuerpo }: { titulo: string; cuerpo: string }) {
   );
 }
 
-/** El texto de un hijo: un rótulo estable con su posición, grado y colegio. Ni
- *  apodo ni nombre de menor llegan a esta vista (Ley 1581). */
 function textoHijo(hijo: AcudienteAdmin["hijos"][number], indice: number): string {
   return `${rotuloDeHijo(hijo, indice)} · ${hijo.colegio_nombre}`;
 }
@@ -78,8 +68,6 @@ export default async function PaginaClientes({ searchParams }: Props) {
         />
       );
     }
-    // El limite de tasa (ADR 0047): ni sesion vencida ni servicio caido. Su
-    // mensaje ya dice cuanto esperar.
     if (error instanceof ErrorTukit && error.estado === 429) {
       return <Aviso titulo="Danos un momento" cuerpo={error.message} />;
     }
@@ -104,14 +92,9 @@ export default async function PaginaClientes({ searchParams }: Props) {
   const pagina = paginar(filtrados, filtros.pagina);
   const opciones = opcionesClientes(acudientes);
   const pruebas = acudientes.filter(esCuentaDePrueba).length;
-  // Cuantas familias e hijos hay en cada colegio y grado, sobre el padron entero
-  // (no sobre la pagina filtrada): es el mapa de donde estan los clientes.
   const porColegio = clientesPorColegio(acudientes);
-  // El estado del pedido de cada familia (el tablero de comercio, solo staff). Si
-  // comercio no responde, la columna sale vacia y el padron sigue.
   const tablero = await origenDeDatos().pedidos(token).catch(() => null);
   const pedidos = pedidosPorFamilia(tablero?.pedidos ?? []);
-  // El logo de cada colegio (Identidad o el directorio de Bogota) y las cifras de arriba.
   const colegios = await origenDeDatos().colegios().catch(() => []);
   const logos = new Map(colegios.map((c) => [c.colegio_id, logoDeColegio(c, imagenesDelDirectorio())] as const));
   const hijosTotales = acudientes.reduce((n, a) => n + a.hijos.length, 0);
@@ -204,7 +187,6 @@ export default async function PaginaClientes({ searchParams }: Props) {
       )}
 
       {acudientes.length > 0 ? (
-        // El `key` remonta el formulario cuando cambia la URL (Limpiar, atras).
         <Form
           key={hrefClientes({ ...filtros, pagina: 1 })}
           action="/clientes"

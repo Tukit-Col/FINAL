@@ -13,12 +13,6 @@ const ENLACES = [
 ];
 
 export default async function Cabecera() {
-  // La sesion se lee en el servidor: el boton de ingreso cambia a "mi cuenta"
-  // (al destino que le toca por rol) mas "cerrar sesion", sin que el rol lo
-  // decida ningun componente de cliente.
-  // Con el cupo agotado (429) no se sabe el rol, pero la cookie sigue viva: se
-  // pinta "Mi cuenta" (al panel) y no "Ingresar", que invitaria a entrar otra
-  // vez. El aviso con la espera lo da la pagina.
   let sesion: Awaited<ReturnType<typeof sesionActual>>;
   let conSesion: boolean;
   try {

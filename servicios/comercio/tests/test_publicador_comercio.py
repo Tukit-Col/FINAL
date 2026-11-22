@@ -1,10 +1,3 @@
-"""El publicador de la bandeja de Comercio (ADR 0046).
-
-El nucleo se prueba en `tukit_comun`. Aqui se fija que lee la bandeja de verdad
-de Comercio: lo que escribe el pago sale con su origen, su carga y su
-correlacion, y queda marcado. Y que sin `RABBITMQ_URL` no arranca.
-"""
-
 from __future__ import annotations
 
 import uuid

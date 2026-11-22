@@ -1,11 +1,3 @@
-// Lo que el acudiente lee en cada renglón del kit donde iria el precio: si se
-// cobra, y si no, por que no y donde se consigue. Nunca un "$ 0". Los libros y
-// los uniformes se distinguen; la instruccion que curo el colegio va corta.
-//
-// Las frases exactas son copy de producto: aqui se prueba lo que cada frase
-// debe decir (la tienda, que es libro o uniforme, que lo entrega el colegio),
-// no su redaccion. Correr con `node --test test/linea.test.ts`.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -49,23 +41,18 @@ function producto(extra: Partial<ProductoKit>): ProductoKit {
   };
 }
 
-/** El titulo que va en lugar del precio; falla si la linea si se cobra. */
 function tituloSinCobro(l: LineaKit): string {
   const e = estadoDePrecio(l);
   assert.equal(e.tipo, "sin_cobro", `se esperaba una linea sin cobro y fue ${e.tipo}`);
   return e.tipo === "sin_cobro" ? e.titulo : "";
 }
 
-// Lo que la curaduria escribio como "Se compra en librería / papelería" o
-// "Pregunta en el colegio (tel)", con su fuente y su fecha.
 const LIBRERIA =
   "Se compra en librería: Tukit no tiene esta edición verificada en una tienda en línea. Verificado el 2026-11-01 en Buscalibre Colombia y en la lista del colegio.";
 const PAPELERIA =
   "Se compra en papelería: Tukit no encontró este artículo con esa medida y ese formato en una tienda en línea (búsqueda del 2026-11-01 en Éxito y Panamericana). Cómpralo como lo pide el colegio.";
 const COLEGIO =
   "No se compra en Tukit ni en una tienda en línea: la lista del colegio describe el modelo, pero no nombra una tienda para esta prenda. Pregunta en el colegio (601 427 2365). Verificado en la lista de textos y útiles 2026 y en la Circular 03 de 2026 del colegio el 2026-11-01.";
-
-// --- clasificar y razonDeNoCobrar ---------------------------------------------
 
 test("una linea que ya va en otra dice donde", () => {
   const juntada = linea({
@@ -86,16 +73,12 @@ test("un libro con titulo que no vendemos se consigue por tu cuenta, no es un hu
     estado_resolucion: "HUECO_CATALOGO",
   });
   assert.equal(clasificar(libro), "por_su_cuenta");
-  // Lo que de verdad no se entendio sigue a revision.
   assert.equal(clasificar({ ...libro, estado_resolucion: "SIN_MATCH" }), "sin_match");
-  // Con producto elegido es comprable.
   assert.equal(
     clasificar({ ...libro, estado_resolucion: "RESUELTO_AUTO", producto_elegido: { sku: "X" } } as LineaKit),
     "comprable",
   );
 });
-
-// --- estadoDePrecio y dondeComprar --------------------------------------------
 
 test("una linea con subtotal real muestra su precio", () => {
   assert.deepEqual(estadoDePrecio(linea({})), { tipo: "precio", valor: 9000 });
@@ -109,7 +92,6 @@ test("una linea comprable en cero nunca muestra 0: dice que no tiene precio y do
   const titulo = tituloSinCobro(sinPrecio);
   assert.match(titulo, /Sin precio/);
   assert.match(titulo, /Panamericana/);
-  // Sin tienda no se inventa una.
   const sinNada = tituloSinCobro(linea({ subtotal_linea: null }));
   assert.match(sinNada, /Sin precio/);
   assert.doesNotMatch(sinNada, /se compra en/i);
@@ -131,7 +113,6 @@ test("lo que entrega el colegio, las licencias y los uniformes dicen como conseg
     linea({ tipo: "licencia_digital", informativa: true, subtotal_linea: null, url_externa: "https://www.quovix.com/comprar" }),
   );
   assert.match(licencia, /^Licencia digital/);
-  // Del enlace se nombra el sitio, sin `www.` ni la ruta.
   assert.match(licencia, /quovix\.com$/);
 
   const uniforme = tituloSinCobro(linea({ tipo: "uniforme", subtotal_linea: null, se_compra_en: "Uniformes Lupita" }));
@@ -172,8 +153,6 @@ test("el empaque se dice como empaque", () => {
   assert.equal(etiquetaEmpaque(12, 2), "Empaque de 12 · compras 2");
 });
 
-// --- instruccion del colegio --------------------------------------------------
-
 test("la instruccion del colegio se dice corta: la frase, sin la fuente ni la fecha", () => {
   assert.equal(instruccionCorta(linea({ instruccion_colegio: LIBRERIA })), "Se compra en librería");
   assert.equal(instruccionCorta(linea({ instruccion_colegio: PAPELERIA })), "Se compra en papelería");
@@ -188,12 +167,9 @@ test("un libro del plan lector sin edicion va con los libros y dice que se compr
   const titulo = tituloSinCobro(l);
   assert.match(titulo, /^Libro/);
   assert.match(titulo, /librería/);
-  // La instruccion completa, con su fuente, queda como razon de no cobrar.
   assert.equal(razonDeNoCobrar(l), LIBRERIA);
-  // Sin resolucion la linea no trae `concepto`: la instruccion basta.
   const sinConcepto = linea({ tipo: "otro", informativa: true, subtotal_linea: null, instruccion_colegio: LIBRERIA });
   assert.equal(esLibro(sinConcepto), true);
-  // Un repetido del plan lector que no se compra, o lo de papeleria, no es un libro.
   assert.equal(esLibro(linea({ tipo: "no_comprar", concepto: "C134" })), false);
   assert.equal(esLibro(linea({ tipo: "otro", instruccion_colegio: PAPELERIA })), false);
 });

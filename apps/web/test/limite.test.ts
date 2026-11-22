@@ -1,7 +1,3 @@
-// Pruebas del 429 del limite de tasa (ADR 0047) del lado del servidor: un 429
-// nunca se lee como "sin sesion" ni como "sin datos". Runner nativo de Node
-// (type-stripping), sin dependencias: `npm test` en apps/web.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -12,7 +8,6 @@ import {
   fallaCerradoSalvoLimite,
 } from "../src/lib/limite.ts";
 
-// La misma forma que `ErrorTukit` y `FalloApi`: estado, mensaje y detalle.
 class Fallo extends Error {
   estado: number;
   detalle: Record<string, unknown>;
@@ -66,7 +61,6 @@ test("otro fallo no es un aviso de limite", () => {
   assert.equal(avisoDeLimite(null), null);
 });
 
-// H-R-01: el registro crea la cuenta, pero el login que lo sigue da 429.
 test("el 429 del login tras el registro dice que la cuenta quedo creada", () => {
   const trasRegistro = new Fallo(429, MENSAJE, { reintentar_en_segundos: 30, cuenta_creada: true });
   assert.equal(cuentaCreadaSinSesion(trasRegistro), true);

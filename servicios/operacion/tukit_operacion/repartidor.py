@@ -1,49 +1,14 @@
-"""El repartidor: la mitad de ENTREGA que faltaba (§10 del contrato).
+"""Repartidor: la mitad de entrega de los eventos que avisan al acudiente.
 
-Inteligencia escribe `kits_publicados` en su bandeja al publicar un trabajo, y
-Comercio escribe `pedido_pagado` al confirmar un pago, cada uno en la misma
-transaccion que el cambio que lo origina. Pero hasta ahora nadie los recogia:
-el evento quedaba escrito y el aviso al acudiente no salia. Este proceso cierra
-esa deuda.
+Decisiones:
+- Inteligencia (`kits_publicados`) y Comercio (`pedido_pagado`) escriben su evento en su bandeja en
+  la misma transaccion que el cambio; este proceso lo convierte en un aviso.
+- Con `RABBITMQ_URL` consume la cola `operacion.avisos` y no abre ningun motor a otra base; sin
+  broker lee las bandejas con `FOR UPDATE SKIP LOCKED`, para que dos repartidores no tomen el mismo
+  evento.
+- Un solo `notificacion` por evento garantiza una entrega unica aunque el broker lo traiga dos veces.
 
-    python -m tukit_operacion.repartidor        # una pasada
-    python -m tukit_operacion.repartidor --seguir   # bucle
-
-**Con RabbitMQ** (`RABBITMQ_URL`, ADR 0046) no sondea ninguna bandeja: consume
-la cola `operacion.avisos`, a la que los publicadores de Comercio e Inteligencia
-llevan sus eventos, y no abre ningun motor a otra base. El aviso es el mismo, y
-el mismo `notificacion` por evento lo deja entregar una sola vez aunque el
-broker lo traiga dos. Sin broker hace lo de siempre, que se describe abajo.
-
-Lo que hace, por evento no publicado:
-
-1. Lee la bandeja de origen (Inteligencia, Comercio) con `FOR UPDATE SKIP
-   LOCKED` para que dos repartidores no tomen el mismo evento.
-2. Resuelve el `usuario_id` destinatario (de `trabajo_pipeline.usuario_id` para
-   `kits_publicados`, o de la carga del evento para `pedido_pagado`).
-3. Crea `operacion.notificacion` POR IDENTIFICADOR (sin copiar contacto),
-   resuelve el contacto contra Identidad EN EL MOMENTO del envio, envia por el
-   `Notificador`, y marca la fila de origen como publicada (o sube `intentos`).
-
-**Un evento, un aviso** (H-B-03, ADR 0042). El aviso sale y su `notificacion` se
-guarda en la base de Operacion ANTES de que la bandeja de origen marque el
-evento y lo publique al broker. Si eso falla (RabbitMQ caido), la bandeja vuelve
-atras y la siguiente pasada trae el mismo evento. Por eso la notificacion
-guarda de que evento sale, y un evento que ya tiene su aviso `enviada` se da
-por entregado sin volver a enviar: la bandeja lo marca y lo publica.
-
-**La unica excepcion a la frontera de bases**, y solo sin broker. Un servicio no
-toca la base de otro; el patron outbox es la excepcion declarada, y esta es la
-que la ejerce: el repartidor abre motores de LECTURA a las bases de Inteligencia
-y Comercio. Con RabbitMQ no los abre. El
-nombre de esas bases NO se escribe aqui: `url_desde_entorno` lo deriva en la
-libreria a partir del nombre del servicio, asi que este archivo no contiene el
-string de ninguna base ajena (regla 3 de las fronteras).
-
-**Una caida no lo mata** (ADR 0041). El bucle corre sobre `bucle_resiliente`:
-si Postgres o RabbitMQ no responden, espera y reintenta la pasada, y cada pasada
-abre de nuevo sus motores y su sink. Un error de programacion sigue terminando
-el proceso.
+Uso:  python -m tukit_operacion.repartidor [--seguir]
 """
 
 from __future__ import annotations
@@ -75,15 +40,10 @@ from .remoto import ClienteIdentidad
 from .repositorios import RepoNotificaciones
 from .repositorios.notificaciones import NOTIFICACION
 
-# `NOTIFICACION` se reexporta desde el repo: el SQL de la notificacion vive alli
-# (ADR 0019), pero las pruebas de caja blanca lo importan de aqui. `__all__` lo
-# hace explicito para que no lo pode un linter por "no usado".
 __all__ = ["NOTIFICACION", "Repartidor", "correr_una_vez", "escuchar_cola", "main"]
 
 
 def _trabajo_reflejado() -> Table:
-    """La tabla de trabajos de Inteligencia, reflejada para leer el `usuario_id`
-    destinatario de un `kits_publicados`. Misma regla: se declara, no se importa."""
     from sqlalchemy import Column, Uuid
 
     metadatos = MetaData()
@@ -97,16 +57,6 @@ def _trabajo_reflejado() -> Table:
 
 @dataclass
 class Repartidor:
-    """Recoge eventos de una bandeja de origen y entrega su aviso.
-
-    `origen` es el nombre del servicio dueno de la bandeja (`inteligencia`,
-    `comercio`). Los motores y el notificador se inyectan para poder probar sin
-    Postgres ni red; en produccion salen del entorno.
-
-    Con RabbitMQ no hay bandeja que sondear: `origen` y `motor_origen` van en
-    `None` y cada evento trae su origen en el sobre (`manejar`).
-    """
-
     origen: str | None
     motor_operacion: Any
     motor_origen: AsyncEngine | None
@@ -115,14 +65,6 @@ class Repartidor:
     sink: Any = None
 
     async def pasada(self, *, limite: int = 100) -> int:
-        """Una pasada: procesa hasta `limite` eventos no publicados. Devuelve
-        cuantos entrego con exito.
-
-        El drenar/SKIP LOCKED/marcar-publicado/subir-intentos vive en
-        `tukit_comun.bandeja` (ADR 0022); aqui solo se aporta el `manejar` que
-        entrega el aviso. La bandeja de origen puede ser una base ajena (la
-        excepcion outbox declarada). Si hay `sink` (broker), cada evento
-        entregado se publica ademas a RabbitMQ; sin el, solo notifica (hoy)."""
         if self.origen is None or self.motor_origen is None:
             raise ValueError("sin bandeja de origen no hay pasada: con RabbitMQ se usa `manejar`")
         return await drenar(self.motor_origen, self._entregar, limite=limite, sink=self.sink)
@@ -132,31 +74,20 @@ class Repartidor:
         return await self._avisar(self.origen, fila)
 
     async def manejar(self, evento: Evento) -> Resultado:
-        """El aviso de un evento que llega por la cola `operacion.avisos` (ADR 0046).
-
-        El `Evento` tiene la forma de una fila de bandeja, asi que el aviso es el
-        mismo; el origen sale del sobre y no del repartidor."""
         return await self._avisar(evento.origen, evento)
 
     async def _avisar(self, origen: str, fila: Any) -> Resultado:
         plantilla = plantilla_para(fila.tipo)
         if plantilla is None:
-            # Un tipo que este repartidor no maneja: OMITIR lo marca publicado
-            # para no reprocesarlo en cada pasada. No es un fallo, es "no me toca".
             return Resultado.OMITIR
 
         if await self._ya_avisado(origen, fila.id):
-            # La bandeja reentrega un evento que ya se aviso (la pasada anterior
-            # envio y registro, pero no alcanzo a marcarlo ni a publicarlo). HECHO
-            # lo marca y lo publica; el acudiente no recibe un segundo aviso.
             return Resultado.HECHO
 
         usuario_id = await self._destinatario(fila)
         if usuario_id is None:
             return Resultado.REINTENTAR
 
-        # "Tu kit esta listo" nombra cada lista del hogar: un nombre de colegio por
-        # cada `colegio_id` distinto (de `listas`, o el suelto de un evento viejo).
         colegios: dict[str, str | None] = {}
         if fila.tipo == "kits_publicados":
             carga = fila.carga or {}
@@ -169,17 +100,12 @@ class Repartidor:
         datos = datos_plantilla(
             fila.tipo, fila.agregado_id, fila.carga, base_web=_url_web(), colegios=colegios
         )
-        # Se crea la notificacion POR ID, sin contacto, y se envia resolviendo
-        # el contacto al vuelo. Si el envio falla, REINTENTAR sube intentos y se
-        # reintenta en la proxima pasada; la notificacion queda como fallida.
         contacto = await self._resolver_contacto(usuario_id)
         envio = await self.notificador.enviar(contacto, plantilla, datos)
 
         await self._registrar_notificacion(
             usuario_id, envio.canal, plantilla, datos, envio.exito, origen, fila.id, envio
         )
-        # Un destino no enviable no es un fallo que reintentar: repetirlo solo
-        # volveria a omitirlo. Queda registrado como `omitida` y el evento se cierra.
         return Resultado.HECHO if envio.exito or envio.omitido else Resultado.REINTENTAR
 
     async def _ya_avisado(self, origen: str, evento_id: int) -> bool:
@@ -188,16 +114,10 @@ class Repartidor:
 
     async def _destinatario(self, fila: Any) -> str | None:
         if self.motor_origen is None:
-            # Con RabbitMQ no hay motor a la base de Inteligencia (ADR 0046): el
-            # destinatario de todo tipo viaja en la carga. Si falta, REINTENTAR
-            # lo lleva a descartados tras los intentos, donde queda visible.
             return destinatario_de_la_cola(fila.tipo, fila.carga)
-        # Si el tipo trae el usuario en la carga, el dominio lo saca (regla pura).
         en_carga = destinatario_en_carga(fila.tipo, fila.carga)
         if en_carga is not None:
             return en_carga
-        # `kits_publicados` no lo trae: hay que ir a trabajo_pipeline (I/O, queda
-        # en el worker; el dominio ya devolvio None para este tipo).
         if fila.tipo == "kits_publicados":
             return await self._usuario_del_trabajo(fila.agregado_id)
         return None
@@ -249,34 +169,17 @@ class Repartidor:
 
 
 def _url_web() -> str:
-    """La base de la app del acudiente, para armar el enlace de pre-compra.
-
-    Sale del entorno (`TUKIT_WEB_URL`); por omision el Next.js de desarrollo.
-    Se recorta la barra final para no duplicarla al concatenar la ruta.
-    """
     return os.environ.get("TUKIT_WEB_URL", "http://localhost:3000").rstrip("/")
 
 
 def _motor_lectura(servicio: str) -> AsyncEngine:
-    """Motor de solo-lectura a la base de un servicio de origen.
-
-    El nombre de la base lo deriva `url_desde_entorno` DENTRO de la libreria a
-    partir del nombre del servicio; este archivo nunca escribe `tukit_<otro>`,
-    que es lo que mantiene verde la regla 3.
-    """
     return create_async_engine(url_desde_entorno(servicio), pool_pre_ping=True)
 
 
 async def correr_una_vez() -> dict[str, int]:
-    """Una pasada sobre las tres bandejas de origen. Para el cron o el arranque.
-
-    La de Operacion lleva las respuestas a tickets del back-office."""
     motor_operacion = crear_motor("operacion")
     notificador = notificador_desde_entorno()
     identidad = ClienteIdentidad()
-    # El sink del broker es OPCIONAL (ADR 0022): `None` si no hay `RABBITMQ_URL`,
-    # y el repartidor entrega solo por notificador (comportamiento de hoy). Con la
-    # URL, cada evento entregado se publica ademas a RabbitMQ para el fan-out.
     sink = sink_desde_entorno()
     resultado: dict[str, int] = {}
     try:
@@ -302,11 +205,6 @@ async def correr_una_vez() -> dict[str, int]:
 
 
 async def escuchar_cola(url: str, *, seguir: bool, intervalo: float = 5.0) -> int:
-    """Con RabbitMQ (ADR 0046): consume `operacion.avisos` en vez de sondear.
-
-    Solo abre el motor de Operacion; ninguna base ajena. Sin `seguir`, procesa lo
-    que hay en la cola y vuelve; con `seguir`, escucha sobre `bucle_resiliente`.
-    No lleva registro de procesados: la `notificacion` por evento ya lo es."""
     motor_operacion = crear_motor("operacion")
     repartidor = Repartidor(
         origen=None,

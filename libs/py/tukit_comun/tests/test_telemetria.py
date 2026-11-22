@@ -1,20 +1,16 @@
-"""Telemetria OTel: no-op honesto sin endpoint (ADR 0021).
-
-Lo unico que se puede fijar sin un collector es la degradacion: sin
-`OTEL_EXPORTER_OTLP_ENDPOINT`, `configurar_telemetria`/`instrumentar_motor` no
-tocan la app ni el engine y dejan los proveedores globales de OTel como estaban.
-Es la garantia de que la tesis corre sin infra extra.
-"""
-
 from __future__ import annotations
 
-from opentelemetry import metrics, trace
-from tukit_comun.telemetria import configurar_telemetria, instrumentar_motor
+import pytest
+
+# OpenTelemetry es un extra opcional (`tukit-comun[otel]`): los trabajos de CI
+# que no lo instalan (Redis, RabbitMQ) saltan esta prueba en vez de romperse.
+pytest.importorskip("opentelemetry.sdk")
+
+from opentelemetry import metrics, trace  # noqa: E402
+from tukit_comun.telemetria import configurar_telemetria, instrumentar_motor  # noqa: E402
 
 
 class _Intocable:
-    """Una app o un engine que registra cualquier acceso: instrumentarlo lo tocaria."""
-
     def __init__(self) -> None:
         object.__setattr__(self, "accesos", [])
 

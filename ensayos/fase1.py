@@ -1,14 +1,4 @@
-"""Fase 1, de punta a punta: leer la lista y responderla con el catalogo.
-
-Inteligencia no importa Catalogo y Catalogo no importa Inteligencia. Este
-archivo es el unico sitio donde los dos se encuentran, y solo para un
-ensayo: parsea el renglon alla y lo empareja aca.
-
-    python ensayos/fase1.py --texto "block oficio" "2 lapices negros"
-    python ensayos/fase1.py lista.pdf
-
-El PDF llama a Gemini (hace falta GEMINI_API_KEY). El texto no.
-"""
+"""Fase 1, de punta a punta: leer la lista y responderla con el catalogo."""
 
 from __future__ import annotations
 
@@ -19,8 +9,6 @@ import sys
 from dataclasses import asdict
 from pathlib import Path
 
-# El ensayo vive fuera de los dos servicios. Se agregan sus raices al path
-# porque `python ensayos/fase1.py` no pasa por el pythonpath de pytest.
 _RAIZ = Path(__file__).resolve().parents[1]
 for _ruta in (
     _RAIZ / "libs" / "py" / "tukit_comun",
@@ -38,7 +26,6 @@ from tukit_inteligencia.parseo import mensaje_para_papa, parsear_renglon  # noqa
 def _linea(demanda, emparejamiento) -> dict:
     cuerpo = asdict(demanda)
     cuerpo["busca_en_catalogo"] = demanda.busca_en_catalogo
-    # El papa ve el estado del item aunque no se busque producto.
     cuerpo["mensaje"] = mensaje_para_papa(demanda)
     if emparejamiento is None:
         cuerpo["emparejamiento"] = None
@@ -48,7 +35,6 @@ def _linea(demanda, emparejamiento) -> dict:
 
 
 async def responder(renglones: list[tuple[str, int | None]]) -> list[dict]:
-    """Parsea cada renglon y solo empareja los que se compran."""
     demandas = [parsear_renglon(texto, cantidad=cantidad) for texto, cantidad in renglones]
     a_buscar = [d.texto for d in demandas if d.busca_en_catalogo]
     encontrados = await emparejar_en_catalogo(a_buscar) if a_buscar else []
@@ -88,8 +74,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--texto", nargs="+", help="Renglones ya leidos, sin llamar a Gemini.")
     parser.add_argument("--json", action="store_true", help="Imprime el JSON en vez del resumen.")
     argumentos = parser.parse_args(argv)
-    # Fuera de `make fase1` nadie carga `.env`: sin esto la conexion a la base
-    # usa los valores por omision y falla.
     cargar_env()
 
     if argumentos.texto:

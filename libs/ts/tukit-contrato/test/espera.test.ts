@@ -1,8 +1,3 @@
-// El 429 del limite de tasa del gateway (ADR 0047), como lo leen el cliente del
-// servidor y los ayudantes del navegador: la espera sale del cuerpo o de
-// `Retry-After`, y el mensaje es el mismo que arma el gateway. Correr con:
-// `node --test test/espera.test.ts`.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { conEspera, esperaDe429, mensajeDeEspera, segundosDeEspera } from "../src/espera.ts";
@@ -16,7 +11,6 @@ test("retry-after en segundos", () => {
 test("retry-after como fecha http", () => {
   const ahora = Date.parse("Wed, 21 Oct 2026 07:28:00 GMT");
   assert.equal(segundosDeEspera("Wed, 21 Oct 2026 07:29:30 GMT", ahora), 90);
-  // Una fecha ya pasada no deja esperar cero ni menos.
   assert.equal(segundosDeEspera("Wed, 21 Oct 2026 07:00:00 GMT", ahora), 1);
 });
 
@@ -24,7 +18,6 @@ test("retry-after ausente o ilegible", () => {
   assert.equal(segundosDeEspera(null), null);
   assert.equal(segundosDeEspera(""), null);
   assert.equal(segundosDeEspera("pronto"), null);
-  // `Date.parse` leeria las dos como fechas.
   assert.equal(segundosDeEspera("-5"), null);
   assert.equal(segundosDeEspera("2026-10-21"), null);
 });

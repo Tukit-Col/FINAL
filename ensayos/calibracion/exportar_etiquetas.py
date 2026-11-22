@@ -1,13 +1,4 @@
-"""Exporta de la base local (SOLO SELECT) los renglones de las versiones vigentes y revisadas.
-
-Salidas en ensayos/calibracion/datos/:
-  renglones_etiquetados.csv  colegio, grado, anio, orden, texto_original, concepto_codigo (etiqueta)
-  catalogo_conceptos.json    conceptos activos con sinonimos (y cuales fueron aprendidos de una correccion)
-  centroides.npz             centro normalizado de los embeddings de producto de cada concepto
-
-No lleva datos de personas: son listas de utiles y el catalogo. Los nombres de colegio son
-instituciones. Uso: uv run python ensayos/calibracion/exportar_etiquetas.py
-"""
+"""Exporta de la base local (SOLO SELECT) los renglones de las versiones vigentes y revisadas."""
 
 from __future__ import annotations
 
@@ -28,7 +19,11 @@ def consulta(base: str, sql: str) -> list[list[str]]:
     assert sql.lstrip().lower().startswith("select"), "solo lectura"
     r = subprocess.run(
         ["psql", "-h", "127.0.0.1", "-U", "tukit", "-d", base, "-c", f"copy ({sql}) to stdout with csv"],
-        capture_output=True, text=True, env=ENTORNO, timeout=120, check=True,
+        capture_output=True,
+        text=True,
+        env=ENTORNO,
+        timeout=120,
+        check=True,
     )
     return list(csv.reader(io.StringIO(r.stdout)))
 
@@ -55,12 +50,20 @@ def main() -> int:
         "array_to_json(atributos_discriminantes) from concepto where activo",
     )
     aprendidos = consulta(
-        "tukit_catalogo", "select aprendido->>'concepto', aprendido->>'sinonimo' from correccion_lista where aprendido is not null"
+        "tukit_catalogo",
+        "select aprendido->>'concepto', aprendido->>'sinonimo' from correccion_lista where aprendido is not null",
     )
     json.dump(
         {
             "conceptos": [
-                {"id": a, "codigo": b, "nombre": c, "sinonimos": json.loads(d), "tipo_item": e, "discriminantes": json.loads(g)}
+                {
+                    "id": a,
+                    "codigo": b,
+                    "nombre": c,
+                    "sinonimos": json.loads(d),
+                    "tipo_item": e,
+                    "discriminantes": json.loads(g),
+                }
                 for a, b, c, d, e, g in conceptos
             ],
             "sinonimos_aprendidos": [{"concepto": a, "sinonimo": b} for a, b in aprendidos],
@@ -82,8 +85,19 @@ def main() -> int:
     for c in codigos:
         s = np.sum(por[c], axis=0)
         cent.append(s / np.linalg.norm(s))
-    np.savez_compressed(DATOS / "centroides.npz", codigos=np.array(codigos), centroides=np.array(cent, dtype=np.float32))
-    print(len(filas), "renglones;", len(conceptos), "conceptos;", len(codigos), "con centroide;", len(aprendidos), "sinonimos aprendidos")
+    np.savez_compressed(
+        DATOS / "centroides.npz", codigos=np.array(codigos), centroides=np.array(cent, dtype=np.float32)
+    )
+    print(
+        len(filas),
+        "renglones;",
+        len(conceptos),
+        "conceptos;",
+        len(codigos),
+        "con centroide;",
+        len(aprendidos),
+        "sinonimos aprendidos",
+    )
     return 0
 
 

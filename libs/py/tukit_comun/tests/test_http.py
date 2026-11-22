@@ -1,12 +1,3 @@
-"""El sobre de error y el CORS, que son identicos en los tres servicios.
-
-La prueba que de verdad importa aqui es la del eco: el manejador de
-validacion del sistema anterior le devolvia al cliente la contrasena que
-acababa de recibir, y ese defecto esta documentado. FastAPI, por omision,
-incluye el valor recibido en el campo `input` de cada error, asi que heredar
-su manejador seria repetirlo.
-"""
-
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -45,8 +36,6 @@ def _app() -> FastAPI:
 
     @app.get("/quien-soy")
     async def quien_soy() -> dict:
-        # Devuelve el id que el handler VE en su contextvar: prueba que el
-        # middleware lo propago hacia adentro, no solo a la respuesta.
         return {"cid": id_de_correlacion()}
 
     return app
@@ -90,23 +79,16 @@ class TestElSobreDeDominio:
         }
 
     def test_el_codigo_es_un_dato_y_no_texto_dentro_del_mensaje(self):
-        """El frontend distingue por `error`, no leyendo el mensaje: si no,
-        cambiar una palabra del texto romperia su logica."""
         error = ErrorDominio("estado_incompatible", "Ya estaba publicado.", estado=409)
         assert error.estado == 409
         assert error.cuerpo() == {"error": "estado_incompatible", "mensaje": "Ya estaba publicado."}
 
 
 class TestElIdDeCorrelacion:
-    """Una sola cadena sigue la peticion por los servicios que toca. El
-    middleware la lee-o-acuña, la mete en el contextvar de la peticion y la
-    devuelve en la cabecera; `cliente_efimero` la propaga a las salientes."""
-
     async def test_sin_cabecera_se_acuña_una_y_vuelve_en_la_respuesta(self):
         respuesta = await _pedir("GET", "/quien-soy")
         cid = respuesta.headers.get(CABECERA_CORRELACION)
-        assert cid  # se acuñó
-        # el mismo id que el handler vio por dentro es el que sale por fuera
+        assert cid
         assert respuesta.json()["cid"] == cid
 
     async def test_una_cabecera_dada_viaja_de_ida_y_vuelta(self):
@@ -116,23 +98,17 @@ class TestElIdDeCorrelacion:
         assert respuesta.json()["cid"] == dado
 
     async def test_el_error_de_dominio_tambien_lleva_la_cabecera(self):
-        # El sobre de error sigue siendo EXACTO (lo fija otro test); el id va en
-        # la cabecera, no en el cuerpo.
         dado = "corr-en-el-error"
         respuesta = await _pedir("GET", "/rechazo", headers={CABECERA_CORRELACION: dado})
         assert respuesta.status_code == 400
         assert respuesta.headers[CABECERA_CORRELACION] == dado
 
     async def test_cliente_efimero_propaga_el_id_a_las_salientes(self):
-        # Sin peticion en curso no hay id: el CM no anexa cabecera de correlacion.
         async with cliente_efimero(None, 5.0) as propio:
             assert CABECERA_CORRELACION not in {k.lower() for k in propio.headers}
 
 
 class TestPoolHttpx:
-    """El pool de vida larga (ADR 0020): reusa conexiones y estampa el id VIVO
-    por peticion (no cabecera por omision, que quedaria congelada)."""
-
     async def test_el_hook_estampa_el_id_vivo_de_la_peticion_en_curso(self):
         from tukit_comun.http import _sellar_correlacion, crear_pool, fijar_correlacion, reset_correlacion
 
@@ -154,28 +130,24 @@ class TestPoolHttpx:
         pool = crear_pool(espera=5.0)
         try:
             peticion = pool.build_request("GET", "http://x/ping")
-            await _sellar_correlacion(peticion)  # sin contexto: None
+            await _sellar_correlacion(peticion)
             assert CABECERA_CORRELACION not in {k.lower() for k in peticion.headers}
         finally:
             await pool.aclose()
 
 
 class TestLivenessYReadiness:
-    """ADR 0021: liveness no toca base; readiness prueba base y da 503 con detalle."""
-
     async def test_live_responde_sin_base(self):
         respuesta = await _pedir("GET", "/health/live")
         assert respuesta.status_code == 200
         assert respuesta.json()["estado"] == "vivo"
 
     async def test_ready_sin_motor_esta_listo(self):
-        # Una app sin `app.state.motor` (el gateway) esta lista si responde.
         respuesta = await _pedir("GET", "/health/ready")
         assert respuesta.status_code == 200
         assert respuesta.json()["estado"] == "listo"
 
     async def test_ready_da_503_si_la_base_falla(self):
-        # Un motor cuyo SELECT 1 revienta => readiness 503 con el detalle, no 500.
         from types import SimpleNamespace
 
         class _ConexionRota:
@@ -224,15 +196,12 @@ class TestIso:
 
 
 class TestClienteEfimero:
-    """El ciclo de vida compartido de los tres `remoto.py`: tomar el cliente
-    inyectado (que las pruebas sustituyen) o abrir uno propio y cerrarlo."""
-
     async def test_el_cliente_inyectado_se_reusa_y_no_se_cierra(self):
         inyectado = httpx.AsyncClient()
         try:
             async with cliente_efimero(inyectado, 5.0) as usado:
                 assert usado is inyectado
-            assert not inyectado.is_closed  # sigue vivo: lo cierra quien lo creo
+            assert not inyectado.is_closed
         finally:
             await inyectado.aclose()
 
@@ -241,12 +210,10 @@ class TestClienteEfimero:
         async with cliente_efimero(None, 5.0) as propio:
             capturado["c"] = propio
             assert not propio.is_closed
-        assert capturado["c"].is_closed  # el efimero se cierra solo al salir
+        assert capturado["c"].is_closed
 
 
 @pytest.mark.parametrize("metodo", ["GET", "POST"])
 async def test_la_sonda_no_necesita_base_de_datos(metodo):
-    """Es lo que permite que el ejecutor de tareas espere a que un servicio
-    este arriba sin saber si su base ya esta migrada."""
     respuesta = await _pedir(metodo, "/salud")
     assert respuesta.status_code in {200, 405}

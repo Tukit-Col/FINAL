@@ -1,13 +1,11 @@
-"""Empareja un renglon contra NUESTRO catalogo. Nada mas.
+"""Empareja un renglon contra el catalogo propio.
 
-Es la pregunta que va primero: ya lo tenemos? El clasificador y los
-atributos son los que ya se afinaron sobre el corpus; aqui no hay un
-segundo algoritmo. Lo que se agrega es la consecuencia de haberlos
-afinado: si el renglon impone un atributo y ningun producto lo declara,
-no se ofrece otro. "Block oficio" no se responde con origami.
-
-Quien atiende a un acudiente no tiene por donde salir a la red, y hay
-una prueba que lee este archivo para que eso siga siendo cierto.
+Decisiones:
+- Es la ruta de servicio: quien atiende a un acudiente no tiene por donde salir a la red, y una
+  prueba lee este archivo para que siga siendo cierto.
+- No hay un segundo algoritmo: usa el clasificador y la extraccion de atributos ya afinados. Si el
+  renglon impone un atributo y ningun producto lo declara, no se ofrece otro ("block oficio" no
+  se responde con origami).
 """
 
 from __future__ import annotations
@@ -20,9 +18,9 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 from .cache_vectores import vectores_guardados
-from .descubrir import clasificar
+from .clasificacion import clasificar
 from .embeddings import Embeder, promedio
-from .enriquecer import extraer_atributos
+from .extraccion import extraer_atributos
 from .transcripcion import corregir, lexico_de
 
 _ORDEN_NIVEL = ("economico", "confiable", "premium")
@@ -39,24 +37,10 @@ class Opcion:
     atributos: dict[str, Any]
     precio_cop: int | None
     cumple: bool
-    # Las cuatro de abajo no las usa la decision de emparejar: las usa quien
-    # PINTA la opcion o quien la mete en un carrito. Viajan aqui porque el
-    # consumidor de este resultado esta en otro proceso —`inteligencia` no
-    # puede leer esta base— y pedirle que vuelva a consultar producto por
-    # producto por el sku seria una llamada por renglon de la lista.
-    #
-    # Sin `unidades_por_empaque` no se puede calcular cuantos comprar, y ese
-    # numero es justo el que el sistema anterior no tenia y por el que sumaba
-    # doce cajas cuando la lista pedia doce lapices.
     marca: str | None = None
     imagen_url: str | None = None
     unidad_base: str = "unidad"
     unidades_por_empaque: int = 1
-    # El identificador del producto canonico, no su sku. Lo pide el
-    # manifiesto: `inteligencia.candidato_item.producto_canonico_id` y
-    # `comercio.linea_pedido.producto_canonico_id` son referencias logicas
-    # declaradas a ESTA tabla, y sin el valor la referencia no resolveria.
-    # Va como cadena porque cruza por HTTP.
     producto_id: str | None = None
 
 
@@ -71,9 +55,6 @@ class Emparejamiento:
     atributos_impuestos: dict[str, Any]
     motivo: str
     opciones: tuple[Opcion, ...]
-    # El tipo del concepto reconocido (util, uniforme, no_comprar...). Viaja para
-    # que quien arma el kit sepa si el renglon se busca en el catalogo o es una
-    # linea informativa, sin adivinarlo del texto. Nulo si no se reconocio.
     concepto_tipo_item: str | None = None
 
     def a_dict(self) -> dict[str, Any]:
@@ -82,14 +63,31 @@ class Emparejamiento:
         return datos
 
 
-# Un libro pedido por TITULO no lo surte cualquier libro del concepto. El
-# concepto «libro o texto con titulo» junta todo el plan lector; sin esto, el
-# renglon «Los secretos de Hafiz Mustafa» recibia el primer libro por sku
-# («Valeria en el Reino de Malagana»), con su foto, como si fuera el pedido.
-# El discriminante del concepto es el isbn13, que ninguna lista escribe: el
-# titulo es lo unico que el renglon trae para decir CUAL libro es.
 _VACIAS_TITULO = frozenset(
-    "de del la las el los en y o a un una con para por al to the of and with an".split()
+    [
+        "de",
+        "del",
+        "la",
+        "las",
+        "el",
+        "los",
+        "en",
+        "y",
+        "o",
+        "a",
+        "un",
+        "una",
+        "con",
+        "para",
+        "por",
+        "al",
+        "to",
+        "the",
+        "of",
+        "and",
+        "with",
+        "an",
+    ]
 )
 _CORTE_TITULO = re.compile(r"\(| \+ | - | / |,| with ", re.IGNORECASE)
 
@@ -97,26 +95,15 @@ _CORTE_TITULO = re.compile(r"\(| \+ | - | / |,| with ", re.IGNORECASE)
 def _palabras_titulo(texto: str) -> set[str]:
     import unicodedata
 
-    plano = "".join(
-        c for c in unicodedata.normalize("NFD", texto.lower()) if unicodedata.category(c) != "Mn"
-    )
+    plano = "".join(c for c in unicodedata.normalize("NFD", texto.lower()) if unicodedata.category(c) != "Mn")
     return {p for p in re.findall(r"[a-z0-9+]+", plano) if len(p) > 1 and p not in _VACIAS_TITULO}
 
 
 def pide_titulo(discriminantes: tuple[str, ...] | list[str]) -> bool:
-    """El concepto distingue sus productos por isbn: cada producto es UN libro."""
     return "isbn13" in tuple(discriminantes or ())
 
 
 def del_mismo_titulo(texto: str, productos: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Los productos cuyo titulo esta entero en el renglon.
-
-    El titulo es lo de antes del primer parentesis, guion o coma del nombre
-    («Gateway to the World b1 Student's Book (en Ingles)» -> gateway world b1
-    student book). Todas sus palabras tienen que estar en el renglon: asi el b1
-    no se confunde con el a2 ni con el b1+, y un titulo que no tenemos no trae
-    ningun libro.
-    """
     del_renglon = _palabras_titulo(texto)
     elegidos = []
     for producto in productos:
@@ -127,13 +114,6 @@ def del_mismo_titulo(texto: str, productos: list[dict[str, Any]]) -> list[dict[s
 
 
 def _elegir_por_nivel(productos: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Una opcion por nivel, y la de marca antes que la de personaje.
-
-    El personaje es una via aparte: el cuaderno de Bluey no compite contra
-    el cuaderno pelado por el puesto de "lo que el colegio pidio". Si en un
-    nivel hay los dos, se muestra el de marca. El de personaje se ofrece
-    cuando el acudiente lo pida, no de oficio.
-    """
     por_nivel: dict[str, dict[str, Any]] = {}
     for producto in productos:
         nivel = producto.get("nivel") or ""
@@ -141,8 +121,6 @@ def _elegir_por_nivel(productos: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if actual is None:
             por_nivel[nivel] = producto
             continue
-        # Sin personaje gana. A igualdad, el sku menor, para que la
-        # respuesta no dependa del orden en que la base devolvio las filas.
         clave = (producto.get("personaje") is not None, producto.get("sku") or "")
         clave_actual = (actual.get("personaje") is not None, actual.get("sku") or "")
         if clave < clave_actual:
@@ -150,56 +128,32 @@ def _elegir_por_nivel(productos: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [por_nivel[nivel] for nivel in _ORDEN_NIVEL if nivel in por_nivel]
 
 
-# Valores que el vocabulario lee de un renglon pero que no se le pueden exigir a
-# un producto. En una lista escolar casi todo dice "escolar": "Maleta escolar"
-# pedia `tipo=escolar` y ninguna de las 27 maletas (morrales, con ruedas) lo
-# declaraba, asi que el kit no ofrecia ninguna. Del lado del producto `escolar`
-# sigue leyendose (es el tipo de ultimo recurso); solo deja de filtrar.
 _NO_SE_EXIGEN = frozenset({("tipo", "escolar")})
 
 
-# Como se compara cada atributo. Lo que no esta en ninguna de estas tablas se
-# compara exacto, y es la mayoria: lo que cambia QUE cosa es (materias, rayado,
-# tipo, idioma, edicion, color, punta) no admite nada cercano. Lo que se MIDE si
-# (la auditoria de huecos del Agustiniano, 2026-10-11): una escuadra de 26 cm
-# sirve donde piden 20, y un ferrocarril de 100 hojas donde piden 80.
-#
-# "Al menos": el producto tiene que traer lo pedido o mas. El tope, si lo hay,
-# es cuantas veces lo pedido se acepta: un cuaderno de 200 hojas no es el de 80.
 _AL_MENOS: dict[str, float | None] = {
     "hojas": 2.0,
     "unidades": None,
     "colores": None,
     "piezas": None,
     "notas": None,
-    # Una protoboard de 840 puntos sirve donde piden 400; una de 2.200 ya es
-    # otra cosa.
     "puntos": 2.2,
     "peso": None,
     "gramaje": None,
     "capacidad": None,
 }
-# Rango aceptado como multiplo de lo pedido: algo menos y algo mas.
 _TOLERANCIA: dict[str, tuple[float, float]] = {"longitud": (0.85, 1.35)}
-# Medidas `a x b cm`: cada lado puede variar hasta esta fraccion.
 _TOLERANCIA_MEDIDAS = 0.25
-# Valores distintos que, para el colegio, son lo mismo.
 _EQUIVALENTES: dict[str, tuple[frozenset[str], ...]] = {
     "tamano": (frozenset({"carta", "a4"}),),
     "presentacion": (frozenset({"frasco", "tarro"}),),
-    # Una regla "metalica" es la regla de acero que pide el colegio
-    # (decision del 2026-10-12).
     "material": (frozenset({"plastico", "antifluido"}), frozenset({"acero", "metal"})),
-    # Plastilina, crayones y lapices: «gigante» y «jumbo» nombran el mismo
-    # formato grueso (decision del 2026-10-12).
     "tipo": (frozenset({"gigante", "jumbo"}),),
 }
-# A centimetros, para comparar longitudes escritas en unidades distintas.
 _A_CM = {"mm": 0.1, "cm": 1.0, "m": 100.0, "in": 2.54}
 
 
 def _numero(valor: Any) -> tuple[float, str] | None:
-    """`"30 cm"` -> (30.0, "cm"); `12` -> (12.0, ""). None si no empieza por cifra."""
     if isinstance(valor, bool):
         return None
     if isinstance(valor, int | float):
@@ -209,18 +163,11 @@ def _numero(valor: Any) -> tuple[float, str] | None:
 
 
 def _medidas(valor: Any) -> list[float] | None:
-    """`"20 x 30 cm"` -> [20.0, 30.0], ordenadas para que la orientacion no importe."""
     m = re.fullmatch(r"\s*(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)\s*cm\s*", str(valor).lower())
     return sorted((float(m.group(1)), float(m.group(2)))) if m else None
 
 
 def _idioma_cumple(declarado: str, pedido: str) -> bool:
-    """`de ingles` acepta el de ingles y el bilingue con espanol; `ingles-ingles`, solo el monolingue.
-
-    En una lista colombiana, `diccionario de ingles` a secas es casi siempre el
-    bilingue espanol-ingles; el monolingue se pide nombrando el idioma dos veces
-    (`Ingles - Ingles`). El de espanol a secas es el de espanol.
-    """
     if "-" in pedido or pedido == "espanol":
         return declarado == pedido or (pedido.split("-") == [declarado] * 2)
     return declarado in (pedido, f"{pedido}-{pedido}", "-".join(sorted({"espanol", pedido})))
@@ -250,18 +197,11 @@ def _valor_cumple(atributo: str, declarado: Any, pedido: Any) -> bool:
     if atributo == "tamano":
         tiene_m, pide_m = _medidas(declarado), _medidas(pedido)
         if tiene_m and pide_m:
-            # Estricto: en el borde (40 -> 30 es justo 25 %) un lienzo de 30 x 25
-            # pasaba por uno de 30 x 40 (auditoria v4, decision del 2026-10-12).
             return all(abs(t - p) < p * _TOLERANCIA_MEDIDAS for t, p in zip(tiene_m, pide_m, strict=True))
     return False
 
 
 def _cumple(producto: dict[str, Any], impuestos: dict[str, Any]) -> bool:
-    """Si el producto declara todo lo que el renglon exige, cada cosa a su manera.
-
-    Lo que el producto no declara no cumple: no se sabe, y un hueco honesto vale
-    mas que un sustituto que nadie verifico.
-    """
     declarados = {str(k): v for k, v in (producto.get("atributos") or {}).items()}
     return all(k in declarados and _valor_cumple(k, declarados[k], v) for k, v in impuestos.items())
 
@@ -274,22 +214,7 @@ def emparejar(
     embedding_renglon: list[float] | None = None,
     concepto_forzado: str | None = None,
 ) -> Emparejamiento:
-    """Clasifica el renglon y, si el catalogo puede cumplirlo, da hasta tres opciones.
-
-    Tres, no treinta: una por nivel. El acudiente compara tres cosas. Una
-    cola de blocks carta no es una respuesta, es el fallo que este corte
-    existe para no repetir.
-
-    `embedding_renglon` es el canal semantico (OE3): el vector del renglon
-    entrante, que `clasificar` funde con el lexico. Es opcional para que quien
-    no lo calcula —o corre sin el modelo— siga obteniendo el match lexico de
-    siempre.
-    """
     corregido = corregir(texto, lexico_de(conceptos))
-    # Un concepto que una persona ya le asigno al renglon (en la revision de la
-    # lista) no se vuelve a adivinar por el texto: se usa, y solo se buscan sus
-    # productos. Sin esto la previsualizacion ignoraba la curaduria y decia "no
-    # entendimos" a un renglon que el revisor ya habia resuelto.
     asignado = next((c for c in conceptos if concepto_forzado and c.get("codigo") == concepto_forzado), None)
     if asignado is not None:
         concepto_id, nombre, parecido = asignado["id"], asignado["nombre"], 1.0
@@ -387,28 +312,6 @@ def emparejar(
 async def cargar_indice(
     conexion: Any,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Conceptos activos y sus productos, con el precio vigente mas bajo.
-
-    Recibe una conexion YA ABIERTA. Antes habia dos copias de esta consulta —una
-    aqui que creaba un motor por llamada (solo alcanzable por CLI) y otra en la
-    API que reusaba el motor del servicio pero NO leia embeddings—, y la de la
-    API dejaba el canal semantico de OE3 muerto en produccion (coseno siempre 0).
-    Ahora hay una: quien la llama trae la conexion (el servicio, su pool; la CLI,
-    un motor efimero por `_cargar_indice_cli`), y el canal semantico vive en las
-    dos vias porque el embedding del producto se carga una sola vez, aqui.
-
-    El precio sale de la oferta, no del producto: un producto tiene varias
-    tiendas y el numero que se le muestra al acudiente es el menor vigente.
-
-    El vector del concepto se deriva del de sus productos (`promedio`): el centro
-    de los cuadernos ES, en promedio, "cuaderno". El embedding crudo del producto
-    no viaja en el dict de salida —se consume aqui para el promedio y se descarta—
-    porque el consumidor (`emparejar`) solo necesita el del concepto.
-
-    ponytail: index load = un par de SELECTs a escala tesis (~100 conceptos /
-    ~261 productos); si el perfilado lo muestra en la ruta caliente, cachear en
-    `app.state` con alcance de lifespan. No antes.
-    """
     from sqlalchemy import func, select
 
     from .modelos import Base
@@ -499,11 +402,6 @@ async def cargar_indice(
 
 
 async def _cargar_indice_cli() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """`cargar_indice` para la CLI: abre y cierra su propio motor efimero.
-
-    El servicio HTTP reusa su pool; un proceso `python -m ...consulta` no tiene
-    pool que reusar, asi que crea un motor, lo usa y lo cierra.
-    """
     from tukit_comun.bd import crear_motor
 
     motor = crear_motor("catalogo")
@@ -517,16 +415,6 @@ async def _cargar_indice_cli() -> tuple[list[dict[str, Any]], list[dict[str, Any
 async def emparejar_en_catalogo(
     renglones: list[str], *, embeder: Embeder | None = None
 ) -> list[Emparejamiento]:
-    """Empareja una tanda de renglones contra el catalogo cargado.
-
-    `embeder` es el canal semantico (OE3): si se pasa, se calcula el vector de
-    cada renglon UNA vez (un lote, una peticion) y se funde en `clasificar`. Se
-    resuelve por entorno cuando no se inyecta —con GEMINI_API_KEY, el real; sin
-    ella, ninguno—, de modo que la consulta sigue dando el match lexico donde
-    no hay modelo, sin fallar. El vector es del renglon entrante nada mas: no
-    sale de la base ni entra a ella, asi que la invariante de que el acudiente
-    no sale a nuestra red por producto se mantiene.
-    """
     conceptos, productos = await _cargar_indice_cli()
     if embeder is None:
         embeder = _embeder_por_entorno()
@@ -540,18 +428,6 @@ async def emparejar_en_catalogo(
 
 
 async def calcular_vectores(renglones: list[str], embeder: Embeder | None) -> list[list[float] | None]:
-    """El vector de cada renglon en un solo lote, o `None` por renglon si no hay
-    embeder o si la llamada falla.
-
-    El canal semantico DEGRADA, no tumba: si el proveedor no responde, la consulta
-    sigue dando el match lexico. Se registra el fallo (antes era un `except`
-    silencioso) para que "de repente todo es solo lexico" deje rastro.
-
-    Los vectores ya calculados salen de Redis y al proveedor solo van los que
-    faltan (`cache_vectores`, ADR 0047). Si el proveedor falla, la tanda entera
-    baja a lexico, aunque algunos estuvieran guardados: es lo que promete el
-    contrato.
-    """
     if embeder is None or not renglones:
         return [None] * len(renglones)
     try:
@@ -562,7 +438,6 @@ async def calcular_vectores(renglones: list[str], embeder: Embeder | None) -> li
 
 
 def _embeder_por_entorno() -> Embeder | None:
-    """El embeder real si hay clave, ninguno si no. Igual criterio que enriquecer."""
     import os
 
     from .embeddings import embeder_gemini
@@ -590,7 +465,6 @@ def _imprimir(resultado: Emparejamiento) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """`python -m tukit_catalogo.consulta "block oficio" "2 lapices negros"`."""
     renglones = list(argv if argv is not None else sys.argv[1:])
     if not renglones:
         print("Pasa al menos un renglon.", file=sys.stderr)

@@ -1,28 +1,13 @@
-"""La superficie de Inteligencia: monta el router y ata el motor y los clientes.
+"""Superficie de Inteligencia: monta el router y ata el motor y los clientes.
 
-`POST /v1/trabajos` devuelve 202 y no el kit, y esa es la decision de diseno
-que ordena todo lo demas. El pipeline tarda minutos (OP-03 pide precision por
-encima de velocidad) y ademas el flujo exige una pausa humana antes de que el
-acudiente vea nada (AD-03 a AD-06). Una API sincronica no puede modelar una
-espera que incluye a una persona, asi que el recurso central es el trabajo:
-se crea, se consulta, y cuando termina se avisa. Las rutas viven en
-`routers/inteligencia.py`; el SQL por-transaccion en `repositorios/trabajos.py`;
-los helpers puros del pipeline en `dominio/` (ADR 0019). Este modulo solo
-ensambla y conserva el wiring que las rutas y las pruebas necesitan:
-
-- Los puertos de percepcion (render y lectura de pagina) tienen su valor por
-  omision aqui y se cambian por `app.state.renderizar` / `app.state.leer`, para
-  que el onboarding se pueda probar sin pypdfium2 ni una llave de Gemini.
-  `_percibir_onboarding` reaprovecha la lectura guardada en Redis de un archivo
-  ya leido (`cache_lecturas`, ADR 0047).
-- Los clientes remotos (`_catalogo`/`_identidad`/`_comercio`) leen de
-  `app.state`, inyectable en pruebas.
-- La ejecucion de fondo es una tarea del mismo proceso (`trabajos.lanzar`); es
-  lo que permite levantar todo con un comando y lo primero a cambiar (ADR 0024).
-- `TUKIT_AUTOPUBLICAR` salta la revision humana; se anuncia a gritos al arrancar
-  porque una valvula silenciosa acaba puesta en produccion.
-
-    python -m tukit_inteligencia.api        # localhost:8013
+Decisiones:
+- `POST /v1/trabajos` devuelve 202 y no el kit: el pipeline tarda minutos y el flujo exige una
+  pausa humana antes de que el acudiente vea nada, asi que el recurso central es el trabajo, que se
+  crea, se consulta y avisa al terminar.
+- Los puertos de percepcion (render y lectura de pagina) tienen su valor por omision aqui y se
+  cambian por `app.state.renderizar` y `app.state.leer`, para probar el onboarding sin pypdfium2 ni
+  llave de Gemini. Los clientes remotos tambien leen de `app.state`.
+- `TUKIT_AUTOPUBLICAR` salta la revision humana y se anuncia al arrancar.
 """
 
 from __future__ import annotations
@@ -47,12 +32,6 @@ from .remoto import (
     url_identidad,
 )
 
-# Bajo `python -m tukit_inteligencia.api` este modulo corre como __main__ y NO
-# queda en sys.modules como 'tukit_inteligencia.api'. routers/inteligencia.py
-# hace `from .. import api` (el patron de wiring de ADR 0019); sin esto Python
-# no lo encuentra y lo CARGA UNA SEGUNDA VEZ, cayendo en un ImportError circular
-# ("cannot import name 'router'"). Registrar este mismo objeto bajo su nombre de
-# paquete hace que el back-import resuelva a el (un solo app, un solo motor).
 if __name__ == "__main__":
     sys.modules.setdefault("tukit_inteligencia.api", sys.modules[__name__])
 
@@ -61,21 +40,11 @@ from .routers.nl2c import router as router_nl2c  # noqa: E402
 
 PUERTO_POR_OMISION = 8013
 
-# Los dos puertos de percepcion tienen su valor por omision aqui y se pueden
-# cambiar por `app.state.renderizar` / `app.state.leer`, como los clientes
-# remotos: asi el onboarding se prueba sin pypdfium2 y sin una llave de Gemini.
-# En produccion apuntan al render real y al adaptador de Gemini, que es el
-# unico sitio que toca la red y la llave.
 _RENDERIZAR: Renderizar = paginas.renderizar
 _LEER: LeerPagina = gemini.pedir_pagina
 
 
 async def _percibir_onboarding(contenido: bytes) -> Percepcion:
-    """La lectura de un PDF con los puertos de `app.state` (o los por omision)
-    y la cache de lecturas.
-
-    La lectura sigue siendo la llamada sincrona de siempre; el envoltorio es
-    asincrono para preguntarle a Redis sin bloquear el bucle."""
     renderizar = getattr(app.state, "renderizar", None) or _RENDERIZAR
     leer = getattr(app.state, "leer", None) or _LEER
     return await cache_lecturas.percibir_guardada(
@@ -84,7 +53,6 @@ async def _percibir_onboarding(contenido: bytes) -> Percepcion:
 
 
 def _catalogo() -> Any:
-    """El cliente del catalogo, inyectable por `app.state` para las pruebas."""
     cliente = getattr(app.state, "catalogo", None)
     if cliente is None:
         cliente = ClienteCatalogo()
@@ -92,7 +60,6 @@ def _catalogo() -> Any:
 
 
 def _identidad() -> Any:
-    """El cliente de Identidad, inyectable por `app.state` para las pruebas."""
     cliente = getattr(app.state, "identidad", None)
     if cliente is None:
         cliente = ClienteIdentidad()
@@ -100,7 +67,6 @@ def _identidad() -> Any:
 
 
 def _comercio() -> Any:
-    """El cliente de Comercio, inyectable por `app.state` para las pruebas."""
     cliente = getattr(app.state, "comercio", None)
     if cliente is None:
         cliente = ClienteComercio()
@@ -108,13 +74,6 @@ def _comercio() -> Any:
 
 
 async def _usuario_de_la_peticion(peticion: Request) -> str | None:
-    """El `usuario_id` del acudiente autenticado, o None si viene anonimo.
-
-    El token de sesion llega como `Authorization: Bearer ...` (lo reenvia el
-    Route Handler desde la cookie httpOnly). Este servicio no tiene la clave
-    HMAC: se lo pregunta a Identidad. Es la traza de propiedad que baja al
-    pipeline; el flujo anonimo heredado cae de vuelta al contacto.
-    """
     autorizacion = peticion.headers.get("Authorization", "")
     token = autorizacion[7:] if autorizacion.startswith("Bearer ") else None
     return await _identidad().usuario_del_token(token) if token else None
@@ -128,9 +87,6 @@ async def _arrancar(app: FastAPI) -> None:
             "[inteligencia] TUKIT_AUTOPUBLICAR esta activo: los trabajos se publican SIN "
             "revision humana. Es un atajo de desarrollo y no debe estar puesto fuera de el."
         )
-    # Un pool httpx de vida larga por destino (bulkhead, ADR 0020). Los helpers
-    # `_catalogo/_identidad/_comercio` los leen de `app.state`; en pruebas se
-    # sustituyen por dobles antes de tocar la red.
     app.state.pool_catalogo = crear_pool(espera=ESPERA_SEGUNDOS)
     app.state.pool_identidad = crear_pool(espera=ESPERA_SEGUNDOS)
     app.state.pool_comercio = crear_pool(espera=ESPERA_SEGUNDOS)
@@ -152,7 +108,7 @@ app = crear_app(
     titulo="Tukit Inteligencia",
     descripcion=(
         "El recurso `trabajo`: percepcion, normalizacion, resolucion y optimizacion de una "
-        "lista escolar en tres kits. Contrato: docs/arquitectura/CONTRATO_API.md secciones 2 a 8."
+        "lista escolar en tres kits. Contrato: CONTRATO_API.md secciones 2 a 8."
     ),
     al_arrancar=_arrancar,
     al_apagar=_apagar,

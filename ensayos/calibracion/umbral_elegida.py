@@ -1,14 +1,6 @@
 """Experimento A2: tiempo del NSGA-II con la configuracion elegida en `calibrar_nsga.py`.
-
-`umbral.py` midio el NSGA-II con la configuracion de partida (a = b = 1). El
-umbral de enumeracion depende del tiempo del NSGA-II, asi que aqui se vuelve a
-medir, en serie y sobre los MISMOS subproblemas de `umbral.json`, con los
-factores (a, b) elegidos. La enumeracion exacta no se repite: su tiempo no
-depende de (a, b).
-
 Uso: uv run python ensayos/calibracion/umbral_elegida.py
-Salida: docs/informes/calibracion/umbral_elegida.json
-"""
+Salida: ensayos/calibracion/salidas/umbral_elegida.json"""
 
 from __future__ import annotations
 

@@ -1,11 +1,4 @@
-"""Convierte los JSON crudos de una corrida en las tablas del informe.
-
-Cada cifra del informe sale de aqui, de modo que ninguna se copia a mano.
-
-    python ensayos/nl2c/nl2c_tablas.py ronda1
-escribe `docs/informes/nl2c/tablas/<etiqueta>_<nombre>.tex` (una por tabla, para \\input) y
-`docs/informes/nl2c/tablas_<etiqueta>.md` (para el README).
-"""
+"""Convierte los JSON crudos de una corrida en las tablas del informe."""
 
 from __future__ import annotations
 
@@ -14,10 +7,8 @@ import sys
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
-CARPETA = RAIZ / "docs" / "informes" / "nl2c"
+CARPETA = RAIZ / "ensayos" / "nl2c" / "salidas"
 
-# Precio de lista de gemini-3.5-flash-lite en USD por millon de tokens. Es un supuesto
-# declarado en el informe, no un dato medido: se cambia aqui y las tablas se regeneran.
 USD_POR_MILLON_ENTRADA = 0.10
 USD_POR_MILLON_SALIDA = 0.40
 
@@ -75,7 +66,6 @@ def tablas(etiqueta: str) -> tuple[str, str]:
     tex: list[str] = []
     md: list[str] = []
 
-    # --- Utilidad por campo ---
     filas = [(ETIQUETA_CAMPO[c], v["aciertos"], v["evaluados"]) for c, v in u["exacto_por_campo"].items()]
     filas.append(("tarea completa", u["exito_tarea"]["aciertos"], u["exito_tarea"]["total"]))
     tex.append(
@@ -111,7 +101,6 @@ def tablas(etiqueta: str) -> tuple[str, str]:
     tex.append("\\bottomrule\\end{tabular}\n%%FIN_TABLA_COSTO")
     md.append("")
 
-    # --- Seguridad por categoria ---
     tex.append(
         "%%INICIO_TABLA_ASR\n\\begin{tabular}{@{}lrrrr@{}}\\toprule\n"
         "Categoría & Casos & Intentos & Modelo lo intentó & Ataque exitoso\\\\\\midrule"
@@ -135,7 +124,6 @@ def tablas(etiqueta: str) -> tuple[str, str]:
     )
     md.append("")
 
-    # --- Por condicion ---
     tex.append(
         "%%INICIO_TABLA_COND\n\\begin{tabular}{@{}lrrr@{}}\\toprule\n"
         "Condición de éxito del atacante & Evaluados & Intentó el modelo & Llegó al padre\\\\\\midrule"
@@ -151,7 +139,6 @@ def tablas(etiqueta: str) -> tuple[str, str]:
     tex.append("\\bottomrule\\end{tabular}\n%%FIN_TABLA_COND")
     md.append("")
 
-    # --- Utilidad bajo ataque ---
     ub, uc = s["utilidad_bajo_ataque"], s["utilidad_controles_kit"]
     tex.append(
         "%%INICIO_TABLA_UTIL_ATAQUE\n\\begin{tabular}{@{}lrr@{}}\\toprule\n"
@@ -188,10 +175,8 @@ NOMBRES = {
 
 
 def partir(tex: str) -> dict[str, str]:
-    """Separa el bloque de LaTeX en una tabla por archivo, usando las marcas %%INICIO_/%%FIN_."""
     salida: dict[str, str] = {}
     primera = tex.split("\n\\begin{tabular}", 1)
-    # La primera tabla (campos) no tiene marca de inicio: va desde el primer \\begin hasta %%FIN_TABLA_CAMPOS.
     cuerpo = "\\begin{tabular}" + primera[1]
     trozos = cuerpo.replace("%%INICIO_TABLA_", "%%CORTE%%INICIO_TABLA_").split("%%CORTE%%")
     for trozo in trozos:

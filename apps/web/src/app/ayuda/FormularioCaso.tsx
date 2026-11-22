@@ -1,15 +1,5 @@
 "use client";
 
-// El formulario para abrir una PQRS desde el centro de ayuda.
-//
-// Es la mitad de cliente de la escritura de `operacion`: recoge lo mínimo
-// (tipo, asunto, descripción) y llama a `/api/casos`, que habla con el backend.
-// El caso queda a nombre de la sesión: no se pide ni se acepta un correo, así
-// nadie abre casos a nombre de otra familia. Sin sesión se invita a ingresar. No inventa un canal que no existe —el caso queda de verdad en la
-// bandeja del back-office— y, al crearlo, muestra el
-// número de radicado y el término legal de respuesta, para que la promesa quede
-// por escrito y no como adorno.
-
 import Link from "next/link";
 import { useId, useState } from "react";
 import { CheckCircle2, KeyRound, Send, Ticket } from "lucide-react";
@@ -20,9 +10,9 @@ import {
   type CategoriaCaso,
 } from "@tukit/contrato";
 import { crearCaso, FalloApi } from "@/lib/api-navegador";
+import { fechaLegible } from "@/lib/panel-cuenta";
 import styles from "./Ayuda.module.css";
 
-// El texto de ayuda por tipo: orienta sin obligar a leer el glosario legal.
 const PISTA: Partial<Record<CategoriaCaso, string>> = {
   peticion: "Una duda o una solicitud puntual.",
   queja: "Algo en la atención no estuvo bien.",
@@ -31,16 +21,6 @@ const PISTA: Partial<Record<CategoriaCaso, string>> = {
   pago: "Algo relacionado con un pago.",
   entrega: "Algo relacionado con una entrega.",
 };
-
-function fechaLegible(iso: string): string {
-  // Fecha fija del servidor (viene del caso creado), no del reloj del cliente:
-  // no hay riesgo de desajuste de zona entre render de servidor y de cliente.
-  return new Date(iso).toLocaleDateString("es-CO", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
 
 export default function FormularioCaso({ conSesion }: { conSesion: boolean }) {
   const idCategoria = useId();
@@ -100,8 +80,6 @@ export default function FormularioCaso({ conSesion }: { conSesion: boolean }) {
     );
   }
 
-  // Estado de éxito: el radicado y el término de respuesta. Reemplaza al
-  // formulario para que quede claro que ya se envió y no se manda dos veces.
   if (creado) {
     return (
       <div className={styles.exito} role="status">
@@ -116,7 +94,7 @@ export default function FormularioCaso({ conSesion }: { conSesion: boolean }) {
         </p>
         {creado.vence_en ? (
           <p className={styles.plazo}>
-            Te responderemos a más tardar el <strong>{fechaLegible(creado.vence_en)}</strong>{" "}
+            Te responderemos a más tardar el <strong>{fechaLegible(creado.vence_en, "long")}</strong>{" "}
             (término de ley para {ETIQUETA_CATEGORIA_CASO[creado.categoria].toLowerCase()}).
           </p>
         ) : (

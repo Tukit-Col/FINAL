@@ -1,27 +1,13 @@
 """Prueba de humo del backend vivo: golpea la API y exige que traiga datos.
 
-Es la funcion de aptitud que le faltaba a la capa HTTP. `test_fronteras.py`
-mira el codigo y `verificar_deriva.py` mira el motor; esto mira lo unico que
-el frontend va a ver, que es la respuesta.
+Decisiones:
+- Lo que comprueba no es que responda 200 sino que cada respuesta traiga un minimo de contenido: un
+  endpoint con `{"total": 0}` responde 200 y es el fallo a atrapar, porque una base migrada y sin
+  sembrar se ve igual de sana que una sembrada.
+- No va con pytest a proposito: necesita Postgres y los procesos levantados, y la suite normal
+  corre sin ellos.
 
-Lo que comprueba no es que responda 200. Un endpoint que devuelve
-`{"total": 0, "conceptos": []}` responde 200 perfectamente y es exactamente
-el modo de fallar que hay que atrapar: la base migrada y sin sembrar se ve
-igual de sana que la sembrada hasta que alguien abre la pantalla. Por eso
-cada comprobacion exige un minimo de contenido.
-
-No va con pytest a proposito. La suite corre sin Postgres y sin procesos
-levantados; esto necesita las dos cosas, y meterlo ahi obligaria a saltarlo
-casi siempre, que es la forma de que una prueba deje de significar algo.
-
-    make humo
-    python arquitectura/humo.py --base http://127.0.0.1:8010
-
-La clave del operador no vive en este archivo: se pasa por TUKIT_HUMO_CLAVE. En
-la maquina de desarrollo sale del llavero de macOS (item `tukit-staff-oe5`):
-
-    TUKIT_HUMO_CLAVE=$(security find-generic-password -s tukit-staff-oe5 -w) \\
-        python arquitectura/humo.py
+Uso:  make humo   |   python arquitectura/humo.py --base http://127.0.0.1:8010
 """
 
 from __future__ import annotations
@@ -37,15 +23,8 @@ from typing import Any
 
 BASE_POR_OMISION = "http://127.0.0.1:8010"
 
-# Cuanto se espera a que el pipeline termine. Son segundos y no minutos
-# porque el camino de hoy no llama a ningun modelo: lee la lista oficial ya
-# cargada y empareja contra el catalogo local.
 ESPERA_TRABAJO = 90
 
-# El operador sembrado por `sembrar_acceso` (identidad). La clave se rota y no se
-# escribe aqui: un valor fijo en el repositorio queda en el historial aunque despues
-# se cambie. Se lee del entorno en el momento de usarla, no al importar, para que
-# importar el modulo (pruebas, trazas) no exija tenerla.
 CORREO_OPERADOR = "operador@tukit.co"
 VARIABLE_CLAVE = "TUKIT_HUMO_CLAVE"
 
@@ -71,8 +50,6 @@ def _pedir(base: str, ruta: str, cuerpo: dict[str, Any] | None = None, *, token:
 
 
 def _estado_http(base: str, ruta: str) -> int:
-    """El codigo HTTP de un GET, sin tratar el 4xx como fallo: sirve para
-    exigir que una ruta protegida RECHACE."""
     try:
         with urllib.request.urlopen(f"{base}{ruta}", timeout=30) as respuesta:
             return respuesta.status
@@ -100,7 +77,6 @@ def _exigir(condicion: bool, mensaje: str) -> None:
 
 
 def comprobar(base: str) -> list[tuple[str, str]]:
-    """Devuelve una linea por comprobacion, con lo que trajo de verdad."""
     hechas: list[tuple[str, str]] = []
 
     salud = _pedir(base, "/v1/servicios")
@@ -149,7 +125,6 @@ def comprobar(base: str) -> list[tuple[str, str]]:
     _exigir(reconocidos > 0, "el emparejamiento no reconocio ni un renglon")
     hechas.append(("/v1/catalogo/emparejar", f"{reconocidos} de 2 renglones reconocidos"))
 
-    # --- el ciclo completo ---------------------------------------------------
     trabajo = _pedir(
         base,
         "/v1/trabajos",
@@ -183,8 +158,6 @@ def comprobar(base: str) -> list[tuple[str, str]]:
     etapas = {e["nombre"]: e["estado"] for e in actual["etapas"]}
     hechas.append((f"GET /v1/trabajos/{trabajo_id}", f"estado {estado}, etapas {etapas}"))
 
-    # La consola es del equipo: por la puerta, sin token, tiene que rechazar
-    # (si respondiera 200, cualquiera podria aprobar y publicar un kit).
     sin_token = _estado_http(base, "/v1/admin/cola")
     _exigir(sin_token == 401, f"/v1/admin/cola sin token respondio {sin_token}; deberia ser 401")
     hechas.append(("/v1/admin/cola sin token", "401, cerrado"))
@@ -216,15 +189,6 @@ def comprobar(base: str) -> list[tuple[str, str]]:
         )
     )
 
-    # --- las superficies de lectura de comercio y operacion ------------------
-    # Aqui se comprueba la FORMA del contrato, no un minimo de contenido: los
-    # pedidos aparecen cuando un acudiente paga (checkout, seccion 9) y los
-    # casos cuando el repartidor procesa la bandeja de salida. Un tablero vacio
-    # es el estado honesto de una base recien migrada; lo que no puede faltar es
-    # la estructura `resumen`+`lista` que el frontend espera.
-    # El tablero es de operador/admin: sin token tiene que rechazar (si
-    # respondiera 200 volveria a estar abierto a cualquiera), y con el del
-    # operador demo tiene que dar la forma completa.
     sin_token = _estado_http(base, "/v1/comercio/pedidos")
     _exigir(sin_token == 401, f"/v1/comercio/pedidos sin token respondio {sin_token}; deberia ser 401")
     hechas.append(("/v1/comercio/pedidos sin token", "401, cerrado"))
@@ -243,7 +207,6 @@ def comprobar(base: str) -> list[tuple[str, str]]:
         )
     )
 
-    # La bandeja es solo de staff; el alta de mas abajo es publica (la abre el acudiente).
     bandeja = _pedir(base, "/v1/operacion/casos", token=_token_operador(base))
     _exigir("resumen" in bandeja and "casos" in bandeja, "la bandeja de operacion no trae resumen+casos")
     _exigir(
@@ -257,8 +220,6 @@ def comprobar(base: str) -> list[tuple[str, str]]:
         )
     )
 
-    # El alta de PQRS del acudiente es escritura real: se puede probar sin
-    # sembrar nada. El contacto se resuelve a un id y no se guarda (Ley 1581).
     caso = _pedir(
         base,
         "/v1/operacion/casos",

@@ -1,11 +1,3 @@
-"""Dobles comunes de las pruebas del asistente NL2C (`test_nl2c*.py`).
-
-Nada aqui llama a Gemini. `modelo(...)` y `modelo_que_devuelve(...)` son el
-modelo sustituido: se instalan con `nl2c.usar_llamador` y devuelven lo que la
-prueba pida, incluido lo peor (el doble obedece al atacante a proposito, para
-demostrar que las barandas no dependen de que el modelo se porte bien).
-"""
-
 from __future__ import annotations
 
 import copy
@@ -145,7 +137,6 @@ def linea_de_kit(
 
 
 def kit_grande() -> dict[str, Any]:
-    """Cinco cuadernos (tres de Spiderman), dos juegos de colores y unas tijeras."""
     return {
         "perfil": "Fan",
         "total": {"monto": 200000},

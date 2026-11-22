@@ -1,19 +1,11 @@
 """Lo que el inventario de "mis datos" lee de los otros servicios.
 
-Identidad no lee la base de Comercio, Operacion ni Inteligencia (invariante de
-fronteras): les pregunta por HTTP con el MISMO Bearer del titular, a las rutas
-que ya sirven su propio panel (`/v1/comercio/mis-pedidos`,
-`/v1/operacion/mis-casos`, `/v1/trabajos`). Cada servicio valida ese token
-contra Identidad como siempre, asi que no hay credencial nueva ni ruta interna
-nueva: el titular ve lo mismo que ya ve en su panel, juntado en un lugar.
-
-Es solo lectura y degrada por seccion: si un servicio no responde, esa seccion
-sale con `disponible: false` y el resto del inventario sigue. Un inventario
-parcial y honesto es mejor que un 502 sobre un derecho del titular.
-
-Ojo con el sentido del grafo: aqui Identidad llama a los demas, que es al reves
-de lo habitual. Es una lectura sincrona del titular sobre sus propios datos, no
-una dependencia de dato (ninguna tabla ajena se declara ni se lee).
+Decisiones:
+- Identidad no lee la base de Comercio, Operacion ni Inteligencia: les pregunta por HTTP con el
+  mismo Bearer del titular, a las rutas que ya sirven su propio panel. No hay credencial ni ruta
+  interna nueva.
+- Es solo lectura y degrada por seccion: si un servicio no responde, esa seccion sale con
+  `disponible: false` y el resto del inventario sigue.
 """
 
 from __future__ import annotations
@@ -30,8 +22,6 @@ ESPERA_SEGUNDOS = 5.0
 
 @dataclass(frozen=True)
 class Fuente:
-    """Una seccion del inventario: de que servicio sale y que lista trae."""
-
     seccion: str
     variable: str
     por_omision: str
@@ -70,8 +60,6 @@ FUENTES: tuple[Fuente, ...] = (
 
 @dataclass
 class InventarioRemoto:
-    """Los resumenes de los otros servicios. `cliente` se inyecta en pruebas."""
-
     cliente: httpx.AsyncClient | None = None
     fuentes: tuple[Fuente, ...] = field(default=FUENTES)
 
@@ -95,7 +83,6 @@ class InventarioRemoto:
         return {
             "disponible": True,
             "total": int(cuerpo.get("total", len(elementos))),
-            # Solo punteros (id, estado, fecha): el detalle sigue en su servicio.
             "elementos": [
                 {c: e.get(c) for c in fuente.campos if c in e} for e in elementos if isinstance(e, dict)
             ],

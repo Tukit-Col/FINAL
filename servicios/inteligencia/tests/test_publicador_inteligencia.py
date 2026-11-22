@@ -1,11 +1,3 @@
-"""El publicador de la bandeja de Inteligencia (ADR 0046).
-
-El nucleo se prueba en `tukit_comun`. Aqui se fija que lee la bandeja de verdad
-de Inteligencia y que `kits_publicados` lleva al acudiente en la carga: con
-RabbitMQ el repartidor no lee `trabajo_pipeline`, asi que el destinatario tiene
-que viajar en el evento. Y que sin `RABBITMQ_URL` no arranca.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -65,7 +57,6 @@ async def test_un_trabajo_sin_acudiente_no_inventa_destinatario(motor):
 
 @pytest.mark.parametrize("proceso", [publicador, supresion], ids=["publicador", "supresion"])
 def test_sin_rabbitmq_url_no_arranca(monkeypatch, capsys, proceso):
-    """Los dos procesos que solo existen sobre el broker se niegan a arrancar sin el."""
     monkeypatch.delenv("RABBITMQ_URL", raising=False)
 
     assert proceso.main([]) == 2

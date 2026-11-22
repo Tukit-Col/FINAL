@@ -1,18 +1,7 @@
-// `GET /api/direccion/buscar?q=...` — busca una dirección en OpenStreetMap
-// (Nominatim) para el checkout cuando no hay llave de Google (ADR 0049).
-//
-// El navegador nunca habla con Nominatim: la política del servicio público pide
-// un User-Agent con contacto, una petición por segundo en total y caché, y eso
-// solo se cumple de forma global desde el servidor. El contacto sale de
-// `TUKIT_NOMINATIM_CONTACTO`; sin él no se consulta (503) y el checkout sigue con
-// texto libre. La búsqueda sale con el botón, con Enter o tras una pausa larga al
-// escribir; el límite de 1 req/s y la caché valen igual para todas.
-
 import { BuscadorOsm, ErrorBusqueda } from "@/lib/direccion-osm";
 
 export const dynamic = "force-dynamic";
 
-// Una instancia por proceso: la cola de 1 req/s y la caché valen para todos.
 let buscador: BuscadorOsm | null = null;
 
 function buscadorDelServidor(): BuscadorOsm | null {

@@ -1,10 +1,3 @@
-// `POST /api/trabajos/{id}/kits/{perfil}/lineas/{item_id}/producto` — AD-04.
-//
-// Fija el producto de UN kit (por-nivel). Route Handler por la misma razon que
-// `validar`: la URL del backend y la bandera de origen se quedan en el
-// servidor, y el borde habla el `{error, mensaje}` del §11. El navegador manda
-// POST; el origen traduce a la ruta PUT de inteligencia.
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import { cuerpoJson, respuestaDeError, SIN_CONTENIDO } from "@/lib/respuesta";
 

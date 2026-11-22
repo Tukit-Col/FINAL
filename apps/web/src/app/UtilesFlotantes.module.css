@@ -1,8 +1,3 @@
-/* Capa de útiles flotantes del héroe. Se posiciona en absoluto sobre el héroe
- * y el titular pasa por encima (z-index en Inicio.module.css). Las piezas
- * flotan muy despacio; el bloque global de prefers-reduced-motion detiene la
- * animación sin que este archivo lo repita. */
-
 .capa,
 .capaCierre {
   position: absolute;
@@ -11,9 +6,6 @@
   z-index: 1;
 }
 
-/* Capa de fondo de TODA la página: cubre la columna completa de contenido y
- * queda detrás de las secciones (z-index 0 frente al 1 que tienen ellas). Las
- * piezas se recortan a los márgenes para no cruzar el texto central. */
 .capaPagina {
   position: absolute;
   inset: 0;
@@ -26,8 +18,7 @@
   position: absolute;
   width: clamp(66px, 9vw, 104px);
   height: clamp(66px, 9vw, 104px);
-  /* La sombra difusa es la que da el "flotando sobre el papel". Doble capa:
-   * una sombra de contacto cercana + una larga y suave. */
+
   filter:
     drop-shadow(0 10px 14px rgba(30, 58, 138, 0.16))
     drop-shadow(0 26px 34px rgba(30, 58, 138, 0.12));
@@ -48,9 +39,6 @@
   height: 100%;
   display: block;
 }
-
-/* --- Posiciones: envuelven el titular como en la referencia (piezas a
- *     izquierda y derecha, ninguna tapa el texto central en desktop). --- */
 
 .posLibro {
   left: 2%;
@@ -85,7 +73,6 @@
   transform: rotate(-4deg);
 }
 
-/* La estrella suelta es pequeña: una chispa, no una pieza más. */
 .posEstrella {
   right: 8%;
   top: 6%;
@@ -94,9 +81,6 @@
   transform: rotate(-12deg);
   z-index: 2;
 }
-
-/* --- Reparto liviano de la tarjeta de cierre: una a cada lado, tenue, para
- *     que el CTA siga mandando. --- */
 
 .posCierreA,
 .posCierreC {
@@ -119,10 +103,6 @@
   transform: rotate(12deg);
 }
 
-/* --- Reparto de fondo de la página: pocas piezas, bien en la orilla y SIN
- *     salirse del borde (nada de offsets negativos, que es lo que las cortaba).
- *     `top` en % del alto total del contenido, alternando lados, tenues. --- */
-
 .posPag1,
 .posPag2,
 .posPag3,
@@ -133,7 +113,6 @@
   height: clamp(46px, 5.5vw, 74px);
 }
 
-/* Las estrellas del reparto van más pequeñas: chispas de fondo. */
 .posPag2,
 .posPag5 {
   width: clamp(28px, 3.4vw, 42px);
@@ -145,12 +124,6 @@
 .posPag3 { left: 2%; top: 54%; transform: rotate(8deg); }
 .posPag4 { right: 2%; top: 66%; transform: rotate(10deg); }
 .posPag5 { left: 5%; top: 82%; transform: rotate(-10deg); }
-
-/* Tres ritmos de flotar, cada uno conserva la rotación de su pieza vía las
- * variables no — usamos translate solamente para no pelear con el rotate del
- * posicionamiento; el rotate se queda fijo y el translate lo hace la animación
- * sobre un hijo implícito. Para simplificar, animamos translate en Y y un giro
- * pequeñito con rotate compuesto. */
 
 @keyframes flotaA {
   0%, 100% { translate: 0 0; }
@@ -165,22 +138,8 @@
   50% { translate: 0 -11px; }
 }
 
-/* En móvil el titular manda: se ocultan las piezas de en medio para no chocar
- * con el texto, quedan solo las esquinas como guiño. */
-/* En móvil el titular manda: se ocultan las piezas de en medio para no chocar
- * con el texto, y el reparto de fondo casi entero (la columna estrecha lo
- * aprieta). Quedan las esquinas del héroe como guiño. */
-/* --------------------------------------------------------------- Móvil
-
-   En una columna de ~360px no hay margen lateral donde "flotar": cualquier
-   pieza en absoluto cae sobre el titular. Así que en móvil el reparto del
-   héroe deja de ser disperso y se convierte en una FILA-ilustración en flujo,
-   encima del texto (como las landings premium en móvil): las mismas piezas de
-   clay, alineadas y ligeramente torcidas, que no pueden tapar ninguna letra
-   porque empujan el título hacia abajo en vez de superponerse. El desktop no
-   se toca. */
 @media (max-width: 720px) {
-  /* La capa del héroe pasa de "lienzo absoluto" a fila centrada en flujo. */
+
   .capa {
     position: static;
     display: flex;
@@ -192,9 +151,6 @@
     padding: 0 var(--espacio-3);
   }
 
-  /* Las piezas del héroe dejan de posicionarse en absoluto: fluyen en la fila,
-   * todas del mismo tamaño para que se lean como un set ordenado. Conservan la
-   * rotación que trae cada clase pos* (el guiño hecho a mano). */
   .capa .pieza {
     position: static;
     inset: auto;
@@ -203,8 +159,6 @@
     z-index: auto;
   }
 
-  /* La regla es alargada: se ve rara recortada a un cuadrado en la fila. Fuera
-   * en móvil. La estrella suelta se queda como chispa más pequeña. */
   .capa .posRegla {
     display: none;
   }
@@ -214,8 +168,6 @@
     height: 40px;
   }
 
-  /* El reparto de fondo de la página aclara aún más y suelta las piezas que en
-   * columna estrecha quedaban demasiado cerca del texto. */
   .posPag1,
   .posPag3,
   .posPag4 {

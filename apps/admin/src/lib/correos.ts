@@ -1,7 +1,3 @@
-// Las reglas puras de la pantalla de correos enviados: qué filtros se leen de la
-// URL, cómo se arma un enlace que cambia un filtro, y cómo se dice en palabras
-// qué pasó con un envío.
-
 import type { EstadoCorreo, FiltrosCorreos } from "@tukit/contrato";
 
 type Parametros = Record<string, string | string[] | undefined>;
@@ -28,7 +24,6 @@ export function leerFiltrosCorreos(p: Parametros): FiltrosCorreos {
   return filtros;
 }
 
-/** Enlace a `/correos` con los filtros de ahora y `cambios` encima ("" o undefined los quita). */
 export function hrefCorreos(
   filtros: FiltrosCorreos,
   cambios: Partial<Record<keyof FiltrosCorreos, string | undefined>> = {},
@@ -45,7 +40,6 @@ export function hayFiltrosCorreos(filtros: FiltrosCorreos): boolean {
   return Object.values(filtros).some((v) => v !== undefined && v !== "");
 }
 
-/** Qué pasó con un envío, en palabras para quien opera. */
 export function explicarDetalle(detalle: string | null): string {
   if (!detalle) return "Sin detalle";
   if (detalle === "smtp") return "Entregado al servidor de correo";

@@ -1,13 +1,4 @@
-"""Tiempos medidos con la maquina sola (las corridas principales compartian CPU/GPU).
-
-Lado NSGA-II (venv del proyecto):   python tiempos.py nsga
-Lado Laya    (.venv-laya):          python tiempos.py laya [--cpu]
-
-Toma 30 listas fijas (cada sexta por id), un proceso, y mide el tiempo de pared
-de armar los kits de un papa sin preferencias (NSGA-II: los tres kits de una
-corrida; Laya: cada modalidad, escenario ahorrador). Escribe `tiempos_<lado>.json`
-en `docs/informes/benchmark-laya/`.
-"""
+"""Tiempos medidos con la maquina sola (las corridas principales compartian CPU/GPU)."""
 
 from __future__ import annotations
 
@@ -19,8 +10,7 @@ import time
 from pathlib import Path
 
 CARPETA = Path(__file__).resolve().parent
-# Los tiempos son resultados del informe: van junto a el, no junto al codigo.
-SALIDA = CARPETA.parents[1] / "docs" / "informes" / "benchmark-laya"
+SALIDA = CARPETA.parents[1] / "ensayos" / "bench_laya" / "salidas"
 
 
 def _muestra():
@@ -68,7 +58,7 @@ def laya(cpu: bool):
     salida = {}
     for m, fn in MODALIDADES.items():
         if cpu and m == "B":
-            continue  # estados de miles de tokens: en CPU tarda minutos por lista
+            continue
         xs = []
         for esc in escs:
             t = time.perf_counter()

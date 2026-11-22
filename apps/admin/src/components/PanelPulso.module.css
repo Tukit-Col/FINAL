@@ -1,9 +1,3 @@
-/* Tarjetas "Listas por verificar" y "Actividad reciente" del panel. Tokens
- * de TUKIT; las primitivas (Barras, Columnas, Dona, Insignia) traen lo suyo. */
-
-/* Contenedor de cada tarjeta: mantiene el ritmo de `.bloque` y es el
- * contenedor de consulta (@container) de las primitivas que trae dentro, para
- * que se reacomoden por el ancho de la tarjeta y no por el de la ventana. */
 .contenedor {
   container-type: inline-size;
   display: flex;
@@ -13,7 +7,6 @@
   min-width: 0;
 }
 
-/* Los h3 de la tarjeta usan el mismo estilo que `.bloque h3` del panel. */
 .subtitulo {
   margin-top: var(--espacio-2);
   font-size: 12px;
@@ -28,7 +21,6 @@
   color: var(--color-text-secondary);
 }
 
-/* Gris, pero el secundario: el muted no llega a 4.5:1 a 12 px. */
 .hace {
   flex: none;
   font-size: 12px;
@@ -42,7 +34,6 @@
   outline-offset: 2px;
 }
 
-/* ------------------------------------------- listas por verificar */
 .pieDona {
   padding: 0 var(--espacio-2);
   font-size: 12px;
@@ -71,7 +62,6 @@
   background: var(--color-primary-light);
 }
 
-/* ------------------------------------------- actividad reciente */
 .semana {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -114,7 +104,6 @@
   list-style: none;
 }
 
-/* El riel vertical pasa por el centro de los hitos (28 px / 2). */
 .eventos::before {
   content: "";
   position: absolute;
@@ -150,7 +139,6 @@
   color: var(--color-primary);
 }
 
-/* El icono dice el tipo; la gravedad la dice la insignia de prioridad. */
 .hito_ticket {
   background: var(--color-personaje-bg);
   color: var(--color-personaje);

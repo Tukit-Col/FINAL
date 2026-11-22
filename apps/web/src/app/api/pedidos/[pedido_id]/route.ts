@@ -1,11 +1,3 @@
-// `GET /api/pedidos/{pedido_id}` — el detalle de un pedido para la pantalla de
-// resultado del pago: productos, medio de pago y entrega.
-//
-// Misma costura de siempre: el navegador no toca el backend, el origen se
-// resuelve aquí, en el servidor. El id es el UUID opaco que la sincronización
-// del pago le devolvió a este mismo navegador, y comercio solo lo entrega a su
-// dueño: viaja el token de la cookie (un pedido ajeno es 404).
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import { respuestaDeError } from "@/lib/respuesta";
 import { tokenDeSesion } from "@/lib/sesion";

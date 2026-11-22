@@ -1,20 +1,11 @@
 "use client";
 
-// Menú desplegable que SIEMPRE abre hacia abajo, con buscador opcional.
-//
-// Un <select> nativo lo despliega el navegador hacia donde quiera, y en los
-// formularios del admin (casi siempre en la mitad baja de la pantalla) lo abría
-// hacia arriba, tapando el formulario. No hay CSS que cambie eso, así que este
-// panel se pinta debajo del campo. Es el mismo menú para concepto, tipo y
-// atributos, para que todos se vean y se manejen igual.
-
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import styles from "./Desplegable.module.css";
 
 export interface OpcionDesplegable {
   valor: string;
   texto: string;
-  /** Se ve pero no se puede elegir (p. ej. el concepto actual al reclasificar). */
   deshabilitada?: boolean;
 }
 
@@ -23,15 +14,10 @@ interface Props {
   valor: string;
   onCambio: (valor: string) => void;
   disabled?: boolean;
-  /** Lo que se ve cuando `valor` no es ninguna opción (p. ej. "Elegir…"). */
   textoVacio?: string;
-  /** Con muchas opciones: un buscador arriba del panel (sin tildes). */
   buscable?: boolean;
-  /** "compacto" para los formularios densos del catálogo. */
   tamano?: "normal" | "compacto";
-  /** Junto a un texto en la misma línea (filtros): ancho de su contenido. */
   enLinea?: boolean;
-  /** id para el `htmlFor` del rótulo. */
   id?: string;
 }
 
@@ -66,7 +52,6 @@ export default function Desplegable({
 
   const elegida = opciones.find((o) => o.valor === valor);
 
-  // Cerrar al hacer clic fuera.
   useEffect(() => {
     if (!abierto) return;
     function fuera(evento: MouseEvent) {
@@ -76,13 +61,10 @@ export default function Desplegable({
     return () => document.removeEventListener("mousedown", fuera);
   }, [abierto]);
 
-  // Si el campo vive en una caja con scroll propio (la lista de renglones del
-  // revisor), que esa caja baje lo justo para mostrar el panel completo.
   useEffect(() => {
     if (abierto) panel.current?.scrollIntoView({ block: "nearest" });
   }, [abierto]);
 
-  // Mantener visible la opción activa al moverse con el teclado.
   useEffect(() => {
     if (abierto) lista.current?.children[activo]?.scrollIntoView({ block: "nearest" });
   }, [activo, abierto]);
@@ -179,8 +161,6 @@ export default function Desplegable({
                   } ${opcion.deshabilitada ? styles.deshabilitada : ""}`}
                   onMouseEnter={() => setActivo(indice)}
                   onMouseDown={(e) => {
-                    // mousedown y no click: que el buscador no pierda el foco
-                    // antes de elegir.
                     e.preventDefault();
                     elegir(opcion);
                   }}

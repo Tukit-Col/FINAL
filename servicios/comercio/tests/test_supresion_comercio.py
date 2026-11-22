@@ -1,15 +1,3 @@
-"""La supresion del titular en Comercio (Ley 1581, ADR 0048).
-
-`titular_suprimido` llega por `comercio.supresion`. Lo que se fija aqui:
-
-- la copia congelada del envio queda enmascarada (destinatario, direccion,
-  telefono, documento, indicaciones) y el motivo libre de una devolucion tambien;
-- lo que la ley obliga a conservar no se toca: total, lineas, pago, estado;
-- el pedido de otro acudiente no se toca;
-- la confirmacion sale en la bandeja propia, en la misma transaccion;
-- un evento repetido no rompe nada ni deja una segunda confirmacion.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -99,7 +87,6 @@ async def test_enmascara_el_envio_y_conserva_lo_que_la_ley_obliga(motor):
         assert envio.documento_destinatario is None
         assert envio.indicaciones is None
         assert (envio.latitud, envio.longitud) == (None, None)
-        # La ciudad y la localidad no identifican a nadie y sostienen la logistica.
         assert (envio.ciudad, envio.localidad) == ("Bogota", "Chapinero")
         devolucion = (await db.execute(select(Devolucion))).scalar_one()
         assert devolucion.motivo == MARCA_SUPRIMIDO
@@ -143,8 +130,6 @@ async def test_confirma_en_su_bandeja_una_sola_vez_aunque_el_evento_se_repita(mo
 
 
 async def test_confirma_aunque_el_titular_no_tenga_pedidos(motor):
-    """Sin datos que borrar, la respuesta honesta es 'listo', no silencio: si no,
-    la solicitud se queda en `propagando` para siempre."""
     assert await Supresor(motor).manejar(_evento()) is Resultado.HECHO
     async with motor.engine.connect() as conexion:
         assert await conexion.scalar(select(BANDEJA.c.carga)) is not None

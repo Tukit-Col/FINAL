@@ -1,12 +1,4 @@
-"""Cordura, segunda ronda: ¿hay alguna forma de preguntarle a Laya que si entienda precio y nivel?
-
-Variantes:
-  v1  opciones con todo el detalle (la de la primera ronda)
-  v2  candidatos como JSON en el estado; opciones cortas ("opcion A")
-  v3  noul por candidato ("¿es este el mas barato?") con todos en el estado; gana la mayor prob.
-  v4  precio en palabras relativas (mas barato / intermedio / mas caro). OJO: esta variante le da
-      la comparacion ya hecha; mide si Laya sabe usarla, no si sabe comparar.
-"""
+"""Cordura, segunda ronda: ¿hay alguna forma de preguntarle a Laya que si entienda precio y nivel?"""
 
 import json
 import random
@@ -21,7 +13,6 @@ random.seed(11)
 
 
 def prob_si(r, qid):
-    """`noul` ya es la probabilidad de 'si' (p. ej. 0.28 con confidence 0.72 = 'no')."""
     return float(r["answers"][qid]["noul"])
 
 
@@ -113,11 +104,7 @@ def main():
                 )
         del agente
     salida = (
-        Path(__file__).resolve().parents[2]
-        / "docs"
-        / "informes"
-        / "benchmark-laya"
-        / "cordura_variantes.json"
+        Path(__file__).resolve().parents[2] / "ensayos" / "bench_laya" / "salidas" / "cordura_variantes.json"
     )
     salida.write_text(json.dumps(resumen, indent=2), encoding="utf-8")
 

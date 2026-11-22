@@ -1,16 +1,3 @@
-"""La superficie de lectura del catalogo, contra lo que el frontend va a leer.
-
-Estas pruebas existen sobre todo por un modo de fallar concreto: un endpoint
-que devuelve `{"total": 0, "conceptos": []}` responde 200 perfectamente. La
-base migrada y sin sembrar se ve igual de sana que la sembrada hasta que
-alguien abre la pantalla, asi que cada caso siembra lo minimo y exige que la
-respuesta lo traiga.
-
-Se llama a la app con `ASGITransport`, en el mismo proceso y sin puerto. El
-motor es SQLite en memoria y se le inyecta a mano, porque el arranque normal
-abriria Postgres y una suite que necesita un motor vivo se termina saltando.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -42,12 +29,6 @@ COLEGIO = uuid.UUID("11111111-1111-5111-8111-111111111111")
 
 
 def _siembra(sesion) -> None:
-    """El catalogo minimo que hace falta para que la API tenga que decidir algo.
-
-    Un concepto con tres niveles y dos tiendas con precios distintos, porque
-    comparar precio entre tiendas es lo que el esquema anterior no podia
-    expresar y es lo que la ficha del producto tiene que devolver.
-    """
     cuaderno = Concepto(
         codigo="C001",
         nombre_canonico="cuaderno",
@@ -168,12 +149,10 @@ async def cliente():
 
 
 class TestElDineroSaleEnPesosEnteros:
-    def test_centavos_a_pesos(self):
+    def test_el_precio_en_centavos_se_entrega_en_pesos(self):
         assert pesos(1890000) == 18900
 
     def test_nulo_es_no_se_conoce_y_no_cero(self):
-        """La distincion es del contrato: un producto sin precio observado no
-        se puede sumar a un total, y un cero lo sumaria sin ruido."""
         assert pesos(None) is None
 
     async def test_ningun_precio_de_la_respuesta_viene_en_centavos(self, cliente):
@@ -187,8 +166,6 @@ class TestNavegarElCatalogo:
         cuerpo = (await cliente.get("/v1/catalogo/conceptos")).json()
 
         assert cuerpo["total"] == 2
-        # Por demanda y no alfabetico: el orden de una pantalla de catalogo
-        # tiene que ser el de lo que los colegios de verdad piden.
         assert [c["codigo"] for c in cuerpo["conceptos"]] == ["C001", "C003"]
         cuaderno = cuerpo["conceptos"][0]
         assert cuaderno["productos"] == 4
@@ -219,8 +196,6 @@ class TestNavegarElCatalogo:
         assert con_precio["total"] == 3
 
     async def test_un_nivel_inventado_es_400_y_no_una_lista_vacia(self, cliente):
-        """Devolver cero resultados para un valor imposible esconde el error
-        del cliente detras de una respuesta que parece correcta."""
         respuesta = await cliente.get("/v1/catalogo/productos?nivel=carisimo")
         assert respuesta.status_code == 400
         assert respuesta.json()["campo"] == "nivel"
@@ -251,15 +226,9 @@ class TestLasListasOficiales:
         assert cuerpo["total"] == 1
         lista = cuerpo["listas"][0]
         assert lista["items"] == 2
-        # Sin revisar no es un defecto: es la puerta que habilita salir a una
-        # tienda por lo que la lista pide y el catalogo no tiene.
         assert lista["revisada"] is False
 
     async def test_filtra_por_revisada(self, cliente):
-        # El selector del acudiente solo puede ofrecer listas verificadas, asi
-        # que el filtro `revisada` tiene que resolverse en el servidor, no
-        # despues de traer 200 filas al navegador. La semilla nace sin revisar,
-        # asi que `revisada=false` la trae y `revisada=true` la excluye.
         sin_revisar = (await cliente.get("/v1/listas?revisada=false")).json()
         assert sin_revisar["total"] >= 1
         assert all(lista["revisada"] is False for lista in sin_revisar["listas"])
@@ -272,7 +241,6 @@ class TestLasListasOficiales:
         detalle = (await cliente.get(f"/v1/listas/{listado['listas'][0]['lista_id']}")).json()
 
         cuaderno, licencia = detalle["items"]
-        # El renglon no declara tipo, asi que hereda el de su concepto.
         assert cuaderno["tipo_item_declarado"] is None
         assert cuaderno["tipo_item"] == "util"
         assert cuaderno["surtible"] is True
@@ -298,8 +266,6 @@ class TestEmparejar:
         assert emparejado["estado"] == "reconocido"
         assert emparejado["concepto_codigo"] == "C001"
         opcion = emparejado["opciones"][0]
-        # Sin estos tres, quien arma el kit tendria que volver a consultar el
-        # producto por su sku, una llamada por renglon de la lista.
         assert opcion["unidades_por_empaque"] == 1
         assert opcion["imagen_url"].endswith(".jpg")
         assert opcion["producto_id"] is not None

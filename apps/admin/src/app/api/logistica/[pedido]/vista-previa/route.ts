@@ -1,6 +1,3 @@
-// `GET /api/logistica/{pedido}/vista-previa?destino=` — lo que verá el acudiente al mover el pedido.
-// No escribe nada; comercio arma la línea de tiempo con vistas recortadas.
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import { validarDestinoDePrevia } from "@/lib/cuerpos-admin";
 import { respuestaDeError } from "@/lib/respuesta";

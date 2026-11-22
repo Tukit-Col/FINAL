@@ -9,9 +9,6 @@ from tukit_gateway.api import app
 
 @pytest.fixture(autouse=True)
 def _sin_redis(monkeypatch) -> Iterator[None]:
-    """Cada prueba con un cliente nuevo y sin Redis: el limite cuenta en una
-    memoria que no arrastra lo que conto la prueba anterior, y una `REDIS_URL`
-    exportada en la terminal no mete Redis en las pruebas unitarias."""
     monkeypatch.delenv("REDIS_URL", raising=False)
     usar_cliente(None)
     yield
@@ -20,9 +17,6 @@ def _sin_redis(monkeypatch) -> Iterator[None]:
 
 @pytest.fixture(autouse=True)
 async def _sin_cliente_compartido() -> AsyncIterator[None]:
-    """El cliente httpx compartido de la puerta nace en el primer uso y se ata
-    al bucle de esa prueba; se cierra y se retira al terminar, para que la
-    siguiente no herede conexiones de un bucle que ya no existe."""
     yield
     cliente = getattr(app.state, "cliente", None)
     if cliente is not None:
@@ -32,8 +26,6 @@ async def _sin_cliente_compartido() -> AsyncIterator[None]:
 
 @pytest.fixture()
 def atras():
-    """Cambia el cliente compartido de la puerta, no el `httpx` de verdad, que usa
-    el cliente de la prueba. `_sin_cliente_compartido` lo retira al final."""
     from _ayudas_gateway import Atras
 
     falso = Atras()
@@ -43,7 +35,6 @@ def atras():
 
 @pytest.fixture()
 def redis():
-    """Un Redis en memoria colgado como cliente de cache de la puerta."""
     from tukit_comun.pruebas_redis import RedisEnMemoria, cliente_en_memoria
 
     motor = RedisEnMemoria()

@@ -3,8 +3,7 @@
   margin: 0 auto;
   padding: var(--espacio-6) var(--espacio-4) var(--espacio-7);
   display: grid;
-  /* minmax(0,1fr): sin esto la columna implicita crece al contenido mas ancho
-   * y en 375 px la pagina se desborda por la derecha. */
+
   grid-template-columns: minmax(0, 1fr);
   gap: var(--espacio-5);
 }
@@ -29,15 +28,10 @@
   box-shadow: var(--clay-shadow);
 }
 
-/* Pasos que aún no tocan: se atenúan pero siguen legibles, enfocables y
- * anunciables (nada de pointer-events:none ni disabled). Al entrar con el
- * teclado o el puntero vuelven a opacidad plena. */
 .bloque {
   transition: opacity var(--dur-medio, 200ms) var(--ease-suave, ease);
 }
 
-/* Paso futuro: fondo gris y contenido a ~0.55, pero el título queda a plena
- * opacidad (AA) y nada se bloquea. Al entrar con teclado o puntero se aviva. */
 .bloque {
   position: relative;
   border: 2px solid transparent;
@@ -121,12 +115,9 @@
   max-width: 64ch;
 }
 
-/* ------------------------------------------------------------------ Hijos */
-
 .hijo {
   border: none;
-  /* Fondo blanco liso: el crema suave leia como "amarillo" y competia con las
-   * fichas de personaje. El relieve lo da la sombra hundida, no el color. */
+
   background: var(--color-white);
   border-radius: var(--radius-lg);
   padding: var(--espacio-4);
@@ -212,14 +203,10 @@
   background: var(--color-border-light);
 }
 
-/* Rótulo de campo reutilizable (colegio, grado): mismo peso que .campo>span
- * pero para bloques que no son <label> directos. */
 .campoRotulo {
   font-size: 14px;
   font-weight: 700;
 }
-
-/* ----------------------------------------------------- Selector de colegio */
 
 .colegioBloque {
   display: grid;
@@ -333,8 +320,6 @@
   color: var(--color-text-muted);
 }
 
-/* "Cambiar" el colegio ya elegido (dentro de la tarjeta activa del buscador):
- * un enlace discreto alineado a la derecha, no un botón macizo. */
 .cambiarColegio {
   margin-left: auto;
   flex: none;
@@ -351,9 +336,6 @@
   background: var(--color-white);
 }
 
-/* "No lo encuentro: usar tal cual" — la salida a escribir el colegio a mano
- * cuando no está en el directorio. Va al final de la lista de resultados, con
- * el mismo alto de fila que una tarjeta pero en tono de acción secundaria. */
 .escribirColegio {
   display: flex;
   align-items: center;
@@ -373,8 +355,6 @@
 .escribirColegio:hover {
   transform: translateY(-1px);
 }
-
-/* --------------------------------------------------------------- Grado */
 
 .gradoBloque {
   display: grid;
@@ -411,17 +391,10 @@
   box-shadow: var(--clay-shadow-primary);
 }
 
-/* Grado con lista verificada del colegio, aún NO elegido (ruta "lista oficial").
-   Azul suave para distinguirlo del gris (sin lista, .chipGrado) sin competir con
-   el azul fuerte del elegido (.chipGradoActivo: gradiente + texto blanco). El
-   color no es la única señal: cada chip lleva aria-label/title diciendo si el
-   grado tiene lista verificada. Hereda tamaño, forma y sombra de .chipGrado. */
 .chipGradoVerificado {
   color: var(--color-primary);
   background: var(--color-primary-light);
 }
-
-/* ------------------------------------------------ Opciones (modo y prioridad) */
 
 .opciones {
   display: grid;
@@ -429,8 +402,6 @@
   border: none;
 }
 
-/* El tope del kit «A tu Medida»: cuelga del punto medio, como una
- * continuación de esa opción y no como un campo más del formulario. */
 .panelTope {
   display: grid;
   gap: var(--espacio-2);
@@ -472,11 +443,6 @@
   box-shadow: var(--clay-shadow-sm), inset 0 0 0 2px var(--color-primary);
 }
 
-/* --------------------------------------------------- Prioridad (paso 3) */
-
-/* Como .opcionEntrada pero con dos líneas: el título de la prioridad y, debajo,
- * el efecto concreto sobre cuál kit se marca. Alinea el radio arriba porque el
- * texto ocupa dos renglones. */
 .tarjetaPrioridad {
   display: flex;
   align-items: flex-start;
@@ -517,8 +483,6 @@
   color: var(--color-text-secondary);
 }
 
-/* ---------------------------------------------------------------- Archivo */
-
 .zonaArchivo {
   display: grid;
   gap: var(--espacio-3);
@@ -528,10 +492,6 @@
   box-shadow: var(--clay-shadow-inset);
 }
 
-/* Adjuntar la lista de un grado sin verificar (ruta "lista oficial"). Mismo
-   layout que .zonaArchivo pero en azul suave con anillo primario, para que NO
-   se confunda con la zona blanca de "No encontré mi colegio": aquí el colegio
-   sí está elegido y solo falta su lista de ese grado. */
 .zonaListaGrado {
   display: grid;
   gap: var(--espacio-3);
@@ -588,9 +548,6 @@
   color: var(--color-danger);
 }
 
-/* Confirmación en la zona "No encontré mi colegio": el archivo subido ES la
-   semilla, no hay que sugerir nada aparte. Reusa el único remanente de la vieja
-   familia .sugerencia* (el resto se eliminó con la función de sugerir). */
 .sugerenciaOk {
   display: flex;
   align-items: center;
@@ -617,8 +574,6 @@
   transform: translateY(-1px);
 }
 
-/* ----------------------------------------------------------------- Envio */
-
 .errorCaja {
   background: var(--color-danger-bg);
   color: var(--color-danger);
@@ -630,9 +585,6 @@
   box-shadow: var(--clay-shadow-sm);
 }
 
-/* Aviso NO bloqueante (ámbar): p.ej. no se pudieron guardar los hijos nuevos en
-   la cuenta, pero el kit se arma igual. Misma estructura que .errorCaja, con la
-   paleta de aviso para que se lea como "sigue tu curso", no como error. */
 .avisoCaja {
   background: var(--color-aviso-bg);
   color: var(--color-aviso);
@@ -643,8 +595,6 @@
   box-shadow: var(--clay-shadow-sm);
 }
 
-/* Apodo de un hijo YA precargado: solo-lectura, texto secundario, para que se
-   distinga del campo editable de un hijo nuevo. */
 .apodoPrecargado {
   font-size: 13.5px;
   color: var(--color-text-secondary);
@@ -692,9 +642,6 @@
   font-size: 13px;
   color: var(--color-text-muted);
 }
-
-
-/* ------------------------------------------ Reglas de la contraseña y términos */
 
 .reglasClave {
   list-style: none;
@@ -755,7 +702,6 @@
   text-decoration: underline;
 }
 
-/* Buscador de colegio: lo primero y más grande del bloque de cada hijo. */
 .rotuloColegio {
   font-size: 16px;
   font-weight: 800;
@@ -795,10 +741,6 @@
   color: var(--color-text-secondary);
 }
 
-/* ---------------------------------------------------- Paso completado */
-
-/* Micro-feedback: al completar un paso su numero cambia a una marca verde que
- * entra con un rebote corto. Una sola vez (el cambio de clase), sin loops. */
 .bloqueCompleto .paso {
   position: relative;
   color: transparent;
@@ -834,8 +776,6 @@
   }
 }
 
-/* En celular el rotulo largo pisaba el titulo del paso: se acorta y el titulo
- * puede envolver a su lado. */
 @media (max-width: 520px) {
   .bloqueInactivo::after {
     content: "Pendiente";

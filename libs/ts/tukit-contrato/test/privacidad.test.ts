@@ -1,9 +1,3 @@
-// El panel de privacidad: la frase de confirmacion (la misma regla que Identidad),
-// el nombre del archivo exportado y el total de una seccion remota. Mas un doble
-// tipado `Pick<OrigenDatos, ...>` que fija las firmas nuevas del origen.
-//
-// Correr: `node --test test/privacidad.test.ts`.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { OrigenDatos } from "../src/origen.ts";

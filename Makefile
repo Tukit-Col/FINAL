@@ -1,8 +1,6 @@
 # Ejecutor de tareas del monorepo.
 #
-# Un solo comando por intencion, independiente del lenguaje del servicio. El
-# arbol mezcla Python, Go y TypeScript, y sin esto cada quien recuerda una
-# invocacion distinta.
+# Un solo comando por intencion, independiente del lenguaje del servicio.
 
 .DEFAULT_GOAL := ayuda
 .PHONY: ayuda preparar fronteras prueba prueba-colas prueba-redis lint formato tipos verificar limpiar \
@@ -71,8 +69,8 @@ preparar:  ## Crea el entorno e instala las dependencias
 fronteras:  ## Verifica las fronteras de arquitectura (rapido, corre primero)
 	@$(PYTEST) arquitectura/ -q
 
-# Las pruebas contra RabbitMQ (marcador `rabbitmq`, ADR 0046) y contra Redis
-# (marcador `redis`, ADR 0047) van aparte: dependen de que el servicio este
+# Las pruebas contra RabbitMQ (marcador `rabbitmq`) y contra Redis
+# (marcador `redis`) van aparte: dependen de que el servicio este
 # arriba. Sin ellas, `prueba` da lo mismo con broker y Redis que sin ellos.
 prueba: fronteras  ## Corre toda la suite, empezando por las fronteras
 	@$(PYTEST) libs servicios ensayos -q -m "not rabbitmq and not redis"
@@ -91,7 +89,7 @@ formato:  ## Aplica formato
 	@$(RUFF) check --fix .
 	@$(RUFF) format .
 
-tipos:  ## Revisa tipos (laxo global, estricto en tukit_comun; ADR 0026)
+tipos:  ## Revisa tipos (laxo global, estricto en tukit_comun)
 	@.venv/bin/mypy libs/py/tukit_comun/tukit_comun
 
 verificar: lint prueba  ## Todo lo que corre la integracion continua
@@ -140,8 +138,8 @@ infra-arriba:  ## Levanta el backbone opcional (Redis, Jaeger) bajo el perfil `i
 	@# El codigo corre sin esto (OTLP no-op, sin cache y con el limite de tasa
 	@# en la memoria de la puerta). Levantarlo activa las trazas: pon
 	@# OTEL_EXPORTER_OTLP_ENDPOINT en tu .env. Consola de Jaeger en :16686. Redis
-	@# lo comprueba `make arriba` (ADR 0047). RabbitMQ ya no va aqui: lo levanta
-	@# `bd-arriba` (ADR 0046).
+	@# lo comprueba `make arriba`. RabbitMQ ya no va aqui: lo levanta
+	@# `bd-arriba`.
 	@$(COMPOSE) --profile infra up -d
 	@echo "Backbone arriba: Jaeger :16686, Redis :6379 (cache y limite de tasa)."
 
@@ -271,7 +269,7 @@ bd-datos:  ## Revisa los datos curados sin escribir nada
 
 bd-auditar:  ## Cuenta los campos vacios del catalogo (ARGS=--estricto falla si hay)
 	@cd servicios/catalogo && PYTHONPATH=".:../../libs/py/tukit_comun" \
-		../../$(PY) -m tukit_catalogo.auditar_campos --datos ../../datos/catalogo --informe ../../docs/informes/auditoria-campos-catalogo.md $(ARGS)
+		../../$(PY) -m tukit_catalogo.auditar_campos --datos ../../datos/catalogo --informe ../../ensayos/salidas/auditoria-campos-catalogo.md $(ARGS)
 
 bd-enriquecer:  ## Saca empaque, atributos y personaje del nombre; --imagenes va a la red
 	@cd servicios/catalogo && PYTHONPATH=".:../../libs/py/tukit_comun" \
@@ -370,7 +368,7 @@ bd-deriva:  ## Falla si el esquema migrado y los modelos no dicen lo mismo
 EJECUCION := .ejecucion
 API_PATH := $(ESQUEMA_PATH)
 
-# Con RabbitMQ (ADR 0046) los eventos viajan por el broker: cada productor
+# Con RabbitMQ los eventos viajan por el broker: cada productor
 # publica su bandeja y cada consumidor escucha su cola, sin leer bases ajenas.
 # `arriba` toma `RABBITMQ_URL` del entorno o, si no esta definida, la del broker
 # local (la del compose y la de `.env.ejemplo`). Si el broker no responde,
@@ -383,7 +381,7 @@ URL_BROKER = $(if $(filter undefined,$(origin RABBITMQ_URL)),$(BROKER_LOCAL),$(R
 # Cada proceso que lanza `arriba` recibe la URL que quedo decidida, o ninguna.
 CON_BROKER = RABBITMQ_URL="$$(cat $(EJECUCION)/broker 2>/dev/null)"
 
-# Con Redis (ADR 0047) la puerta comparte el conteo del limite de tasa entre
+# Con Redis la puerta comparte el conteo del limite de tasa entre
 # procesos, catalogo guarda los vectores de los renglones e inteligencia las
 # lecturas aceptadas de las listas. `arriba` toma `REDIS_URL` del entorno o, si
 # no esta definida, la del Redis local (la del compose y la de `.env.ejemplo`).
@@ -452,17 +450,16 @@ instantanea-metricas:  ## Congela el snapshot de hoy de cobertura/match por cole
 poller:  ## Drena lista_verificada del catalogo y arma el kit del padre (una pasada; s=--seguir para bucle)
 	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_inteligencia.poller $(s)
 
-trabajador:  ## Drena la cola de trabajos y corre el pipeline durable, ADR 0024 (una pasada; s=--seguir para bucle)
+trabajador:  ## Drena la cola de trabajos y corre el pipeline durable (una pasada; s=--seguir para bucle)
 	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_inteligencia.trabajador $(s)
 
-barredor:  ## Libera reservas de pedidos sin pagar por TTL, ADR 0023 C1 (una pasada; s=--seguir para bucle)
+barredor:  ## Libera reservas de pedidos sin pagar por TTL (una pasada; s=--seguir para bucle)
 	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_comercio.barredor $(s)
 
 poller-identidad:  ## Drena colegio_verificado del catalogo y da de alta el colegio aliado (s=--seguir para bucle)
 	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_identidad.poller $(s)
 
-# Los publicadores llevan la bandeja propia de cada productor a RabbitMQ (ADR
-# 0046). Solo corren con RABBITMQ_URL; sin ella dicen que falta y salen con 2,
+# Los publicadores llevan la bandeja propia de cada productor a RabbitMQ. Solo corren con RABBITMQ_URL; sin ella dicen que falta y salen con 2,
 # porque sin broker los consumidores sondean la bandeja como siempre.
 publicador-catalogo:  ## Publica la bandeja de catalogo en RabbitMQ (requiere RABBITMQ_URL; s=--seguir para bucle)
 	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_catalogo.publicador $(s)
@@ -476,7 +473,7 @@ publicador-inteligencia:  ## Publica la bandeja de inteligencia en RabbitMQ (req
 publicador-identidad:  ## Publica la bandeja de identidad en RabbitMQ (titular_suprimido; requiere RABBITMQ_URL)
 	@PYTHONPATH="$(API_PATH)" $(PY) -m tukit_identidad.publicador $(s)
 
-# La supresion del titular (Ley 1581, ADR 0048): cada servicio con datos del
+# La supresion del titular (Ley 1581): cada servicio con datos del
 # titular consume `titular_suprimido` y confirma; identidad cierra la solicitud.
 # Solo con RabbitMQ.
 supresion-comercio:  ## Enmascara el envio del titular suprimido (requiere RABBITMQ_URL; s=--seguir)
@@ -535,9 +532,8 @@ arriba:  ## Levanta los seis procesos HTTP y los de fondo, con RabbitMQ y Redis 
 	done
 	@# Los trabajadores de fondo: sin ellos el aviso al acudiente no sale
 	@# (repartidor), el kit del padre no se arma (poller), un colegio nuevo nunca
-	@# se vuelve aliado (poller-identidad) y —desde ADR 0024— el pipeline no corre
-	@# (trabajador: drena la cola de trabajos `encolado`, antes era una asyncio.Task
-	@# del API que un reinicio dejaba colgada). Cada uno en --seguir con su pid.
+	@# se vuelve aliado (poller-identidad) y el pipeline no corre
+	@# (trabajador: drena la cola de trabajos `encolado`). Cada uno en --seguir con su pid.
 	@$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_operacion.repartidor --seguir \
 		> $(EJECUCION)/repartidor.log 2>&1 & echo $$! > $(EJECUCION)/repartidor.pid
 	@$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_inteligencia.poller --seguir \
@@ -547,7 +543,7 @@ arriba:  ## Levanta los seis procesos HTTP y los de fondo, con RabbitMQ y Redis 
 	@$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_identidad.poller --seguir \
 		> $(EJECUCION)/poller-identidad.log 2>&1 & echo $$! > $(EJECUCION)/poller-identidad.pid
 	@# Con broker, los publicadores llevan a RabbitMQ la bandeja de cada
-	@# productor (ADR 0046). Sin broker no hacen falta: los consumidores leen las
+	@# productor. Sin broker no hacen falta: los consumidores leen las
 	@# bandejas directo.
 	@if [ -s $(EJECUCION)/broker ]; then for p in catalogo comercio inteligencia identidad; do \
 		$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_$$p.publicador --seguir \
@@ -556,10 +552,19 @@ arriba:  ## Levanta los seis procesos HTTP y los de fondo, con RabbitMQ y Redis 
 		$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_$$p.supresion --seguir \
 			> $(EJECUCION)/supresion-$$p.log 2>&1 & echo $$! > $(EJECUCION)/supresion-$$p.pid; \
 	done; fi
-	@# El barredor libera la reserva de un pedido que nunca se pago (ADR 0023, C1):
+	@# El barredor libera la reserva de un pedido que nunca se pago:
 	@# sin el, un checkout abandonado bloquea stock para siempre.
 	@$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_comercio.barredor --seguir \
 		> $(EJECUCION)/barredor.log 2>&1 & echo $$! > $(EJECUCION)/barredor.pid
+	@# Con broker, los consumidores escuchan colas y ya no leen las bandejas:
+	@# sin un publicador por servicio ningun evento llega a RabbitMQ y no sale
+	@# ni un aviso (pedido pagado, despachado, kits publicados...).
+	@if [ -n "$$(cat $(EJECUCION)/broker 2>/dev/null)" ]; then \
+		for s in catalogo comercio inteligencia identidad; do \
+			$(CON_BROKER) PYTHONPATH="$(API_PATH)" nohup $(PY) -m tukit_$$s.publicador --seguir \
+				> $(EJECUCION)/publicador-$$s.log 2>&1 & echo $$! > $(EJECUCION)/publicador-$$s.pid; \
+		done; \
+	fi
 	@$(MAKE) --no-print-directory estado
 
 abajo:  ## Detiene los seis procesos HTTP y los trabajadores de fondo

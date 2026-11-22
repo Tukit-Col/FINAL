@@ -1,14 +1,5 @@
-// Las reglas de "Mis pedidos", separadas de las rutas para poder probarlas sin
-// servidor: el pedido tiene que ser del acudiente de la sesion y seguir
-// pendiente de pago; pagarlo exige ademas que no haya vencido. Un pedido ajeno
-// responde igual que uno inexistente, para no confirmar que el id existe.
-//
-// Comercio aplica las mismas reglas (y es quien manda); aqui se repiten para
-// pintar el boton correcto y dar un mensaje claro sin ir y volver.
-
 import type { EstadoPedido } from "@tukit/contrato";
 
-// Igual que `VIGENCIA_PAGO` en Comercio: despues se cobraria un precio viejo.
 export const VIGENCIA_PAGO_HORAS = 24;
 
 type PedidoMinimo = { pedido_id: string; estado: EstadoPedido; creado_en: string };
@@ -46,8 +37,6 @@ export function decidirAccionPedido(
       mensaje: "Este pedido ya no está pendiente de pago.",
     };
   }
-  // Un pedido vencido no se paga, pero si se cancela: asi se libera lo que
-  // tenia reservado.
   if (accion === "pagar" && pedidoVencido(pedido.creado_en, ahora)) {
     return {
       ok: false,
@@ -59,9 +48,6 @@ export function decidirAccionPedido(
   return { ok: true };
 }
 
-// El color de la etiqueta de estado en "Mis pedidos": verde lo pagado y lo que
-// va camino a la casa, amarillo lo que espera pago, rojo lo cancelado o con
-// problema.
 export type TonoEstado = "exito" | "aviso" | "peligro";
 
 const TONO_ESTADO: Record<EstadoPedido, TonoEstado> = {
@@ -79,12 +65,6 @@ export function tonoEstadoPedido(estado: EstadoPedido): TonoEstado {
   return TONO_ESTADO[estado];
 }
 
-// El cruce entre "Mis solicitudes" y "Mis pedidos" por kit (trabajo_id). La
-// solicitud no se cierra ni guarda un estado propio: se calcula cada vez, asi
-// que si el pedido se cancela o se reembolsa, la solicitud vuelve sola a "Listo".
-// - comprado: el kit tiene un pedido pagado o en camino (el mas reciente). Una
-//   incidencia tambien: el pago ya se cobro y el pedido sigue vivo.
-// - por_pagar: no lo tiene, pero hay uno pendiente de pago y vigente.
 export type CompraSolicitud = { estado: "comprado" | "por_pagar"; pedidoId: string } | null;
 
 const ESTADOS_COMPRADOS: ReadonlySet<EstadoPedido> = new Set([
@@ -115,10 +95,6 @@ export function compraDeSolicitud(
   return null;
 }
 
-// La entrega que el checkout del kit precarga al volver de un pago rechazado
-// ("Intentar de nuevo"): la del pedido pendiente y vigente mas reciente de ese
-// kit, que es el que Comercio reutiliza. Asi no se escribe otra vez toda la
-// direccion. Sin ese pedido (o sin sesion) el formulario arranca vacio.
 export interface EntregaPrevia {
   destinatario: string;
   direccion: string;

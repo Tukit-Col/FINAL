@@ -1,24 +1,9 @@
-"""La consola interna (`/v1/admin/*`) no se abre sin una sesion del equipo.
-
-El defecto que esto fija: por la puerta, sin token, `GET /v1/admin/cola`
-respondia 200 y `POST /v1/admin/trabajos/{id}/revision` aprobaba y publicaba
-un kit. Solo `/v1/admin/acudientes` cerraba, porque identidad lo revisa por su
-cuenta; catalogo e inteligencia confiaban en que nadie de fuera llegara.
-
-La puerta es el unico punto por el que pasa todo el trafico de fuera, asi que
-el chequeo vive aqui: 401 sin token o con uno que identidad no reconoce, 403
-con un token valido sin rol de equipo (admin u operador), y el reenvio normal
-con uno que si lo tiene. Identidad se simula con un transporte de httpx: la
-prueba no necesita ningun proceso levantado.
-"""
-
 from __future__ import annotations
 
 import httpx
 import pytest
 from tukit_gateway.api import app
 
-# token -> roles que identidad devolveria en `GET /v1/sesiones/actual`.
 SESIONES = {
     "tok-admin": [{"rol": "admin", "ambito_tipo": "global"}],
     "tok-operador": [{"rol": "operador", "ambito_tipo": "global"}],
@@ -33,9 +18,6 @@ RUTAS_DE_CONSOLA = [
     ("GET", "/v1/admin/catalogo/propuestas"),
     ("GET", "/v1/admin/sugerencias"),
     ("GET", "/v1/admin/acudientes"),
-    # Escrituras de la consola que viven fuera de `/v1/admin`: editar y retirar
-    # un producto, reclasificarlo, y editar el perfil de un colegio. Sin token
-    # respondian como cualquiera; su lectura (GET) sigue siendo publica.
     ("PATCH", "/v1/catalogo/productos/TK-001"),
     ("DELETE", "/v1/catalogo/productos/TK-001"),
     ("POST", "/v1/catalogo/productos/TK-001/reclasificar"),
@@ -44,11 +26,6 @@ RUTAS_DE_CONSOLA = [
 
 
 class Atras:
-    """Identidad y los servicios de atras en un solo transporte falso.
-
-    Anota cada peticion que llega a un servicio que no es la validacion de la
-    sesion, para que la prueba pueda decir que un 401/403 NO se reenvio."""
-
     def __init__(self, *, identidad_caida: bool = False) -> None:
         self.identidad_caida = identidad_caida
         self.reenviadas: list[str] = []
@@ -68,7 +45,6 @@ class Atras:
 
 @pytest.fixture
 def atras():
-    """Cuelga un cliente compartido falso en `app.state` y lo retira al final."""
     doble = Atras()
     app.state.cliente = httpx.AsyncClient(transport=httpx.MockTransport(doble))
     yield doble
@@ -105,7 +81,6 @@ class TestLaConsolaExigeSesionDelEquipo:
         assert atras.reenviadas == [f"{metodo} {ruta}"]
 
     async def test_identidad_caida_cierra_con_503(self):
-        """Falla CERRADA: no poder preguntar no es razon para abrir."""
         doble = Atras(identidad_caida=True)
         app.state.cliente = httpx.AsyncClient(transport=httpx.MockTransport(doble))
         try:
@@ -119,8 +94,6 @@ class TestLaConsolaExigeSesionDelEquipo:
 
 class TestLoQueNoEsConsolaQuedaAbierto:
     async def test_la_sugerencia_del_acudiente_es_abierta(self, atras):
-        """`POST /v1/admin/sugerencias` lo llama la web publica, sin sesion: un
-        acudiente sugiere su (colegio, grado). Leer el backlog si es del equipo."""
         respuesta = await _llamar("POST", "/v1/admin/sugerencias")
         assert respuesta.status_code == 200
         assert atras.reenviadas == ["POST /v1/admin/sugerencias"]
@@ -132,12 +105,10 @@ class TestLoQueNoEsConsolaQuedaAbierto:
 
     @pytest.mark.parametrize("ruta", ["/v1/catalogo/productos/TK-001", "/v1/colegios/cccc"])
     async def test_leer_un_producto_o_un_colegio_es_abierto(self, atras, ruta):
-        """Solo se cierran las escrituras: la web lee productos y colegios sin sesion."""
         respuesta = await _llamar("GET", ruta)
         assert respuesta.status_code == 200
         assert atras.reenviadas == [f"GET {ruta}"]
 
     async def test_un_prefijo_parecido_no_es_consola(self, atras):
-        """`/v1/administrar` no es `/v1/admin`: la puerta ni lo rutea (404)."""
         respuesta = await _llamar("GET", "/v1/administrar")
         assert respuesta.status_code == 404

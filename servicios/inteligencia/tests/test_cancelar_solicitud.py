@@ -1,12 +1,3 @@
-"""El acudiente cancela una solicitud (ADR 0031).
-
-Un trabajo cancelado queda en `cancelado` (terminal) y deja de salir en "Mis
-solicitudes". No se cancela un kit que ya se compro, ni uno con un pago
-pendiente (primero se cancela el pedido), ni uno que el pipeline esta armando.
-Una lista subida se desvincula del acudiente en el Catalogo, sin borrarla: sigue
-siendo una lista del colegio.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -43,7 +34,6 @@ class ComercioFalso:
     pedidos: list[dict[str, Any]] = field(default_factory=list)
 
     async def pedidos_de(self, token: str) -> list[dict[str, Any]]:
-        # Comercio resuelve el token a su dueno; aqui el token ES el usuario_id.
         return [p for p in self.pedidos if p.get("usuario_id", str(PADRE)) == token]
 
 
@@ -130,7 +120,6 @@ async def test_cancelar_dos_veces_es_idempotente_y_desvincula_la_lista_una_vez(m
 
 
 async def test_el_trabajo_de_una_lista_subida_tambien_la_desvincula(motor):
-    """Si no, la lista volveria a salir en "Mis solicitudes" como recibida."""
     version_id = str(uuid.uuid4())
     trabajo_id = await sembrar_trabajo(
         motor,
@@ -158,11 +147,6 @@ async def test_la_lista_recibida_trae_su_tarea_para_cancelarla(motor):
     catalogo = CatalogoFalso(por_contacto={str(PADRE): [lista]})
     resultado = await trabajos.mis_solicitudes(motor, PADRE, catalogo=catalogo)
     assert resultado["solicitudes"][0]["tarea_id"] == "t-1"
-
-
-# --------------------------------------------------------------------------
-# La puerta HTTP
-# --------------------------------------------------------------------------
 
 
 @pytest.fixture()
@@ -201,20 +185,12 @@ async def test_cancelar_lista_con_sesion(cliente):
     assert app.state.catalogo.retiros[0]["contacto"] == str(PADRE)
 
 
-# --------------------------------------------------------------------------
-# El kit canonico del grado no se cancela (H-UI-04)
-# --------------------------------------------------------------------------
-
-
 async def _fijar_canonico(motor, trabajo_id):
     async with motor.engine.begin() as conexion:
         await RepoTrabajos(conexion).fijar_canonico(trabajo_id)
 
 
 async def test_el_trabajo_que_es_canonico_del_grado_no_se_cancela(motor):
-    """Aprobar el trabajo de un acudiente lo fija como cache de su grado: la
-    ruta rapida de los demas padres sale de ahi. Cancelarlo dejaria el puntero
-    apuntando a un trabajo cancelado."""
     trabajo_id = await sembrar_trabajo(motor, usuario_id=PADRE, hijos=HIJOS)
     await _fijar_canonico(motor, trabajo_id)
 

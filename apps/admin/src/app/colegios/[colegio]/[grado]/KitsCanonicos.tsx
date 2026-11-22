@@ -1,16 +1,13 @@
+// Los kits aprobados de un grado, en solo lectura.
+//
+// Decisiones:
+// - La fuente es el canónico: el trabajo `publicado` que se fijó al aprobar la revisión. Nunca previews ni
+//   trabajos sin aprobar; si el grado no tiene canónico, la página no monta este panel.
+// - Editar es "Editar kits", que abre una versión nueva. Sin "Recomendado": el canónico no tiene
+//   acudiente ni preferencias, así que el optimizador no recomienda nada real.
+
 "use client";
 
-// Los kits NSGA aprobados de un grado, en solo-lectura. La fuente es EL
-// canónico: el trabajo `publicado` que `_fijar_canonico` fijó al aprobar la
-// revisión (la "caché bendita" que el acudiente reusa por la ruta rápida).
-// Nunca previews ni trabajos sin aprobar: si el grado no tiene canónico, la
-// página no monta este panel.
-//
-// Cada tarjeta resume su punto del frente de Pareto —perfil, total,
-// disponibilidad—; «Ver ítems» despliega la misma matriz de la previsualización
-// (`MatrizComparacion`), en solo lectura: editar es «Editar kits», que abre una
-// versión nueva. Sin "Recomendado": el canónico no tiene acudiente ni
-// preferencias, así que el optimizador no recomienda nada real.
 import { useState } from "react";
 import { clasificar, formatearPesos, type Kit } from "@tukit/contrato";
 import MatrizComparacion from "@/components/MatrizComparacion";

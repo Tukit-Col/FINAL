@@ -1,10 +1,3 @@
-// La logica pura de la ficha de un cliente (`/clientes/[id]`): que pedidos y
-// casos son suyos, el resumen y su linea de actividad. Sin runner de
-// componentes: se prueba con `node --test`, por eso SOLO importa tipos.
-//
-// Ley 1581: del menor solo viaja posicion, grado y colegio. `hijosSeguros`
-// descarta cualquier campo extra (apodo, nombre) aunque el origen lo traiga.
-
 import type { AcudienteAdmin, Caso, Pedido } from "@tukit/contrato";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -19,7 +12,6 @@ export interface HijoSeguro {
   colegio: string;
 }
 
-/** Los hijos con SOLO posicion, grado y colegio (lista blanca). */
 export function hijosSeguros(hijos: AcudienteAdmin["hijos"]): HijoSeguro[] {
   return (hijos ?? []).map((h, i) => ({
     posicion: i + 1,
@@ -28,7 +20,6 @@ export function hijosSeguros(hijos: AcudienteAdmin["hijos"]): HijoSeguro[] {
   }));
 }
 
-/** Los pedidos de un cliente, los mas recientes primero. */
 export function pedidosDelCliente(pedidos: readonly Pedido[], usuarioId: string): Pedido[] {
   return pedidos
     .filter((p) => p.usuario_id === usuarioId)
@@ -37,7 +28,6 @@ export function pedidosDelCliente(pedidos: readonly Pedido[], usuarioId: string)
 
 export interface ResumenCliente {
   pedidos: number;
-  /** Suma de los pedidos pagados en adelante (sin cancelados ni pendientes de pago). */
   facturado: number;
   enCurso: number;
 }
@@ -55,7 +45,6 @@ export function resumenDelCliente(pedidos: readonly Pedido[]): ResumenCliente {
   return { pedidos: pedidos.length, facturado, enCurso };
 }
 
-/** Los trabajos (solicitudes de kit) de los que salieron sus pedidos, sin repetir. */
 export function solicitudesDePedidos(pedidos: readonly Pedido[]): string[] {
   return [...new Set(pedidos.map((p) => p.trabajo_id).filter((t): t is string => !!t))];
 }
@@ -66,7 +55,6 @@ export interface Actividad {
   tipo: TipoActividad;
   cuando: string;
   titulo: string;
-  /** Ruta interna a la que lleva el evento, si tiene. */
   href: string | null;
 }
 
@@ -94,7 +82,6 @@ export function construirActividad(entrada: {
   return eventos.sort((a, b) => b.cuando.localeCompare(a.cuando));
 }
 
-/** La ruta de la ficha de un cliente. */
 export function hrefCliente(usuarioId: string): string {
   return `/clientes/${usuarioId}`;
 }

@@ -1,19 +1,4 @@
-"""Mide a todos los competidores con la misma vara.
-
-Escribe en `docs/informes/benchmark-laya/` el detalle por lista
-(`resultados.json.gz`) y las metricas agregadas que cita el informe
-(`resumen.json`).
-
-Competidores:
-- `optimo`        el optimo exacto de cada escenario (techo).
-- `nsga2`         produccion, semilla 0 (las semillas 1-4 miden variabilidad).
-- `nsga2_frente`  solo presupuesto: el mejor punto del frente que cabe (lo que el
-                  frente ya tiene y hoy `recomendar` no entrega).
-- `heuristica`    `elegir_por_perfil` (piso del proyecto). En presupuesto: el kit
-                  recomendado entre los tres heuristicos.
-- `azar`          un candidato al azar por linea (semilla fija), para leer a Laya.
-- `laya_A..D`     las cuatro modalidades de Laya.
-"""
+"""Mide a todos los competidores con la misma vara."""
 
 from __future__ import annotations
 
@@ -40,7 +25,6 @@ PERFIL = {"ahorrador": "Ahorrador", "premium": "Premium", "fan": "Fan"}
 
 
 def _orden_juez(esc: dict, o: dict) -> tuple:
-    """Lo que un juez perfecto maximizaria en cada escenario (mismos desempates que `_proyectar`)."""
     e = esc["escenario"]
     if e == "ahorrador":
         return (-o["costo"], o["fidelidad"])
@@ -76,7 +60,6 @@ def _azar(dec, clave: str) -> dict[str, str]:
 
 
 def _puntaje(esc: dict, obj: dict, opt: dict) -> dict[str, float]:
-    """Metricas del escenario. `optimo_ok` es 1 si iguala al optimo en su eje."""
     e = esc["escenario"]
     if e == "ahorrador":
         brecha = (obj["costo"] - opt["costo"]) / opt["costo"] if opt["costo"] else 0.0
@@ -145,7 +128,6 @@ def main() -> int:
             if f and not f["error"]:
                 competidores[f"laya_{m}"] = f["asignacion"]
 
-        # Los 5 kits de reglas que ve Laya D, y el que elegiria un juez perfecto.
         kits_reglas = [
             {o: c["sku"] for o, c in k["elec"].items()}
             for k in kits_por_reglas(decidibles_dict(instancias[esc["instancia"]]), esc.get("personaje"))
@@ -201,7 +183,6 @@ def main() -> int:
                 fila["metodo"] = n0["metodo"]
             filas.append(fila)
 
-    # variabilidad del NSGA-II entre semillas
     variab = []
     for clave, por_semilla in nsga_por.items():
         vectores = {tuple(sorted(f["objetivos"].items())) for f in por_semilla.values()}

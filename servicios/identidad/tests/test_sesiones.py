@@ -1,16 +1,3 @@
-"""La sesion: correo+clave -> token con roles, y la revocacion por version.
-
-Fija tres cosas que el diseño promete y que son faciles de romper sin notar:
-
-- El token lleva `version_permisos` y `GET /v1/sesiones/actual` la compara: si
-  la cuenta subio de version, el token viejo deja de valer aunque no haya
-  expirado (ADR 0016). Es la revocacion, y sin prueba se degrada a nada.
-- El mensaje de credenciales invalidas NO distingue "correo no existe" de
-  "clave mala": distinguirlos deja enumerar cuentas.
-- La respuesta trae los ROLES resueltos desde `asignacion_rol`, que es lo que
-  el frontend usa para enrutar por app (ADR 0008), y nunca datos de menores.
-"""
-
 from __future__ import annotations
 
 import pytest
@@ -28,13 +15,10 @@ from tests._ayudas_identidad import cliente_api
 
 
 async def _sembrar(sesion) -> None:
-    # Un acudiente con clave y un rol de ambito global, para no depender de
-    # que exista un colegio en esta base.
     u = Usuario(correo="mama@ejemplo.com", clave_hash=hashear_clave("demo1234"))
     sesion.add(u)
     await sesion.flush()
     sesion.add(AsignacionRol(usuario_id=u.id, rol_codigo="acudiente", ambito_tipo="global", ambito_id=None))
-    # Un contacto sin credencial, como el que crea `registrar_contacto`.
     sesion.add(Usuario(correo="invitado@ejemplo.com", clave_hash=CENTINELA_INVITADO))
 
 
@@ -51,8 +35,6 @@ class TestHashDeClave:
         assert not verificar_clave("otra", h)
 
     def test_el_centinela_sin_credencial_no_valida_contra_nada(self):
-        """`clave_hash=CENTINELA_INVITADO` es un contacto invitado: no puede
-        entrar, aunque alguien mande esa cadena como clave."""
         assert not verificar_clave(CENTINELA_INVITADO, CENTINELA_INVITADO)
 
     def test_dos_hashes_de_la_misma_clave_difieren_por_la_sal(self):
@@ -60,7 +42,7 @@ class TestHashDeClave:
 
 
 class TestTokenFirmado:
-    def test_ida_y_vuelta(self):
+    def test_un_token_emitido_se_lee_de_vuelta_con_su_contenido(self):
         import uuid
 
         uid = uuid.uuid4()
@@ -93,8 +75,6 @@ class TestIniciarSesion:
         cuerpo = respuesta.json()
         assert cuerpo["sesion"]["roles"][0]["rol"] == "acudiente"
         assert cuerpo["token"]
-        # La respuesta trae el correo propio (para saludar) pero jamas un
-        # estudiante, matricula ni nombre de menor.
         assert "estudiante" not in respuesta.text
         assert "matricula" not in respuesta.text
 
@@ -121,8 +101,6 @@ class TestSesionActualYRevocacion:
         assert respuesta.json()["correo"] == "mama@ejemplo.com"
 
     async def test_subir_la_version_de_permisos_revoca_el_token_viejo(self, cliente):
-        """La palanca de revocacion del ADR 0016: el token viejo lleva vp=1;
-        si la cuenta pasa a vp=2, el token deja de valer sin haber expirado."""
         from sqlalchemy import update
 
         token = (
@@ -137,7 +115,6 @@ class TestSesionActualYRevocacion:
         assert respuesta.json()["error"] == "sesion_revocada"
 
     async def test_cerrar_sesion_sin_token_responde_204_sin_cuerpo(self, cliente):
-        """Cerrar sin token es un no-op: 204 vacio, y la sesion de otros sigue."""
         token = (
             await cliente.post("/v1/sesiones", json={"correo": "mama@ejemplo.com", "clave": "demo1234"})
         ).json()["token"]
@@ -148,8 +125,6 @@ class TestSesionActualYRevocacion:
         assert actual.status_code == 200
 
     async def test_cerrar_sesion_revoca_el_token(self, cliente):
-        """Borrar la cookie no basta: el token copiado valdria hasta expirar. Cerrar
-        sube la version de permisos y el token deja de valer."""
         token = (
             await cliente.post("/v1/sesiones", json={"correo": "mama@ejemplo.com", "clave": "demo1234"})
         ).json()["token"]
@@ -160,7 +135,6 @@ class TestSesionActualYRevocacion:
         respuesta = await cliente.get("/v1/sesiones/actual", headers=cabeceras)
         assert respuesta.status_code == 401
         assert respuesta.json()["error"] == "sesion_revocada"
-        # Volver a entrar da un token nuevo que si vale.
         nuevo = (
             await cliente.post("/v1/sesiones", json={"correo": "mama@ejemplo.com", "clave": "demo1234"})
         ).json()["token"]
@@ -169,7 +143,6 @@ class TestSesionActualYRevocacion:
         assert otra_vez.json()["correo"] == "mama@ejemplo.com"
 
     async def test_cerrar_con_un_token_invalido_no_falla(self, cliente):
-        """Cerrar es idempotente: un token vencido o inventado no es un error."""
         respuesta = await cliente.post("/v1/sesiones/cierre", headers={"Authorization": "Bearer inventado"})
         assert respuesta.status_code == 204
         assert respuesta.content == b""

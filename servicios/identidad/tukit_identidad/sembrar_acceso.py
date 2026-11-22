@@ -1,29 +1,3 @@
-"""Siembra los roles del sistema y unos usuarios de demostracion con clave.
-
-Es la contraparte de `cargador.py` (que siembra colegios y sedes) para la capa
-de acceso. Existe por una razon concreta: el modelo de autorizacion (ADR 0013)
-dice que un rol es una FILA, no un valor de enumerado, asi que los roles del
-sistema hay que sembrarlos en algun lado, y `cargador.py` no es ese lado -no
-tiene por que saber de roles-.
-
-Lo que siembra, todo idempotente (`ON CONFLICT DO UPDATE` / `DO NOTHING`):
-
-- **Los cinco roles del sistema** (ADR 0008): `acudiente`, `colegio_admin`,
-  `colegio_docente`, `operador`, `admin`. Van marcados `del_sistema=True`.
-- **Un puñado de permisos** y su union rol-permiso. Es el minimo para que
-  `puede()` responda algo distinto de "todo denegado"; no pretende ser el
-  catalogo completo de permisos, que crece con cada servicio.
-- **Usuarios de demostracion CON credencial** (a diferencia del contacto sin
-  clave que crea `registrar_contacto`). Son los que el frontend en modo `api`
-  usa para entrar y ver el enrutado por rol. La clave por omision es
-  `demo1234` y se dice aqui y en pantalla: no es un secreto, es un banco de
-  pruebas. Sus ambitos apuntan a un colegio REAL derivado por `derivar`, el
-  mismo UUID que `cargador.py` siembra para ese codigo.
-
-    python -m tukit_identidad.sembrar_acceso
-    python -m tukit_identidad.sembrar_acceso --clave otra
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -38,16 +12,9 @@ from tukit_comun.cifrado import cifrador_desde_entorno
 from .dominio.sesiones import hashear_clave
 from .modelos import AmbitoTipo, Base, Clasificacion
 
-# El colegio del piloto, para anclar el ambito del acudiente y del colegio en
-# algo que `cargador.py` tambien siembra (mismo UUID, derivado del codigo).
 COLEGIO_PILOTO = "2.13"
-# La sede unica del piloto: mismo UUID que deriva `cargador.py` de su nombre.
 SEDE_PILOTO = "Sede unica"
-# El grado del hijo sembrado. Canonico ("Quinto", no "5") porque asi lo nombra
-# el catalogo escolar y asi valida la lista oficial contra la que se arma el kit.
 GRADO_DEMO = "Quinto"
-# Un apodo, no un nombre legal: es lo unico que se guarda del menor y va cifrado,
-# igual que lo hara el registro real (minimizacion, Ley 1581 de 2012, Art. 4).
 APODO_DEMO = "Pipe"
 
 CLAVE_DEMO = "demo1234"
@@ -85,9 +52,6 @@ ROLES: list[dict[str, object]] = [
     },
 ]
 
-# Permisos minimos: `recurso:accion`. La clasificacion por omision es interno;
-# lo que toca dato de menor se marca aparte, para no colar seguridad de campo
-# por la puerta de atras.
 PERMISOS: list[dict[str, object]] = [
     {
         "codigo": "trabajo:crear",
@@ -136,8 +100,6 @@ PERMISOS: list[dict[str, object]] = [
         "recurso": "usuario",
         "accion": "leer",
         "campo": "nombre",
-        # PERSONAL, no MENOR: es el nombre del acudiente adulto. La
-        # clasificacion mide sensibilidad del dato, no quien lo ve.
         "clasificacion_minima": Clasificacion.PERSONAL.value,
     },
 ]
@@ -164,8 +126,6 @@ def _colegio_piloto_id() -> uuid.UUID:
 
 
 def usuarios_demo(clave: str) -> list[dict[str, object]]:
-    """Filas de usuario + su asignacion de rol. El UUID del usuario se deriva
-    del correo, para que sembrar dos veces no cree dos cuentas."""
     piloto = _colegio_piloto_id()
     plan = [
         ("mama@ejemplo.com", "acudiente", AmbitoTipo.COLEGIO, piloto),
@@ -199,14 +159,6 @@ def usuarios_demo(clave: str) -> list[dict[str, object]]:
 
 
 def hijo_demo_de_mama() -> dict[str, dict[str, object]]:
-    """Un hijo para `mama@ejemplo.com`, para que el camino "ya tengo cuenta"
-    tenga algo que precargar en `/empezar`.
-
-    Los UUID se derivan igual que en `POST /v1/registro`, asi que una mama
-    sembrada y una mama registrada producen exactamente las mismas filas: la
-    siembra es solo un atajo del registro real, no un formato aparte. El apodo
-    va cifrado con el cifrador del entorno (en desarrollo, `CifradorEnClaro`).
-    """
     usuario_id = derivar("usuario", "mama@ejemplo.com")
     colegio_id = derivar("colegio", COLEGIO_PILOTO)
     sede_id = derivar("sede", COLEGIO_PILOTO, SEDE_PILOTO)
@@ -280,9 +232,6 @@ async def sembrar(clave: str) -> dict[str, int]:
             )
             escritos["rol_permiso"] = len(ROL_PERMISO)
 
-            # La clave cambia en cada corrida (la sal es aleatoria), asi que el
-            # upsert actualiza el hash: reejecutar re-siembra la misma cuenta
-            # con una clave fresca, no crea una segunda.
             await conexion.execute(
                 insert(usuario)
                 .values([d["usuario"] for d in demo])
@@ -303,12 +252,6 @@ async def sembrar(clave: str) -> dict[str, int]:
             )
             escritos["asignacion_rol"] = len(demo)
 
-            # El hijo de mama. UUID derivados, asi que re-sembrar cae en las
-            # mismas filas y no duplica. Depende de que `cargador.py` ya haya
-            # sembrado el colegio piloto y su sede (mismo UUID derivado). Desde
-            # que colegios y listas no se siembran, una base que solo trae la
-            # curaduria no tiene ese colegio: sin el, se omite el hijo en vez
-            # de tumbar la transaccion y dejar la cola sin quien la apruebe.
             colegio = Base.metadata.tables["colegio"]
             sede = Base.metadata.tables["sede"]
             piloto = (

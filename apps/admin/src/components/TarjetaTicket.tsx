@@ -1,6 +1,3 @@
-// Un ticket de la bandeja como tarjeta: prioridad en la barra lateral, asunto en
-// dos líneas, chip de SLA con tono, dueño y vínculo. Server Component.
-
 import Link from "next/link";
 import type { Caso } from "@tukit/contrato";
 import {

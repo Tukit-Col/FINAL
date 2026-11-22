@@ -1,24 +1,5 @@
 "use client";
 
-// AD-06 — la decision sobre el trabajo entero.
-//
-// Las dos opciones se ven distinto a proposito, porque lo que hacen es
-// distinto y no al reves: aprobar publica los kits Y dispara la notificacion
-// al acudiente, o sea que sale del sistema y ya no se puede recoger; devolver
-// reabre el trabajo y el acudiente no se entera. Ponerlas como dos botones
-// gemelos seria invitar a publicar por inercia.
-//
-// Un PREVIEW (los kits que se armaron al pulsar «Previsualizar» en el revisor de
-// una lista) no tiene acudiente: ahi "publicar" es aprobar la lista del colegio
-// y quedarse con estos tres kits como los canonicos del grado, sin avisar a
-// nadie. Por eso la opcion principal cambia de texto y de destino.
-//
-// Un BORRADOR DE EDICION (la version siguiente de los kits ya publicados de un
-// grado, abierto con «Editar kits» en la pagina del colegio) tampoco tiene
-// acudiente: aprobar lo publica como el canonico nuevo —la lista ya estaba
-// aprobada— y el anterior queda para quien ya lo tenia. Devolver no aplica (no
-// hay pipeline que reabrir); en su lugar se descarta el borrador.
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { EstadoTrabajo } from "@tukit/contrato";
@@ -35,10 +16,7 @@ interface Props {
   estado: EstadoTrabajo;
   lineasPendientes: number;
   notaRevision: string | null | undefined;
-  /** `preview_onboarding`: sin acudiente, se guarda como canónico. */
   esPreview?: boolean;
-  /** Borrador de la version siguiente de kits ya publicados: a donde volver
-   *  (la pagina del colegio y grado) al publicarlo o descartarlo. */
   edicion?: { volverA: string };
 }
 
@@ -72,9 +50,6 @@ export default function DecisionTrabajo({
       if (edicion) router.push(edicion.volverA);
       else router.refresh();
     } catch (causa) {
-      // El 409 `trabajo_ya_publicado` llega aqui cuando alguien publico el
-      // mismo trabajo desde otra pestana. Se muestra su mensaje y el refresco
-      // deja los botones apagados.
       setError(causa instanceof FalloApi ? causa.message : "No pudimos guardar la decisión.");
       if (causa instanceof FalloApi && causa.estado === 409) router.refresh();
     } finally {
@@ -252,9 +227,6 @@ export default function DecisionTrabajo({
               )}
               {confirmando ? (
                 <div className={styles.confirmacion}>
-                  {/* Sin identificar al acudiente: el nombre va cifrado y la
-                      consola es libre de PII (ver page.tsx). Antes se mostraba
-                      un trozo del id del TRABAJO mal rotulado como acudiente. */}
                   <p>
                     {esPreview
                       ? "¿Seguro? La lista queda aprobada para los acudientes y estos kits pasan a ser los del grado."

@@ -1,11 +1,5 @@
 "use client";
 
-// Mantiene al dia "Mis pedidos" sin que el padre recargue: mientras la pestana
-// esta visible repite la lectura del servidor cada 30 s (`router.refresh()`,
-// que solo trae los datos nuevos) y la repite al volver a la pestana. Con la
-// pestana oculta no pide nada, y dos lecturas nunca quedan a menos de 10 s.
-// No pinta nada: el dato nuevo llega por el mismo Server Component.
-
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 

@@ -1,15 +1,3 @@
-"""Las rutas del asistente NL2C. Detras de `TUKIT_ASISTENTE=1`.
-
-Tres rutas, cada una con su plan fijo (nl2c.py):
-- `POST /v1/nl2c/interpretar`: texto libre -> R + spec de UI. Sin datos del hogar.
-- `POST /v1/kits/{trabajo_id}/asistente/proponer`: pedido sobre un kit -> propuestas.
-  Exige que el portador sea el dueno del trabajo.
-- `POST /v1/nl2c/decision`: deja en la bitacora si el padre acepto o rechazo.
-
-Ninguna escribe en el kit ni en las preferencias: aplicar es una accion del padre
-por los endpoints de siempre.
-"""
-
 from __future__ import annotations
 
 import time
@@ -19,13 +7,14 @@ from typing import Annotated, Any, Literal
 from fastapi import APIRouter, Header, Request
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
+from tukit_comun.autenticacion import token_bearer
 from tukit_comun.http import ErrorDominio
 from tukit_comun.red import ip_de_peticion
 
 from .. import api, nl2c, nl2c_flujo, nl2c_kit, trabajos
 from ..modelos import EstadoTrabajo
 from ..remoto import RemotoCaido
-from .inteligencia import _token_bearer, _usuario_de_sesion
+from .inteligencia import _usuario_de_sesion
 
 router = APIRouter(tags=["asistente"])
 
@@ -35,7 +24,6 @@ _VIGENCIA_PERSONAJES = 300.0
 
 
 async def _personajes_surtidos() -> list[str]:
-    """Los personajes que el catalogo surte completos (las cuatro anclas), con cache corta."""
     global _CACHE_PERSONAJES
     ahora = time.monotonic()
     if _CACHE_PERSONAJES and ahora - _CACHE_PERSONAJES[0] < _VIGENCIA_PERSONAJES:
@@ -56,7 +44,6 @@ def _exigir_activo() -> None:
 
 
 def _sin_servicio(error: Exception) -> ErrorDominio:
-    # 503 con el mensaje que la web usa para caer al formulario clasico.
     return ErrorDominio(
         "asistente_no_disponible",
         "El asistente no esta disponible ahora. Puedes llenar el formulario como siempre.",
@@ -65,7 +52,6 @@ def _sin_servicio(error: Exception) -> ErrorDominio:
 
 
 def _admitir(clave: str) -> None:
-    """Cupo por portador antes de gastar una llamada al modelo (429)."""
     try:
         nl2c.LIMITADOR.admitir(clave)
     except nl2c.LimiteExcedido as error:
@@ -78,9 +64,6 @@ def _admitir(clave: str) -> None:
 
 
 def _clave_de(usuario: uuid.UUID | None, peticion: Request) -> str:
-    # Detras del gateway y de la web la conexion es de ellos: la IP del padre viene en
-    # `X-Forwarded-For`, y solo se cree si la conexion es de un proxy de confianza
-    # (`TUKIT_PROXIES_CONFIANZA`, la misma regla que el limite de la puerta).
     conexion = peticion.client.host if peticion.client else None
     return nl2c.huella_usuario(usuario) or "anon:" + ip_de_peticion(
         conexion, peticion.headers.getlist("x-forwarded-for")
@@ -98,9 +81,6 @@ class PeticionInterpretar(BaseModel):
 
 
 class PedidoAnterior(BaseModel):
-    """El ultimo pedido por categoria, para "y en colores tambien". Solo dos palabras acotadas:
-    ni el texto del padre ni nada del hogar viaja de un turno al siguiente."""
-
     model_config = ConfigDict(extra="forbid")
     accion: Literal["mas_barato", "mejor_calidad", "variar"]
     categoria: str = Field(min_length=3, max_length=24, pattern="^[a-zñáéíóúü]+$")
@@ -134,7 +114,7 @@ async def interpretar(
     cuerpo: PeticionInterpretar, peticion: Request, authorization: Annotated[str | None, Header()] = None
 ) -> dict[str, Any]:
     _exigir_activo()
-    usuario = await _usuario_de_sesion(authorization) if _token_bearer(authorization) else None
+    usuario = await _usuario_de_sesion(authorization) if token_bearer(authorization) else None
     clave = _clave_de(usuario, peticion)
     _admitir(clave)
     try:
@@ -169,7 +149,6 @@ async def proponer(
                 )
             )
         ).one_or_none()
-    # Mismo mensaje para "no existe" y "es de otro": no se confirma que un id ajeno existe.
     if fila is None or fila.usuario_id != usuario:
         nl2c.auditar("proponer_denegado", usuario=nl2c.huella_usuario(usuario), trabajo=str(trabajo_id))
         raise ErrorDominio("kit_no_encontrado", "No encontramos ese kit en tu cuenta.", estado=404)
@@ -182,8 +161,6 @@ async def proponer(
         raise ErrorDominio("kit_no_encontrado", "No encontramos ese kit en tu cuenta.", estado=404)
 
     async def opciones_de(linea: dict[str, Any]) -> list[dict[str, Any]]:
-        # Las mismas opciones que el carrusel de LineaDeKit (`GET .../opciones`), de un trabajo
-        # que ya verificamos que es del portador; los filtros del trabajo se aplican ahi.
         cuerpo_opc = await trabajos.opciones_de_una_linea(
             api.app.state.motor, trabajo_id, linea, catalogo=api._catalogo()
         )
@@ -213,10 +190,8 @@ async def decision(
     cuerpo: PeticionDecision, authorization: Annotated[str | None, Header()] = None
 ) -> dict[str, str]:
     _exigir_activo()
-    usuario = await _usuario_de_sesion(authorization) if _token_bearer(authorization) else None
+    usuario = await _usuario_de_sesion(authorization) if token_bearer(authorization) else None
     emision = nl2c_kit.emision_de(cuerpo.propuesta_id, usuario)
-    # Una decision solo puede citar una propuesta que este servidor emitio, al mismo portador,
-    # y con un tipo que esa propuesta traia: la bitacora no puede decir "descarte" de un cambio.
     if emision is None:
         raise ErrorDominio("propuesta_desconocida", "Esa propuesta no existe.", estado=404)
     if cuerpo.tipo not in emision.tipos:

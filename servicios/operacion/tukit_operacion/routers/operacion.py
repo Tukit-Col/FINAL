@@ -1,24 +1,12 @@
-"""Las rutas de Operacion: parsear, llamar al dominio, delegar al repo.
+"""Rutas de Operacion: parsear, llamar al dominio y delegar al repositorio.
 
-Dos superficies, como en el contrato (`libs/ts/tukit-contrato/src/operacion.ts`):
-
-- **Lectura** (`GET /v1/operacion/casos`, `/{id}`, `/metricas`): la bandeja del
-  back-office, ordenada por prioridad y luego por vencimiento, y las series de
-  metricas de calidad congeladas por dia.
-- **Escritura** (`POST /v1/operacion/casos`): lo que un acudiente manda desde el
-  centro de ayuda. La categoria tiene que estar en `CATEGORIAS_CASO_ACUDIENTE` o
-  se rechaza con 422; el contacto NO se persiste: se resuelve a un `usuario_id`
-  contra Identidad, y `vence_en` sale del SLA por categoria (Ley 1755).
-
-El router no calcula ni arma SQL: `admitir_categoria_acudiente`/`vence_en`/
-`prioridad_inicial`/`clave_orden` viven en `dominio/`, y todo el SQL en
-`repositorios/`. Aqui solo se parsea la entrada (incluidos los 422 de forma), se
-orquesta la resolucion de contacto y se traducen los resultados a sobres de
-error.
-
-Los singletons (`motor`, `identidad`) se leen de `request.app.state` en cada
-peticion, no se capturan al importar: asi las pruebas pueden sustituir los
-dobles despues de construir la app.
+Decisiones:
+- La categoria de un caso abierto por el acudiente debe estar en `CATEGORIAS_CASO_ACUDIENTE` (422
+  si no). El contacto no se persiste: se resuelve a un `usuario_id` contra Identidad y `vence_en`
+  sale del SLA por categoria.
+- El router no calcula ni arma SQL: las reglas viven en `dominio/` y el SQL en `repositorios/`.
+- Los singletons (`motor`, `identidad`) se leen de `request.app.state` en cada peticion para que
+  las pruebas puedan sustituir los dobles.
 """
 
 from __future__ import annotations
@@ -29,6 +17,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Header, Query, Request
 from pydantic import BaseModel, Field
+from tukit_comun.autenticacion import token_bearer
 from tukit_comun.http import ErrorDominio
 from tukit_comun.http import iso as _iso
 
@@ -53,8 +42,6 @@ from ..repositorios.notificaciones import serializar_notificacion
 
 router = APIRouter(tags=["operacion"])
 
-# El mensaje humano de cada rechazo de categoria; la razon estable la pone el
-# dominio, el sobre HTTP lo arma el router (ADR 0019).
 _MENSAJE_CATEGORIA = {
     "categoria_invalida": "Esa categoria no existe.",
     "categoria_no_permitida": (
@@ -63,36 +50,15 @@ _MENSAJE_CATEGORIA = {
 }
 
 
-# ---------------------------------------------------------------------------
-# Sesion: quien llama al back-office. Misma puerta y mismos sobres que comercio
-# (`_exigir_staff`), para que el front trate igual un 401/403/503 de cualquier
-# servicio. Operacion no lee la base de Identidad: pregunta por HTTP.
-# ---------------------------------------------------------------------------
-
-# Los roles del equipo interno; el admin es superconjunto del operador.
 _ROLES_STAFF = frozenset({"admin", "operador"})
 
 
-def _token_bearer(authorization: str | None) -> str | None:
-    """El token del encabezado `Authorization`: `Bearer <token>` o el token pelado."""
-    if not authorization:
-        return None
-    partes = authorization.split(" ", 1)
-    if len(partes) == 2 and partes[0].lower() == "bearer":
-        return partes[1].strip()
-    return authorization.strip()
-
-
 async def _exigir_staff(request: Request, authorization: str | None) -> uuid.UUID:
-    """Puerta operador/admin (ver `_exigir_staff_con_rol`); devuelve el `usuario_id`."""
     return (await _exigir_staff_con_rol(request, authorization))[0]
 
 
 async def _exigir_staff_con_rol(request: Request, authorization: str | None) -> tuple[uuid.UUID, bool]:
-    """Puerta operador/admin: 401 sin token o con uno invalido, 503 si Identidad
-    no responde (FALLA CERRADA: no se autoriza por no poder preguntar), 403 si el
-    rol no es staff. Devuelve el `usuario_id` de la sesion, que queda como actor."""
-    token = _token_bearer(authorization)
+    token = token_bearer(authorization)
     if not token:
         raise ErrorDominio("sesion_invalida", "El token no es valido o expiro.", estado=401)
     try:
@@ -141,11 +107,6 @@ async def _caso_o_404(repo: RepoCasos, caso_id: uuid.UUID) -> Any:
 
 async def _detalle_staff(repo: RepoCasos, fila: Any) -> dict[str, Any]:
     return serializar_detalle_caso(fila) | {"eventos": await repo.eventos_de(fila.id)}
-
-
-# ---------------------------------------------------------------------------
-# Lectura: bandeja del back-office y series de metricas
-# ---------------------------------------------------------------------------
 
 
 @router.get("/v1/operacion/casos", summary="Bandeja: resumen + casos ordenados. Solo staff.")
@@ -205,8 +166,6 @@ async def ver_caso(
 
 
 class SolicitudRespuesta(BaseModel):
-    """La respuesta del equipo al acudiente. Texto plano; el limite lo valida el dominio."""
-
     texto: str = Field(max_length=4096)
 
 
@@ -275,13 +234,11 @@ async def cambiar_estado_caso(
         if rechazo is not None:
             raise _rechazar(rechazo)
         inactivo = solicitud.destino in {e.value for e in EstadoCaso.inactivos()}
-        # `resuelto_en` marca la primera vez que se resolvio; cerrar un ya resuelto lo conserva.
         resuelto_en = (fila.resuelto_en or ahora) if inactivo else None
         movido = await repo.cambiar_estado(
             caso_id=caso_id, desde=fila.estado, hacia=solicitud.destino, resuelto_en=resuelto_en
         )
         if not movido:
-            # Otro operador lo movio mientras tanto; lanzar revierte la unidad de trabajo.
             raise ErrorDominio(
                 "cambio_concurrente",
                 "Alguien mas movio este ticket mientras tanto; recarga y vuelve a intentar.",
@@ -305,7 +262,10 @@ class SolicitudNota(BaseModel):
     texto: str = Field(max_length=4096)
 
 
-@router.post("/v1/operacion/casos/{caso_id}/asignar", summary="Asigna el ticket a quien llama, o lo suelta. Solo staff.")
+@router.post(
+    "/v1/operacion/casos/{caso_id}/asignar",
+    summary="Asigna el ticket a quien llama, o lo suelta. Solo staff.",
+)
 async def asignar_caso(
     request: Request,
     caso_id: uuid.UUID,
@@ -334,8 +294,12 @@ async def asignar_caso(
                     estado=409,
                 )
             datos = {"desde": str(actual) if actual else None, "hacia": str(hacia) if hacia else None}
-            await repo.registrar_evento(caso_id=caso_id, tipo="asignacion", datos=datos, actor_id=actor, ahora=ahora)
-            await repo.auditar(actor_id=actor, accion="caso_asignado", caso_id=caso_id, datos=datos, ahora=ahora)
+            await repo.registrar_evento(
+                caso_id=caso_id, tipo="asignacion", datos=datos, actor_id=actor, ahora=ahora
+            )
+            await repo.auditar(
+                actor_id=actor, accion="caso_asignado", caso_id=caso_id, datos=datos, ahora=ahora
+            )
         return await _detalle_staff(repo, await _caso_o_404(repo, caso_id))
 
 
@@ -355,15 +319,21 @@ async def cambiar_prioridad_caso(
         if rechazo is not None:
             raise _rechazar(rechazo)
         if fila.prioridad != solicitud.prioridad:
-            if not await repo.cambiar_prioridad(caso_id=caso_id, desde=fila.prioridad, hacia=solicitud.prioridad):
+            if not await repo.cambiar_prioridad(
+                caso_id=caso_id, desde=fila.prioridad, hacia=solicitud.prioridad
+            ):
                 raise ErrorDominio(
                     "cambio_concurrente",
                     "Alguien mas movio este ticket mientras tanto; recarga y vuelve a intentar.",
                     estado=409,
                 )
             datos = {"desde": fila.prioridad, "hacia": solicitud.prioridad}
-            await repo.registrar_evento(caso_id=caso_id, tipo="prioridad", datos=datos, actor_id=actor, ahora=ahora)
-            await repo.auditar(actor_id=actor, accion="caso_prioridad", caso_id=caso_id, datos=datos, ahora=ahora)
+            await repo.registrar_evento(
+                caso_id=caso_id, tipo="prioridad", datos=datos, actor_id=actor, ahora=ahora
+            )
+            await repo.auditar(
+                actor_id=actor, accion="caso_prioridad", caso_id=caso_id, datos=datos, ahora=ahora
+            )
         return await _detalle_staff(repo, await _caso_o_404(repo, caso_id))
 
 
@@ -404,7 +374,10 @@ async def vincular_pedido(
         pedido_id = uuid.UUID(solicitud.pedido_id)
     except ValueError:
         raise ErrorDominio(
-            "identificador_invalido", "El pedido no tiene forma de identificador.", estado=422, campo="pedido_id"
+            "identificador_invalido",
+            "El pedido no tiene forma de identificador.",
+            estado=422,
+            campo="pedido_id",
         ) from None
     ahora = datetime.now(UTC)
     async with request.app.state.motor.sesion() as db:
@@ -465,20 +438,12 @@ async def metricas_series(
     return {"puntos": puntos}
 
 
-# ---------------------------------------------------------------------------
-# Escritura: alta de una PQRS del acudiente
-# ---------------------------------------------------------------------------
-
-
 class Contacto(BaseModel):
     correo: str = Field(min_length=5, max_length=320)
     celular: str = Field(min_length=1, max_length=32)
 
 
 class SolicitudCaso(BaseModel):
-    """Lo que un acudiente manda para abrir una PQRS. `contacto` se resuelve a un
-    id y no se guarda; `descripcion` es el cuerpo del caso."""
-
     categoria: str = Field(max_length=24)
     asunto: str = Field(min_length=1, max_length=256)
     descripcion: str = Field(min_length=1, max_length=4096)
@@ -492,9 +457,6 @@ class SolicitudCaso(BaseModel):
     summary="Abre una PQRS. El contacto se resuelve a un id; no se guarda.",
 )
 async def abrir_caso(request: Request, solicitud: SolicitudCaso) -> dict[str, Any]:
-    # La categoria tiene que ser una que un acudiente puede abrir. Las fallas de
-    # la saga (mapeo_lista, autenticacion, stock) las abre el sistema. El dominio
-    # decide; aqui solo se traduce el rechazo al sobre HTTP.
     categoria = admitir_categoria_acudiente(solicitud.categoria)
     if isinstance(categoria, CategoriaRechazada):
         raise ErrorDominio(
@@ -516,10 +478,6 @@ async def abrir_caso(request: Request, solicitud: SolicitudCaso) -> dict[str, An
                 campo="trabajo_id",
             ) from None
 
-    # El contacto se resuelve a un usuario_id en Identidad y NO se persiste. Si
-    # Identidad esta caida, el caso se abre igual sin titular (usuario_id nulo).
-    # El await de red va ANTES de abrir la sesion de base: no se sostiene una
-    # conexion a traves de una llamada HTTP externa.
     usuario_id_texto = await request.app.state.identidad.resolver_contacto(
         solicitud.contacto.correo, solicitud.contacto.celular
     )
@@ -552,28 +510,8 @@ async def abrir_caso(request: Request, solicitud: SolicitudCaso) -> dict[str, An
     }
 
 
-# ---------------------------------------------------------------------------
-# El acudiente sobre SUS casos: abrir, ver y seguir (dueno = la sesion)
-# ---------------------------------------------------------------------------
-#
-# El dueno sale del token validado contra Identidad, nunca de un campo del
-# formulario: con `POST /v1/operacion/casos` cualquiera podia poner el correo de
-# otra familia y colgarle el caso. Un caso ajeno responde 403.
-
-
-def _token_bearer(authorization: str | None) -> str | None:
-    if not authorization:
-        return None
-    partes = authorization.split(" ", 1)
-    if len(partes) == 2 and partes[0].lower() == "bearer":
-        return partes[1].strip()
-    return authorization.strip()
-
-
 async def _usuario_de_sesion(request: Request, authorization: str | None) -> uuid.UUID:
-    """El `usuario_id` de la sesion. 401 sin token valido; 503 si Identidad no
-    responde (falla cerrada)."""
-    token = _token_bearer(authorization)
+    token = token_bearer(authorization)
     if not token:
         raise ErrorDominio("sesion_invalida", "Inicia sesión para ver y abrir tus casos.", estado=401)
     try:
@@ -586,9 +524,6 @@ async def _usuario_de_sesion(request: Request, authorization: str | None) -> uui
 
 
 class SolicitudMiCaso(BaseModel):
-    """Lo que el acudiente con sesion manda para abrir un caso: sin contacto,
-    porque ya se sabe quien es."""
-
     categoria: str = Field(max_length=24)
     asunto: str = Field(min_length=1, max_length=256)
     descripcion: str = Field(min_length=1, max_length=4096)
@@ -616,7 +551,10 @@ def _uuid_opcional(valor: str | None, campo: str) -> uuid.UUID | None:
         return uuid.UUID(valor)
     except ValueError:
         raise ErrorDominio(
-            "identificador_invalido", f"El campo {campo} no tiene forma de identificador.", estado=422, campo=campo
+            "identificador_invalido",
+            f"El campo {campo} no tiene forma de identificador.",
+            estado=422,
+            campo=campo,
         ) from None
 
 

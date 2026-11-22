@@ -1,12 +1,3 @@
-"""La puerta limita la tasa por token y por IP, en dos niveles (ADR 0047), por HTTP.
-
-Se fija el 429 con su `Retry-After` y su cuerpo, que las dos claves tienen que
-pasar, que el nivel estricto cuenta por ruta, que las exentas no llegan a Redis,
-que con Redis caido o lento cuenta en memoria, y que ni el token ni la IP quedan
-en claro. De donde sale la IP esta en `test_limite_ip_cliente.py`; los topes y
-las rutas, en `test_limite_configuracion.py`.
-"""
-
 from __future__ import annotations
 
 import hashlib
@@ -17,8 +8,6 @@ from _ayudas_gateway import bearer, codigos, http_de
 from tukit_comun.cache import usar_cliente
 from tukit_comun.pruebas_redis import RedisEnMemoria, cliente_en_memoria
 from tukit_gateway import limite
-
-# --- Por debajo y por encima ------------------------------------------------
 
 
 async def test_por_debajo_del_limite_pasa_y_por_encima_da_429(atras, redis, monkeypatch):
@@ -53,7 +42,6 @@ async def test_el_429_del_nivel_estricto_dice_la_espera_en_minutos(atras, redis,
 
     assert respuesta.status_code == 429
     segundos = respuesta.json()["reintentar_en_segundos"]
-    # Lo que falta de la ventana estricta: casi entera, porque recien empezo.
     ventana = limite.niveles()[1].ventana
     assert ventana * 0.9 < segundos <= ventana
     assert respuesta.headers["Retry-After"] == str(segundos)
@@ -80,7 +68,6 @@ def test_retry_after_es_lo_que_le_falta_a_la_clave_mas_lenta():
 
 
 async def test_retry_after_toma_la_mayor_espera_de_las_claves_pasadas(atras, redis, monkeypatch):
-    # El general de la IP y el estricto de la IP pasan a la vez: manda la ventana mas larga.
     monkeypatch.setenv("TUKIT_LIMITE_GENERAL_IP", "1")
     monkeypatch.setenv("TUKIT_LIMITE_ESTRICTO_IP", "1")
     async with http_de() as http:
@@ -90,9 +77,6 @@ async def test_retry_after_toma_la_mayor_espera_de_las_claves_pasadas(atras, red
     general, estricto = limite.niveles()
     assert int(respuesta.headers["Retry-After"]) > general.ventana
     assert int(respuesta.headers["Retry-After"]) <= estricto.ventana
-
-
-# --- Las dos claves ---------------------------------------------------------
 
 
 async def test_el_token_tiene_su_cupo_y_otro_token_de_la_misma_ip_tiene_el_suyo(atras, redis, monkeypatch):
@@ -134,9 +118,6 @@ async def test_con_token_cuentan_las_dos_en_una_sola_ida_a_redis(atras, redis):
     ]
 
 
-# --- El nivel estricto ------------------------------------------------------
-
-
 async def test_una_ruta_estricta_cuenta_en_los_dos_niveles(atras, redis):
     async with http_de() as http:
         await http.post("/v1/listas/subir", headers=bearer("tok-ana"))
@@ -168,9 +149,6 @@ async def test_el_sexto_intento_de_suprimir_es_429(atras, redis):
     assert estados == [200, 200, 200, 200, 200, 429]
 
 
-# --- Lo que no cuenta -------------------------------------------------------
-
-
 async def test_las_exentas_no_llegan_a_redis_y_una_desconocida_si(atras, redis, monkeypatch):
     monkeypatch.setenv("TUKIT_LIMITE_GENERAL_IP", "1")
     async with http_de() as http:
@@ -195,9 +173,6 @@ async def test_la_sonda_de_servicios_no_cuenta(redis, monkeypatch):
     assert redis.operaciones("contar") == []
 
 
-# --- Sin Redis, o con Redis caido ------------------------------------------
-
-
 async def test_sin_redis_cuenta_en_la_memoria_del_proceso(atras, monkeypatch):
     monkeypatch.setenv("TUKIT_LIMITE_GENERAL_IP", "2")
     async with http_de() as http:
@@ -211,7 +186,6 @@ async def test_con_redis_caido_cuenta_en_memoria_y_nunca_da_500(atras, redis, mo
         estados = await codigos(http, 3, "GET", "/v1/colegios")
 
     assert estados == [200, 200, 429]
-    # Tras el primer fallo deja de preguntarle durante la pausa.
     assert len(redis.operaciones("contar")) == 1
 
 
@@ -230,9 +204,6 @@ async def test_con_redis_cuenta_en_redis(atras, redis, monkeypatch):
     assert len(redis.operaciones("contar")) == 3
     (clave,) = redis.claves()
     assert redis.vence_en(clave) == pytest.approx(60, abs=2)
-
-
-# --- Nada en claro ----------------------------------------------------------
 
 
 async def test_ni_el_token_ni_la_ip_quedan_en_claro_ni_en_el_log(atras, redis, monkeypatch, caplog):

@@ -1,9 +1,3 @@
-// Dona SVG ligera (port de `chart-donut` de sf-design-stack, sin GSAP ni
-// runtime): el anillo se dibuja una vez con una animacion CSS de
-// stroke-dashoffset, de 12 en punto en sentido horario. La leyenda es la
-// fuente accesible: cada fila es un enlace con su cifra y su porcentaje; el
-// SVG va aria-hidden. Con prefers-reduced-motion el anillo aparece completo.
-
 import Link from "next/link";
 import type { ReactNode } from "react";
 import styles from "./Dona.module.css";
@@ -13,7 +7,6 @@ export interface SegmentoDona {
   etiqueta: string;
   valor: number;
   href: string;
-  /** Color CSS (var(--token) o hex). */
   color: string;
 }
 
@@ -27,10 +20,8 @@ export default function Dona({
   compacta = false,
 }: {
   segmentos: readonly SegmentoDona[];
-  /** Texto bajo la cifra central. */
   centro: string;
   pie?: ReactNode;
-  /** Anillo chico (resumen dentro de una tarjeta, no el grafico principal). */
   compacta?: boolean;
 }) {
   const total = segmentos.reduce((t, s) => t + Math.max(0, s.valor), 0);

@@ -1,5 +1,3 @@
-// `POST /api/tickets/{caso}/pedido` — vincula el ticket a un pedido.
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import { cuerpoJson, respuestaDeError } from "@/lib/respuesta";
 import { tokenDeSesion } from "@/lib/sesion";

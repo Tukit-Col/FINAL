@@ -1,7 +1,3 @@
-// Insignia de estado: texto corto sobre fondo tenue con su borde. No es enlace
-// (vive dentro de filas que ya lo son; `Chip` es el filtro clicable). El color
-// acompaña al texto, nunca lo reemplaza.
-
 import type { ReactNode } from "react";
 import type { TonoEstado } from "@/lib/graficos";
 import styles from "./ui.module.css";

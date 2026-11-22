@@ -1,11 +1,5 @@
 "use client";
 
-// Lo que ve quien llego al tope del limite de tasa (ADR 0047) al abrir una
-// pagina: el mensaje del gateway, que ya dice cuanto esperar, y un boton para
-// volver a pedirla. No lo manda a `/ingresar` ni le pinta secciones vacias: su
-// sesion y sus datos siguen ahi. De cliente solo por el boton (`refresh` vuelve
-// a renderizar la pagina en el servidor sin recargar todo).
-
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./AvisoLimite.module.css";

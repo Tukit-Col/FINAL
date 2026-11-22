@@ -3,13 +3,6 @@
 import { useRef, type ReactNode } from "react";
 import estilos from "./TarjetaLuz.module.css";
 
-// Port a React de `spotlight-card` (sf-design-stack): una luz suave que pasa
-// una vez sobre la tarjeta al entrar y despues sigue al puntero, revelando una
-// rejilla fina y el borde. Sirve de jerarquia: marca la tarjeta que se mira
-// (el kit activo) sin pintar un resplandor. Posicion y fuerza viven en
-// variables CSS (--luz-x, --luz-y); la pasada inicial es una animacion CSS y
-// con prefers-reduced-motion la luz queda quieta en la esquina.
-
 interface Props {
   children: ReactNode;
   className?: string;
@@ -20,7 +13,6 @@ export default function TarjetaLuz({ children, className, "aria-live": ariaLive 
   const ref = useRef<HTMLElement>(null);
 
   function mover(e: React.PointerEvent<HTMLElement>) {
-    // Solo mouse/lapiz: en tactil no hay "puntero que sigue".
     if (e.pointerType === "touch") return;
     const nodo = ref.current;
     if (!nodo) return;

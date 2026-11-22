@@ -1,17 +1,3 @@
-"""Los tres kits y sus lineas. Lo que el acudiente ve.
-
-Un kit es un punto del frente de Pareto, no una consulta distinta: los tres
-salen de la misma corrida con ponderaciones distintas, y por eso comparten
-trabajo y se diferencian por `perfil`.
-
-La linea es la tabla que reemplaza al JSON `kits_optimizados.items` del
-sistema anterior. Ese JSON escondia una referencia a producto que para
-Postgres era texto, y escondia tambien el error de unidades: no distinguia
-cuantas cosas pidio el colegio de cuantos paquetes hay que comprar, y de ahi
-salia sumar doce cajas cuando la lista pedia doce lapices. Aqui son tres
-columnas distintas y la aritmetica es visible.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -39,38 +25,18 @@ _ESTADOS = ", ".join(f"'{e.value}'" for e in EstadoResolucion)
 
 
 class Kit(Base):
-    """Un kit completo para un perfil.
-
-    `pesos_usados_cifrados` es la columna que el manifiesto senala al portar
-    este servicio: los pesos son derivados de la encuesta socioeconomica, que
-    en Identidad esta cifrada, y aqui vivian en claro. Peor aun, el proceso de
-    derecho al olvido documentaba la decision de NO borrar el kit alegando que
-    "no tiene ninguna columna con datos personales", lo cual es cierto para
-    las columnas que su autor tenia en mente y falso para esta.
-    """
-
     __tablename__ = "kit"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     trabajo_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("trabajo_pipeline.id", ondelete="CASCADE"), nullable=False
     )
-    # Un kit es para un estudiante en un grado y un anio, no para una cuenta.
-    # Cruza a `identidad.matricula` y esta declarado. Nulo mientras el hogar
-    # todavia no tenga matricula formal.
     matricula_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
 
     perfil: Mapped[str] = mapped_column(String(16), nullable=False)
 
-    # El total incluye SOLO las lineas con `informativa = false`. Prometer lo
-    # que no se puede entregar es el modo de falla mas caro del negocio, y
-    # FU-06 congela el precio al confirmar: una linea que Tukit no controla no
-    # puede entrar al total.
     total_cop: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
-    # Los tres ejes del frente: costo, fidelidad a lo que pidio el colegio y
-    # disponibilidad. Van en JSON porque son la salida del optimizador y se
-    # leen juntos; ninguna consulta filtra por uno solo.
     objetivos: Mapped[dict[str, Any]] = mapped_column(Texto, nullable=False, default=dict)
 
     recomendado: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
@@ -79,10 +45,6 @@ class Kit(Base):
 
     pesos_usados_cifrados: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
 
-    # Lo que se ahorro juntando la demanda de dos hermanos. Es la razon de que
-    # el trabajo sea por hogar y no por hijo, asi que se guarda explicada y no
-    # solo como un numero: "una caja de diez sale mas barata que dos
-    # borradores sueltos" es lo que el acudiente necesita leer.
     consolidaciones: Mapped[list[dict[str, Any]]] = mapped_column(Texto, nullable=False, default=list)
 
     __table_args__ = (
@@ -94,19 +56,6 @@ class Kit(Base):
 
 
 class LineaKit(Base):
-    """Un renglon del kit, con la aritmetica de unidades a la vista.
-
-    Tres numeros que el sistema anterior colapsaba en uno:
-
-      `cantidad_pedida`      cuantas cosas pide el colegio, en unidad base
-      `unidades_por_empaque` de a cuantas viene el producto elegido
-      `unidades_a_comprar`   techo(pedida / por_empaque)
-
-    Separarlos es lo que impide volver a sumar doce cajas cuando la lista
-    pedia doce lapices, y es tambien lo que permite explicarle al acudiente
-    por que su carrito dice "1" donde la lista decia "12".
-    """
-
     __tablename__ = "linea_kit"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -116,10 +65,6 @@ class LineaKit(Base):
     item_crudo_id: Mapped[uuid.UUID] = mapped_column(
         Uuid(as_uuid=True), ForeignKey("item_crudo.id", ondelete="CASCADE"), nullable=False
     )
-    # Reemplaza el `producto_id` que vivia dentro del JSON de items y que para
-    # Postgres era texto. Referencia logica a Catalogo, declarada en el
-    # manifiesto. Nulo en las lineas que no son un producto: una licencia
-    # digital, un "el disponible en casa" o un hueco de catalogo.
     producto_canonico_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
 
     hijo_referencia: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -145,25 +90,14 @@ class LineaKit(Base):
     precio_unitario_cop: Mapped[int | None] = mapped_column(Integer, nullable=True)
     subtotal_cop: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
-    # Se muestra, no se cobra. La linea aparece en el kit con la instruccion
-    # textual del colegio y queda fuera del carrito, del total y del conteo de
-    # cobertura. Se muestra en vez de ocultarse porque el acudiente necesita
-    # saber que esos items existen y como conseguirlos: una lista incompleta
-    # reproduce el dolor que vino a evitar, aunque el carrito se vea limpio.
     informativa: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     instruccion_colegio: Mapped[str | None] = mapped_column(Text, nullable=True)
     url_externa: Mapped[str | None] = mapped_column(Text, nullable=True)
     mensaje: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    # La regla inversa de la consolidacion: los borradores se juntan y los
-    # textos nunca, porque dos ediciones del mismo titulo no son sustituibles.
-    # Se guarda el motivo y no solo la bandera, para que el kit lo explique.
     no_consolidable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     motivo_no_consolidable: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    # Hasta dos productos mas del mismo concepto, en otros niveles. Van en
-    # JSON porque son para pintar, no para consultar: nadie busca kits por su
-    # segunda alternativa.
     alternativas: Mapped[list[dict[str, Any]]] = mapped_column(Texto, nullable=False, default=list)
     sustitutos: Mapped[list[dict[str, Any]]] = mapped_column(Texto, nullable=False, default=list)
 
@@ -173,9 +107,6 @@ class LineaKit(Base):
         CheckConstraint("cantidad_pedida >= 0", name="linea_cantidad_no_negativa"),
         CheckConstraint("unidades_a_comprar >= 0", name="linea_unidades_no_negativas"),
         CheckConstraint("unidades_por_empaque > 0", name="linea_empaque_positivo"),
-        # Una linea informativa no lleva precio NI subtotal. La restriccion
-        # esta en la base y no solo en el codigo porque es la que sostiene la
-        # promesa de que el total no incluye lo que Tukit no puede entregar.
         CheckConstraint(
             "NOT informativa OR (precio_unitario_cop IS NULL AND subtotal_cop IS NULL)",
             name="linea_informativa_sin_precio",

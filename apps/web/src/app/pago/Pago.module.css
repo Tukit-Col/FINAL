@@ -1,7 +1,3 @@
-/* Pantallas de pago: resultado (aprobado, rechazado, confirmando) y la
-   pasarela simulada. Mismo lenguaje que el kit: tarjetas clay, botones
-   redondeados y cifras en la fuente de cifras. */
-
 .pagina {
   display: grid;
   justify-items: center;
@@ -25,7 +21,6 @@
   box-shadow: var(--clay-shadow-lg);
 }
 
-/* La tarjeta principal: icono, titulo y franja, centrados. */
 .cabecera {
   justify-items: center;
   text-align: center;
@@ -118,7 +113,6 @@
   word-break: break-all;
 }
 
-/* Total, medio, fecha y pedido. */
 .franja {
   width: 100%;
   display: grid;
@@ -168,7 +162,6 @@
   letter-spacing: 0.04em;
 }
 
-/* Lo que sigue: cuatro pasos con el primero cumplido. */
 .pasos {
   list-style: none;
   margin: 0;
@@ -191,7 +184,6 @@
   position: relative;
 }
 
-/* La linea que une cada paso con el siguiente. */
 .paso::before,
 .pasoHecho::before {
   content: "";
@@ -227,7 +219,6 @@
   color: var(--color-white);
 }
 
-/* Rechazado: causas y consejo. */
 .causas {
   margin: 0;
   padding-left: 20px;
@@ -247,7 +238,6 @@
   font-weight: 700;
 }
 
-/* Acciones. */
 .acciones {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));

@@ -1,10 +1,3 @@
-"""Que cuenta el limite y con que topes (ADR 0047), sin pasar por HTTP.
-
-Que rutas van al nivel estricto (y la supresion a su propio nivel), cuales no
-cuentan, los numeros por omision (el contrato del ADR) y como se cambian por
-entorno.
-"""
-
 from __future__ import annotations
 
 import logging
@@ -38,7 +31,6 @@ from tukit_gateway import api, limite
         ("POST", "/v1/trabajos/8a1c", None),
         ("PATCH", "/v1/cuenta", None),
         ("POST", "/v1/cuenta/direcciones", None),
-        # El flujo de pagos queda en el general: lo decide Juan.
         ("POST", "/v1/ordenes", None),
         ("POST", "/v1/comercio/mis-pedidos/p-1/pago", None),
         ("POST", "/v1/pagos/p-1/sincronizar", None),
@@ -62,7 +54,6 @@ def test_la_supresion_va_con_su_propio_nivel_mas_corto_que_el_estricto():
     assert {c.tipo: c.tope for c in supresion} == {"token": 5, "ip": 10}
     assert all(c.tope < estricto.por_token for c in supresion)
     assert all(c.ventana == 3600 for c in supresion)
-    # Y sigue contando en el general, como toda estricta.
     assert any(c.nivel == "general" for c in por_contar)
 
 
@@ -78,7 +69,7 @@ def test_la_supresion_va_con_su_propio_nivel_mas_corto_que_el_estricto():
         ("GET", "/favicon.ico"),
     ],
 )
-def test_las_rutas_exentas(metodo, ruta):
+def test_las_rutas_exentas_no_cuentan_ningun_limite(metodo, ruta):
     assert limite.cuentas(metodo, ruta, "tok-ana", "198.51.100.7") == []
 
 

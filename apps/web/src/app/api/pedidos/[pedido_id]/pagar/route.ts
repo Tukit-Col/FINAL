@@ -1,11 +1,3 @@
-// `POST /api/pedidos/{pedido_id}/pagar` — pagar desde "Mis pedidos" un pedido
-// que quedo pendiente (el acudiente cerro Wompi o le rechazaron el pago).
-//
-// No re-arma la orden: Comercio crea un intento de pago nuevo sobre el mismo
-// pedido, con su precio congelado. Antes se verifica, con la sesion de la
-// cookie, que el pedido sea del acudiente y siga pendiente; el correo del
-// comprobante sale de la sesion, sin formulario.
-
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import { decidirAccionPedido } from "@/lib/pagar-pedido";
 import { respuestaDeError } from "@/lib/respuesta";
@@ -18,7 +10,6 @@ export async function POST(
   contexto: { params: Promise<{ pedido_id: string }> },
 ): Promise<Response> {
   const { pedido_id } = await contexto.params;
-  // Un 429 al leer la sesion sale como 429 con su espera, no como "inicia sesion".
   let sesion: Awaited<ReturnType<typeof sesionActual>>;
   try {
     sesion = await sesionActual();
@@ -42,7 +33,6 @@ export async function POST(
     if (!decision.ok) {
       return respuestaDeError(new ErrorTukit(decision.estado, decision.error, decision.mensaje));
     }
-    // PSE se lleva la pestana al banco y vuelve por aqui con `?id=`.
     const url_redireccion = `${new URL(peticion.url).origin}/pago/resultado`;
     const pago = await origen.iniciarPagoPedido(token, pedido_id, {
       correo_cliente: sesion.correo,

@@ -1,9 +1,3 @@
-// `DELETE /api/cuenta/matriculas/{id}`: el acudiente quita a un hijo de su cuenta.
-// `PUT /api/cuenta/matriculas/{id}`: lo cambia de colegio o de grado.
-//
-// El token sale de la cookie httpOnly, en el servidor, y viaja como Bearer a
-// identidad, que solo alcanza los hijos del portador (404 si no es suyo). Quitar
-// no borra datos: cierra el vínculo y retira la matrícula (ADR 0031).
 import { cookies } from "next/headers";
 import { ErrorTukit, origenDeDatos } from "@tukit/contrato/servidor";
 import { respuestaDeError } from "@/lib/respuesta";

@@ -1,23 +1,3 @@
-"""El poller de `lista_verificada`: aprobar la lista de un padre arma su kit.
-
-Cuando un administrador aprueba una version que un acudiente habia subido, el
-Catalogo escribe `lista_verificada` en su bandeja (nunca llama a Inteligencia:
-eso cerraria un ciclo). Este poller la drena y crea el trabajo de RUTA RAPIDA
-del padre con las preferencias que dejo, sin volver a pasar por Identidad.
-
-Lo que se fija aqui:
-
-- Un evento arma un trabajo dirigido al padre (`usuario_id` = su
-  `contacto_referencia`), sin llamar a Identidad, y lo procesa por la ruta
-  rapida (llama `resueltos`, nunca `emparejar`).
-- El trabajo lleva las preferencias del evento.
-- El evento se marca publicado: una segunda pasada no arma un segundo kit.
-- Un evento de onboarding (sin `contacto_referencia`) o mal formado no arma
-  nada, pero se marca publicado para no reintentarlo en vano.
-- Al terminar, el pipeline deja `kits_publicados` en la bandeja propia para que
-  el repartidor avise al padre.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -48,9 +28,6 @@ from tukit_inteligencia.poller import Poller
 
 
 class _CatalogoNoIdentidad:
-    """Guarda si alguien intento registrar un contacto. Nunca deberia pasar:
-    el poller crea el trabajo con el `usuario_id` que ya venia en el evento."""
-
     def __init__(self) -> None:
         self.registros: list[Any] = []
 
@@ -61,9 +38,8 @@ class _CatalogoNoIdentidad:
 
 class TestPollerArmaElKitDelPadre:
     async def test_un_evento_arma_un_trabajo_dirigido_por_ruta_rapida(self, motor, monkeypatch):
-        # Identidad NO se debe tocar: el poller ya tiene el usuario del evento.
         identidad = _CatalogoNoIdentidad()
-        monkeypatch.setattr(trabajos, "ClienteIdentidad", lambda *a, **k: identidad)
+        monkeypatch.setattr(trabajos.pipeline, "ClienteIdentidad", lambda *a, **k: identidad)
 
         contacto = str(uuid.uuid4())
         await sembrar_bandeja(motor, **carga_lista_verificada(contacto))
@@ -73,11 +49,10 @@ class TestPollerArmaElKitDelPadre:
         arrancados = await poller.pasada()
 
         assert arrancados == 1
-        assert identidad.registros == []  # jamas re-registro el contacto
+        assert identidad.registros == []
         assert "resueltos" in catalogo.llamadas
         assert "emparejar" not in catalogo.llamadas
 
-        # El trabajo quedo dirigido al padre y en el estado de la ruta rapida.
         async with motor.engine.begin() as conexion:
             fila = (
                 await conexion.execute(
@@ -89,15 +64,10 @@ class TestPollerArmaElKitDelPadre:
                 )
             ).one()
         assert str(fila.usuario_id) == contacto
-        # La lista ya la aprobo un admin: el kit se publica directo (el padre lo
-        # revisa desde el enlace del correo), no entra a una segunda cola.
         assert fila.estado == EstadoTrabajo.PUBLICADO.value
         assert fila.origen == "lista_verificada"
 
     async def test_el_trabajo_guarda_el_version_id_de_la_lista(self, motor):
-        # El `agregado_id` del evento (el version_id de la version aprobada) queda
-        # en `hijos[0]`: es la bisagra que deja unir la lista aprobada con su
-        # trabajo en "Mis solicitudes".
         version_id = uuid.uuid4()
         await sembrar_bandeja(motor, agregado_id=version_id, **carga_lista_verificada(str(uuid.uuid4())))
         catalogo = catalogo_verificado()
@@ -120,8 +90,7 @@ class TestPollerArmaElKitDelPadre:
         poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
         assert await poller.pasada() == 1
 
-        # Las preferencias se guardan cifradas; se leen con el mismo cifrador.
-        from tukit_inteligencia.trabajos import cifrador_desde_entorno
+        from tukit_comun.cifrado import cifrador_desde_entorno
 
         async with motor.engine.begin() as conexion:
             cifradas = (await conexion.execute(select(trabajos.TRABAJO.c.preferencias_cifradas))).scalar_one()
@@ -149,7 +118,7 @@ class TestPollerArmaElKitDelPadre:
         poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
 
         assert await poller.pasada() == 1
-        assert await poller.pasada() == 0  # ya publicado: nada que hacer
+        assert await poller.pasada() == 0
 
         async with motor.engine.begin() as conexion:
             trabajos_creados = list(await conexion.execute(select(trabajos.TRABAJO.c.id)))
@@ -158,9 +127,6 @@ class TestPollerArmaElKitDelPadre:
 
 class TestPollerConColegioSinPadre:
     async def test_un_evento_sin_contacto_arma_un_kit_de_colegio_para_revision(self, motor):
-        # Onboarding del colegio: sin padre esperando. Ya NO se descarta: arma un
-        # trabajo `colegio_grado` (anonimo) que entra a la cola de revision, para
-        # que al aprobarlo ahi quede como kit canonico del grado.
         await sembrar_bandeja(
             motor, contacto_referencia=None, colegio_id=COLEGIO, grado="Cuarto", anio_lectivo=2026
         )
@@ -183,18 +149,12 @@ class TestPollerConColegioSinPadre:
                     select(BANDEJA_CATALOGO.c.id).where(BANDEJA_CATALOGO.c.publicado_en.is_(None))
                 )
             )
-        # Anonimo, origen de colegio, y en espera de revision (no publicado
-        # directo: no hay padre a quien avisar, la persona lo aprueba en la cola).
         assert fila.usuario_id is None
         assert fila.origen == "colegio_grado"
         assert fila.estado == EstadoTrabajo.ESPERA_REVISION.value
-        assert pendientes == []  # se marco publicado
+        assert pendientes == []
 
     async def test_un_contacto_que_no_es_uuid_se_degrada_a_kit_de_colegio(self, motor):
-        # Un contacto ilegible no arma un kit DIRIGIDO (perderiamos a quien
-        # avisar), pero tampoco se descarta el evento: se degrada a kit de
-        # colegio para revision. Perder el kit del grado es peor que perder el
-        # aviso a un contacto que de todas formas no se puede resolver.
         await sembrar_bandeja(motor, **carga_lista_verificada("no-es-un-uuid"))
         catalogo = catalogo_verificado()
         poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
@@ -209,13 +169,6 @@ class TestPollerConColegioSinPadre:
 
 
 class TestPollerUsaLaReferenciaRealDelHijo:
-    """El kit lleva la referencia del hijo que subio la lista, no un `hijo-1` fijo.
-
-    `personaje_por_hijo` esta indexado por esa referencia; con la fija, el hijo
-    2 que sube su lista salia neutral (su clave no casaba) o, con dos hermanos
-    con personaje, recibia el del hijo 1.
-    """
-
     async def _fan(self, motor, catalogo, carga) -> set[tuple[str, str | None]]:
         await sembrar_bandeja(motor, **carga)
         poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo)
@@ -251,9 +204,7 @@ class TestPollerUsaLaReferenciaRealDelHijo:
 
     async def test_un_evento_viejo_sin_referencias_cae_en_hijo_1(self, motor):
         await sembrar_bandeja(motor, **carga_lista_verificada(str(uuid.uuid4())))
-        poller = Poller(
-            motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo_verificado()
-        )
+        poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo_verificado())
         assert await poller.pasada() == 1
         async with motor.engine.begin() as conexion:
             hijos = (await conexion.execute(select(trabajos.TRABAJO.c.hijos))).scalar_one()
@@ -269,37 +220,27 @@ class TestPollerLlevaElApodo:
         await apodos_subida.guardar(motor, str(version_id), contacto, {"hijo-2": "Luca"})
         carga = carga_lista_verificada(contacto, referencias=["hijo-2"])
         await sembrar_bandeja(motor, agregado_id=version_id, **carga)
-        poller = Poller(
-            motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo_verificado()
-        )
+        poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo_verificado())
         assert await poller.pasada() == 1
         async with motor.engine.begin() as conexion:
             hijos = (await conexion.execute(select(trabajos.TRABAJO.c.hijos))).scalar_one()
         assert hijos[0]["referencia"] == "hijo-2"
         assert hijos[0]["apodo"] == "Luca"
-        # Ya copiado al trabajo, no se guarda dos veces.
         assert await apodos_subida.apodos_de(motor, str(version_id)) == {}
 
     async def test_sin_apodo_guardado_el_trabajo_no_lleva_la_clave(self, motor):
         await sembrar_bandeja(motor, **carga_lista_verificada(str(uuid.uuid4()), referencias=["hijo-1"]))
-        poller = Poller(
-            motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo_verificado()
-        )
+        poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo_verificado())
         assert await poller.pasada() == 1
         async with motor.engine.begin() as conexion:
             hijos = (await conexion.execute(select(trabajos.TRABAJO.c.hijos))).scalar_one()
         assert "apodo" not in hijos[0]
 
 
-# --- Vuelve solo tras una caida de Postgres (H-B-02, ADR 0041) ------------------------------------
-
-
 class TestElPollerVuelve:
     async def test_tras_una_caida_de_postgres_arma_el_kit(self, motor):
         contacto = str(uuid.uuid4())
         await sembrar_bandeja(motor, **carga_lista_verificada(contacto))
-        # Cada pasada lee la bandeja del Catalogo con el mismo motor, que falla
-        # tres veces y despues responde.
         catalogo = EngineIntermitente(motor.engine, *caidas_de_postgres())
         esperas: list[float] = []
 
@@ -333,9 +274,6 @@ class TestElPollerVuelve:
             )
 
         assert esperas == []
-
-
-# --- Con RabbitMQ: consume inteligencia.listas (ADR 0046) -----------------------------------------
 
 
 VERSION = uuid.UUID("22222222-3333-4444-5555-666666666666")
@@ -408,9 +346,6 @@ async def test_un_evento_repetido_no_arma_un_segundo_kit(motor):
 
 
 async def test_dos_entregas_que_llegan_a_crear_arman_un_solo_kit(motor):
-    # El proceso cayo despues de crear el trabajo y antes de confirmar: la
-    # segunda entrega no paso por el registro del consumidor, pero `crear` ve la
-    # marca que dejo la primera en su misma transaccion.
     poller = _poller(motor)
     evento = _evento(6, contacto_referencia=str(uuid.uuid4()))
 
@@ -423,16 +358,15 @@ async def test_dos_entregas_que_llegan_a_crear_arman_un_solo_kit(motor):
 async def test_si_crear_falla_la_marca_vuelve_atras(motor, monkeypatch):
     poller = _poller(motor)
     evento = _evento(8, contacto_referencia=str(uuid.uuid4()))
-    etapas = trabajos.ETAPAS
-    # Una etapa sin nombre viola el NOT NULL despues de la marca y del trabajo.
-    monkeypatch.setattr(trabajos, "ETAPAS", (None,))
+    etapas = trabajos.pipeline.ETAPAS
+    monkeypatch.setattr(trabajos.pipeline, "ETAPAS", (None,))
 
     with pytest.raises(Exception, match="NOT NULL"):
         await poller.manejar(evento)
     assert await _cuantos(motor, EventoProcesado) == 0
     assert await _cuantos(motor, trabajos.TRABAJO) == 0
 
-    monkeypatch.setattr(trabajos, "ETAPAS", etapas)
+    monkeypatch.setattr(trabajos.pipeline, "ETAPAS", etapas)
     assert await poller.manejar(evento) is Resultado.HECHO
     assert await _cuantos(motor, trabajos.TRABAJO) == 1
 

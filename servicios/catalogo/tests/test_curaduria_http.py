@@ -1,23 +1,3 @@
-"""La curaduria proactiva del catalogo por HTTP, bajo `/v1/admin/catalogo/*`.
-
-Es la mitad de `tukit_catalogo.admin` (la vieja de `http.server`) que la SPA
-necesita: la cola de propuestas en JSON, la busqueda en tienda, el alta de util
-y de libro (encolar SIN aprobar --dos pasos--) y la aprobacion desde la cola.
-Reusa `_encolar`/`resolver`/`tiendas.buscar` sin reimplementar dominio.
-
-Las pruebas corren contra la app con `ASGITransport` y un motor SQLite inyectado
-a mano, igual que `test_api_admin.py`. Dos fronteras que el SQLite no cruza y
-que se documentan donde aparecen:
-
-  - `_encolar` y `resolver` abren su PROPIO `crear_motor("catalogo")`, que en
-    test apunta a la BD de entorno, no al SQLite inyectado. Por eso el alta
-    (`propuestas/util`, `propuestas/libro`) se prueba mockeando `_encolar` para
-    que escriba en el motor de prueba, y `aprobar` se prueba mockeando
-    `resolver` (su creacion real de producto ya la cubre `test_descubrir`).
-  - `tiendas.buscar`/`buscar_candidatos` salen a la red: se mockean con
-    `monkeypatch` para no depender de las tiendas vivas.
-"""
-
 from __future__ import annotations
 
 import httpx
@@ -35,12 +15,6 @@ from tukit_comun.bd import MotorServicio
 
 
 def _siembra(sesion) -> dict[str, str]:
-    """Un concepto, una tienda y una propuesta pendiente atada al concepto.
-
-    Lo minimo para ejercer la cola: `GET .../propuestas` la lista, `aprobar` la
-    resuelve. La propuesta nace de curaduria (`version_lista_id=None`), como las
-    que crea el alta de la SPA.
-    """
     cuaderno = Concepto(codigo="C001", nombre_canonico="cuaderno", categoria="Cuadernos")
     sesion.add(cuaderno)
     sesion.flush()
@@ -100,23 +74,13 @@ async def test_lista_propuestas_pendientes(cliente):
     p = cuerpo["propuestas"][0]
     assert set(p) >= {"id", "id_corto", "nombre", "precio", "nivel_sugerido", "concepto"}
     assert len(p["id_corto"]) == 8
-    assert p["precio"] == 5500  # centavos // 100
+    assert p["precio"] == 5500
     assert p["concepto"] == {"codigo": "C001", "nombre": "cuaderno"}
-    # Sin atributos verificados en sus especificaciones, el mapa viene vacio.
     assert p["atributos_verificados"] == {}
-    # Lo que el nombre dice ya viene en lo que quedaria al aprobar.
     assert isinstance(p["atributos_al_aprobar"], dict)
 
 
 def _encolar_en_motor_de_prueba(monkeypatch):
-    """Sustituye `descubrir._encolar` por uno que escribe en el motor inyectado.
-
-    El `_encolar` real abre su propio `crear_motor("catalogo")` (BD de entorno),
-    no el SQLite de la fixture; asi que para probar que el alta cae en la cola se
-    lo reemplaza por una version que inserta contra `_motor()` --el mismo motor
-    que la fixture inyecto en `app.state`--, respetando `on_conflict_do_nothing`
-    sobre la llave natural (tienda, referencia).
-    """
     from tukit_catalogo import descubrir
     from tukit_catalogo.admin_http import PROPUESTA, _motor
 
@@ -245,10 +209,6 @@ def _oferta_exito(nombre: str, sku: str, *, disponible: bool = True, precio: int
 
 
 async def test_encolar_util_acepta_lo_elegido_aunque_no_tenga_todas_las_palabras(cliente, monkeypatch):
-    """El caso que lo destapo: la pantalla mostraba "Pilot Pluma Pen 2.4
-    Caligrafia" para "Pluma para caligrafia", y al elegirlo el alta respondia
-    "ya no esta disponible" porque el nombre no dice "para". El filtro de
-    palabras es para cuando elige la maquina; aqui eligio una persona."""
     from tukit_catalogo import tiendas
 
     o = _oferta_exito("Pilot Pluma Pen 2.4 Caligrafia", "101539370")
@@ -319,8 +279,6 @@ async def test_encolar_libro_precio_invalido_es_422(cliente):
 
 
 async def test_encolar_libro_cae_en_la_cola(cliente, monkeypatch):
-    # panamericana no esta sembrada como tienda; el libro necesita una tienda
-    # que exista en la BD de prueba, asi que se apunta a la sembrada (exito).
     _encolar_en_motor_de_prueba(monkeypatch)
     r = await cliente.post(
         "/v1/admin/catalogo/propuestas/libro",
@@ -339,8 +297,6 @@ async def test_encolar_libro_cae_en_la_cola(cliente, monkeypatch):
 
 
 async def test_encolar_util_manual_cae_en_la_cola(cliente, monkeypatch):
-    # Util escrito a mano (sin busqueda en tienda): la Oferta se arma del cuerpo,
-    # no se re-busca por (slug, sku). Apunta a la tienda sembrada (exito).
     _encolar_en_motor_de_prueba(monkeypatch)
     r = await cliente.post(
         "/v1/admin/catalogo/propuestas/util-manual",
@@ -358,7 +314,7 @@ async def test_encolar_util_manual_cae_en_la_cola(cliente, monkeypatch):
     assert r.status_code == 201 and r.json()["estado"] == "pendiente"
     cola = (await cliente.get("/v1/admin/catalogo/propuestas")).json()
     fila = next(p for p in cola["propuestas"] if p["nombre"] == "Cuaderno artesanal")
-    assert fila["precio"] == 4200  # centavos // 100, precio de PESOS respetado
+    assert fila["precio"] == 4200
 
 
 async def test_encolar_util_manual_precio_invalido_es_422(cliente):
@@ -404,10 +360,6 @@ async def test_encolar_util_manual_tienda_desconocida_es_422(cliente):
 
 
 async def test_aprobar_propuesta_traduce_el_codigo(cliente, monkeypatch):
-    # `resolver` abre su propio `crear_motor("catalogo")` (BD de entorno), no el
-    # SQLite inyectado, y su creacion real de producto+oferta+precio ya la cubre
-    # `test_descubrir`. Aqui se mockea para devolver 0 (exito) y verificar que el
-    # endpoint traduce ese codigo a la respuesta {id, estado: "aprobada"}.
     from tukit_catalogo import descubrir
 
     async def _falso_resolver(id_corto, aprobar, nivel, motivo, no_surtir=False, overrides=None):
@@ -421,9 +373,6 @@ async def test_aprobar_propuesta_traduce_el_codigo(cliente, monkeypatch):
 
 
 async def test_aprobar_propuesta_reenvia_correcciones_a_resolver(cliente, monkeypatch):
-    # Las correcciones a mano (marca/imagen/personaje/atributos) que la cola
-    # manda en el cuerpo tienen que llegar a `resolver` como `overrides`, y solo
-    # las claves presentes: `nombre` intacto no viaja, `""` se guarda como NULL.
     from tukit_catalogo import descubrir
 
     visto: dict = {}
@@ -452,12 +401,10 @@ async def test_aprobar_propuesta_reenvia_correcciones_a_resolver(cliente, monkey
         "personaje": "Frozen",
         "atributos": {"hojas": 100},
     }
-    assert "nombre" not in ov  # no se mando: se conserva el de la propuesta
+    assert "nombre" not in ov
 
 
 async def test_aprobar_propuesta_sin_correcciones_no_manda_overrides(cliente, monkeypatch):
-    # Aprobar sin tocar nada (solo nivel) NO manda overrides: el backend conserva
-    # su derivacion automatica. Es el camino identico a como era antes.
     from tukit_catalogo import descubrir
 
     visto: dict = {}
@@ -477,7 +424,7 @@ async def test_aprobar_propuesta_que_falla_es_409(cliente, monkeypatch):
     from tukit_catalogo import descubrir
 
     async def _falso_resolver(id_corto, aprobar, nivel, motivo, no_surtir=False, overrides=None):
-        return 2  # cualquier codigo != 0 = no se pudo aprobar
+        return 2
 
     monkeypatch.setattr(descubrir, "resolver", _falso_resolver)
     prop_id = cliente.ids["propuesta_pendiente"]

@@ -10,9 +10,6 @@
   font-weight: 800;
 }
 
-/* Una tarjeta por pendiente: el número manda, el enlace es la acción. */
-/* Bento: el pendiente mas urgente ocupa el tile grande (2x2); los demas, uno
- * cada uno. `dense` rellena los huecos sin reordenar el DOM. */
 .rejilla {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -58,8 +55,6 @@
   background: var(--color-danger);
 }
 
-/* El tile urgente lleva su propio haz de borde: sin filete lateral, y la
- * cifra y el titulo escalan para que la jerarquia se lea de un vistazo. */
 .urgente {
   height: 100%;
   padding: var(--espacio-5) var(--espacio-6);
@@ -187,7 +182,6 @@
   }
 }
 
-/* ---- Pulso de la operación: flujo, tickets, listas, actividad ---- */
 .encabezado p {
   margin-top: 2px;
   font-size: 13.5px;

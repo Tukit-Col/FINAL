@@ -1,10 +1,3 @@
-// El lado del navegador de las acciones de la SPA de catálogo (P4c).
-//
-// Igual que `api-navegador.ts`: habla solo con los Route Handlers de esta
-// misma app (`/api/catalogo/**`), nunca con el backend. La URL del backend y
-// el token se quedan en el servidor. Módulo propio del slice para no pisar
-// `api-navegador.ts`, que otro slice puede tocar.
-
 import type {
   AltaLibro,
   AltaUtil,
@@ -42,15 +35,11 @@ async function pedir<T>(ruta: string, init: RequestInit): Promise<T> {
   const leido: unknown = texto ? JSON.parse(texto) : null;
 
   if (!respuesta.ok) {
-    // Un 429 llega con la espera en el mensaje aunque el cuerpo no la traiga.
     const error = conEspera(
       respuesta.status,
       (leido ?? {}) as ErrorApi & Record<string, unknown>,
       respuesta.headers.get("Retry-After"),
     );
-    // El mensaje que se muestra es el del backend, no uno inventado aquí: es
-    // el único que sabe por qué rechazó (campo_no_editable, nivel_invalido,
-    // empaque_invalido, concepto_no_existe…).
     throw new FalloCatalogo(
       respuesta.status,
       error.error ?? "error_desconocido",
@@ -63,7 +52,6 @@ async function pedir<T>(ruta: string, init: RequestInit): Promise<T> {
 
 const id = encodeURIComponent;
 
-/** GET paginado con filtros. El querystring se arma solo con lo que vino. */
 export function buscarProductos(filtros: FiltrosProductos): Promise<PaginaProductos> {
   const qs = new URLSearchParams();
   if (filtros.busqueda?.trim()) qs.set("busqueda", filtros.busqueda.trim());
@@ -81,7 +69,6 @@ export function buscarProductos(filtros: FiltrosProductos): Promise<PaginaProduc
   });
 }
 
-/** PATCH — CRUD de todos los campos y la re-etiqueta (nivel/personaje/marca). */
 export function editarProducto(
   sku: string,
   cambios: ProductoEditable,
@@ -93,7 +80,6 @@ export function editarProducto(
   });
 }
 
-/** POST — mueve el producto bajo otro concepto (dispara re-embedding). */
 export function reclasificarProducto(
   sku: string,
   concepto: string,
@@ -105,25 +91,15 @@ export function reclasificarProducto(
   });
 }
 
-/** DELETE — baja suave (activo=False en el backend), 204 sin cuerpo. */
 export function eliminarProducto(sku: string): Promise<void> {
   return pedir<void>(`/api/catalogo/productos/${id(sku)}`, { method: "DELETE" });
 }
 
-// --------------------------------------------------- Curaduría proactiva (P4c bis)
-//
-// La cola de propuestas y las altas de útil/libro. Curaduría del catálogo ANTES
-// de que un acudiente pregunte, distinta de la revisión de listas de colegio.
-// Encolar y aprobar son dos pasos separados: `altaUtil`/`altaLibro` meten la
-// propuesta en la cola; `aprobarPropuesta`/`rechazarPropuesta` la cierran.
-
-/** GET — la cola de pendientes, opcionalmente filtrada por concepto. */
 export function colaPropuestas(concepto?: string): Promise<PropuestaCola[]> {
   const qs = concepto ? `?concepto=${id(concepto)}` : "";
   return pedir<PropuestaCola[]>(`/api/catalogo/propuestas${qs}`, { method: "GET" });
 }
 
-/** GET — candidatos en vivo de una tienda (VTEX/Shopify) para el alta de útil. */
 export function buscarEnTienda(
   slug: string,
   consulta: string,
@@ -137,7 +113,6 @@ export function buscarEnTienda(
   );
 }
 
-/** POST — crea un concepto nuevo (el código C0NN lo autogenera el backend). */
 export function crearConcepto(cuerpo: CrearConcepto): Promise<ConceptoCreado> {
   return pedir<ConceptoCreado>(`/api/catalogo/conceptos`, {
     method: "POST",
@@ -146,7 +121,6 @@ export function crearConcepto(cuerpo: CrearConcepto): Promise<ConceptoCreado> {
   });
 }
 
-/** POST — encola un útil elegido de la tienda (no aprueba: cae en la cola). */
 export function altaUtil(cuerpo: AltaUtil): Promise<PropuestaEncolada> {
   return pedir<PropuestaEncolada>(`/api/catalogo/propuestas/util`, {
     method: "POST",
@@ -155,7 +129,6 @@ export function altaUtil(cuerpo: AltaUtil): Promise<PropuestaEncolada> {
   });
 }
 
-/** POST — encola un útil escrito a mano (sin búsqueda; precio en pesos > 0). */
 export function altaUtilManual(cuerpo: AltaUtilManual): Promise<PropuestaEncolada> {
   return pedir<PropuestaEncolada>(`/api/catalogo/propuestas/util-manual`, {
     method: "POST",
@@ -164,7 +137,6 @@ export function altaUtilManual(cuerpo: AltaUtilManual): Promise<PropuestaEncolad
   });
 }
 
-/** POST — encola un libro por ISBN (manual, precio en pesos > 0). */
 export function altaLibro(cuerpo: AltaLibro): Promise<PropuestaEncolada> {
   return pedir<PropuestaEncolada>(`/api/catalogo/propuestas/libro`, {
     method: "POST",
@@ -173,7 +145,6 @@ export function altaLibro(cuerpo: AltaLibro): Promise<PropuestaEncolada> {
   });
 }
 
-/** POST — aprueba una propuesta de la cola (nace producto + oferta + precio). */
 export function aprobarPropuesta(
   propuestaId: string,
   cuerpo: AprobarPropuesta,
@@ -188,7 +159,6 @@ export function aprobarPropuesta(
   );
 }
 
-/** POST — rechaza una propuesta (con motivo y, opcional, `no_surtir`). */
 export function rechazarPropuesta(
   propuestaId: string,
   cuerpo: RechazarPropuesta,

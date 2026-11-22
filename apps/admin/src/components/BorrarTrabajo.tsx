@@ -1,11 +1,5 @@
 "use client";
 
-// Borra un trabajo desechable (preview repetido, encolado, en espera, fallido).
-//
-// Dos pasos a proposito, como `DecisionTrabajo`: borrar es irreversible y
-// cascadea kits y etapas. Un `publicado` es el kit canonico y esta protegido:
-// ni se ofrece el boton, y si aun asi se intenta el backend responde 409.
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
@@ -17,9 +11,7 @@ import fila from "./BorrarVersionLista.module.css";
 interface Props {
   trabajoId: string;
   estado: EstadoTrabajo;
-  /** A donde ir tras borrar. Sin valor, refresca la vista actual (la cola). */
   volverA?: string;
-  /** En una fila de la cola: boton en pastilla y confirmacion en la misma linea. */
   enFila?: boolean;
 }
 
@@ -29,7 +21,6 @@ export default function BorrarTrabajo({ trabajoId, estado, volverA, enFila = fal
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Un publicado no se borra: es el kit canonico. No se muestra el boton.
   if (estado === "publicado") return null;
 
   async function borrar(): Promise<void> {
@@ -41,8 +32,6 @@ export default function BorrarTrabajo({ trabajoId, estado, volverA, enFila = fal
       else router.refresh();
     } catch (causa) {
       setError(causa instanceof FalloApi ? causa.message : "No pudimos borrar el trabajo.");
-      // Si otro ya lo publico (409) o ya no existe (404), refrescar deja la
-      // vista al dia y el boton desaparece solo.
       if (causa instanceof FalloApi && (causa.estado === 409 || causa.estado === 404)) {
         router.refresh();
       }
@@ -84,9 +73,6 @@ export default function BorrarTrabajo({ trabajoId, estado, volverA, enFila = fal
     );
   }
 
-  // En la barra del detalle: un boton discreto que, al pulsarlo, se vuelve una
-  // confirmacion en la misma linea. Borrar es irreversible; no merece un rojo
-  // gritando antes de que alguien lo pida.
   return (
     <div className={barra.contenedor}>
       {confirmando ? (

@@ -1,10 +1,3 @@
-"""GET /v1/comercio/pedidos-pagados: el cruce mínimo para otros servicios.
-
-Solo los pedidos en un estado confirmado (`_ESTADOS_CONFIRMADOS`) y con
-`trabajo_id`, con su `{trabajo_id, usuario_id, estado}` y sin PII. Se prueba con
-`ASGITransport`, sin levantar uvicorn ni salir a la red.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -52,7 +45,6 @@ async def test_solo_estados_confirmados(entorno):
     t_entregado = uuid.uuid4()
     await _sembrar(motor, estado=EstadoPedido.PAGADO.value, trabajo_id=t_pagado)
     await _sembrar(motor, estado=EstadoPedido.ENTREGADO.value, trabajo_id=t_entregado)
-    # No confirmados: no deben aparecer.
     await _sembrar(motor, estado=EstadoPedido.PENDIENTE_PAGO.value, trabajo_id=uuid.uuid4())
     await _sembrar(motor, estado=EstadoPedido.CANCELADO.value, trabajo_id=uuid.uuid4())
 
@@ -64,13 +56,11 @@ async def test_solo_estados_confirmados(entorno):
 
 async def test_omite_pedidos_sin_trabajo(entorno):
     http, motor = entorno
-    # Un pago sin trabajo (compra fuera del flujo de kit) no sirve para el cruce.
     await _sembrar(motor, estado=EstadoPedido.PAGADO.value, trabajo_id=None)
     con_trabajo = await _sembrar(motor, estado=EstadoPedido.PAGADO.value, trabajo_id=uuid.uuid4())
 
     respuesta = await http.get("/v1/comercio/pedidos-pagados")
     pedidos = respuesta.json()["pedidos"]
     assert [p["trabajo_id"] for p in pedidos] == [str(con_trabajo.trabajo_id)]
-    # Trae el id del padre para el cruce, y nada de PII.
     assert pedidos[0]["usuario_id"] == str(con_trabajo.usuario_id)
     assert set(pedidos[0].keys()) == {"trabajo_id", "usuario_id", "estado"}

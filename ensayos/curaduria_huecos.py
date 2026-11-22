@@ -1,8 +1,4 @@
-"""Curaduría de huecos de catálogo sobre las listas escolares del corpus.
-
-No es producto: lee página a página (varios grados permitidos), parsea,
-empareja y consolida faltantes. Escribe reporte md+json en docs/informes/.
-"""
+"""Curaduría de huecos de catálogo sobre las listas escolares del corpus."""
 
 from __future__ import annotations
 
@@ -38,11 +34,10 @@ from tukit_inteligencia.percepcion import (  # noqa: E402
     normalizar_grado,
 )
 
-# Lo que Gemini ya leyo, para no volver a pedirlo (`TUKIT_CACHE_ENSAYOS`).
 DIR_PERCEPCION = carpeta_cache() / "percepcion"
 OSITO_CACHE = carpeta_cache() / "ositodemiel-fase1.json"
-OUT_MD = _RAIZ / "docs" / "informes" / "reporte-huecos-catalogo.md"
-OUT_JSON = _RAIZ / "docs" / "informes" / "reporte-huecos-catalogo.json"
+OUT_MD = _RAIZ / "ensayos" / "salidas" / "reporte-huecos-catalogo.md"
+OUT_JSON = _RAIZ / "ensayos" / "salidas" / "reporte-huecos-catalogo.json"
 MAX_PDF_PARALELO = 2
 
 
@@ -123,7 +118,6 @@ def _accion_catalogo(estado: str) -> str:
 
 
 def leer_pdf_pagina_a_pagina(ruta: Path) -> dict:
-    """Lee todas las páginas; no rechaza por varios grados. Continúa si una falla."""
     contenido = ruta.read_bytes()
     try:
         pngs = renderizar(contenido)
@@ -142,7 +136,6 @@ def leer_pdf_pagina_a_pagina(ruta: Path) -> dict:
     truncado = False
     if len(pngs) > TOPE_PAGINAS:
         truncado = True
-        # No truncar en silencio: registrar y no leer más allá del tope de abuso.
         return {
             "archivo": ruta.name,
             "error": "archivo_demasiado_largo",
@@ -315,7 +308,6 @@ def clasificar_y_emparejar(percepciones: list[dict], conceptos, productos) -> tu
                 continue
 
             accion = _accion_catalogo(emp.estado)
-            # Heurística suave para descartar: higiene / cartilla Nacho etc. en reporte
             if emp.estado == "sin_match":
                 plano = _sin_tildes(demanda.texto)
                 if (
@@ -374,7 +366,6 @@ def clasificar_y_emparejar(percepciones: list[dict], conceptos, productos) -> tu
             }
         )
 
-    # Deduplicar
     agrupados: dict[str, dict] = {}
     for f in faltantes_raw:
         clave = _clave_faltante(

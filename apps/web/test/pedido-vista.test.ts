@@ -1,6 +1,3 @@
-// Los productos agrupados y las fechas de la pantalla de un pedido. Runner
-// nativo de Node (type-stripping): `npm test` en apps/web.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { agruparLineas, diaBogota, fechaHoraBogota } from "../src/lib/pedido-vista.ts";
@@ -33,7 +30,6 @@ test("sin lineas no hay filas", () => {
 });
 
 test("las fechas se muestran en la hora de Bogota", () => {
-  // 03:30 UTC del 2 de octubre son las 22:30 del 1 de octubre en Bogota.
   const texto = fechaHoraBogota("2026-10-02T03:30:00+00:00");
   assert.match(texto, /1 de oct/);
   assert.match(texto, /10:30/);

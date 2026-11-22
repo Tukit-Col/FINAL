@@ -1,25 +1,5 @@
 """Acuerdo entre anotadores y exactitud del sistema contra un oro independiente.
-
-Lee `muestra_ciega/anotador_A.csv` y `anotador_B.csv` (id, concepto_codigo, comentario) y la
-salida del sistema sobre esos mismos ids: la clasificacion de `clasificacion.py` con las
-constantes actuales (`ACTUAL`) y tau = 0,75. Calcula:
-
-  * kappa de Cohen entre A y B (IC 95 % por bootstrap sobre renglones) y % de acuerdo.
-  * pares de desacuerdo mas frecuentes (A -> B).
-  * oro = A si A == B; en los desacuerdos, la columna `adjudicado` que llena una tercera persona
-    en `muestra_ciega/adjudicacion.csv` (id, texto_original, concepto_A, concepto_B, adjudicado).
-    La primera corrida escribe ese archivo; se llena y se corre otra vez.
-  * exactitud del sistema, precision de lo aceptado en tau y fraccion aceptada contra el oro,
-    con IC 95 %, y las mismas cifras contra las etiquetas del propio sistema (circulares) sobre
-    los mismos ids, con la diferencia y su IC (bootstrap pareado).
-
-Los IC son bootstrap percentil de 2.000 remuestras por renglon. Como los renglones de una misma
-lista se parecen, tambien se da el IC remuestreando por lista (colegio, grado), mas honesto y mas ancho.
-El codigo `NINGUNO` (o casilla vacia en el oro) equivale a "sin concepto" y se compara con la salida
-`sin correspondencia` del sistema (puntaje bajo el corte).
-
-Uso: uv run python ensayos/calibracion/acuerdo.py [--dir muestra_ciega] [--salida acuerdo.json]
-"""
+Uso: uv run python ensayos/calibracion/acuerdo.py [--dir muestra_ciega] [--salida acuerdo.json]"""
 
 from __future__ import annotations
 
@@ -38,16 +18,24 @@ import clasificacion as k  # noqa: E402
 NINGUNO = "NINGUNO"
 REMUESTRAS = 2000
 SEMILLA = 20261116
-MUESTRA = k.SALIDA / "muestra_ciega"
+MUESTRA = k.MUESTRA_CIEGA
 
 
 def norm(c: str | None) -> str:
     c = (c or "").strip()
-    return NINGUNO if c == "" or c.lower().startswith("ningun") else c.upper() if c[:1].lower() == "c" and c[1:].isdigit() else c
+    return (
+        NINGUNO
+        if c == "" or c.lower().startswith("ningun")
+        else c.upper()
+        if c[:1].lower() == "c" and c[1:].isdigit()
+        else c
+    )
 
 
 def leer(ruta: Path) -> dict[str, str]:
-    return {x["id"].strip(): norm(x["concepto_codigo"]) for x in csv.DictReader(ruta.open(encoding="utf-8-sig"))}
+    return {
+        x["id"].strip(): norm(x["concepto_codigo"]) for x in csv.DictReader(ruta.open(encoding="utf-8-sig"))
+    }
 
 
 def kappa(a: list[str], b: list[str]) -> float:
@@ -59,7 +47,6 @@ def kappa(a: list[str], b: list[str]) -> float:
 
 
 def ic(f, n: int, rng, grupos: np.ndarray | None = None) -> list[float | None]:
-    """IC 95 % percentil de f(indices). Con `grupos`, remuestrea grupos completos."""
     v = []
     if grupos is None:
         for _ in range(REMUESTRAS):
@@ -78,11 +65,14 @@ def ic(f, n: int, rng, grupos: np.ndarray | None = None) -> list[float | None]:
 
 def metricas_sistema(pred_ok: np.ndarray, acepta: np.ndarray, ix: np.ndarray) -> dict[str, float | None]:
     o, a = pred_ok[ix], acepta[ix]
-    return {"exactitud": float(o.mean()), "aceptada": float(a.mean()), "precision_aceptada": float((o & a).sum() / a.sum()) if a.sum() else None}
+    return {
+        "exactitud": float(o.mean()),
+        "aceptada": float(a.mean()),
+        "precision_aceptada": float((o & a).sum() / a.sum()) if a.sum() else None,
+    }
 
 
 def salida_sistema(filas: list[dict]) -> dict[str, dict]:
-    """Por renglon de la muestra: concepto del sistema (codigo o NINGUNO), puntaje, aceptado y etiqueta circular."""
     d = k.cargar()
     r = k.construir_rasgos(d)
     idx, s = k.puntuar(r, k.ACTUAL)
@@ -121,16 +111,22 @@ def correr(dir_muestra: Path, salida: Path, adjudicacion: Path | None = None) ->
             "kappa_ic95": ic(lambda ix: kappa([a[i] for i in ix], [b[i] for i in ix]), n, rng),
             "desacuerdos": int((~acu).sum()),
             "desacuerdos_mas_frecuentes": [
-                {"A": x, "B": y, "n": c} for (x, y), c in collections.Counter((x, y) for x, y in zip(a, b, strict=True) if x != y).most_common(10)
+                {"A": x, "B": y, "n": c}
+                for (x, y), c in collections.Counter(
+                    (x, y) for x, y in zip(a, b, strict=True) if x != y
+                ).most_common(10)
             ],
         },
     }
     sis = salida_sistema(filas)
-    # adjudicacion
     ruta_adj = adjudicacion or dir_muestra / "adjudicacion.csv"
     adj = {}
     if ruta_adj.exists():
-        adj = {x["id"].strip(): norm(x["adjudicado"]) for x in csv.DictReader(ruta_adj.open(encoding="utf-8-sig")) if (x.get("adjudicado") or "").strip()}
+        adj = {
+            x["id"].strip(): norm(x["adjudicado"])
+            for x in csv.DictReader(ruta_adj.open(encoding="utf-8-sig"))
+            if (x.get("adjudicado") or "").strip()
+        }
     else:
         with ruta_adj.open("w", encoding="utf-8", newline="") as fh:
             w = csv.writer(fh)
@@ -138,7 +134,9 @@ def correr(dir_muestra: Path, salida: Path, adjudicacion: Path | None = None) ->
             for f, x, y in zip(filas, a, b, strict=True):
                 if x != y:
                     w.writerow([f["id"], f["texto_original"], x, y, ""])
-        res["adjudicacion"] = f"escrita en {ruta_adj}: la tercera persona llena `adjudicado` y se vuelve a correr"
+        res["adjudicacion"] = (
+            f"escrita en {ruta_adj}: la tercera persona llena `adjudicado` y se vuelve a correr"
+        )
     oro, sin_oro = {}, []
     for i, x, y in zip(ids, a, b, strict=True):
         if x == y:
@@ -147,9 +145,16 @@ def correr(dir_muestra: Path, salida: Path, adjudicacion: Path | None = None) ->
             oro[i] = adj[i]
         else:
             sin_oro.append(i)
-    res["oro"] = {"con_oro": len(oro), "por_acuerdo": int(acu.sum()), "por_adjudicacion": len(oro) - int(acu.sum()), "sin_oro_pendientes": len(sin_oro)}
+    res["oro"] = {
+        "con_oro": len(oro),
+        "por_acuerdo": int(acu.sum()),
+        "por_adjudicacion": len(oro) - int(acu.sum()),
+        "sin_oro_pendientes": len(sin_oro),
+    }
     if sin_oro:
-        res["oro"]["aviso"] = "faltan adjudicaciones; las cifras se calculan solo sobre renglones con oro (sesgo: los desacuerdos son los dificiles)"
+        res["oro"]["aviso"] = (
+            "faltan adjudicaciones; las cifras se calculan solo sobre renglones con oro (sesgo: los desacuerdos son los dificiles)"
+        )
     ok_ids = [i for i in ids if i in oro]
     if not ok_ids:
         res["sistema"] = None
@@ -159,7 +164,7 @@ def correr(dir_muestra: Path, salida: Path, adjudicacion: Path | None = None) ->
     pred_oro = np.array([sis[i]["sistema"] == oro[i] for i in ok_ids])
     pred_circ = np.array([sis[i]["sistema"] == sis[i]["circular"] for i in ok_ids])
     acepta = np.array([sis[i]["aceptado"] for i in ok_ids])
-    listas = np.array([f'{ofl[i]["colegio"]}|{ofl[i]["grado"]}' for i in ok_ids])
+    listas = np.array([f"{ofl[i]['colegio']}|{ofl[i]['grado']}" for i in ok_ids])
     m = len(ok_ids)
     rng = np.random.default_rng(SEMILLA)
 
@@ -167,8 +172,14 @@ def correr(dir_muestra: Path, salida: Path, adjudicacion: Path | None = None) ->
         base = metricas_sistema(ok, acepta, np.arange(m))
         out = {}
         for nombre in base:
-            fn = lambda ix, nombre=nombre: metricas_sistema(ok, acepta, ix)[nombre] if acepta[ix].sum() else None  # noqa: E731
-            out[nombre] = {"valor": base[nombre], "ic95": ic(fn, m, rng), "ic95_por_lista": ic(fn, m, rng, listas)}
+            fn = lambda ix, nombre=nombre: (
+                metricas_sistema(ok, acepta, ix)[nombre] if acepta[ix].sum() else None
+            )  # noqa: E731
+            out[nombre] = {
+                "valor": base[nombre],
+                "ic95": ic(fn, m, rng),
+                "ic95_por_lista": ic(fn, m, rng, listas),
+            }
         return out
 
     res["sistema"] = {
@@ -179,12 +190,24 @@ def correr(dir_muestra: Path, salida: Path, adjudicacion: Path | None = None) ->
     }
     dif = {}
     for nombre in ("exactitud", "precision_aceptada"):
+
         def fd(ix, nombre=nombre):
             if not acepta[ix].sum():
                 return None
-            return metricas_sistema(pred_circ, acepta, ix)[nombre] - metricas_sistema(pred_oro, acepta, ix)[nombre]
-        v = metricas_sistema(pred_circ, acepta, np.arange(m))[nombre] - metricas_sistema(pred_oro, acepta, np.arange(m))[nombre]
-        dif[nombre] = {"circular_menos_oro": v, "ic95": ic(fd, m, rng), "ic95_por_lista": ic(fd, m, rng, listas)}
+            return (
+                metricas_sistema(pred_circ, acepta, ix)[nombre]
+                - metricas_sistema(pred_oro, acepta, ix)[nombre]
+            )
+
+        v = (
+            metricas_sistema(pred_circ, acepta, np.arange(m))[nombre]
+            - metricas_sistema(pred_oro, acepta, np.arange(m))[nombre]
+        )
+        dif[nombre] = {
+            "circular_menos_oro": v,
+            "ic95": ic(fd, m, rng),
+            "ic95_por_lista": ic(fd, m, rng, listas),
+        }
     res["sistema"]["inflacion_por_circularidad"] = dif
     circ = [sis[i]["circular"] for i in ok_ids]
     res["etiqueta_circular_vs_oro"] = {
@@ -205,7 +228,16 @@ def main() -> int:
     ap.add_argument("--adjudicacion", type=Path, default=None)
     g = ap.parse_args()
     r = correr(g.dir, g.salida, g.adjudicacion)
-    print(json.dumps({"acuerdo": r["acuerdo_A_B"]["porcentaje"], "kappa": r["acuerdo_A_B"]["kappa_cohen"], "oro": r["oro"]}, ensure_ascii=False))
+    print(
+        json.dumps(
+            {
+                "acuerdo": r["acuerdo_A_B"]["porcentaje"],
+                "kappa": r["acuerdo_A_B"]["kappa_cohen"],
+                "oro": r["oro"],
+            },
+            ensure_ascii=False,
+        )
+    )
     return 0
 
 

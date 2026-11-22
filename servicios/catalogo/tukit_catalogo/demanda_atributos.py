@@ -1,27 +1,12 @@
 """Decide, midiendo, cual atributo filtra y cual solo describe.
 
-El catalogo declara por concepto que atributos importan. La pregunta que este
-modulo responde es cual de ellos puede usarse como CONDICION para descartar un
-producto, y la respuesta no se opina: se cuenta. Un atributo puede filtrar si
-alguna lista de colegio lo pide; si en 4.719 renglones reales nadie lo
-menciona, exigirlo solo descarta candidatos validos.
+Decisiones:
+- Un atributo puede ser condicion para descartar un producto solo si alguna lista de colegio lo
+  pide; exigir uno que nadie menciona descarta candidatos validos (la talla de una bata).
+- La particion se deriva de las listas y no se escribe a mano, asi que se puede repetir cuando
+  entren colegios nuevos.
 
-El caso que lo dejo claro es la bata de laboratorio. El catalogo exige `talla`,
-y es un dato sensato de una bata, pero ninguna lista la pide porque la talla
-depende del nino. Con `talla` como condicion, pedir `bata blanca de
-laboratorio` no resuelve nada: ninguna bata del catalogo declara su talla, asi
-que se descartan todas y el renglon se va a revision sin motivo. Al revés
-tambien falla: `rayado` lo especifican 353 renglones y decide si un cuaderno
-sirve, asi que tratarlo como decorativo hace que un cuaderno de cuadricula
-pase por uno de doble linea.
-
-La particion se deriva y no se escribe a mano, y eso es lo que la hace
-defendible. Se puede volver a correr cuando entren colegios nuevos, y la
-respuesta cambiara si cambia lo que los colegios piden, que es precisamente
-como deberia comportarse.
-
-    python -m tukit_catalogo.demanda_atributos            # informe, sin tocar nada
-    python -m tukit_catalogo.demanda_atributos --escribir # reparte en el CSV
+Uso:  python -m tukit_catalogo.demanda_atributos [--escribir]
 """
 
 from __future__ import annotations
@@ -34,18 +19,13 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from .enriquecer import extraer_atributos
+from .extraccion import extraer_atributos
 
 RAIZ = Path(__file__).resolve().parents[3]
 CONCEPTOS = RAIZ / "datos" / "catalogo" / "conceptos.csv"
 CORPUS = RAIZ.parent / "Arquitectura" / "Corpus_ItemLista_v2.csv"
 INFORME = RAIZ / "datos" / "catalogo" / "demanda_atributos.json"
 
-# Cuantos renglones tienen que pedir un atributo para que se le permita
-# descartar productos. Uno basta: un atributo que una sola lista especifica
-# sigue siendo un atributo que un colegio escribio, y el coste de tratarlo
-# como condicion es bajo cuando el producto lo declara. Lo que se quiere
-# separar es lo que NADIE pide, que es distinto de lo que se pide poco.
 MINIMO = 1
 
 
@@ -59,13 +39,7 @@ def _conceptos() -> list[dict[str, Any]]:
 
 
 def medir(conceptos: list[dict[str, Any]]) -> collections.Counter:
-    """Cuantas veces cada concepto ve especificado cada uno de sus atributos.
-
-    Se mide sobre el CSV y no sobre la base para que el resultado dependa
-    solo de archivos versionados: el corpus, el catalogo y este codigo. Una
-    medicion que dependa del estado de una base no se puede repetir.
-    """
-    from .descubrir import clasificar
+    from .clasificacion import clasificar
 
     para_clasificar = [
         {
@@ -125,9 +99,6 @@ def _escribir(conceptos: list[dict[str, Any]], pide: collections.Counter) -> Non
         escritor.writeheader()
         escritor.writerows({c: concepto.get(c, "") for c in columnas} for concepto in conceptos)
 
-    # El conteo se guarda al lado del reparto. Sin el, la particion es una
-    # lista de atributos que alguien decidio y no se puede discutir; con el,
-    # cada atributo trae el numero de renglones que lo pidieron.
     INFORME.write_text(
         json.dumps(
             {

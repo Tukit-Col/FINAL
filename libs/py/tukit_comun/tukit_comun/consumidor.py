@@ -1,32 +1,14 @@
-"""El consumidor de una cola de RabbitMQ: confirma, reintenta, descarta y no repite (ADR 0046).
+"""Consumidor de una cola de RabbitMQ: confirma, reintenta, descarta y no repite.
 
-Cada consumidor (el repartidor, los dos sondeadores y el trabajador) escucha su
-propia cola de la topologia y aporta solo su `manejar(evento) -> Resultado`, el
-mismo que usa cuando sondea la bandeja. Lo demas vive aqui una vez:
-
-- `HECHO` u `OMITIR`: se anota el evento en el registro, si hay, y se confirma
-  (ack). Se confirma DESPUES de procesar y guardar: si el proceso cae antes, el
-  broker lo vuelve a entregar.
-- `REINTENTAR`, o un error que no es una caida: el mensaje va a la cola de
-  reintentos con su intento en la cabecera `tukit-intentos`, y vuelve a la
-  principal cuando vence la espera. Al llegar a `max_intentos`, va a la cola de
-  descartados con el motivo en `tukit-motivo` y un registro de error.
-- Una caida de la base o del broker (`es_caida_transitoria`) no gasta intentos:
-  el mensaje vuelve a la cola (nack con reencolar) y el error sube, para que
-  `bucle_resiliente` espere y reconecte.
-- Un cuerpo que no es un sobre de evento va directo a descartados: reintentarlo
-  no lo arregla.
-- **Al menos una vez.** RabbitMQ puede entregar un mensaje dos veces (un ack que
-  se pierde, un publicador que publica de nuevo). Con un `registro`, el
-  consumidor salta el evento que ya proceso, por su origen y su id. El
-  consumidor que es idempotente por naturaleza no lo necesita.
-
-El correlacion_id del evento se re-vincula antes de manejarlo, como en
-`drenar`, para que los registros del consumo sigan el hilo de la peticion.
-
-`procesar` no importa `aio-pika`: recibe un mensaje con `body`, `headers`,
-`ack`, `nack` y `reject`, y prueba con dobles. `escuchar` y `consumir` son los
-que hablan con el broker.
+Decisiones:
+- Cada consumidor aporta solo `manejar(evento) -> Resultado`, el mismo que usa al sondear la bandeja.
+- Se confirma (ack) despues de procesar y guardar: si el proceso cae antes, el broker reentrega.
+- `REINTENTAR`, o un error que no es una caida, lleva el mensaje a la cola de reintentos con el
+  intento en `tukit-intentos`; al llegar a `max_intentos` va a descartados con el motivo en
+  `tukit-motivo`.
+- Una caida de la base o del broker no gasta intentos: el mensaje vuelve a la cola y el error sube
+  para que `bucle_resiliente` espere y reconecte.
+- Un cuerpo que no es un sobre de evento va directo a descartados.
 """
 
 from __future__ import annotations
@@ -50,19 +32,14 @@ from .topologia import CABECERA_INTENTOS, CABECERA_MOTIVO, TOPOLOGIA, Cola, Topo
 
 log = logging.getLogger(__name__)
 
-# Intentos antes de descartar. Con la espera de la cola de reintentos (10 s),
-# un mensaje que falla siempre pasa unos 40 s reintentandose.
 MAX_INTENTOS = 5
 PREFETCH_POR_OMISION = 10
-# Lo que se guarda del motivo en la cabecera: suficiente para leerlo en la consola.
 _MOTIVO_MAXIMO = 500
 
 Manejar = Callable[[Evento], Awaitable[Resultado]]
 
 
 class Decision(enum.StrEnum):
-    """Lo que el consumidor hizo con un mensaje."""
-
     HECHO = "hecho"
     OMITIDO = "omitido"
     DUPLICADO = "duplicado"
@@ -70,12 +47,7 @@ class Decision(enum.StrEnum):
     DESCARTADO = "descartado"
 
 
-# --- deduplicacion -----------------------------------------------------------
-
-
 class Registro(Protocol):
-    """Los eventos que un consumidor ya proceso, por origen e id."""
-
     async def ya_procesado(self, origen: str, evento_id: int) -> bool: ...
 
     async def marcar(self, origen: str, evento_id: int) -> None: ...
@@ -83,8 +55,6 @@ class Registro(Protocol):
 
 @dataclass
 class RegistroEnMemoria:
-    """Un registro que vive lo que vive el proceso. Para pruebas."""
-
     vistos: set[tuple[str, int]] = field(default_factory=set)
 
     async def ya_procesado(self, origen: str, evento_id: int) -> bool:
@@ -95,10 +65,6 @@ class RegistroEnMemoria:
 
 
 def eventos_procesados_reflejada(metadatos: MetaData | None = None) -> Table:
-    """La tabla `evento_procesado` con la forma que espera `RegistroEnTabla`.
-
-    El servicio que la usa la declara en sus modelos, con su migracion; aqui se
-    refleja con las mismas columnas, como `bandeja_reflejada`."""
     return Table(
         "evento_procesado",
         metadatos if metadatos is not None else MetaData(),
@@ -109,11 +75,6 @@ def eventos_procesados_reflejada(metadatos: MetaData | None = None) -> Table:
 
 
 async def marcar_procesado(conexion: Any, origen: str, evento_id: int) -> bool:
-    """Anota el evento en la transaccion de `conexion`. `False` si ya estaba.
-
-    Para el manejador que tiene que anotarlo junto con su efecto, en la misma
-    transaccion: si el efecto vuelve atras, la marca tambien. La llave primaria
-    es la ultima guarda si dos entregas corren a la vez."""
     tabla = eventos_procesados_reflejada()
     ya = await conexion.scalar(
         select(tabla.c.evento_id).where(tabla.c.origen == origen, tabla.c.evento_id == evento_id)
@@ -128,8 +89,6 @@ async def marcar_procesado(conexion: Any, origen: str, evento_id: int) -> bool:
 
 @dataclass
 class RegistroEnTabla:
-    """El registro en la tabla `evento_procesado` de la base del consumidor."""
-
     motor: AsyncEngine
 
     async def ya_procesado(self, origen: str, evento_id: int) -> bool:
@@ -145,13 +104,7 @@ class RegistroEnTabla:
             await marcar_procesado(conexion, origen, evento_id)
 
 
-# --- el consumidor -----------------------------------------------------------
-
-
 class Reenvio(Protocol):
-    """Publica una copia del mensaje en la cola `cola` (por el exchange por
-    omision), con `cabeceras`, y vuelve cuando el broker confirmo."""
-
     async def __call__(self, mensaje: Any, *, cola: str, cabeceras: dict[str, Any]) -> None: ...
 
 
@@ -163,14 +116,11 @@ def _intentos(cabeceras: dict[str, Any] | None) -> int:
 
 
 def _cabeceras_propias(mensaje: Any) -> dict[str, Any]:
-    # Solo las nuestras: las `x-death` que pone RabbitMQ no se copian al reenviar.
     return {clave: valor for clave, valor in (mensaje.headers or {}).items() if clave.startswith("tukit-")}
 
 
 @dataclass
 class Consumidor:
-    """Procesa los mensajes de `cola` con `manejar`."""
-
     cola: Cola
     manejar: Manejar
     reenviar: Reenvio | None = None
@@ -178,7 +128,6 @@ class Consumidor:
     max_intentos: int = MAX_INTENTOS
 
     async def procesar(self, mensaje: Any) -> Decision:
-        """Procesa un mensaje y lo confirma, lo reenvia o lo descarta."""
         intentos = _intentos(mensaje.headers)
         try:
             evento = evento_de(mensaje.body, intentos=intentos)
@@ -208,8 +157,6 @@ class Consumidor:
                 await self.registro.marcar(evento.origen, evento.id)
             await mensaje.ack()
         except Exception as error:
-            # Procesado pero sin confirmar: vuelve a la cola y, con registro, la
-            # entrega siguiente lo da por repetido.
             if es_caida_transitoria(error):
                 await self._devolver(mensaje)
             raise
@@ -253,14 +200,10 @@ class Consumidor:
         await self.reenviar(mensaje, cola=cola, cabeceras={**_cabeceras_propias(mensaje), **cabeceras})
 
     async def _devolver(self, mensaje: Any) -> None:
-        # Si el canal ya cayo, el broker lo reencola solo al cerrar la conexion.
         try:
             await mensaje.nack(requeue=True)
         except Exception:
             log.debug("%s: no se pudo devolver el mensaje; vuelve al cerrar la conexion", self.cola.nombre)
-
-
-# --- el broker ---------------------------------------------------------------
 
 
 def _reenvio_amqp(canal: Any) -> Reenvio:
@@ -290,10 +233,6 @@ async def escuchar(
     prefetch: int = PREFETCH_POR_OMISION,
     hasta_vaciar: bool = False,
 ) -> int:
-    """Escucha la cola del consumidor y devuelve cuantos mensajes proceso.
-
-    Con `hasta_vaciar`, procesa lo que hay y vuelve (una pasada, sin `--seguir`);
-    si no, escucha hasta que la conexion o el consumo terminen."""
     import aio_pika
 
     conexion = await aio_pika.connect_robust(url)
@@ -329,11 +268,6 @@ async def consumir(
     prefetch: int = PREFETCH_POR_OMISION,
     dormir: Callable[[float], Awaitable[None]] = asyncio.sleep,
 ) -> int:
-    """Una pasada hasta vaciar la cola, o escuchar sobre `bucle_resiliente`.
-
-    En el bucle, una caida del broker o de la base reconecta tras la espera; si
-    el consumo termina sin error (el broker lo cancelo), se vuelve a escuchar
-    tras `intervalo`."""
     if not seguir:
         return await escuchar(url, consumidor, topologia=topologia, prefetch=prefetch, hasta_vaciar=True)
 

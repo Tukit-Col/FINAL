@@ -1,17 +1,3 @@
-"""Toda ruta que exige sesion responde 401 sin un token valido, y no dice mas.
-
-Una sola tabla de (metodo, ruta, cuerpo) cruzada con las credenciales que no
-valen: sin cabecera, cabecera vacia y un token inventado. Asi una ruta nueva
-con token se protege agregando una fila, y ninguna se queda sin su 401.
-
-Lo que se fija en cada caso:
-
-- El estado es 401 con `sesion_invalida`, antes de validar el cuerpo o la
-  consulta: un `?ids=nope` sin token NO delata la ruta con un 400.
-- El cuerpo del error es solo el sobre (`error`, `mensaje`, `campo`): nunca un
-  apodo, un nombre ni un dato del titular.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -53,7 +39,6 @@ RUTAS_CON_SESION = [
     ("POST", "/v1/cuenta/supresion", {"confirmacion": FRASE_CONFIRMACION}),
     ("GET", f"/v1/usuarios/nombres?ids={uuid.uuid4()}", None),
     ("GET", "/v1/admin/acudientes", None),
-    # El gate va primero: la consulta mal formada no llega a validarse.
     ("GET", "/v1/admin/acudientes?ids=nope", None),
 ]
 

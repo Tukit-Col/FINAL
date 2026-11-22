@@ -1,11 +1,3 @@
-"""El acudiente quita un renglon de su kit ("ya lo tengo") y elige otra opcion
-del mismo concepto.
-
-Lo que se defiende: lo descartado no suma al total ni entra a la orden que se
-cobra, se puede deshacer, no toca el kit canonico de otros acudientes, y solo el
-dueno del trabajo lo hace.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -17,7 +9,6 @@ from tukit_inteligencia import trabajos
 
 
 def _catalogo_con_cuatro_cuadernos() -> CatalogoFalso:
-    """Cuatro cuadernos del mismo concepto: el kit solo ofrece dos como alternativa."""
     catalogo = catalogo_simple()
     catalogo.respuestas["2 cuadernos cuadriculados"] = reconocido(
         "2 cuadernos cuadriculados",
@@ -33,8 +24,6 @@ def _catalogo_con_cuatro_cuadernos() -> CatalogoFalso:
 
 
 async def _publicado(motor, usuario_id=None) -> uuid.UUID:
-    # En oe5 la cache bendita nace de la LISTA aprobada (`canonico_lista`), no
-    # de aprobar el trabajo de un papa.
     await sembrar_canonico(motor, _catalogo_con_cuatro_cuadernos())
     resultado = await trabajos.aplicar_canonico(
         motor,
@@ -83,7 +72,6 @@ async def test_descartar_una_linea_baja_el_total_y_se_puede_deshacer(motor):
     assert cuaderno["subtotal_linea"] is None
     assert cuaderno["subtotal_descartado"] == subtotal
     assert total_del_kit(vista, "Ahorrador") == total_antes - subtotal
-    # Solo el kit donde se descarto cambia.
     assert "descartado" not in linea_del_kit(vista, "Premium", "2 cuadernos")
 
     await trabajos.descartar_linea_del_acudiente(
@@ -119,7 +107,6 @@ async def test_la_orden_no_cobra_lo_descartado_y_suma_lo_demas(motor):
     skus = {ln["sku"] for ln in comercio.orden["lineas"]}
     assert "TK-C001-ECO" not in skus
     assert "TK-C004-CON" in skus
-    # Lo cobrado es exactamente el total que el papa vio en pantalla.
     vista = await trabajos.ver(motor, parent_id, catalogo=catalogo)
     assert resultado["total"] == total_del_kit(vista, "Ahorrador")
 
@@ -149,7 +136,6 @@ async def test_descartar_y_cambiar_en_la_misma_linea_no_cobra_la_linea(motor):
     )
     assert all(not ln["sku"].startswith("TK-C001") for ln in comercio.orden["lineas"])
 
-    # Al reactivarla vuelve con el producto que el papa habia elegido.
     await trabajos.descartar_linea_del_acudiente(
         motor, parent_id, "Ahorrador", item, descartar=False, usuario_id=dueno, catalogo=catalogo
     )
@@ -213,7 +199,6 @@ async def test_descartar_no_toca_el_canonico_de_los_demas(motor):
     await trabajos.descartar_linea_del_acudiente(
         motor, parent_id, "Ahorrador", item, descartar=True, usuario_id=None, catalogo=catalogo
     )
-    # Otro acudiente que aplica el mismo canonico ve el kit completo.
     otro = uuid.UUID(
         (
             await trabajos.aplicar_canonico(
@@ -238,13 +223,11 @@ async def test_las_opciones_traen_todo_el_concepto_con_la_diferencia(motor):
 
     cuerpo = await trabajos.opciones_de_la_linea(motor, parent_id, "Ahorrador", item, catalogo=catalogo)
     opciones = {o["sku"]: o for o in cuerpo["opciones"]}
-    # Las cuatro del mismo concepto, no solo las dos alternativas revisadas.
     assert set(opciones) == {"TK-C001-ECO", "TK-C001-CON", "TK-C001-PRE", "TK-C001-LUJ"}
-    assert cuerpo["opciones"][0]["sku"] == "TK-C001-ECO"  # el del kit va primero
+    assert cuerpo["opciones"][0]["sku"] == "TK-C001-ECO"
     assert opciones["TK-C001-ECO"]["en_kit"] and opciones["TK-C001-ECO"]["diferencia"] == 0
     assert opciones["TK-C001-LUJ"]["diferencia"] == 2 * (15000 - 4500)
     assert opciones["TK-C001-LUJ"]["marca"] == "Norma"
-    # Nunca ofrece algo de otro concepto (la caja de colores).
     assert "TK-C004-CON" not in opciones
 
 
@@ -262,7 +245,6 @@ async def test_se_puede_elegir_un_producto_del_mismo_concepto_fuera_de_las_alter
     vista = await trabajos.ver(motor, parent_id, catalogo=catalogo)
     assert linea_del_kit(vista, "Ahorrador", "2 cuadernos")["producto_elegido"]["sku"] == "TK-C001-LUJ"
 
-    # Un producto de OTRO concepto sigue rechazado.
     with pytest.raises(trabajos.CambioNoPermitido) as error:
         await trabajos.cambiar_producto_del_acudiente(
             motor, parent_id, "Ahorrador", item, "TK-C004-CON", usuario_id=None, catalogo=catalogo
@@ -271,7 +253,6 @@ async def test_se_puede_elegir_un_producto_del_mismo_concepto_fuera_de_las_alter
 
 
 async def _con_filtros(motor, trabajo_id, preferencias) -> None:
-    """Deja las preferencias del trabajo como las dejaria el asistente al pedirlo."""
     from sqlalchemy import update
     from tukit_comun.cifrado import cifrador_desde_entorno
 

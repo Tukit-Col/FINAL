@@ -1,6 +1,3 @@
-"""Importar una lista desde el onboarding o la sugerencia de un padre (`/v1/admin/listas/importar`)."""
-
-# El fixture `cliente` llega de `_ayudas_api_admin` y los tests lo reciben por nombre.
 # ruff: noqa: F811
 
 from __future__ import annotations
@@ -32,7 +29,6 @@ class TestImportarListaDesdeOnboarding:
 
         vista = (await cliente.get(f"/v1/admin/listas/{cuerpo['version_id']}/revision")).json()
         assert vista["revisada"] is False
-        # El cuaderno se resolvio a concepto; la chaquira no y va a revision.
         cuaderno = next(i for i in vista["items"] if i["texto_original"].startswith("2 cuadernos"))
         assert cuaderno["concepto"] is not None
         chaquira = next(i for i in vista["items"] if i["texto_original"].startswith("chaquiras"))
@@ -47,7 +43,6 @@ class TestImportarListaDesdeOnboarding:
         assert respuesta.content == PDF_FALSO
 
     async def test_el_documento_png_conserva_su_tipo(self, cliente):
-        # Una lista subida como imagen se sirve como image/png, no como PDF.
         cuerpo = _cuerpo_importar(
             evidencia={
                 "documento_base64": base64.b64encode(PNG_FALSO).decode("ascii"),
@@ -71,11 +66,6 @@ class TestImportarListaDesdeOnboarding:
         }
 
     async def test_la_percepcion_coacciona_un_crudo_viejo_de_lista_a_texto(self, cliente):
-        # Versiones importadas antes del arreglo guardaron `crudo` como una LISTA
-        # de objetos {descripcion,cantidad,confianza} en vez de texto. La region 2
-        # lo pinta directo y una lista revienta React ("Objects are not valid as a
-        # React child"). El endpoint tiene que devolverlo SIEMPRE como cadena,
-        # sin depender de una migracion, para no romper las filas ya escritas.
         cuerpo_viejo = _cuerpo_importar(
             evidencia={
                 "documento_base64": base64.b64encode(PDF_FALSO).decode("ascii"),
@@ -98,7 +88,6 @@ class TestImportarListaDesdeOnboarding:
         assert "caja de colores" in crudo
 
     async def test_el_documento_sin_evidencia_es_404(self, cliente):
-        # La version sembrada (abierta) no tiene tarea de evidencia.
         vid = cliente.ids["abierta"]
         for recurso in ("documento", "percepcion"):
             respuesta = await cliente.get(f"/v1/admin/listas/{vid}/{recurso}")
@@ -110,7 +99,6 @@ class TestImportarListaDesdeOnboarding:
         segunda = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()
         assert primera["version_id"] != segunda["version_id"]
 
-        # Una sola vigente por lista, con el numero mas alto.
         listas = (await cliente.get(f"/v1/admin/listas?colegio_id={COLEGIO}&grado=Sexto")).json()
         assert listas["total"] == 1
         assert listas["listas"][0]["numero"] == 2
@@ -126,8 +114,6 @@ class TestImportarListaDesdeOnboarding:
         assert env["campo"] == "cantidad"
 
     async def test_sin_contacto_la_tarea_queda_sin_referencia(self, cliente):
-        # El onboarding del colegio no trae un padre esperando: la tarea de
-        # evidencia nace sin `contacto_referencia`.
         env = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()
         motor = app.state.motor
         async with motor.sesion() as db:
@@ -138,9 +124,6 @@ class TestImportarListaDesdeOnboarding:
         assert fila.contacto_referencia is None
 
     async def test_con_contacto_la_tarea_referencia_al_padre_que_espera(self, cliente):
-        # La subida de un acudiente importa la version PERO deja la traza al
-        # padre por identificador (nunca su correo/telefono) para avisarle
-        # cuando un administrador la apruebe.
         referencia = str(uuid.uuid4())
         env = (
             await cliente.post(
@@ -163,8 +146,6 @@ class TestImportarListaDesdeOnboarding:
         assert respuesta.json()["campo"] == "contacto_referencia"
 
     async def test_las_preferencias_del_padre_se_guardan_en_la_tarea(self, cliente):
-        # Las preferencias que el padre declaro al subir se guardan tal cual para
-        # que el kit de la aprobacion las use, en vez de los pesos por omision.
         preferencias = {
             "pesos": {"precio": 0.6, "marca_exigida": 0.15, "calidad": 0.2, "personaje": 0.05},
             "disposicion_sobreprecio": 0.0,
@@ -200,9 +181,6 @@ class TestImportarListaDesdeOnboarding:
         assert respuesta.json()["campo"] == "preferencias"
 
     async def test_los_datos_del_colegio_se_guardan_en_la_tarea(self, cliente):
-        # Cuando la lista llega por un colegio que aun no existe en Tukit (el
-        # acudiente lo eligio del directorio o lo escribio), sus datos se guardan
-        # tal cual para que la cola los muestre y la aprobacion cree la identidad.
         colegio_datos = {"dane": "311001105731", "nombre": "ACADEMIA CENTRAL DE SISTEMAS"}
         env = (
             await cliente.post(
@@ -219,7 +197,6 @@ class TestImportarListaDesdeOnboarding:
         assert fila.colegio_datos == colegio_datos
 
     async def test_sin_datos_de_colegio_la_tarea_los_deja_en_null(self, cliente):
-        # Un colegio aliado ya conocido no trae datos que crear.
         env = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()
         motor = app.state.motor
         async with motor.sesion() as db:
@@ -237,11 +214,6 @@ class TestImportarListaDesdeOnboarding:
 
 
 class TestImportarConClaveDeIdempotencia:
-    """Inteligencia reintenta la importacion de una subida que encontro el
-    catalogo caido (ADR 0040). Si la primera entro y lo que se perdio fue la
-    respuesta, el reintento trae la misma `clave_idempotencia` y tiene que
-    recibir la version que ya existe, no crear otra."""
-
     async def _versiones(self, cliente) -> list[dict]:
         listas = (await cliente.get(f"/v1/admin/listas?colegio_id={COLEGIO}&grado=Sexto")).json()
         return listas["listas"]
@@ -290,9 +262,6 @@ class TestImportarConClaveDeIdempotencia:
         assert respuesta.json()["campo"] == "clave_idempotencia"
 
     async def test_si_dos_entran_a_la_vez_la_segunda_recibe_la_primera(self, cliente, monkeypatch):
-        # La carrera: las dos peticiones miran antes de escribir y ninguna ve a
-        # la otra. El indice unico frena la segunda y su transaccion entera
-        # (version y renglones incluidos) se deshace; responde con la primera.
         from tukit_catalogo.repositorios.admin import RepoAdmin
 
         clave = str(uuid.uuid4())
@@ -321,11 +290,6 @@ class TestImportarConClaveDeIdempotencia:
 
 
 class TestEditarDatosDelColegioEnLaRevision:
-    """El revisor completa los datos del colegio nuevo ANTES de aprobar, para que
-    se vaya completo (logo, direccion, contacto...) y no solo con nombre y grado.
-    Se guardan sobre `colegio_datos` de la tarea; al aprobar viajan en el evento
-    `colegio_verificado` y Identidad crea el colegio con ellos."""
-
     async def test_la_revision_expone_los_datos_del_colegio_nuevo(self, cliente):
         colegio_datos = {"dane": "311001105731", "nombre": "ACADEMIA CENTRAL DE SISTEMAS"}
         vid = (
@@ -353,7 +317,6 @@ class TestEditarDatosDelColegioEnLaRevision:
             )
         ).json()["version_id"]
 
-        # El revisor completa logo, direccion y contacto.
         parche = {
             "logo_url": "https://cdn.tukit.co/logos/aca.png",
             "direccion": "Calle 1 # 2-3",
@@ -362,13 +325,11 @@ class TestEditarDatosDelColegioEnLaRevision:
         respuesta = await cliente.patch(f"/v1/admin/listas/{vid}/colegio", json=parche)
         assert respuesta.status_code == 200
 
-        # Persistio sobre colegio_datos (merge, sin perder nombre/dane).
         vista = (await cliente.get(f"/v1/admin/listas/{vid}/revision")).json()
         assert vista["colegio_datos"]["logo_url"] == "https://cdn.tukit.co/logos/aca.png"
         assert vista["colegio_datos"]["direccion"] == "Calle 1 # 2-3"
         assert vista["colegio_datos"]["nombre"] == "ACADEMIA CENTRAL DE SISTEMAS"
 
-        # Al aprobar, esos datos viajan en el evento colegio_verificado.
         assert (await cliente.post(f"/v1/admin/listas/{vid}/cerrar")).status_code == 200
         eventos = [f for f in await _bandeja_de(cliente) if f.tipo == "colegio_verificado"]
         assert len(eventos) == 1
@@ -376,7 +337,6 @@ class TestEditarDatosDelColegioEnLaRevision:
         assert eventos[0].carga["contacto_email"] == "rector@aca.edu.co"
 
     async def test_completar_un_aliado_sin_datos_de_colegio_es_409(self, cliente):
-        # Una version de colegio ya aliado no tiene datos que completar.
         vid = (await cliente.post("/v1/admin/listas/importar", json=_cuerpo_importar())).json()["version_id"]
         respuesta = await cliente.patch(f"/v1/admin/listas/{vid}/colegio", json={"logo_url": "x"})
         assert respuesta.status_code == 409

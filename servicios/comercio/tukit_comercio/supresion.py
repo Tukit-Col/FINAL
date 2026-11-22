@@ -1,30 +1,14 @@
-"""La supresion del titular en Comercio (Ley 1581, ADR 0048).
+"""Supresion del titular en Comercio (Ley 1581).
 
-Identidad publica `titular_suprimido` cuando un acudiente pide borrar sus datos.
-Este proceso lo consume de `comercio.supresion` y hace la parte de Comercio:
-
-- **Enmascara** la copia congelada del envio de cada pedido del titular: el
-  destinatario y la direccion quedan con la marca, y el telefono, el documento,
-  las indicaciones y el lugar de Google quedan vacios. El motivo libre de sus
-  devoluciones tambien se reemplaza: es texto que el titular escribio.
-- **Conserva** el pedido, sus lineas, sus pagos, su historial y la ciudad y
-  localidad del envio. La ley obliga a guardar los soportes contables diez anos
-  (ET art. 632, C.Co. art. 60) y lo necesario para la garantia y el retracto
-  (Ley 1480 arts. 7 y 47). `pedido.usuario_id` se queda: en Identidad ya no
-  resuelve a nadie.
-- **Confirma** escribiendo `supresion_confirmada` en su propia bandeja, en la
-  misma transaccion que el enmascarado. El publicador de Comercio la lleva a
-  Identidad, que cierra la solicitud cuando confirman los tres.
-
-Es idempotente: enmascarar lo ya enmascarado deja la base igual y la
-confirmacion no se repite, asi que un evento que el broker entrega dos veces no
-rompe nada.
-
-    python -m tukit_comercio.supresion           # lo que hay en la cola
-    python -m tukit_comercio.supresion --seguir  # escucha
-
-Solo con RabbitMQ: sin broker no hay de donde recibir el evento sin abrir la
-base de Identidad, y esa lectura cruzada no se agrega por esto.
+Decisiones:
+- Se enmascara la copia congelada del envio de cada pedido del titular (destinatario, direccion,
+  telefono, documento e indicaciones) y el motivo libre de sus devoluciones.
+- Se conservan el pedido, sus lineas, pagos e historial, y la ciudad y localidad del envio: la ley
+  obliga a guardar los soportes contables y lo necesario para la garantia y el retracto.
+- La confirmacion `supresion_confirmada` se escribe en la bandeja en la misma transaccion que el
+  enmascarado.
+- Es idempotente: enmascarar lo ya enmascarado no cambia nada, asi que una entrega doble del broker
+  no rompe nada.
 """
 
 from __future__ import annotations
@@ -55,8 +39,6 @@ SERVICIO = "comercio"
 
 @dataclass
 class Supresor:
-    """Enmascara lo del titular y confirma. El motor se inyecta para probar sin Postgres."""
-
     motor: MotorServicio
 
     async def manejar(self, evento: Evento) -> Resultado:
@@ -76,7 +58,6 @@ class Supresor:
                     telefono=None,
                     documento_destinatario=None,
                     indicaciones=None,
-                    # El pin de un domicilio es tan identificante como el texto.
                     latitud=None,
                     longitud=None,
                 )
@@ -91,7 +72,6 @@ class Supresor:
 
 
 async def escuchar_cola(url: str, *, seguir: bool, intervalo: float = 5.0) -> int:
-    """Consume `comercio.supresion`. Solo abre la base de Comercio."""
     motor = crear_motor(SERVICIO)
     try:
         return await consumir(

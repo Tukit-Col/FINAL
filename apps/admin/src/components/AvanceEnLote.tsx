@@ -1,12 +1,5 @@
 "use client";
 
-// Avance masivo del tablero: casillas por fila + una barra con la acción.
-//
-// La tabla es de servidor; la selección vive aquí, en un contexto. Solo se
-// ofrecen destinos simples (los que no piden datos) y solo si todos los
-// seleccionados comparten el mismo. El resultado es por pedido: nunca
-// todo-o-nada en silencio, y los que fallaron se listan con su motivo.
-
 import {
   createContext,
   useContext,

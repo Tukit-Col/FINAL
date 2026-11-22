@@ -1,6 +1,3 @@
-// Filtros y paginas del padron de /clientes.
-// Correr:  node --test test/clientes.test.ts
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { AcudienteAdmin } from "@tukit/contrato";
@@ -69,16 +66,14 @@ test("hrefClientes conserva filtros y omite lo que es por defecto", () => {
   assert.equal(hrefClientes(leerFiltrosClientes({})), "/clientes");
 });
 
-
 test("clientesPorColegio cuenta acudientes e hijos por colegio y por grado", () => {
   const padron = [
-    fam(1, { hijos: [hijo("A", "Septimo"), hijo("A", "Jardin")] }), // un hogar, dos grados del mismo colegio
+    fam(1, { hijos: [hijo("A", "Septimo"), hijo("A", "Jardin")] }),
     fam(2, { hijos: [hijo("A", "Jardin")] }),
-    fam(3, { hijos: [hijo("B", "5"), hijo("A", "Jardin")] }), // hermanos en colegios distintos
-    fam(4, { hijos: [] }), // sin hijos: no suma a ningun colegio
+    fam(3, { hijos: [hijo("B", "5"), hijo("A", "Jardin")] }),
+    fam(4, { hijos: [] }),
   ];
   const r = clientesPorColegio(padron);
-  // Ordenado por acudientes, de mas a menos.
   assert.deepEqual(r.map((c) => [c.colegio_id, c.acudientes, c.hijos]), [
     ["A", 3, 4],
     ["B", 1, 1],

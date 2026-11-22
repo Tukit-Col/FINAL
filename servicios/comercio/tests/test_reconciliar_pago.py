@@ -1,5 +1,3 @@
-"""Reconciliar el pago de un pedido atascado con Wompi (solo staff)."""
-
 from __future__ import annotations
 
 import httpx
@@ -12,11 +10,7 @@ from tukit_comercio.pasarela import PasarelaCaida
 async def _pendiente(cliente: httpx.AsyncClient) -> tuple[str, str]:
     orden = (await cliente.post("/v1/ordenes", json=nueva_orden())).json()
     pedido_id = orden["pedido_id"]
-    pago = (
-        await cliente.post(
-            f"/v1/ordenes/{pedido_id}/pago", json=SOLICITUD_PAGO
-        )
-    ).json()
+    pago = (await cliente.post(f"/v1/ordenes/{pedido_id}/pago", json=SOLICITUD_PAGO)).json()
     return pedido_id, pago["referencia_wompi"]
 
 
@@ -80,8 +74,6 @@ async def test_pedido_inexistente_es_404(cliente):
 
 
 async def test_el_admin_tambien_reconcilia(cliente):
-    # El operador ya reconcilia arriba; el acceso (401/403) vive en
-    # `test_logistica_acceso.py` con las demas rutas de back-office.
     pedido_id, referencia = await _pendiente(cliente)
     app.state.pasarela.fijar_resultado(referencia, "DECLINED")
     r = await cliente.post(_url(pedido_id), headers=bearer(TOKEN_ADMIN))

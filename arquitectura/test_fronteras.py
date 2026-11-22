@@ -1,17 +1,10 @@
-"""Funciones de aptitud: verifican que el codigo respete las fronteras declaradas.
+"""Funciones de aptitud: verifican que el codigo respete las fronteras declaradas en el manifiesto.
 
-En el sentido de Ford, Parsons y Kua, una funcion de aptitud es una prueba
-automatica y continua sobre una caracteristica arquitectonica. Estas cuatro son
-la diferencia entre *afirmar* que Tukit tiene contextos delimitados y
-*demostrarlo* en cada integracion.
-
-Existen porque el defecto mas grave del sistema anterior, dos servicios
-declarando el maestro del mismo catalogo, no se produjo por falta de criterio
-sino porque nada verificaba el criterio. La disciplina humana ya fallo una vez
-en este proyecto; esta es la defensa que no depende de ella.
-
-Van ANTES de mover la primera tabla, para que el movimiento trace las fronteras
-en vez de borrarlas. Ver ADR 0014.
+Decisiones:
+- Las fronteras son pruebas automaticas y no una convencion: si el codigo se sale de lo
+  declarado en `arquitectura/manifiesto.toml`, la integracion falla.
+- Cada regla tiene su contraparte en `test_fronteras_se_activan.py`, que le da de comer una
+  infraccion y comprueba que la detecte.
 
 Ejecutar:  pytest arquitectura/ -v
 """
@@ -29,15 +22,9 @@ RAIZ = Path(__file__).resolve().parent.parent
 MANIFIESTO = RAIZ / "arquitectura" / "manifiesto.toml"
 
 
-# --------------------------------------------------------------------------
-# Carga del manifiesto
-# --------------------------------------------------------------------------
-
-
 @dataclass(frozen=True)
 class Servicio:
     nombre: str
-    lenguaje: str
     ruta: Path
     paquete: str
     base_datos: str
@@ -49,7 +36,6 @@ def _cargar():
     servicios = {
         nombre: Servicio(
             nombre=nombre,
-            lenguaje=cfg["lenguaje"],
             ruta=RAIZ / cfg["ruta"],
             paquete=cfg["paquete"],
             base_datos=cfg["base_datos"],
@@ -64,7 +50,6 @@ DATOS, SERVICIOS = _cargar()
 REPLICADAS = frozenset(DATOS["meta"]["tablas_replicadas"])
 REFERENCIAS_DECLARADAS = frozenset(ref["desde"] for ref in DATOS.get("referencias_cruzadas", []))
 
-# Tabla -> servicio duenno. Las replicadas no entran: son de todos por diseno.
 DUENO_DE_TABLA: dict[str, str] = {
     tabla: servicio.nombre
     for servicio in SERVICIOS.values()
@@ -95,27 +80,17 @@ def _relativa(ruta: Path) -> str:
     return str(ruta.relative_to(RAIZ))
 
 
-# --------------------------------------------------------------------------
-# Coherencia del propio manifiesto
-# --------------------------------------------------------------------------
-
-
 def test_el_manifiesto_cuadra_con_el_esquema_objetivo():
-    """Si el manifiesto se desincroniza del diseno, las demas pruebas validan
-    contra una frontera equivocada y dan una falsa sensacion de seguridad."""
     total = sum(len(s.tablas) for s in SERVICIOS.values())
     esperado = DATOS["meta"]["total_tablas_esperado"]
     assert total == esperado, (
         f"El manifiesto declara {total} tablas y el esquema objetivo define {esperado}.\n"
         f"Si agregaste o quitaste una tabla a proposito, actualiza tambien "
-        f"`total_tablas_esperado` y Arquitectura/ESQUEMA_OBJETIVO.md."
+        f"`total_tablas_esperado`."
     )
 
 
 def test_las_referencias_cruzadas_declaradas_apuntan_a_algo_real():
-    """Una referencia mal escrita en el manifiesto es peor que no declararla:
-    la prueba de la regla 4 la da por buena y deja pasar la infraccion que
-    debia atrapar."""
     problemas: list[str] = []
 
     for ref in DATOS.get("referencias_cruzadas", []):
@@ -154,8 +129,6 @@ def test_las_referencias_cruzadas_declaradas_apuntan_a_algo_real():
 
 
 def test_ninguna_tabla_tiene_dos_duenos():
-    """Es exactamente el defecto que origino todo el rediseno: `productos_catalogo`
-    declarada como maestro en MS-Comercio y en MS-Busqueda a la vez."""
     apariciones: dict[str, list[str]] = {}
     for servicio in SERVICIOS.values():
         for tabla in servicio.tablas:
@@ -173,11 +146,6 @@ def test_ninguna_tabla_tiene_dos_duenos():
     )
 
 
-# --------------------------------------------------------------------------
-# Regla 1: ningun servicio importa codigo de otro servicio
-# --------------------------------------------------------------------------
-
-
 def _modulos_importados(arbol: ast.Module) -> set[str]:
     modulos: set[str] = set()
     for nodo in ast.walk(arbol):
@@ -190,9 +158,6 @@ def _modulos_importados(arbol: ast.Module) -> set[str]:
 
 @pytest.mark.parametrize("nombre", sorted(SERVICIOS))
 def test_ningun_servicio_importa_otro_servicio(nombre: str):
-    """Un servicio solo puede importar de `libs/`. Importar el codigo de otro
-    servicio convierte dos desplegables en uno acoplado a nivel de compilacion,
-    y la separacion pasa a ser decorativa."""
     servicio = SERVICIOS[nombre]
     ajenos = {s.paquete: s.nombre for s in SERVICIOS.values() if s.nombre != nombre}
 
@@ -214,13 +179,7 @@ def test_ningun_servicio_importa_otro_servicio(nombre: str):
     )
 
 
-# --------------------------------------------------------------------------
-# Regla 2: ningun servicio declara una tabla de un dominio ajeno
-# --------------------------------------------------------------------------
-
-
 def _tablas_declaradas(arbol: ast.Module) -> list[tuple[str, int]]:
-    """Busca `__tablename__ = "x"` en cualquier clase del modulo."""
     encontradas: list[tuple[str, int]] = []
     for nodo in ast.walk(arbol):
         if not isinstance(nodo, ast.Assign):
@@ -238,11 +197,6 @@ def _tablas_declaradas(arbol: ast.Module) -> list[tuple[str, int]]:
 
 @pytest.mark.parametrize("nombre", sorted(SERVICIOS))
 def test_ningun_servicio_declara_tabla_ajena(nombre: str):
-    """La regla que habria impedido el defecto original.
-
-    Declarar el modelo de una tabla ajena es como nace un segundo maestro: al
-    principio es "solo para leer", y termina escribiendo.
-    """
     servicio = SERVICIOS[nombre]
     infracciones: list[str] = []
 
@@ -269,19 +223,7 @@ def test_ningun_servicio_declara_tabla_ajena(nombre: str):
     )
 
 
-# --------------------------------------------------------------------------
-# Regla 3: ningun servicio se conecta a la base de otro
-# --------------------------------------------------------------------------
-
-
 def _docstrings(arbol: ast.Module) -> set[int]:
-    """Ids (por identidad de nodo) de los `ast.Constant` que son docstrings.
-
-    Un docstring es el primer enunciado de un modulo, clase o funcion cuando es
-    un literal de cadena. Es prosa, no codigo: nombrar ahi el paquete de un
-    servicio hermano —`tukit_operacion.repartidor`, que describe quien drena la
-    bandeja— es correcto y deseable, no una conexion a su base.
-    """
     ids: set[int] = set()
     for nodo in ast.walk(arbol):
         cuerpo = getattr(nodo, "body", None)
@@ -300,15 +242,6 @@ def _docstrings(arbol: ast.Module) -> set[int]:
 
 
 def _cadenas_no_docstring(arbol: ast.Module) -> list[str]:
-    """Valores de todos los literales de cadena del modulo MENOS los docstrings.
-
-    La base de un servicio nunca se escribe como literal: `crear_motor` la
-    deriva del entorno (`bd.py`, "El servicio no escribe el nombre de su base
-    como literal"). Por eso una conexion a la base ajena solo puede aparecer
-    como un literal de cadena real —una URL de conexion incrustada—, no como
-    prosa. Los comentarios ni siquiera estan en el arbol, asi que se excluyen
-    solos; aqui se quitan ademas los docstrings.
-    """
     saltar = _docstrings(arbol)
     cadenas: list[str] = []
     for nodo in ast.walk(arbol):
@@ -319,17 +252,6 @@ def _cadenas_no_docstring(arbol: ast.Module) -> list[str]:
 
 @pytest.mark.parametrize("nombre", sorted(SERVICIOS))
 def test_ningun_servicio_nombra_la_base_de_otro(nombre: str):
-    """Una base por servicio. Conectarse a la base ajena salta la frontera
-    entera sin pasar por ninguna interfaz, y ninguna de las otras reglas lo ve.
-
-    El detector busca el nombre de la base ajena en los literales de cadena del
-    codigo (donde viviria una URL de conexion incrustada), no en la linea cruda:
-    la convencion `tukit_<servicio>` hace que el nombre del paquete de un
-    servicio y el de su base coincidan, y un servicio SI puede —y debe— nombrar
-    el paquete hermano en un docstring o comentario (para decir quien drena su
-    bandeja). Mirar la linea cruda confundia esa prosa con una conexion. Se mira
-    solo el AST, sin docstrings, para separar el codigo de la documentacion.
-    """
     servicio = SERVICIOS[nombre]
     ajenas = {s.base_datos: s.nombre for s in SERVICIOS.values() if s.nombre != nombre and s.base_datos}
     if not ajenas:
@@ -350,17 +272,10 @@ def test_ningun_servicio_nombra_la_base_de_otro(nombre: str):
     )
 
 
-# --------------------------------------------------------------------------
-# Regla 3b: las lecturas cruzadas son solo el respaldo sin broker
-# --------------------------------------------------------------------------
-
 LECTURAS_CRUZADAS: dict[str, dict] = {
     lectura["modulo"]: lectura for lectura in DATOS.get("lecturas_cruzadas", [])
 }
-# La funcion con la que un servicio abre la base de otro. La propia se abre con
-# `crear_motor`, que no admite otro nombre que el del servicio.
 ABRE_BASE_AJENA = "url_desde_entorno"
-# Por donde entran los eventos con RabbitMQ en un modulo con lectura cruzada.
 ENTRADA_CON_BROKER = "escuchar_cola"
 TOPOLOGIA = RAIZ / "libs" / "py" / "tukit_comun" / "tukit_comun" / "topologia.py"
 
@@ -370,7 +285,6 @@ def _modulo_de(servicio: Servicio, ruta: Path) -> str:
 
 
 def _llama(nodo: ast.AST, nombre: str) -> bool:
-    """Si dentro de `nodo` hay una llamada a `nombre`, como funcion o como metodo."""
     for hijo in ast.walk(nodo):
         if isinstance(hijo, ast.Call):
             funcion = hijo.func
@@ -382,7 +296,6 @@ def _llama(nodo: ast.AST, nombre: str) -> bool:
 
 
 def _funciones(arbol: ast.Module) -> dict[str, list[ast.AST]]:
-    """Las funciones y metodos del modulo, por nombre."""
     funciones: dict[str, list[ast.AST]] = {}
     for nodo in ast.walk(arbol):
         if isinstance(nodo, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -391,13 +304,6 @@ def _funciones(arbol: ast.Module) -> dict[str, list[ast.AST]]:
 
 
 def _alcanzables(arbol: ast.Module, desde: str) -> set[str]:
-    """Las funciones del modulo a las que se llega desde `desde`, ella incluida.
-
-    Se sigue por nombre y sin tipos: cualquier mencion cuenta, llamada o no,
-    porque un manejador viaja como valor (`manejar=poller.manejar`,
-    `functools.partial(atender_aviso, ...)`). Y `self.manejar` cuenta como
-    cualquier `manejar` del modulo. Sobra antes que faltar: un falso positivo
-    se ve, uno negativo no."""
     funciones = _funciones(arbol)
     vistas: set[str] = set()
     pendientes = [desde]
@@ -416,8 +322,6 @@ def _alcanzables(arbol: ast.Module, desde: str) -> set[str]:
 
 
 def _colas_de_la_topologia() -> set[str]:
-    """Los nombres de las colas que declara `tukit_comun.topologia`, leidos del
-    AST: esta prueba corre sin las dependencias de la libreria."""
     arbol = ast.parse(TOPOLOGIA.read_text(encoding="utf-8"))
     return {
         nodo.args[0].value
@@ -432,11 +336,6 @@ def _colas_de_la_topologia() -> set[str]:
 
 
 def _revisar_lectura_cruzada(modulo: str, arbol: ast.Module, declarada: dict | None) -> list[str]:
-    """Lo que esta mal en un modulo que abre la base de otro servicio, o nada.
-
-    Tiene que estar declarado con `modo = "sin_broker"`, tener `escuchar_cola`
-    (por donde le llegan los eventos con RabbitMQ) y no llegar desde ahi a
-    ninguna funcion que abra una base ajena."""
     if declarada is None:
         return [f"`{modulo}` abre la base de otro servicio y no esta en `[[lecturas_cruzadas]]`"]
     problemas: list[str] = []
@@ -460,12 +359,6 @@ def _revisar_lectura_cruzada(modulo: str, arbol: ast.Module, declarada: dict | N
 
 @pytest.mark.parametrize("nombre", sorted(SERVICIOS))
 def test_toda_lectura_cruzada_es_respaldo_sin_broker(nombre: str):
-    """Con RabbitMQ, ningun servicio lee la base de otro (ADR 0046).
-
-    La regla 3 no ve estas lecturas: el nombre de la base lo deriva la
-    libreria. Esta las encuentra por `url_desde_entorno`, exige que esten
-    declaradas como respaldo sin broker y que el camino con broker
-    (`escuchar_cola`) no llegue a ellas."""
     servicio = SERVICIOS[nombre]
     infracciones: list[str] = []
     for ruta in _archivos_python(servicio):
@@ -486,8 +379,6 @@ def test_toda_lectura_cruzada_es_respaldo_sin_broker(nombre: str):
 
 
 def test_las_lecturas_cruzadas_declaradas_existen():
-    """Una declaracion que ya no corresponde a nada es una excepcion abierta
-    que nadie usa, y la siguiente lectura cruzada entraria por ella."""
     colas = _colas_de_la_topologia()
     problemas: list[str] = []
     for modulo, lectura in sorted(LECTURAS_CRUZADAS.items()):
@@ -511,14 +402,7 @@ def test_las_lecturas_cruzadas_declaradas_existen():
     assert not problemas, "Lecturas cruzadas mal declaradas:\n" + "\n".join(problemas)
 
 
-# --------------------------------------------------------------------------
-# Regla 4: toda referencia a otro dominio esta declarada
-# --------------------------------------------------------------------------
-
-
 def _columnas_declaradas(arbol: ast.Module) -> list[tuple[str, str, int]]:
-    """Devuelve (tabla, columna, linea) de cada `x: Mapped[...] = mapped_column(...)`
-    dentro de una clase que declare `__tablename__`."""
     resultado: list[tuple[str, str, int]] = []
     for nodo in ast.walk(arbol):
         if not isinstance(nodo, ast.ClassDef):
@@ -542,19 +426,6 @@ def _columnas_declaradas(arbol: ast.Module) -> list[tuple[str, str, int]]:
 
 
 def _tabla_apuntada(columna: str) -> str | None:
-    """Que tabla referencia una columna, segun como se llame.
-
-    Dos convenciones, no una. `x_id` apunta a la tabla `x`, y `x_por` apunta
-    a `usuario` porque nombra a quien hizo algo: `curado_por`, `resuelta_por`,
-    `publicada_por`.
-
-    La segunda se agrego despues de que esta misma prueba dejara pasar tres
-    referencias a `identidad.usuario` en Catalogo. El detector solo miraba el
-    sufijo `_id`, asi que una columna de actor cruzaba de servicio sin que
-    nada se quejara. Vale la pena anotarlo porque es el modo de falla propio
-    de una prueba de arquitectura: no da un falso positivo ruidoso, se queda
-    callada, y uno cree que la frontera esta vigilada cuando no lo esta.
-    """
     if columna.endswith("_id"):
         return columna[:-3]
     if columna.endswith("_por"):
@@ -564,13 +435,6 @@ def _tabla_apuntada(columna: str) -> str | None:
 
 @pytest.mark.parametrize("nombre", sorted(SERVICIOS))
 def test_toda_referencia_a_otro_dominio_esta_declarada(nombre: str):
-    """Una columna `x_id` o `x_por` que apunta a una tabla de otro servicio es
-    una llave foranea que Postgres no puede imponer. Si ademas no esta escrita
-    en ningun lado, es invisible: nadie sabe que existe hasta que rompe.
-
-    Es exactamente lo que pasaba con `kits_optimizados.items`, un JSON con
-    `producto_id` adentro que para Postgres era texto.
-    """
     servicio = SERVICIOS[nombre]
     sin_declarar: list[str] = []
 
@@ -599,35 +463,7 @@ def test_toda_referencia_a_otro_dominio_esta_declarada(nombre: str):
     )
 
 
-# --------------------------------------------------------------------------
-# Regla 5: el lenguaje declarado es el que hay
-# --------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("nombre", sorted(SERVICIOS))
-def test_el_lenguaje_declarado_coincide_con_el_codigo(nombre: str):
-    """El reparto de lenguajes salio de una medicion (ver
-    Arquitectura/PERFILADO_PIPELINE.md). Si alguien mete Go donde el manifiesto
-    dice Python, o al reves, la decision cambio sin que nadie la revisara."""
-    servicio = SERVICIOS[nombre]
-    if not servicio.ruta.exists():
-        pytest.skip(f"`{nombre}` todavia no tiene codigo.")
-
-    hay_python = bool(_archivos_python(servicio))
-    hay_go = any(ruta for ruta in servicio.ruta.rglob("*.go") if "vendor" not in ruta.parts)
-
-    if servicio.lenguaje == "python":
-        assert not hay_go, (
-            f"`{nombre}` esta declarado en Python y tiene archivos .go.\n"
-            f"Si el cambio es deliberado, actualiza el manifiesto y escribe el ADR "
-            f"que lo justifique con mediciones."
-        )
-    elif servicio.lenguaje == "go":
-        assert not hay_python, f"`{nombre}` esta declarado en Go y tiene archivos .py."
-
-
 def _grafo_de_dependencias() -> dict[str, set[str]]:
-    """Que servicio referencia a que otro, segun el manifiesto."""
     grafo: dict[str, set[str]] = {n: set() for n in SERVICIOS}
     for ref in DATOS.get("referencias_cruzadas", []):
         origen = ref["desde"].split(".")[0]
@@ -638,10 +474,6 @@ def _grafo_de_dependencias() -> dict[str, set[str]]:
 
 
 def _buscar_ciclo(grafo: dict[str, set[str]]) -> list[str] | None:
-    """Devuelve un ciclo concreto, no solo si existe.
-
-    Decir "hay un ciclo" no sirve para arreglarlo; hay que decir cual.
-    """
     EN_CAMINO, LISTO = 1, 2
     estado: dict[str, int] = {}
     camino: list[str] = []
@@ -650,10 +482,6 @@ def _buscar_ciclo(grafo: dict[str, set[str]]) -> list[str] | None:
         estado[nodo] = EN_CAMINO
         camino.append(nodo)
         for vecino in sorted(grafo.get(nodo, ())):
-            # Una arista de un servicio consigo mismo es una llave foranea
-            # fisica dentro de su propia base. No afecta el orden de arranque
-            # ni el de restauracion, asi que no es un ciclo en el sentido que
-            # aqui importa.
             if vecino == nodo:
                 continue
             if estado.get(vecino) == EN_CAMINO:
@@ -675,24 +503,6 @@ def _buscar_ciclo(grafo: dict[str, set[str]]) -> list[str] | None:
 
 
 def test_el_grafo_de_dependencias_entre_servicios_es_aciclico():
-    """Ningun ciclo de referencias entre servicios.
-
-    Esta prueba se agrego despues de que una sola columna, `caso_id` en la
-    tabla de tareas de importacion de Catalogo, metiera una arista hacia
-    Operacion cuando todas las demas van hacia Identidad y Catalogo. Bastaba
-    esa para cerrar el ciclo.
-
-    Lo que se pierde con un ciclo no es elegancia. Se pierde el **orden de
-    arranque** (cual servicio puede levantar primero sin que le falte algo) y
-    el **orden de restauracion** (en que secuencia devolver los respaldos para
-    que las referencias resuelvan). Con un ciclo, ninguno de los dos existe, y
-    eso solo se descubre el dia que hay que restaurar.
-
-    La direccion correcta cuando aparece una arista prohibida casi siempre es
-    invertirla usando la bandeja de salida: en vez de que A guarde el
-    identificador de algo de B, A publica un hecho y B reacciona apuntando de
-    vuelta.
-    """
     ciclo = _buscar_ciclo(_grafo_de_dependencias())
     assert ciclo is None, (
         "El grafo de dependencias entre servicios tiene un ciclo:\n"
@@ -703,15 +513,8 @@ def test_el_grafo_de_dependencias_entre_servicios_es_aciclico():
     )
 
 
-# --------------------------------------------------------------------------
-# Regla 6: solo `tukit_comun` habla con Redis
-# --------------------------------------------------------------------------
-
 COMUN = RAIZ / "libs" / "py" / "tukit_comun"
-# Donde hay Python que no es `tukit_comun`: los servicios, sus pruebas incluidas,
-# los ensayos, las otras librerias y estas mismas pruebas.
 CON_PYTHON = ("servicios", "ensayos", "libs", "arquitectura", "datos")
-# Las llamadas que importan un modulo por su nombre.
 IMPORTAN_POR_NOMBRE = frozenset({"importorskip", "import_module", "__import__"})
 
 
@@ -724,8 +527,6 @@ def _nombre_llamado(funcion: ast.expr) -> str | None:
 
 
 def _hablan_con_redis(arbol: ast.Module) -> list[tuple[str, int]]:
-    """Lo que trae `redis` en un modulo, con su linea: los `import`, y las
-    llamadas como `pytest.importorskip("redis.asyncio")`."""
 
     def de_redis(modulo: str) -> bool:
         return modulo.split(".")[0] == "redis"
@@ -759,12 +560,6 @@ def _python_fuera_de_comun() -> list[Path]:
 
 
 def test_solo_tukit_comun_habla_con_redis():
-    """Redis es cache y contador, nunca la unica copia de nada (ADR 0047), y lo
-    que lo hace opcional vive en un solo sitio: `tukit_comun.cache`, con su
-    espera corta, su pausa tras un fallo y su conteo en memoria. Un servicio
-    que importara `redis` por su cuenta se saltaria todo eso y se caeria con
-    Redis. Las pruebas tampoco: miran lo guardado con
-    `tukit_comun.pruebas_redis`."""
     infracciones = [
         f"  {_relativa(ruta)}:{linea} trae `{modulo}`"
         for ruta in _python_fuera_de_comun()

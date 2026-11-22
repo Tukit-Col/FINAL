@@ -1,26 +1,5 @@
 """Barrido de las constantes de decision de la resolucion hibrida (descubrir.clasificar).
-
-Que es. Una constante de diseno ("0,6 piso si la frase empieza por la cabeza") se defiende
-mejor con una medida que con un argumento: se prueba una rejilla de valores, una constante a la
-vez con las demas fijas en su valor actual, y se mide en los renglones etiquetados. Despues una
-rejilla conjunta pequena. La clasificacion es la real (ver clasificacion.py: reproduce
-`clasificar` y `emparejar` sin diferencias sobre los 1.542 textos distintos).
-
-Las 7 constantes: piso 0,6; peso Jaccard 0,4; peso coseno 0,15; coseno minimo del rescate 0,86;
-piso del rescate 0,55; corte de sin correspondencia 0,5; tau 0,75.
-
-Metricas. `exactitud`: el concepto del sistema (o "sin concepto" bajo el corte) coincide con el
-aprobado. `aceptada`: fraccion con puntaje >= tau (pasa sin revision). `precision_aceptada`: de
-esas, cuantas son correctas. `auto_correcta`: aceptada y correcta, sobre todos los renglones.
-
-Objetivos. Constantes de puntaje y corte: maximizar la exactitud. tau: el menor valor con
-precision_aceptada >= 0,95 (la misma regla de tau.py), que maximiza lo aceptado a esa precision.
-
-Etiquetas: el concepto que dejo la persona al revisar la salida del propio sistema (sesgo de
-confirmacion posible; la revision de 6 colegios nuevos fue ligera). Es lo unico disponible.
-
-Uso: uv run python ensayos/calibracion/barrido.py
-"""
+Uso: uv run python ensayos/calibracion/barrido.py"""
 
 from __future__ import annotations
 
@@ -42,7 +21,7 @@ REJILLAS = {
     "piso": [round(x, 3) for x in np.arange(0.30, 0.9001, 0.05)],
     "w_jac": [round(x, 3) for x in np.arange(0.0, 0.8001, 0.05)],
     "w_cos": [round(x, 3) for x in np.arange(0.0, 0.5001, 0.05)],
-    "res_cos": [round(x, 3) for x in np.arange(0.70, 0.9801, 0.02)] + [1.01],  # 1.01 = rescate apagado
+    "res_cos": [round(x, 3) for x in np.arange(0.70, 0.9801, 0.02)] + [1.01],
     "res_piso": [round(x, 3) for x in np.arange(0.40, 0.8001, 0.05)],
     "corte": [round(x, 3) for x in np.arange(0.30, 0.8001, 0.05)],
     "tau": [round(x, 3) for x in np.arange(0.50, 1.0001, 0.025)],
@@ -56,7 +35,6 @@ NOMBRES = {
     "corte": "corte de sin correspondencia (0,5)",
     "tau": "tau de aceptacion automatica (0,75)",
 }
-# Espacio de seleccion para la particion y la generalizacion (243 puntajes x 5 cortes = 1.215).
 ESPACIO = {
     "piso": [0.5, 0.6, 0.7],
     "w_jac": [0.3, 0.4, 0.5],
@@ -68,8 +46,6 @@ CORTES = [0.4, 0.45, 0.5, 0.55, 0.6]
 
 
 class Contexto:
-    """Rasgos + arreglos por renglon para evaluar configuraciones rapido."""
-
     def __init__(self, con_vectores: bool = True):
         self.d = k.cargar(con_vectores)
         self.r = k.construir_rasgos(self.d)
@@ -80,7 +56,6 @@ class Contexto:
         self._cache: dict[tuple, tuple[np.ndarray, np.ndarray]] = {}
 
     def puntuar(self, cfg: dict) -> tuple[np.ndarray, np.ndarray]:
-        """(concepto, puntaje) por RENGLON (no por texto unico)."""
         clave = tuple(round(cfg[c], 6) for c in k.CLAVES_PUNTAJE)
         if clave not in self._cache:
             idx, s = k.puntuar(self.r, cfg)
@@ -93,8 +68,9 @@ class Contexto:
         return k.metricas(p[m], s[m], self.y[m], cfg["corte"], cfg["tau"])
 
 
-def regla_tau(s: np.ndarray, pred_c: np.ndarray, y: np.ndarray, corte: float, objetivo: float = OBJETIVO_PRECISION) -> float:
-    """El menor tau con precision de lo aceptado >= objetivo (0,95 como tau.py); 1,0 si ninguno."""
+def regla_tau(
+    s: np.ndarray, pred_c: np.ndarray, y: np.ndarray, corte: float, objetivo: float = OBJETIVO_PRECISION
+) -> float:
     ok = pred_c == y
     for t in np.unique(s[s >= corte]):
         ac = (s >= t) & (pred_c >= 0)
@@ -104,7 +80,6 @@ def regla_tau(s: np.ndarray, pred_c: np.ndarray, y: np.ndarray, corte: float, ob
 
 
 def meseta(valores: list[float], medida: list[float], tolerancia: float) -> list[float]:
-    """Rango contiguo alrededor del mejor valor cuya medida esta a `tolerancia` del maximo."""
     mejor = int(np.argmax(medida))
     tope = max(medida)
     a = b = mejor
@@ -133,7 +108,6 @@ def barrido_unico(cx: Contexto) -> dict:
             "valores": filas,
         }
         if clave == "tau":
-            # regla: menor tau con precision >= 0,95
             p, s = cx.puntuar(ACTUAL)
             pc = np.where(s >= ACTUAL["corte"], p, -1)
             t_regla = regla_tau(s, pc, cx.y, ACTUAL["corte"])
@@ -144,17 +118,23 @@ def barrido_unico(cx: Contexto) -> dict:
                     "objetivo": f"menor tau con precision_aceptada >= {OBJETIVO_PRECISION}",
                     "tau_regla": t_regla,
                     "tau_minimo_por_precision_objetivo": {
-                        str(o): regla_tau(s, pc, cx.y, ACTUAL["corte"], o) for o in (0.95, 0.96, 0.97, 0.98, 0.99)
+                        str(o): regla_tau(s, pc, cx.y, ACTUAL["corte"], o)
+                        for o in (0.95, 0.96, 0.97, 0.98, 0.99)
                     },
                     "metricas_en_tau_regla": m_regla,
                     "metricas_en_tau_actual": m_act,
                     "tau_actual_cumple_objetivo": bool(
-                        m_act["precision_aceptada"] is not None and m_act["precision_aceptada"] >= OBJETIVO_PRECISION
+                        m_act["precision_aceptada"] is not None
+                        and m_act["precision_aceptada"] >= OBJETIVO_PRECISION
                     ),
                     "diferencia_aceptada_pp": 100 * (m_regla["aceptada"] - m_act["aceptada"]),
-                    "diferencia_precision_pp": 100 * (m_regla["precision_aceptada"] - m_act["precision_aceptada"]),
+                    "diferencia_precision_pp": 100
+                    * (m_regla["precision_aceptada"] - m_act["precision_aceptada"]),
                     "meseta_aceptada_a_precision_ge_0.95": [
-                        f["valor"] for f in filas if f["precision_aceptada"] is not None and f["precision_aceptada"] >= OBJETIVO_PRECISION
+                        f["valor"]
+                        for f in filas
+                        if f["precision_aceptada"] is not None
+                        and f["precision_aceptada"] >= OBJETIVO_PRECISION
                     ][:1]
                     + [filas[-1]["valor"]],
                 }
@@ -170,7 +150,9 @@ def barrido_unico(cx: Contexto) -> dict:
                     "diferencia_optimo_menos_actual_pp": 100 * (ex[mejor] - ex[i_act]),
                     "puesto_del_actual": rango,
                     "actual_es_el_mejor": bool(ex[i_act] >= ex[mejor] - 1e-12),
-                    "valores_empatados_con_el_mejor": [v for v, e in zip(valores, ex, strict=True) if e >= ex[mejor] - 1e-12],
+                    "valores_empatados_con_el_mejor": [
+                        v for v, e in zip(valores, ex, strict=True) if e >= ex[mejor] - 1e-12
+                    ],
                     "meseta_dentro_de_0.1pp": meseta(valores, ex, 0.001),
                     "meseta_dentro_de_0.5pp": meseta(valores, ex, 0.005),
                     "actual_dentro_de_meseta_0.5pp": bool(
@@ -183,7 +165,6 @@ def barrido_unico(cx: Contexto) -> dict:
 
 
 def ic_diferencia_por_lista(cx: Contexto, cfg_a: dict, cfg_b: dict, repeticiones: int = 1000) -> dict:
-    """IC 95 % (bootstrap por LISTA) de exactitud(a) - exactitud(b), en puntos porcentuales."""
     pa, sa = cx.puntuar(cfg_a)
     pb, sb = cx.puntuar(cfg_b)
     oka = np.where(sa >= cfg_a["corte"], pa, -1) == cx.y
@@ -196,20 +177,29 @@ def ic_diferencia_por_lista(cx: Contexto, cfg_a: dict, cfg_b: dict, repeticiones
         sel = rng.choice(listas, len(listas))
         ii = np.concatenate([por[l] for l in sel])
         difs.append(100 * (oka[ii].mean() - okb[ii].mean()))
-    return {"media_pp": float(np.mean(difs)), "ic95_pp": [float(np.percentile(difs, 2.5)), float(np.percentile(difs, 97.5))]}
+    return {
+        "media_pp": float(np.mean(difs)),
+        "ic95_pp": [float(np.percentile(difs, 2.5)), float(np.percentile(difs, 97.5))],
+    }
 
 
 def barrido_conjunto(cx: Contexto) -> dict:
-    """Rejilla conjunta: lexicas (piso, w_jac, corte, tau) y las hibridas (w_cos, res_cos, res_piso)."""
     t0 = time.time()
     lex = list(
-        itertools.product([0.5, 0.55, 0.6, 0.65, 0.7], [0.2, 0.3, 0.4, 0.5, 0.6], [0.4, 0.45, 0.5, 0.55, 0.6], [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9])
+        itertools.product(
+            [0.5, 0.55, 0.6, 0.65, 0.7],
+            [0.2, 0.3, 0.4, 0.5, 0.6],
+            [0.4, 0.45, 0.5, 0.55, 0.6],
+            [0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9],
+        )
     )
     filas = []
     for piso, wj, corte, tau in lex:
         cfg = {**ACTUAL, "piso": piso, "w_jac": wj, "corte": corte, "tau": tau}
         filas.append({"piso": piso, "w_jac": wj, "corte": corte, "tau": tau, **cx.medir(cfg)})
-    hib = list(itertools.product([0.0, 0.1, 0.15, 0.2, 0.3], [0.80, 0.84, 0.86, 0.90, 0.94], [0.5, 0.55, 0.6, 0.7]))
+    hib = list(
+        itertools.product([0.0, 0.1, 0.15, 0.2, 0.3], [0.80, 0.84, 0.86, 0.90, 0.94], [0.5, 0.55, 0.6, 0.7])
+    )
     filas_h = []
     for wc, rc, rp in hib:
         cfg = {**ACTUAL, "w_cos": wc, "res_cos": rc, "res_piso": rp}
@@ -231,13 +221,26 @@ def barrido_conjunto(cx: Contexto) -> dict:
             "ejemplos_del_maximo": mejores[:5],
         }
 
-    # auto_correcta con precision >= 0,95 (efecto de tau y corte)
-    ok = [f for f in filas if f["precision_aceptada"] is not None and f["precision_aceptada"] >= OBJETIVO_PRECISION]
+    ok = [
+        f
+        for f in filas
+        if f["precision_aceptada"] is not None and f["precision_aceptada"] >= OBJETIVO_PRECISION
+    ]
     mej = max(ok, key=lambda f: f["auto_correcta"]) if ok else None
-    act = next(f for f in filas if all(abs(f[c] - ACTUAL[c]) < 1e-9 for c in ("piso", "w_jac", "corte", "tau")))
+    act = next(
+        f for f in filas if all(abs(f[c] - ACTUAL[c]) < 1e-9 for c in ("piso", "w_jac", "corte", "tau"))
+    )
     return {
-        "lexica": {"constantes": ["piso", "w_jac", "corte", "tau"], **resumen(filas, ("piso", "w_jac", "corte", "tau")), "filas": filas},
-        "hibrida": {"constantes": ["w_cos", "res_cos", "res_piso"], **resumen(filas_h, ("w_cos", "res_cos", "res_piso")), "filas": filas_h},
+        "lexica": {
+            "constantes": ["piso", "w_jac", "corte", "tau"],
+            **resumen(filas, ("piso", "w_jac", "corte", "tau")),
+            "filas": filas,
+        },
+        "hibrida": {
+            "constantes": ["w_cos", "res_cos", "res_piso"],
+            **resumen(filas_h, ("w_cos", "res_cos", "res_piso")),
+            "filas": filas_h,
+        },
         "lexica_mejor_auto_correcta_con_precision_ge_0.95": mej,
         "lexica_actual": act,
         "segundos": time.time() - t0,
@@ -245,13 +248,11 @@ def barrido_conjunto(cx: Contexto) -> dict:
 
 
 def solo_lexico(cx: Contexto) -> dict:
-    """Referencia: sin el canal semantico (w_cos = 0, rescate apagado)."""
     cfg = {**ACTUAL, "w_cos": 0.0, "res_cos": 1.01}
     return {"lexico_puro": cx.medir(cfg), "hibrido_actual": cx.medir(ACTUAL)}
 
 
 def diagnostico_rescate(cx: Contexto) -> dict:
-    """Cuantos renglones mueve el rescate semantico y cuantos tenian algo que rescatar."""
     p0, s0 = cx.puntuar({**ACTUAL, "res_cos": 1.01})
     out: dict = {}
     for res in (0.70, 0.76, 0.80, 0.86):
@@ -272,7 +273,9 @@ def diagnostico_rescate(cx: Contexto) -> dict:
         c = cc[:, cols[0]]
         m = c > mejor_cos
         mejor_cos[m], mejor_concepto[m] = c[m], i
-    out["de_esos_cuyo_concepto_mas_cercano_por_coseno_es_el_aprobado"] = int((mejor_concepto[cx.u][sin] == cx.y[sin]).sum())
+    out["de_esos_cuyo_concepto_mas_cercano_por_coseno_es_el_aprobado"] = int(
+        (mejor_concepto[cx.u][sin] == cx.y[sin]).sum()
+    )
     return out
 
 
@@ -283,13 +286,23 @@ def figura(sal: dict) -> Path:
     import matplotlib.pyplot as plt
 
     AZUL, NARANJA, GRIS = "#1F4E86", "#A8500F", "#4D4D4D"
-    plt.rcParams.update({"font.family": "serif", "font.size": 8, "axes.spines.top": False, "axes.spines.right": False})
+    plt.rcParams.update(
+        {"font.family": "serif", "font.size": 8, "axes.spines.top": False, "axes.spines.right": False}
+    )
     fig, ejes = plt.subplots(2, 4, figsize=(6.3 * 1.25, 3.9))
     for ax, clave in zip(ejes.flat, REJILLAS, strict=False):
         inf = sal["unico"][clave]
         v = [f["valor"] for f in inf["valores"]]
         if clave == "tau":
-            ax.plot(v, [100 * f["precision_aceptada"] if f["precision_aceptada"] is not None else np.nan for f in inf["valores"]], color=AZUL, label="precision")
+            ax.plot(
+                v,
+                [
+                    100 * f["precision_aceptada"] if f["precision_aceptada"] is not None else np.nan
+                    for f in inf["valores"]
+                ],
+                color=AZUL,
+                label="precision",
+            )
             ax.plot(v, [100 * f["aceptada"] for f in inf["valores"]], color=NARANJA, label="aceptada")
             ax.axhline(95, color=GRIS, lw=0.6, ls=":")
             ax.legend(frameon=False, fontsize=6.5)
@@ -301,7 +314,13 @@ def figura(sal: dict) -> Path:
         ax.set_xlabel("valor")
         ax.set_ylabel("%")
     ejes.flat[-1].axis("off")
-    ejes.flat[-1].text(0, 0.6, "linea punteada: valor actual\nexactitud del concepto\n(3.037 renglones)", fontsize=7, va="top")
+    ejes.flat[-1].text(
+        0,
+        0.6,
+        "linea punteada: valor actual\nexactitud del concepto\n(3.037 renglones)",
+        fontsize=7,
+        va="top",
+    )
     fig.tight_layout()
     ruta = k.SALIDA / "barrido.pdf"
     fig.savefig(ruta)
@@ -347,9 +366,20 @@ def main() -> int:
     print("combinaciones", sal["combinaciones_totales"], "->", ruta)
     for c, inf in sal["unico"].items():
         if c == "tau":
-            print(c, inf["tau_regla"], inf["metricas_en_tau_actual"]["precision_aceptada"], inf["diferencia_aceptada_pp"])
+            print(
+                c,
+                inf["tau_regla"],
+                inf["metricas_en_tau_actual"]["precision_aceptada"],
+                inf["diferencia_aceptada_pp"],
+            )
         else:
-            print(c, inf["valor_optimo"], round(inf["diferencia_optimo_menos_actual_pp"], 3), inf["puesto_del_actual"], inf["meseta_dentro_de_0.5pp"])
+            print(
+                c,
+                inf["valor_optimo"],
+                round(inf["diferencia_optimo_menos_actual_pp"], 3),
+                inf["puesto_del_actual"],
+                inf["meseta_dentro_de_0.5pp"],
+            )
     return 0
 
 

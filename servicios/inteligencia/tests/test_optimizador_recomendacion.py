@@ -1,11 +1,3 @@
-"""Que kits se arman y cual se recomienda (ADR 0030, MAUT).
-
-Siempre Ahorrador y Premium; Fan solo con personaje y `A tu Medida` solo con
-presupuesto. La recomendacion sale de la encuesta y del frente: la mejor marca
-que cabe en el presupuesto, con los pesos por omision cuando el acudiente no
-dice nada.
-"""
-
 from __future__ import annotations
 
 import pytest
@@ -16,12 +8,6 @@ from tukit_inteligencia.optimizador import (
 
 
 class TestQueKitsSeArman:
-    """Solo se arman los kits que el acudiente pidio (ADR 0030).
-
-    Siempre Ahorrador y Premium; Fan solo con personaje y `A tu Medida` solo con
-    el punto medio o un tope. Por eso los canonicos de una lista son dos.
-    """
-
     RENGLONES = [
         renglon_optimizador(
             orden,
@@ -54,7 +40,7 @@ class TestQueKitsSeArman:
         assert self._perfiles({"presupuesto_por_hijo": 12000}) == ["Ahorrador", "A tu Medida", "Premium"]
         assert self._perfiles({"prioridad": "precio"}) == ["Ahorrador", "Premium"]
 
-    def test_se_marca_uno_solo(self):
+    def test_con_prioridad_equilibrio_se_marca_un_solo_kit_recomendado(self):
         kits = armar_los_tres(self.RENGLONES, {"prioridad": "equilibrio"})
         assert sum(1 for kit in kits if kit.recomendado) == 1
 
@@ -87,9 +73,6 @@ class TestLaRecomendacion:
         assert self._recomendado({"personaje_por_hijo": {"hijo-1": ["spiderman"]}}).perfil == "Fan"
 
     def test_con_diez_por_ciento_decide_la_utilidad_aditiva_de_los_pesos(self):
-        """Entre Ahorrador y Premium la utilidad normalizada es w_precio contra
-        w_marca_exigida + w_calidad: con los pesos P21 (0,285 contra 0,528) gana
-        el Premium; si el precio pesa mas que marca y calidad juntas, el Ahorrador."""
         assert self._recomendado({"disposicion_sobreprecio": 0.10}).perfil == "Premium"
         precio_primero = {"precio": 0.6, "marca_exigida": 0.1, "calidad": 0.1, "personaje": 0.2}
         recomendado = self._recomendado({"pesos": precio_primero, "disposicion_sobreprecio": 0.10})
@@ -109,14 +92,6 @@ class TestLaRecomendacion:
 
 
 class TestATuMedida:
-    """El kit del punto medio sale del frente: la mejor marca que cabe.
-
-    El benchmark Laya vs NSGA-II mostro que el kit recomendado con presupuesto
-    lograba el 40 % de la calidad posible mientras el frente ya traia uno del
-    94 % que cabia (ADR 0029). Cada linea ofrece tres niveles: el Ahorrador
-    cuesta 6.000 y el Premium 24.000.
-    """
-
     RENGLONES = [
         renglon_optimizador(
             orden,
@@ -141,11 +116,9 @@ class TestATuMedida:
         assert medida.recomendado is True
         assert medida.dentro_de_presupuesto is True
         assert "$12.000" in medida.razon
-        # El Premium sigue siendo el de mejor marca: ya no se ajusta.
         assert kits["Premium"].total_cop == 24000
 
     def test_sin_tope_va_hasta_la_mitad_de_camino(self):
-        """Sin tope, el tope implicito es (6.000 + 24.000) / 2 = 15.000."""
         medida = self._kits({"prioridad": "equilibrio"})["A tu Medida"]
         assert medida.total_cop <= 15000
         assert medida.objetivos["fidelidad"] == pytest.approx(0.5)
@@ -165,8 +138,6 @@ class TestATuMedida:
         assert "no alcanza para subir de marca" in kits["Ahorrador"].razon
 
     def test_el_sobreprecio_declarado_no_estira_el_tope(self):
-        """Con 10.000 y 20 % de sobreprecio el kit no pasa de 10.000 (ECO+CON =
-        9.000). Quien escribe "maximo 10.000" no espera pagar 12.000."""
         kits = self._kits({"presupuesto_por_hijo": 10000, "disposicion_sobreprecio": 0.2})
         assert kits["A tu Medida"].total_cop == 9000
 
@@ -216,16 +187,6 @@ class TestATuMedida:
 
 
 class TestSeleccionMAUT:
-    """Seleccion a posteriori sobre el frente: utilidad aditiva normalizada.
-
-    `elegir_recomendado_maut(frente, pesos, tope=None, sobreprecio=None)` toma el
-    punto del frente con mayor utilidad `U = w_precio*u_costo + (w_calidad +
-    w_marca_exigida)*u_fidelidad + w_personaje*u_personaje`, con los pesos
-    renormalizados para que sumen 1 y cada `u` normalizada a [0, 1] sobre el
-    rango observado en el frente. Restricciones duras: el tope de gasto y el
-    sobreprecio maximo sobre el punto mas barato.
-    """
-
     @staticmethod
     def _punto(costo, fidelidad, personaje=0.0, disponibilidad=1.0):
         from tukit_inteligencia.optimizador import SolucionFrente
@@ -264,8 +225,6 @@ class TestSeleccionMAUT:
         assert elegir_recomendado_maut(self._frente(), {"personaje": 1.0}).personaje == 1.0
 
     def test_la_utilidad_se_normaliza_sobre_el_rango_del_frente(self):
-        """Con pesos iguales precio/calidad gana (12000, 0.5): pierde 0.2 de
-        utilidad de costo (2000/10000) y gana 0.5 de fidelidad."""
         from tukit_inteligencia.optimizador import elegir_recomendado_maut
 
         elegido = elegir_recomendado_maut(self._frente(), {"precio": 0.5, "calidad": 0.5})
@@ -293,7 +252,7 @@ class TestSeleccionMAUT:
 
         frente = self._frente()
         solo_calidad = {"calidad": 1.0}
-        assert elegir_recomendado_maut(frente, solo_calidad).costo == 20000  # sin cota
+        assert elegir_recomendado_maut(frente, solo_calidad).costo == 20000
         assert elegir_recomendado_maut(frente, solo_calidad, sobreprecio=0.0).costo == 10000
         assert elegir_recomendado_maut(frente, solo_calidad, sobreprecio=0.20).costo == 12000
         assert elegir_recomendado_maut(frente, solo_calidad, sobreprecio=1.0).costo == 20000

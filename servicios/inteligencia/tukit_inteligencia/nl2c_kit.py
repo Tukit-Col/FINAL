@@ -1,12 +1,3 @@
-"""NL2C sobre el kit: de "mas barato en cuadernos" a propuestas de cambio o descarte.
-
-El modelo ve los renglones con referencias cortas (L1, A1) y devuelve solo
-referencias. El servidor las resuelve contra el kit que lee del trabajo del
-portador: un id de otro kit, un sku inventado o una referencia que no existe
-no tienen a que resolverse y se descartan con un codigo. Los precios, nombres e
-imagenes de las tarjetas salen del kit, nunca del modelo.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -45,7 +36,6 @@ TEXTO_MOTIVO = {
 
 
 def _texto_renglon(descripcion: str) -> str:
-    """La descripcion viene de la lista del colegio: dato no confiable, acotado."""
     return sanitizar(descripcion, limite=MAX_CARACTERES_DESCRIPCION, del_padre=False).texto
 
 
@@ -55,14 +45,11 @@ def pesos_fmt(valor: int | None) -> str:
 
 @dataclass
 class ContextoKit:
-    """Lo que el modelo ve del kit y la tabla para resolver sus referencias."""
-
     texto: str
-    lineas: dict[str, dict[str, Any]]  # "L3" -> linea del kit
-    alternativas: dict[str, list[dict[str, Any]]]  # "L3" -> hasta 3 alternativas
+    lineas: dict[str, dict[str, Any]]
+    alternativas: dict[str, list[dict[str, Any]]]
     consolidados: set[str]
     perfil: str
-    # El pedido anterior ya validado contra ESTE kit ({"accion", "categoria"}) o None.
     anterior: dict[str, str] | None = None
 
 
@@ -74,7 +61,6 @@ def contexto_del_kit(kit: dict[str, Any], anterior: Any = None) -> ContextoKit:
     n = 0
     for linea in kit.get("lineas") or []:
         actual = linea.get("producto_elegido")
-        # Lo ya descartado no se le muestra al modelo: no hay nada que cambiar ni quitar.
         if linea.get("informativa") or linea.get("descartado") or not actual:
             continue
         n += 1
@@ -95,11 +81,8 @@ def contexto_del_kit(kit: dict[str, Any], anterior: Any = None) -> ContextoKit:
             )
         filas.append(" | ".join(partes))
     perfil = str(kit.get("perfil") or "")
-    # El pedido anterior llega del navegador: solo vale si es una accion de la lista y una
-    # categoria que ESTE kit usa. Lo que pasa son dos palabras acotadas, sin texto del padre.
     previo = nl2c_lote.validar_anterior(anterior, lineas)
     memoria = f"Pedido anterior del padre: {previo['accion']} en {previo['categoria']}\n" if previo else ""
-    # El perfil va fuera del bloque de datos: explicar_kit lo pide y el modelo no debe adivinarlo.
     texto = (
         f"Perfil del kit: {perfil}\n{memoria}<renglones_del_kit>\n"
         + "\n".join(filas)
@@ -122,24 +105,20 @@ def _tarjeta_producto(p: dict[str, Any], *, precio: int | None) -> dict[str, Any
 @dataclass
 class ResultadoPropuestas:
     propuestas: list[dict[str, Any]] = field(default_factory=list)
-    rechazadas: list[str] = field(default_factory=list)  # codigos, nunca texto del modelo
+    rechazadas: list[str] = field(default_factory=list)
     explicacion: dict[str, Any] | None = None
     sin_accion: str | None = None
     ayuda: bool = False
-    # Texto del servidor para cuando no hay nada que proponer (nunca texto del modelo).
     mensaje: str | None = None
-    # Pedido por categoria: lo que se resolvio, sus propuestas y el resumen que ve el padre.
     lote: dict[str, Any] | None = None
     lote_props: list[dict[str, Any]] = field(default_factory=list)
     resumen: dict[str, Any] | None = None
     pendientes_variar: list[tuple[str, tuple[str, str]]] = field(default_factory=list)
-    # Mas barato / mejor calidad: se resuelven con las opciones del carrusel (`completar_lote`).
     pendientes_lote: list[str] = field(default_factory=list)
-    sueltas: int = 0  # propuestas que vienen de llamadas por renglon (tope MAX_PROPUESTAS)
+    sueltas: int = 0
 
 
 def explicar_kit(kit: dict[str, Any]) -> dict[str, Any]:
-    """Resumen de plantilla sobre datos del servidor: el modelo solo pide verlo."""
     con_producto = [
         ln for ln in kit.get("lineas") or [] if ln.get("producto_elegido") and not ln.get("informativa")
     ]
@@ -171,11 +150,6 @@ def _propuesta_cambio(
     unidades: int | None = None,
     subtotal_despues: int | None = None,
 ) -> dict[str, Any]:
-    """La tarjeta de cambio, con todo lo que ve el padre armado desde el kit y el catalogo.
-
-    `delta_cop` es el subtotal nuevo menos el de hoy: con `subtotal_despues` (una opcion del
-    carrusel, que ya trae su propio empaque) o, por omision, precio por las mismas unidades.
-    """
     actual = linea["producto_elegido"]
     unidades = unidades or int(linea.get("unidades_a_comprar") or 1)
     if subtotal_despues is None:
@@ -209,7 +183,6 @@ def _plural(n: int, uno: str, varios: str) -> str:
 def validar_llamadas_kit(
     llamadas: list[dict[str, Any]], ctx: ContextoKit, kit: dict[str, Any], trabajo_id: str
 ) -> ResultadoPropuestas:
-    """Cada llamada del modelo pasa por aqui; lo que no encaja se descarta con un codigo."""
     res = ResultadoPropuestas()
     vistas: set[tuple[str, str]] = set()
     pedido_lote: dict[str, Any] | None = None
@@ -226,8 +199,6 @@ def validar_llamadas_kit(
             res.ayuda = True
             continue
         if nombre == "pedir_por_categoria":
-            # Un solo pedido por categoria por respuesta: se resuelve al final, con las
-            # propuestas sueltas ya contadas, para no repetir renglon ni pasar el tope.
             if pedido_lote is None:
                 pedido_lote = args
             else:
@@ -266,7 +237,7 @@ def validar_llamadas_kit(
                 continue
             res.propuestas.append(_propuesta_cambio(ctx, linea, alt, int(precio_alt), trabajo_id))
             res.sueltas += 1
-        else:  # proponer_descarte
+        else:
             motivo = args.get("motivo")
             if motivo not in MOTIVOS_DESCARTE:
                 res.rechazadas.append("motivo_invalido")
@@ -284,8 +255,6 @@ def validar_llamadas_kit(
                         "motivo_texto": TEXTO_MOTIVO[motivo],
                         "producto": _tarjeta_producto(actual, precio=actual.get("precio")),
                         "ahorro_cop": int(linea.get("subtotal_linea") or 0),
-                        # El modelo solo propone: el descarte lo aplica el padre al confirmar,
-                        # por el endpoint de S3 (`PUT .../descarte`) con su propia sesion.
                         "aplicable": True,
                     },
                 }
@@ -295,14 +264,7 @@ def validar_llamadas_kit(
     return res
 
 
-# --- Pedidos por categoria (deterministas) --------------------------------------------------
 def _resolver_lote(args: dict[str, Any], ctx: ContextoKit, res: ResultadoPropuestas, trabajo_id: str) -> None:
-    """Un pedido sobre un tipo de util completo, expandido con reglas sobre el kit.
-
-    El modelo aporto como mucho dos cosas: la accion (de una lista) y una palabra de
-    categoria. Los renglones, los skus y los precios salen del kit: lo que el modelo diga
-    de mas no tiene por donde entrar.
-    """
     accion = args.get("accion")
     if accion not in ACCIONES_LOTE:
         res.rechazadas.append("accion_invalida")
@@ -330,8 +292,6 @@ def _resolver_lote(args: dict[str, Any], ctx: ContextoKit, res: ResultadoPropues
     elif accion == "variar":
         cat = nl2c_lote.todo_el_kit(ctx.lineas)
     else:
-        # Cambiar precio o calidad de TODO el kit de una vez no se propone: se pide el tipo de util.
-        # Asi un pedido ambiguo (o una inyeccion que diga "todos") no se expande a todo el kit.
         res.mensaje = "¿En qué útil lo quieres? Por ejemplo «más barato en cuadernos»."
         return
     res.lote = {"accion": accion, "categoria": cat.etiqueta, "renglones": len(cat.refs)}
@@ -339,7 +299,6 @@ def _resolver_lote(args: dict[str, Any], ctx: ContextoKit, res: ResultadoPropues
     cupo = MAX_PROPUESTAS_LOTE - len(res.propuestas)
     donde = _donde(cat.etiqueta)
     if accion == "variar":
-        # Elegir variantes pide las opciones del carrusel (E/S): lo termina `completar_variar`.
         candidatos = [
             (ref, clave)
             for ref, clave in nl2c_lote.renglones_a_variar(cat.refs, ctx.lineas, ctx.consolidados)
@@ -350,9 +309,6 @@ def _resolver_lote(args: dict[str, Any], ctx: ContextoKit, res: ResultadoPropues
         if not candidatos:
             res.mensaje = f"En {donde} no veo productos repetidos. Ya está variado."
         return
-    # Mas barato y mejor calidad miran las MISMAS opciones que el carrusel del renglon (lo
-    # termina `completar_lote`): las alternativas guardadas son 0 a 2 por renglon y dejaban
-    # fuera la mitad de "mejor calidad en todos los cuadernos".
     res.pendientes_lote = [
         ref
         for ref in cat.refs
@@ -364,7 +320,6 @@ def _resolver_lote(args: dict[str, Any], ctx: ContextoKit, res: ResultadoPropues
 
 
 def _cerrar_lote(res: ResultadoPropuestas, donde: str) -> None:
-    """El resumen del lote (texto del servidor) o, si no hubo nada, el mensaje de por que."""
     assert res.lote is not None
     accion, n = res.lote["accion"], len(res.lote_props)
     if n == 0:
@@ -413,8 +368,6 @@ def _cerrar_lote(res: ResultadoPropuestas, donde: str) -> None:
 def _traedor_de_opciones(
     ctx: ContextoKit, opciones_de: Callable[[dict[str, Any]], Awaitable[list[dict[str, Any]]]] | None
 ) -> Callable[[str], Awaitable[list[dict[str, Any]]]]:
-    """Las opciones de un renglon: las del carrusel (4 a la vez) o, si no responde, las
-    alternativas guardadas en el kit."""
     semaforo = asyncio.Semaphore(4)
 
     async def traer(ref: str) -> list[dict[str, Any]]:
@@ -425,7 +378,7 @@ def _traedor_de_opciones(
         async with semaforo:
             try:
                 encontradas = await opciones_de(linea)
-            except Exception:  # catalogo caido o linea sin concepto: se sigue con lo del kit
+            except Exception:
                 encontradas = []
         return encontradas or nl2c_lote.opciones_desde_alternativas(linea, propias)
 
@@ -438,12 +391,6 @@ async def completar_lote(
     trabajo_id: str,
     opciones_de: Callable[[dict[str, Any]], Awaitable[list[dict[str, Any]]]] | None,
 ) -> None:
-    """Termina "mas barato" o "mejor calidad" en una categoria con las opciones del carrusel.
-
-    La regla es la de siempre (`alternativa_mas_barata` / `alternativa_de_mejor_calidad`,
-    nunca el modelo); lo nuevo es sobre que opciones corre. Cuenta los renglones que ya
-    estan en lo mejor disponible para decirselo al padre.
-    """
     if not res.pendientes_lote or res.lote is None:
         return
     accion = res.lote["accion"]
@@ -493,17 +440,6 @@ async def completar_variar(
     opciones_de: Callable[[dict[str, Any]], Awaitable[list[dict[str, Any]]]] | None,
     personajes_por_hijo: dict[str, list[str]] | None = None,
 ) -> None:
-    """Termina un pedido de variedad: elige, por renglon repetido, otra opcion del carrusel.
-
-    Las opciones salen del mismo calculo que el carrusel de LineaDeKit
-    (`trabajos.opciones_de_una_linea`), filtros del trabajo incluidos; si no responde se
-    usan las alternativas guardadas en el kit. La eleccion la hacen las reglas de
-    `nl2c_lote.elegir_variante`, nunca el modelo.
-
-    `personajes_por_hijo` es `{hijo de la linea: [personajes pedidos]}` (lo que `ver`
-    expone): con el, la variedad no trae franquicias que ese hijo no pidio. Sin el, toda
-    opcion de personaje queda fuera y solo se proponen neutras.
-    """
     if not res.pendientes_variar or res.lote is None:
         return
     traer = _traedor_de_opciones(ctx, opciones_de)
@@ -549,7 +485,6 @@ async def completar_variar(
 
 
 def respuesta_ayuda(ctx: ContextoKit) -> dict[str, Any]:
-    """Que puede pedir el padre, con ejemplos tocables armados con las palabras de SU kit."""
     cats = nl2c_lote.categorias_del_kit(ctx.lineas)
     ejemplos: list[str] = []
     if cats:
@@ -571,7 +506,6 @@ def respuesta_ayuda(ctx: ContextoKit) -> dict[str, Any]:
 
 
 def texto_resumen_R(r: RestriccionesR) -> str:
-    """El resumen que ve el padre, armado por el servidor desde R validada."""
     prm = r.preferencias_PRM
     partes: list[str] = []
     if prm.personajes:
@@ -596,10 +530,6 @@ def texto_resumen_R(r: RestriccionesR) -> str:
     return "Entendimos: " + "; ".join(partes) + "."
 
 
-# Propuestas emitidas: una decision solo puede citar una que el servidor emitio, a nombre
-# del mismo portador y del mismo tipo. Cada portador tiene su propio cupo (anonimos juntos
-# en uno): quien inunda `/interpretar` sin sesion solo expulsa propuestas anonimas, nunca
-# las de un padre con sesion. Vencen a los 30 min (el padre decide en la misma visita).
 VIGENCIA_EMISION_S = 30 * 60
 MAX_EMISIONES_POR_PORTADOR = 200
 MAX_PORTADORES = 5000
@@ -627,7 +557,7 @@ def registrar_emision(
     ahora = time.monotonic() if ahora is None else ahora
     portador = huella_usuario(usuario_id)
     propias = _EMITIDAS.pop(portador, None) or {}
-    _EMITIDAS[portador] = propias  # al final: el portador mas reciente
+    _EMITIDAS[portador] = propias
     for vieja in [k for k, e in propias.items() if e.vence <= ahora]:
         del propias[vieja]
     while len(propias) >= MAX_EMISIONES_POR_PORTADOR:
@@ -642,7 +572,6 @@ def registrar_emision(
 def emision_de(
     propuesta_id: str, usuario_id: str | uuid.UUID | None = None, *, ahora: float | None = None
 ) -> Emision | None:
-    """La emision de `propuesta_id` si es de `usuario_id` y no vencio."""
     ahora = time.monotonic() if ahora is None else ahora
     emision = (_EMITIDAS.get(huella_usuario(usuario_id)) or {}).get(propuesta_id)
     return emision if emision is not None and emision.vence > ahora else None

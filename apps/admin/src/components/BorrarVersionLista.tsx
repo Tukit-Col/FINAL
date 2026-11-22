@@ -1,12 +1,5 @@
 "use client";
 
-// Saca de la cola una versión de lista sin revisar (subida repetida, grado
-// equivocado, una que se va a volver a subir).
-//
-// Dos pasos a propósito, como `BorrarTrabajo`: borrar es irreversible y se
-// lleva los renglones y el PDF. Si un acudiente subió la lista, su pedido no se
-// arma nunca: la confirmación lo dice antes, no después.
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { eliminarVersionLista, FalloListas } from "@/lib/api-listas";
@@ -14,9 +7,7 @@ import styles from "./BorrarVersionLista.module.css";
 
 interface Props {
   versionId: string;
-  /** Grado, para que la pregunta diga qué se va a borrar. */
   grado: string;
-  /** Si un acudiente está esperando el kit de esta lista. */
   acudienteEsperando: boolean;
 }
 
@@ -34,8 +25,6 @@ export default function BorrarVersionLista({ versionId, grado, acudienteEsperand
       router.refresh();
     } catch (causa) {
       setError(causa instanceof FalloListas ? causa.message : "No pudimos eliminar la lista.");
-      // Si otro ya la aprobó (409) o ya no existe (404), refrescar deja la
-      // cola al día y la fila desaparece sola.
       if (causa instanceof FalloListas && (causa.estado === 409 || causa.estado === 404)) {
         router.refresh();
       }
@@ -51,8 +40,6 @@ export default function BorrarVersionLista({ versionId, grado, acudienteEsperand
     );
   }
 
-  // Texto corto para que quepa en la linea; el detalle (renglones y PDF) va en
-  // el `title`, que aparece al pasar el mouse.
   return (
     <span>
       <span

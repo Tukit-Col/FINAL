@@ -1,14 +1,5 @@
 "use client";
 
-// Piezas de movimiento de la portada, portadas de sf-design-stack
-// (spotlight-card, marker-title, text-reveal, contador) con los tokens de TUKIT.
-// Sin librerias: CSS + IntersectionObserver + una escritura de variable CSS.
-//
-// Regla comun: el estado FINAL es el que sirve el servidor y el que ve quien
-// pide menos movimiento. Solo despues de montar, y solo si el sistema permite
-// movimiento, se pone el estado "pendiente" y se dispara al entrar en pantalla.
-// Asi, sin JS o con `prefers-reduced-motion`, el contenido nunca queda oculto.
-
 import {
   useEffect,
   useRef,
@@ -23,8 +14,6 @@ function sinMovimiento(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-/** Devuelve [ref, fase]: "final" (servidor / movimiento reducido), "pendiente"
- *  (montado, aun fuera de pantalla) y "dentro" (ya se vio, una sola vez). */
 function useAlEntrar<T extends HTMLElement>(umbral = 0.35) {
   const ref = useRef<T>(null);
   const [fase, setFase] = useState<"final" | "pendiente" | "dentro">("final");
@@ -33,7 +22,6 @@ function useAlEntrar<T extends HTMLElement>(umbral = 0.35) {
     const nodo = ref.current;
     if (!nodo || sinMovimiento() || typeof IntersectionObserver === "undefined") return;
     const caja = nodo.getBoundingClientRect();
-    // Ya esta a la vista al montar: entra de una vez en lugar de parpadear.
     const visible = caja.top < window.innerHeight * 0.9 && caja.bottom > 0;
     setFase(visible ? "dentro" : "pendiente");
     const obs = new IntersectionObserver(
@@ -52,10 +40,6 @@ function useAlEntrar<T extends HTMLElement>(umbral = 0.35) {
   return [ref, fase] as const;
 }
 
-/* ------------------------------------------------------------ Foco (spotlight) */
-
-/** Tarjeta con una luz que sigue al cursor (spotlight-card). Escribe --x/--y en
- *  el nodo directamente: no re-renderiza nada al mover el puntero. */
 export function Foco({
   children,
   className = "",
@@ -78,11 +62,6 @@ export function Foco({
   );
 }
 
-/* --------------------------------------------------------------- Marcador */
-
-/** Marcador que se dibuja bajo una frase (marker-title). Es un fondo CSS con
- *  `box-decoration-break: clone`: continuo de extremo a extremo y, si la frase
- *  se parte en dos lineas, cada linea lleva su propio trazo completo. */
 export function Marcador({ children }: { children: ReactNode }) {
   const [ref, fase] = useAlEntrar<HTMLSpanElement>(0.4);
   return (
@@ -92,10 +71,6 @@ export function Marcador({ children }: { children: ReactNode }) {
   );
 }
 
-/* --------------------------------------------------------------- Palabras */
-
-/** Titulo que entra palabra por palabra (text-reveal). El texto completo sigue
- *  en el DOM como una sola cadena accesible. */
 export function Palabras({ texto }: { texto: string }) {
   const [ref, fase] = useAlEntrar<HTMLSpanElement>(0.6);
   const palabras = texto.split(" ");
@@ -111,10 +86,6 @@ export function Palabras({ texto }: { texto: string }) {
   );
 }
 
-/* --------------------------------------------------------------- Contador */
-
-/** Cifra que sube de 0 al valor cuando entra en pantalla. El servidor sirve el
- *  valor final; el ancho se reserva con `tabular-nums` para que no salte. */
 export function Contador({
   valor,
   sufijo = "",

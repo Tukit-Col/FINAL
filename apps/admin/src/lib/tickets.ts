@@ -1,11 +1,5 @@
-// La logica pura de la bandeja de tickets: filtros desde la URL, orden y
-// etiquetas. Sin runner de componentes: se prueba con `node --test`, por eso
-// SOLO importa tipos del contrato.
-
 import type { Caso, CategoriaCaso, EstadoCaso, Prioridad } from "@tukit/contrato";
 
-// El operador piensa en abierto / en curso / resuelto; los dos estados extra del
-// backend (esperando a un tercero, cerrado) se muestran con su nombre.
 export const ETIQUETA_ESTADO_TICKET: Record<EstadoCaso, string> = {
   abierto: "Abierto",
   en_gestion: "En curso",
@@ -25,12 +19,9 @@ export const ESTADOS_TICKET: readonly EstadoCaso[] = [
 export interface FiltrosTickets {
   estado: EstadoCaso | "";
   categoria: CategoriaCaso | "";
-  // Prefijo del id del caso o texto en el asunto.
   q: string;
   prioridad: Prioridad | "";
-  // "ninguno" = sin dueño; "mios" = asignados a quien mira la bandeja.
   asignado: "" | "ninguno" | "mios";
-  // Solo activos con el termino ya pasado.
   vencidos: boolean;
   pagina: number;
 }
@@ -55,8 +46,6 @@ function primero(v: string | string[] | undefined): string {
   return (Array.isArray(v) ? v[0] : v)?.trim() ?? "";
 }
 
-/** Los filtros de la URL, saneados: un valor desconocido se ignora en vez de
- *  dejar la bandeja vacia sin explicacion. */
 export function leerFiltrosTickets(p: Parametros): FiltrosTickets {
   const estado = primero(p.estado);
   const categoria = primero(p.categoria);
@@ -76,7 +65,6 @@ function paginaValida(texto: string): number {
   return Number.isInteger(n) && n >= 1 ? n : 1;
 }
 
-/** Si hay algun filtro puesto (la pagina no cuenta: es navegacion, no filtro). */
 export function hayFiltrosTickets(f: FiltrosTickets): boolean {
   return f.estado !== "" || f.categoria !== "" || f.q !== "" || f.prioridad !== "" || f.asignado !== "" || f.vencidos;
 }
@@ -102,16 +90,12 @@ export function filtrarCasos(
   });
 }
 
-/** Vencido: sigue activo y su termino (Ley 1755 o SLA de negocio) ya paso. */
 export function estaVencido(caso: Caso, ahora: number): boolean {
   if (caso.estado === "resuelto" || caso.estado === "cerrado" || !caso.vence_en) return false;
   const limite = new Date(caso.vence_en).getTime();
   return !Number.isNaN(limite) && limite < ahora;
 }
 
-/** Los estados a los que se puede pasar desde el actual. Espejo de
- *  `TRANSICIONES_CASO` del contrato, que importa `admin.ts` con runtime; aqui se
- *  recibe la tabla para no importar valores en el modulo probado. */
 export function destinosPosibles(
   actual: EstadoCaso,
   tabla: Record<EstadoCaso, readonly EstadoCaso[]>,
@@ -119,7 +103,6 @@ export function destinosPosibles(
   return tabla[actual] ?? [];
 }
 
-/** Cuanto falta (o paso) del termino, en palabras para la fila. */
 export function textoVencimiento(caso: Caso, ahora: number): string | null {
   if (!caso.vence_en || caso.estado === "resuelto" || caso.estado === "cerrado") return null;
   const limite = new Date(caso.vence_en).getTime();
@@ -133,13 +116,9 @@ export function textoVencimiento(caso: Caso, ahora: number): string | null {
   return `vence en ${Math.round(horas / 24)} d`;
 }
 
-/** El instante actual, en una funcion aparte: la pagina es un Server Component
- *  (se pinta una vez por peticion) y la regla de pureza de React no distingue. */
 export function instanteActual(): number {
   return Date.now();
 }
-
-// ------------------------------------------------------- Fase 4: bandeja en tarjetas
 
 export const TAMANO_PAGINA = 20;
 
@@ -150,7 +129,6 @@ export interface Pagina<T> {
   paginas: number;
 }
 
-/** Una pagina de `items`. Una pagina fuera de rango se acota; sin items hay 1 pagina vacia. */
 export function paginar<T>(items: readonly T[], pagina: number, tamano: number = TAMANO_PAGINA): Pagina<T> {
   const paginas = Math.max(1, Math.ceil(items.length / tamano));
   const actual = Math.min(Math.max(1, Math.trunc(pagina) || 1), paginas);
@@ -160,7 +138,6 @@ export function paginar<T>(items: readonly T[], pagina: number, tamano: number =
 
 export type TonoSla = "vencido" | "hoy" | "ok" | "sin";
 
-/** El chip de SLA de una tarjeta: texto y tono. Sin termino (o ticket cerrado), `sin`. */
 export function etiquetaSla(caso: Caso, ahora: number): { texto: string; tono: TonoSla } {
   const texto = textoVencimiento(caso, ahora);
   if (texto === null) return { texto: "", tono: "sin" };
@@ -173,7 +150,6 @@ export function claseDePrioridad(p: Prioridad): string {
   return `prioridad_${p}`;
 }
 
-/** Los enlaces de paginacion conservan los demas filtros. */
 export function hrefTickets(f: FiltrosTickets, cambios: Partial<FiltrosTickets>): string {
   const todo = { ...f, ...cambios };
   const parametros = new URLSearchParams();
@@ -188,14 +164,11 @@ export function hrefTickets(f: FiltrosTickets, cambios: Partial<FiltrosTickets>)
   return cola ? `/tickets?${cola}` : "/tickets";
 }
 
-// ------------------------------------------------------- Fase 4: asignar y soltar
-
 export function textoAsignacion(asignadoA: string | null, yo: string | null): string {
   if (asignadoA === null) return "Sin asignar";
   return asignadoA === yo ? "Asignado a ti" : "Asignado a otra persona";
 }
 
-/** Soltar lo ve quien tiene el ticket o un admin (el servicio lo exige igual). */
 export function puedeSoltar(asignadoA: string | null, yo: string | null, esAdmin: boolean): boolean {
   if (asignadoA === null) return false;
   return esAdmin || asignadoA === yo;

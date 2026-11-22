@@ -76,8 +76,6 @@
     box-shadow var(--dur-rapido) var(--ease-suave);
 }
 
-/* Foco visible AA: borde azul de marca (contraste >= 3:1 sobre blanco) mas un
- * anillo exterior; antes solo habia un halo casi blanco. */
 .campo input:focus-visible,
 .campo input:focus {
   outline: none;
@@ -86,7 +84,7 @@
 }
 
 .campo input:focus-visible {
-  outline: 2px solid transparent; /* alto contraste de Windows */
+  outline: 2px solid transparent;
 }
 
 .error {
@@ -196,7 +194,6 @@
   text-underline-offset: 3px;
 }
 
-/* El error entra con un deslizamiento corto: avisa que algo cambio sin gritar. */
 @keyframes errorEntra {
   from {
     opacity: 0;

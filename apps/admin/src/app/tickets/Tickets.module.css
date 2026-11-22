@@ -16,13 +16,6 @@
   color: var(--color-text-secondary);
 }
 
-/* --------------------------------------------------------- atajos y rejilla */
-
-
-
-
-
-
 .rejilla {
   display: grid;
   grid-template-columns: 1fr;
@@ -65,8 +58,6 @@
   color: var(--color-text-secondary);
 }
 
-/* ------------------------------------------------------------- vacío */
-
 .vacio {
   max-width: 70ch;
   padding: var(--espacio-6);
@@ -75,8 +66,6 @@
   box-shadow: var(--clay-shadow-sm);
   color: var(--color-text-secondary);
 }
-
-/* -------------------------------------------------------------- filtros */
 
 .filtros {
   display: flex;

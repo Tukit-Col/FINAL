@@ -1,12 +1,3 @@
-"""El guard del avance de un pedido por la cadena de entrega, como dominio puro.
-
-Que una transicion sea legal lo responde la tabla `TRANSICIONES_PEDIDO`; aqui se
-prueba lo que la tabla no expresa: que el back-office solo mueve lo que tiene
-boton (`AVANCES_DE_LOGISTICA`), que un despacho de reparto propio exige nombre y
-celular del repartidor, y que una incidencia exige su tipo (y nota si es
-`otro`). Tambien que avisos salen y que entradas se guardan por destino.
-"""
-
 from __future__ import annotations
 
 import pytest
@@ -23,8 +14,6 @@ DESPACHO = {"repartidor_nombre": "Luis", "repartidor_celular": "3001234567"}
 
 
 def test_la_matriz_de_logistica_es_subconjunto_de_la_tabla():
-    # Si alguien agrega un boton que la maquina de estados no permite, esto
-    # falla antes de que llegue a produccion.
     for desde, destinos in AVANCES_DE_LOGISTICA.items():
         assert destinos <= TRANSICIONES_PEDIDO[desde], desde
 
@@ -34,7 +23,6 @@ def test_avance_legal_devuelve_none():
 
 
 def test_transicion_ilegal_se_rechaza_por_la_tabla():
-    # pagado -> entregado se salta pasos: la tabla lo prohibe.
     rechazo = validar_avance("pagado", "entregado")
     assert rechazo is not None
     assert rechazo.razon == "transicion_invalida"
@@ -44,8 +32,6 @@ def test_transicion_ilegal_se_rechaza_por_la_tabla():
 @pytest.mark.parametrize(
     ("actual", "destino"),
     [
-        # Legales en la tabla, pero no le tocan al back-office: el pago lo pone
-        # el webhook, y el barredor y el retracto cancelan por su cuenta.
         ("pendiente_pago", "pagado"),
         ("pendiente_pago", "cancelado"),
         ("pagado", "cancelado"),
@@ -146,7 +132,6 @@ def test_preparar_despacho_guarda_el_repartidor_limpio():
 
 
 def test_preparar_otro_destino_descarta_repartidor_y_tipo():
-    # Un repartidor que llega con un `en_reparto` no debe pisar el del envio.
     avance = preparar_avance(
         "en_reparto", repartidor_nombre="Otro", repartidor_celular="1", tipo_incidencia="otro", nota=" ok "
     )
@@ -159,9 +144,6 @@ def test_preparar_otro_destino_descarta_repartidor_y_tipo():
 def test_preparar_incidencia_guarda_tipo_y_nota():
     avance = preparar_avance("incidencia", tipo_incidencia="rechazado", nota="No lo quiso")
     assert (avance.tipo_incidencia, avance.nota, avance.aviso) == ("rechazado", "No lo quiso", "incidencia")
-
-
-# --- despacho por transportadora (alternativa al reparto propio) ---
 
 
 def test_despacho_con_transportadora_exige_guia():
@@ -182,7 +164,11 @@ def test_despacho_sin_transportadora_pide_repartidor():
 
 def test_preparar_despacho_por_transportadora_no_guarda_repartidor():
     avance = preparar_avance(
-        "despachado", transportadora=" Servientrega ", guia="G1", repartidor_nombre="Luis", repartidor_celular="3"
+        "despachado",
+        transportadora=" Servientrega ",
+        guia="G1",
+        repartidor_nombre="Luis",
+        repartidor_celular="3",
     )
     assert (avance.transportadora, avance.guia) == ("Servientrega", "G1")
     assert avance.repartidor_nombre is None

@@ -1,33 +1,6 @@
 """Experimento B: poblacion y generaciones del NSGA-II, con particion por colegio.
-
-Las listas con espacio mayor que LIMITE_ENUMERACION (las que corren NSGA-II en
-produccion) se separan por COLEGIO: todas las listas de un colegio caen del
-mismo lado, porque dos grados del mismo colegio comparten productos y marcas.
-
-1. PRUEBA: ~20 % de las listas (colegios enteros) se apartan antes de mirar nada
-   y se usan una sola vez, al final.
-2. VALIDACION CRUZADA AGRUPADA: el resto de colegios se reparte en K pliegues
-   balanceados por numero de listas. La rejilla corre una vez sobre todas esas
-   listas (3 semillas por lista). En cada pliegue se aplica la regla de
-   seleccion sobre los otros K-1 pliegues y se mide la configuracion elegida en
-   el pliegue apartado. La configuracion final es la regla aplicada sobre todos
-   los pliegues juntos; los K pliegues muestran si la eleccion es estable.
-3. PRUEBA: configuracion actual contra la elegida, tiempos en serie.
-
-La rejilla multiplica las formulas actuales por factores:
-    poblacion = clamp(a * 12n, a * 40, a * 200)   (par)
-    generaciones = clamp(b * 20 log10 S, b * 30, b * 120)
-con a, b en {0,25; 0,5; 1; 2}. El par (1, 1) es la configuracion de partida.
-
-Regla de seleccion: la configuracion MAS BARATA (evaluaciones = poblacion x
-generaciones) cuyo hipervolumen medio no baja mas de 0,1 % del mejor de la
-rejilla. El hipervolumen se mide contra el frente exacto (poda por linea), en
-el espacio normalizado de `nucleo.hipervolumen`.
-
 Uso: uv run python ensayos/calibracion/calibrar_nsga.py [--rapido]
-     [--procesos 8] [--pliegues 5] [--semillas-cv 3] [--semillas-prueba 10]
-Salida: docs/informes/calibracion/calibracion_nsga.json
-"""
+Salida: ensayos/calibracion/salidas/calibracion_nsga.json"""
 
 from __future__ import annotations
 
@@ -47,7 +20,6 @@ FACTORES = (0.25, 0.5, 1.0, 2.0)
 UMBRAL_HV = 0.001
 
 
-# Las formulas de partida del optimizador, antes de calibrar.
 PARTIDA = {
     "pob_por_linea": 12,
     "pob_min": 40,
@@ -85,12 +57,6 @@ def _colegios(insts: list[dict]) -> dict[str, list[str]]:
 
 
 def particion(insts: list[dict], pliegues: int) -> dict:
-    """Aparta ~20 % de las listas como prueba y reparte el resto en pliegues.
-
-    Las unidades son colegios. El orden sale de una semilla fija; la prueba toma
-    colegios hasta pasar el 20 % de las listas y los pliegues se llenan siempre
-    por el que tiene menos listas.
-    """
     por_colegio = _colegios(insts)
     colegios = sorted(por_colegio)
     random.Random(n.SEMILLA_BASE).shuffle(colegios)
@@ -256,7 +222,6 @@ def main() -> int:
     salida["validacion_cruzada"] = por_pliegue
     print("pliegues", [p["elegida"] for p in por_pliegue], flush=True)
 
-    # Prueba: una sola vez, en serie para medir tiempo con la maquina libre.
     t0 = time.perf_counter()
     por_config: dict[str, list[dict]] = {}
     for nombre, (a, b) in (("actual", (1.0, 1.0)), ("elegida", (elegida["a"], elegida["b"]))):

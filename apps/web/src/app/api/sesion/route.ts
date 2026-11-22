@@ -1,10 +1,3 @@
-// `POST /api/sesion` (entrar) y `DELETE /api/sesion` (salir).
-//
-// Es el unico punto donde se pone y se borra la cookie de sesion, por la misma
-// razon que `/api/trabajos`: el navegador no habla con el backend, el token no
-// sale al cliente, y aqui se habla con el backend real (gateway→identidad).
-// Devuelve a donde ir despues, no el token.
-
 import { NextResponse } from "next/server";
 import {
   destinoDe,
@@ -32,15 +25,8 @@ export async function POST(peticion: Request): Promise<Response> {
     const { sesion, token } = await origenDeDatos().iniciarSesion(cred);
     const destino = destinoDe(sesion);
 
-    // El destino logico se traduce a una URL. La app interna vive en otro
-    // origen (:3001) y el salto es una redireccion absoluta configurada por
-    // entorno; el colegio y el acudiente viven en esta misma app.
     let url = destino.app === "admin" ? `${urlAdmin()}${destino.ruta}` : destino.ruta;
 
-    // Un `destino` pedido por quien inicia (p. ej. volver a `/empezar` tras el
-    // login) manda SOLO si es una ruta interna: empieza por "/" pero no por
-    // "//" (eso seria "//host", una URL de otro origen). Asi cerramos el open
-    // redirect: nunca saltamos a un origen externo aunque el body lo pida.
     if (cred.destino && cred.destino.startsWith("/") && !cred.destino.startsWith("//")) {
       url = cred.destino;
     }
@@ -64,8 +50,6 @@ export async function DELETE(peticion: Request): Promise<Response> {
   try {
     if (token) await origenDeDatos().cerrarSesion(token);
   } catch {
-    // Cerrar es idempotente: si el backend no responde, igual borramos la
-    // cookie de este lado.
   }
   const respuesta = NextResponse.json({ ok: true });
   respuesta.cookies.delete(COOKIE_SESION);

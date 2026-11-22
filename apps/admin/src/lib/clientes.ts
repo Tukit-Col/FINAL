@@ -1,7 +1,3 @@
-// La logica pura del padron de /clientes: filtros de la URL, orden y paginas.
-// Sin runner de componentes: se prueba con `node --test` y solo importa tipos.
-// Ningun filtro toca datos de menores (solo colegio, grado y cantidad: Ley 1581).
-
 import type { AcudienteAdmin } from "@tukit/contrato";
 
 export const POR_PAGINA = 25;
@@ -16,7 +12,6 @@ export interface FiltrosClientes {
   grado: string;
   hijos: CantidadHijos;
   orden: OrdenClientes;
-  /** `true` = ocultar las cuentas de prueba (@example.test). Por defecto visibles. */
   sinPrueba: boolean;
   pagina: number;
 }
@@ -41,7 +36,6 @@ export function leerFiltrosClientes(parametros: Parametros): FiltrosClientes {
   };
 }
 
-/** Si hay algun filtro puesto (el orden y la pagina no cuentan). */
 export function hayFiltrosClientes(f: FiltrosClientes): boolean {
   return Boolean(f.q || f.colegio || f.grado || f.hijos || f.sinPrueba);
 }
@@ -60,7 +54,6 @@ function coincideHijos(n: number, cantidad: CantidadHijos): boolean {
   return cantidad === "3+" ? n >= 3 : n === Number(cantidad);
 }
 
-/** Filtra y ordena por fecha de registro. No muta la entrada. */
 export function filtrarClientes(
   acudientes: readonly AcudienteAdmin[],
   f: FiltrosClientes,
@@ -78,7 +71,6 @@ export function filtrarClientes(
   return salida.sort((a, b) => signo * (instante(a.creado_en) - instante(b.creado_en)));
 }
 
-/** Colegios y grados que existen en el padron, para los selectores. */
 export function opcionesClientes(acudientes: readonly AcudienteAdmin[]): {
   colegios: { id: string; nombre: string }[];
   grados: string[];
@@ -102,12 +94,10 @@ export interface PaginaClientes<T> {
   pagina: number;
   paginas: number;
   total: number;
-  /** 1-based, para "Mostrando 26-50 de 130". 0 si no hay nada. */
   desde: number;
   hasta: number;
 }
 
-/** Recorta a una pagina; una pagina fuera de rango se lleva al limite. */
 export function paginar<T>(items: readonly T[], pagina: number, tamano = POR_PAGINA): PaginaClientes<T> {
   const total = items.length;
   const paginas = Math.max(1, Math.ceil(total / tamano));
@@ -124,7 +114,6 @@ export function paginar<T>(items: readonly T[], pagina: number, tamano = POR_PAG
   };
 }
 
-/** El enlace a una pagina conservando los filtros. */
 export function hrefClientes(f: FiltrosClientes, cambios: Partial<FiltrosClientes> = {}): string {
   const x = { ...f, ...cambios };
   const p = new URLSearchParams();
@@ -139,7 +128,6 @@ export function hrefClientes(f: FiltrosClientes, cambios: Partial<FiltrosCliente
   return cola ? `/clientes?${cola}` : "/clientes";
 }
 
-/** Un colegio del padron con cuantos acudientes e hijos tiene, en total y por grado. */
 export interface ClientesDeColegio {
   colegio_id: string;
   colegio_nombre: string;
@@ -148,13 +136,6 @@ export interface ClientesDeColegio {
   grados: { grado: string; acudientes: number; hijos: number }[];
 }
 
-/**
- * Cuantos clientes hay por colegio y por grado. Un acudiente cuenta UNA vez en
- * cada colegio (y en cada grado) donde tiene al menos un hijo, aunque tenga dos
- * hijos ahi; los hijos se cuentan todos. Solo colegio, grado y cantidades: ningun
- * dato del menor (Ley 1581). Colegios de mas a menos acudientes; grados por
- * cantidad de hijos y luego por nombre.
- */
 export function clientesPorColegio(acudientes: readonly AcudienteAdmin[]): ClientesDeColegio[] {
   type Acum = { nombre: string; padres: Set<string>; hijos: number; grados: Map<string, { padres: Set<string>; hijos: number }> };
   const colegios = new Map<string, Acum>();
@@ -189,8 +170,6 @@ export function clientesPorColegio(acudientes: readonly AcudienteAdmin[]): Clien
     .sort((x, y) => y.acudientes - x.acudientes || x.colegio_nombre.localeCompare(y.colegio_nombre, "es"));
 }
 
-/** El pedido que se muestra por familia: el mas reciente que no este cancelado
- *  (o el cancelado si es lo unico que tiene). El tono pinta la pastilla. */
 export type TonoPedido = "exito" | "curso" | "aviso" | "neutro";
 
 export interface PedidoDeFamilia {

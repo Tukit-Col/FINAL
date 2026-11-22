@@ -1,12 +1,3 @@
-// Lo que el panel muestra: solo lo que pide una acción, cada cosa con su enlace.
-//
-// Pura (solo tipos del contrato) para probarse con `node --test`. Un widget con
-// cantidad 0 no existe; si todo está en cero, la página dice "Todo al día" una
-// sola vez. Una fuente que no se pudo leer se reporta en `caidos` sin esconder
-// las demás. Un resumen de un servicio que aún no se reinició (sin los conteos
-// nuevos) cuenta como 0 y se anota en `sinActivar`, para no decir "todo al día"
-// con datos que faltan.
-
 import type {
   ColaAdmin,
   ResumenComercio,
@@ -34,12 +25,10 @@ export interface EntradaPanel {
 export interface SalidaPanel {
   widgets: WidgetPanel[];
   caidos: FuentePanel[];
-  /** Conteos que el servicio todavía no entrega (se activan al reiniciarlo). */
   sinActivar: FuentePanel[];
 }
 
 export interface SalidaPanelConCeros extends SalidaPanel {
-  /** Pendientes de fuentes sanas que hoy están en cero (se pintan compactos). */
   enCero: WidgetPanel[];
 }
 
@@ -86,7 +75,6 @@ export function construirPanel(entrada: EntradaPanel): SalidaPanelConCeros {
     agregar({
       id: "incidencias",
       titulo: "Incidencias abiertas",
-      // Sin el conteo nuevo, el de siempre (`por_estado`) da la misma cifra.
       cantidad:
         alertas?.incidencia_abierta ??
         entrada.pedidos.por_estado?.incidencia ??
