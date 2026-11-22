@@ -12,38 +12,19 @@ import {
   type CoberturaConcepto,
   type ProductoCatalogo,
 } from "@tukit/contrato";
+import { normalizarTexto } from "@/lib/kit-vista";
+import {
+  SIN_FILTROS,
+  SIN_PERSONAJE,
+  TODOS,
+  filtraProductos,
+  pasaProducto,
+  type Filtros,
+} from "@/lib/filtros-catalogo";
 import BloqueConcepto from "./BloqueConcepto";
 import estilos from "./Catalogo.module.css";
 
-const TODOS = "__todos__";
-const SIN_PERSONAJE = "__sin_personaje__";
-
-interface Filtros {
-  texto: string;
-  categoria: string;
-  nivel: string;
-  personaje: string;
-  tienda: string;
-  soloHuecos: boolean;
-}
-
-const SIN_FILTROS: Filtros = {
-  texto: "",
-  categoria: TODOS,
-  nivel: TODOS,
-  personaje: TODOS,
-  tienda: TODOS,
-  soloHuecos: false,
-};
-
 const NIVELES_EN_ORDEN = [...NIVELES].sort((a, b) => ORDEN_NIVEL[a] - ORDEN_NIVEL[b]);
-
-function normalizar(texto: string): string {
-  return texto
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
 
 interface ConceptoIndexado {
   concepto: ConceptoCatalogo;
@@ -68,7 +49,7 @@ export default function ExploradorCatalogo({ catalogo }: Props) {
       catalogo.conceptos.map((concepto) => ({
         concepto,
         cobertura: coberturaDe(concepto),
-        buscable: normalizar(
+        buscable: normalizarTexto(
           [
             concepto.nombre_canonico,
             concepto.codigo,
@@ -102,9 +83,8 @@ export default function ExploradorCatalogo({ catalogo }: Props) {
   }, [catalogo]);
 
   const visibles = useMemo<ConceptoVisible[]>(() => {
-    const consulta = normalizar(filtros.texto.trim());
-    const filtraProductos =
-      filtros.nivel !== TODOS || filtros.personaje !== TODOS || filtros.tienda !== TODOS;
+    const consulta = normalizarTexto(filtros.texto.trim());
+    const filtrando = filtraProductos(filtros);
 
     const resultado: ConceptoVisible[] = [];
     for (const entrada of indexados) {
@@ -113,11 +93,11 @@ export default function ExploradorCatalogo({ catalogo }: Props) {
       if (consulta && !entrada.buscable.includes(consulta)) continue;
       if (filtros.soloHuecos && entrada.cobertura === "tres_niveles") continue;
 
-      const productos = filtraProductos
+      const productos = filtrando
         ? concepto.productos.filter((producto) => pasaProducto(producto, filtros))
         : concepto.productos;
 
-      if (filtraProductos && productos.length === 0) continue;
+      if (filtrando && productos.length === 0) continue;
 
       resultado.push({
         ...entrada,
@@ -292,18 +272,3 @@ export default function ExploradorCatalogo({ catalogo }: Props) {
   );
 }
 
-function pasaProducto(producto: ProductoCatalogo, filtros: Filtros): boolean {
-  if (filtros.nivel !== TODOS && producto.nivel !== filtros.nivel) return false;
-  if (filtros.personaje === SIN_PERSONAJE && producto.personaje) return false;
-  if (
-    filtros.personaje !== TODOS &&
-    filtros.personaje !== SIN_PERSONAJE &&
-    producto.personaje !== filtros.personaje
-  ) {
-    return false;
-  }
-  if (filtros.tienda !== TODOS && !producto.ofertas.some((oferta) => oferta.tienda === filtros.tienda)) {
-    return false;
-  }
-  return true;
-}
