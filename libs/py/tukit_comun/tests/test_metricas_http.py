@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import pytest
-from opentelemetry import metrics as otel_metrics
-from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.sdk.metrics.export import InMemoryMetricReader
-from tukit_comun import metricas
-from tukit_comun.resiliencia import disyuntor_de
+
+# OpenTelemetry es un extra opcional (`tukit-comun[otel]`): los trabajos de CI
+# que no lo instalan (Redis, RabbitMQ) saltan esta prueba en vez de romperse.
+pytest.importorskip("opentelemetry.sdk")
+
+from opentelemetry import metrics as otel_metrics  # noqa: E402
+from opentelemetry.sdk.metrics import MeterProvider  # noqa: E402
+from opentelemetry.sdk.metrics.export import InMemoryMetricReader  # noqa: E402
+from tukit_comun import metricas  # noqa: E402
+from tukit_comun.resiliencia import disyuntor_de  # noqa: E402
 
 
 @pytest.fixture
