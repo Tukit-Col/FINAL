@@ -1,22 +1,3 @@
-"""El sobre de un evento de bandeja cuando viaja por RabbitMQ (ADR 0046).
-
-El cuerpo del mensaje es un JSON con lo que un consumidor necesita sin abrir la
-base del productor:
-
-    {"evento_id": 42, "origen": "comercio", "tipo": "pedido_pagado",
-     "agregado_tipo": "pedido", "agregado_id": "<uuid>",
-     "carga": {...}, "correlacion_id": "<id o null>"}
-
-`origen` y `evento_id` juntos identifican el evento en todo el sistema: el id
-solo es unico dentro de la bandeja de su servicio. Con ese par deduplica cada
-consumidor (Operacion lo guarda en su `notificacion`, ADR 0042).
-
-Del otro lado, el sobre se vuelve un `Evento` con los mismos atributos que una
-fila de `bandeja_salida` (`id`, `tipo`, `agregado_tipo`, `agregado_id`, `carga`,
-`intentos`), mas `origen`. Asi el manejador de un consumidor sirve igual cuando
-sondea la bandeja que cuando escucha su cola.
-"""
-
 from __future__ import annotations
 
 import json
@@ -26,12 +7,11 @@ from typing import Any
 
 
 class MensajeInvalido(ValueError):
-    """El cuerpo no es un sobre de evento: no es JSON, o le falta algo."""
+    pass
 
 
 @dataclass(frozen=True)
 class Evento:
-    """Un evento de bandeja, con su origen. Se parece a una fila de la bandeja."""
 
     id: int
     origen: str
@@ -40,17 +20,14 @@ class Evento:
     agregado_id: uuid.UUID | None = None
     carga: dict[str, Any] = field(default_factory=dict)
     correlacion_id: str | None = None
-    # Cuantas veces fallo antes de esta entrega (la cabecera `tukit-intentos`).
     intentos: int = 0
 
     @property
     def message_id(self) -> str:
-        """El id del mensaje en RabbitMQ: `<origen>:<id>`, unico en el sistema."""
         return f"{self.origen}:{self.id}"
 
 
 def evento_de_fila(fila: Any, *, origen: str) -> Evento:
-    """El evento de una fila de `bandeja_salida` del servicio `origen`."""
     carga = fila.carga if isinstance(fila.carga, dict) else {}
     agregado = fila.agregado_id
     return Evento(
@@ -65,7 +42,6 @@ def evento_de_fila(fila: Any, *, origen: str) -> Evento:
 
 
 def cuerpo(evento: Evento) -> bytes:
-    """El sobre del evento, en JSON."""
     return json.dumps(
         {
             "evento_id": evento.id,
@@ -81,7 +57,6 @@ def cuerpo(evento: Evento) -> bytes:
 
 
 def evento_de(datos: bytes, *, intentos: int = 0) -> Evento:
-    """El evento de un cuerpo de mensaje. `MensajeInvalido` si no es un sobre."""
     try:
         sobre = json.loads(datos)
     except (UnicodeDecodeError, json.JSONDecodeError) as error:

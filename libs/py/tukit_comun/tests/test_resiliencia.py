@@ -1,17 +1,3 @@
-"""Pruebas del helper de resiliencia (ADR 0020).
-
-Tres invariantes que no se negocian:
-
-1. **Rechaza retry en escrituras.** `llamada_protegida(..., reintentable=True)`
-   sobre un metodo que NO es GET es un error de programacion: un reintento ciego
-   de un POST es un doble cobro, el modo de falla mas caro. El helper lo rechaza
-   con `ValueError` al construirse, no en tiempo de ejecucion.
-2. **El disyuntor abre tras N fallos** y deja de golpear al destino caido;
-   rechaza en el acto con `CircuitoAbierto` mientras esta abierto.
-3. **Tras el TTL prueba de nuevo** (medio-abierto): un exito lo cierra, un fallo
-   lo reabre.
-"""
-
 from __future__ import annotations
 
 import pytest
@@ -48,7 +34,6 @@ async def test_el_disyuntor_abre_tras_el_umbral():
         with pytest.raises(RuntimeError):
             await cae()
 
-    # Cuarta llamada: el circuito ya esta abierto, rechaza sin tocar al destino.
     with pytest.raises(CircuitoAbierto):
         await cae()
 
@@ -67,13 +52,11 @@ async def test_tras_el_ttl_prueba_y_un_exito_lo_cierra():
     with pytest.raises(CircuitoAbierto):
         await cae()
 
-    # Pasa el TTL: el circuito pasa a medio-abierto y deja pasar una prueba.
     ahora["t"] = 31.0
 
     async with d:
-        pass  # exito
+        pass
 
-    # Cerrado de nuevo: una llamada normal pasa.
     async with d:
         pass
 
@@ -88,7 +71,7 @@ async def test_reintentar_get_insiste_hasta_tres_veces_y_luego_relanza():
 
     with pytest.raises(TimeoutError):
         await lectura_inestable()
-    assert intentos["n"] == 3  # 1 intento + 2 reintentos
+    assert intentos["n"] == 3
 
 
 async def test_reintentar_get_no_reintenta_circuito_abierto():
@@ -101,7 +84,7 @@ async def test_reintentar_get_no_reintenta_circuito_abierto():
 
     with pytest.raises(CircuitoAbierto):
         await lectura()
-    assert intentos["n"] == 1  # no insiste si el circuito ya esta abierto
+    assert intentos["n"] == 1
 
 
 async def test_un_fallo_en_medio_abierto_reabre():
@@ -117,10 +100,10 @@ async def test_un_fallo_en_medio_abierto_reabre():
     with pytest.raises(CircuitoAbierto):
         await cae()
 
-    ahora["t"] = 31.0  # medio-abierto
+    ahora["t"] = 31.0
     with pytest.raises(RuntimeError):
-        await cae()  # la prueba falla -> reabre
+        await cae()
 
-    ahora["t"] = 31.5  # aun dentro del nuevo TTL
+    ahora["t"] = 31.5
     with pytest.raises(CircuitoAbierto):
         await cae()

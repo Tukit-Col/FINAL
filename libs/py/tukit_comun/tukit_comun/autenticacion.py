@@ -1,10 +1,7 @@
-"""Lectura del encabezado `Authorization`, igual para todos los servicios."""
-
 from __future__ import annotations
 
 
 def token_bearer(authorization: str | None) -> str | None:
-    """El token del encabezado `Authorization`: `Bearer <token>` o el token pelado."""
     if not authorization:
         return None
     partes = authorization.split(" ", 1)

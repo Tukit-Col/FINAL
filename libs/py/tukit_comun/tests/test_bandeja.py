@@ -1,20 +1,3 @@
-"""Pruebas del drenador de bandeja compartido (ADR 0022).
-
-La logica de drenar una `bandeja_salida` estaba TRIPLICADA (repartidor de
-operacion, poller de identidad, poller de inteligencia): reflejar la tabla,
-`SELECT ... FOR UPDATE SKIP LOCKED` sobre los no-publicados, iterar, marcar
-publicado o subir intentos. `drenar` la unifica; cada llamador solo aporta su
-`manejar(conexion, fila) -> Resultado`.
-
-Se fija aqui:
-
-- `HECHO` marca el evento publicado y cuenta.
-- `OMITIR` marca publicado pero NO cuenta (tipo que no me toca).
-- `REINTENTAR` sube intentos y NO marca publicado (se reintenta la proxima pasada).
-- El `correlacion_id` de la carga se re-vincula antes de llamar a `manejar`
-  (cierra el hueco de §A.6: un evento drenado recupera el hilo de su peticion).
-"""
-
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
@@ -27,7 +10,6 @@ from tukit_comun.bandeja import Resultado, bandeja_reflejada, drenar
 from tukit_comun.bd import MotorServicio
 from tukit_comun.http import id_de_correlacion
 
-# La misma tabla que reflejan los drenadores reales; se materializa para el test.
 BANDEJA = bandeja_reflejada(MetaData())
 
 
@@ -72,7 +54,6 @@ async def test_omitir_publica_pero_no_cuenta(motor):
 
     n = await drenar(motor.engine, manejar)
     assert n == 0
-    # Publicado igual: un tipo que no me toca no se reprocesa cada pasada.
     assert await _pendientes(motor) == []
 
 
@@ -105,7 +86,7 @@ async def test_filtra_por_tipo(motor):
 
     n = await drenar(motor.engine, manejar, tipo="lista_verificada")
     assert n == 1
-    assert vistos == ["lista_verificada"]  # el 'otro' ni se toco
+    assert vistos == ["lista_verificada"]
 
 
 async def test_revincula_la_correlacion_desde_la_carga(motor):
@@ -121,9 +102,6 @@ async def test_revincula_la_correlacion_desde_la_carga(motor):
 
 
 async def test_con_correlacion_estampa_y_cierra_el_ciclo():
-    # El otro extremo del hilo: el productor estampa el id de la peticion en la
-    # carga, y el drenador lo re-vincula al consumir (probado arriba). Con id en
-    # contexto se anexa; sin id (un poller) no se inventa nada.
     from tukit_comun.bandeja import con_correlacion
     from tukit_comun.http import fijar_correlacion, reset_correlacion
 
@@ -132,18 +110,15 @@ async def test_con_correlacion_estampa_y_cierra_el_ciclo():
         assert con_correlacion({"x": 1}) == {"x": 1, "correlacion_id": "req-42"}
     finally:
         reset_correlacion(token)
-    assert con_correlacion({"x": 1}) == {"x": 1}  # sin peticion, sin id inventado
+    assert con_correlacion({"x": 1}) == {"x": 1}
 
 
 async def test_sink_recibe_solo_los_hecho(motor):
-    # El sink (broker) es ADITIVO al manejar: solo se le pasan los eventos que
-    # el manejar dio por HECHO —no los OMITIR ni los REINTENTAR—, y el outbox
-    # sigue marcando/publicando igual (la fuente de verdad no cambia, ADR 0022).
     await _sembrar(
         motor,
         [
-            {"tipo": "kits_publicados", "carga": {"a": 1}},  # HECHO
-            {"tipo": "desconocido", "carga": {}},  # OMITIR
+            {"tipo": "kits_publicados", "carga": {"a": 1}},
+            {"tipo": "desconocido", "carga": {}},
         ],
     )
     publicados: list[str] = []
@@ -157,4 +132,4 @@ async def test_sink_recibe_solo_los_hecho(motor):
 
     n = await drenar(motor.engine, manejar, sink=SinkFalso())
     assert n == 1
-    assert publicados == ["kits_publicados"]  # el OMITIR no fue al broker
+    assert publicados == ["kits_publicados"]

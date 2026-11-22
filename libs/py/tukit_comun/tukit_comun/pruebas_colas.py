@@ -1,22 +1,3 @@
-"""Lo que comparten las pruebas contra un RabbitMQ de verdad (ADR 0046).
-
-Las pruebas marcadas `rabbitmq` hablan con el broker de
-`TUKIT_PRUEBAS_RABBITMQ_URL` (por omision el local, el de `.env.ejemplo`) y se
-saltan si no responde, para que la suite siga corriendo sin broker. Cada prueba
-declara una topologia con un prefijo propio y la borra al terminar: no toca las
-colas de quien este usando el broker, ni deja residuo.
-
-No es `RABBITMQ_URL` a proposito: esa variable cambia el modo de los procesos, y
-una prueba no deberia cambiar de modo porque alguien la tenga exportada.
-
-Con `TUKIT_PRUEBAS_RABBITMQ_OBLIGATORIO`, una prueba sin broker falla en vez de
-saltarse. CI la pone: un servicio de RabbitMQ mal puesto no puede dejar el
-trabajo en verde con todo saltado.
-
-Vive en la libreria, como `bd.sesion_de_prueba`, porque la usan las pruebas de
-la libreria y las de los servicios.
-"""
-
 from __future__ import annotations
 
 import os
@@ -28,39 +9,27 @@ from .topologia import TOPOLOGIA, Topologia
 
 
 def url_de_pruebas() -> str:
-    """El broker de las pruebas de integracion."""
     return os.environ.get("TUKIT_PRUEBAS_RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
 
 
 def broker_obligatorio() -> bool:
-    """Si una prueba sin broker debe fallar en vez de saltarse."""
     return bool(os.environ.get("TUKIT_PRUEBAS_RABBITMQ_OBLIGATORIO"))
 
 
-# Si el broker respondio, por URL: se pregunta una vez por proceso, porque abrir
-# una conexion no es gratis (en la Mac de desarrollo el broker tarda segundos en
-# autenticar cada una).
 _disponible: dict[str, bool] = {}
 
 
 async def broker_disponible(url: str, *, espera: float = 15.0) -> bool:
-    """Si el broker de `url` acepta una conexion en `espera` segundos."""
     if url not in _disponible:
         _disponible[url] = await responde(url, espera=espera) is None
     return _disponible[url]
 
 
 def topologia_de_prueba(*, espera_reintento_ms: int = 100) -> Topologia:
-    """La topologia de siempre, con un prefijo unico y reintentos cortos."""
     return TOPOLOGIA.con_prefijo(f"prueba-{uuid.uuid4().hex[:10]}", espera_reintento_ms=espera_reintento_ms)
 
 
 class Sonda:
-    """Una conexion abierta para mirar y limpiar las colas desde la prueba.
-
-    Una sola por prueba: cada conexion nueva cuesta lo que el broker tarde en
-    saludar.
-    """
 
     def __init__(self, url: str) -> None:
         self.url = url
@@ -79,29 +48,24 @@ class Sonda:
 
     @property
     def version(self) -> str | None:
-        """La version que el broker informa al saludar."""
         propiedades = self._conexion.transport.connection.server_properties
         version = propiedades.get("version")
         return None if version is None else str(version)
 
     async def canal(self) -> Any:
-        """Un canal nuevo sobre la misma conexion."""
         return await self._conexion.channel()
 
     async def cuantos(self, cola: str) -> int:
-        """Cuantos mensajes listos hay en `cola`, sin sacarlos."""
         declarada = await self._canal.declare_queue(cola, passive=True)
         return int(declarada.declaration_result.message_count or 0)
 
     async def borrar(self, topologia: Topologia) -> None:
-        """Borra las colas y el exchange que declaro una prueba."""
         for cola in topologia.colas:
             for nombre in (cola.nombre, cola.reintentos, cola.descartados):
                 await self._canal.queue_delete(nombre)
         await self._canal.exchange_delete(topologia.exchange)
 
     async def sacar(self, cola: str) -> list[Any]:
-        """Saca (con ack) todos los mensajes que hay en `cola`, para mirarlos."""
         declarada = await self._canal.declare_queue(cola, passive=True)
         sacados = []
         while (mensaje := await declarada.get(no_ack=True, fail=False)) is not None:

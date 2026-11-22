@@ -1,12 +1,3 @@
-"""Identificadores derivados: la referencia entre dos bases tiene que resolver.
-
-El manifiesto declara `catalogo.lista_oficial.colegio_id -> identidad.colegio`
-como referencia logica, y la funcion de aptitud comprueba que este DECLARADA,
-no que apunte a algo. Esa es la parte que no puede comprobar: si el cargador
-de Identidad y el de Catalogo inventaran cada uno su UUID, la referencia
-apuntaria a nada y nada se quejaria.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -27,9 +18,6 @@ class TestLaMismaLlaveDaElMismoIdentificador:
         assert derivar("colegio", "2.4").version == 5
 
     def test_el_valor_es_el_que_ya_esta_en_la_base(self):
-        """Cambiar el prefijo o el espacio de nombres no es un refactor:
-        reescribe las llaves primarias del catalogo curado que ya se cargo.
-        Este caso lo congela."""
         esperado = uuid.uuid5(uuid.NAMESPACE_URL, "tukit:colegio:2.4")
         assert derivar("colegio", "2.4") == esperado
 
@@ -41,8 +29,6 @@ class TestLaMismaLlaveDaElMismoIdentificador:
 
 class TestElCifradoNoMiente:
     def test_el_adaptador_por_omision_dice_que_no_cifra(self):
-        """El modo de fallar que hay que evitar no es que no haya cifrado: es
-        creer que lo hay."""
         cifrador = CifradorEnClaro()
         assert cifrador.nombre == "en_claro"
         assert cifrador.cifra_de_verdad is False
