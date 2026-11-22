@@ -15,7 +15,7 @@ dependencies = [
     # se puede cumplir: el trabajo del pipeline referencia al acudiente por
     # identificador y nunca copiando su correo.
     "fastapi>=0.115",
-    "uvicorn[standard]>=0.30",
+    "uvicorn[standard]>=0.54.0",
 ]
 
 [tool.uv.sources]

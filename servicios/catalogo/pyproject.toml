@@ -20,7 +20,7 @@ dependencies = [
     # contra un contrato congelado, y necesita validacion de entrada, esquema
     # OpenAPI y CORS, que es justo lo que `http.server` no da.
     "fastapi>=0.115",
-    "uvicorn[standard]>=0.30",
+    "uvicorn[standard]>=0.54.0",
 ]
 
 [tool.uv.sources]
