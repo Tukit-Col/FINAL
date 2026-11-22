@@ -13,41 +13,17 @@ from ..modelos import (
 from ..repositorios.trabajos import RepoTrabajos
 
 TRABAJO = Base.metadata.tables["trabajo_pipeline"]
-
-
 ETAPA = Base.metadata.tables["etapa_trabajo"]
-
-
 ITEM = Base.metadata.tables["item_crudo"]
-
-
 CANDIDATO = Base.metadata.tables["candidato_item"]
-
-
 RESOLUCION = Base.metadata.tables["resolucion_item"]
-
-
 TRANSICION = Base.metadata.tables["transicion_resolucion"]
-
-
 KIT = Base.metadata.tables["kit"]
-
-
 LINEA = Base.metadata.tables["linea_kit"]
-
-
 BANDEJA = Base.metadata.tables["bandeja_salida"]
-
-
 KIT_CANONICO = Base.metadata.tables["kit_canonico"]
-
-
 IMPORTACION = Base.metadata.tables["importacion_lista"]
-
-
 TAU_POR_OMISION = 0.75
-
-
 ANIO_LECTIVO_POR_OMISION = 2026
 
 
@@ -118,8 +94,6 @@ class BorradorDesactualizado(Exception):
 
 
 ORIGEN_CANONICO = "canonico_lista"
-
-
 ORIGENES_SIN_ACUDIENTE = frozenset({"preview_onboarding", ORIGEN_CANONICO})
 
 
