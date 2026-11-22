@@ -1,8 +1,8 @@
 """El SQL por-transaccion del pipeline de trabajos (ADR 0019).
 
 `RepoTrabajos` se ata a una conexion en `__init__` y expone un metodo por
-consulta, con el SQL verbatim que vivia en `trabajos.py`. No abre ni cierra la
-transaccion ni traduce excepciones: eso queda en el orquestador (`trabajos.py`),
+consulta, con el SQL verbatim que vivia en `trabajos/`. No abre ni cierra la
+transaccion ni traduce excepciones: eso queda en el orquestador (`trabajos/`),
 que es quien decide los limites de cada `async with` —en particular el que
 mantiene `emitir_evento` (outbox) y el cambio de estado que lo dispara en una
 SOLA transaccion, para que un evento no sobreviva a un rollback (no dual-write)—.

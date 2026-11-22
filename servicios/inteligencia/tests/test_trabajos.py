@@ -16,6 +16,7 @@ import pytest
 from _ayudas_inteligencia import COLEGIO, catalogo_simple, crear_y_procesar
 from conftest import CatalogoFalso, opcion
 from tukit_inteligencia import trabajos
+from tukit_inteligencia.dominio.pipeline import estado_desde_emparejamiento
 from tukit_inteligencia.modelos import EstadoResolucion, EstadoTrabajo
 from tukit_inteligencia.remoto import RemotoCaido
 
@@ -236,18 +237,15 @@ class TestLaTraduccionDeEstados:
         ],
     )
     def test_traduce_al_vocabulario_del_contrato(self, estado_catalogo, esperado):
-        assert (
-            trabajos.estado_desde_emparejamiento({"estado": estado_catalogo, "opciones": []}, 0.75)
-            == esperado
-        )
+        assert estado_desde_emparejamiento({"estado": estado_catalogo, "opciones": []}, 0.75) == esperado
 
     def test_reconocido_por_debajo_del_umbral_es_ambiguo(self):
         respuesta = {"estado": "reconocido", "parecido": 0.6, "opciones": [opcion("X", "economico", 1)]}
-        assert trabajos.estado_desde_emparejamiento(respuesta, 0.75) == EstadoResolucion.AMBIGUO.value
+        assert estado_desde_emparejamiento(respuesta, 0.75) == EstadoResolucion.AMBIGUO.value
 
     def test_reconocido_sin_opciones_es_un_hueco_y_no_un_acierto(self):
         respuesta = {"estado": "reconocido", "parecido": 0.99, "opciones": []}
-        assert trabajos.estado_desde_emparejamiento(respuesta, 0.75) == EstadoResolucion.HUECO_CATALOGO.value
+        assert estado_desde_emparejamiento(respuesta, 0.75) == EstadoResolucion.HUECO_CATALOGO.value
 
 
 class TestDegradarNuncaTumbar:
