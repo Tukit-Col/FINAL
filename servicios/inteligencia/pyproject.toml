@@ -27,7 +27,7 @@ dependencies = [
 [project.optional-dependencies]
 # El render de PDF no hace falta para las pruebas: la percepcion recibe las
 # paginas ya hechas. Quien corre `percibir` sobre un archivo lo instala.
-pdf = ["pypdfium2>=4.30", "pillow>=10"]
+pdf = ["pypdfium2>=4.30", "pillow>=13.0.0"]
 
 [tool.uv.sources]
 tukit-comun = { workspace = true }
