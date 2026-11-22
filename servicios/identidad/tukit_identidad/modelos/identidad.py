@@ -43,7 +43,6 @@ class Usuario(Base):
 
 
 class Direccion(Base):
-
     __tablename__ = "direccion"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -81,7 +80,6 @@ class Direccion(Base):
 
 
 class BandejaSalida(Base):
-
     __tablename__ = "bandeja_salida"
 
     id: Mapped[int] = mapped_column(

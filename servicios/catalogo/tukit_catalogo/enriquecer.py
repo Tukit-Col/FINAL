@@ -210,6 +210,7 @@ async def _principal(
     imagenes: dict[str, str] = {}
     de_ficha: dict[str, dict[str, Any]] = {}
     if con_imagenes or con_fichas:
+
         def le_falta_algo(p: dict[str, Any]) -> bool:
             if con_imagenes and (not p["imagen_url"] or not p["atributos"]):
                 return True

@@ -24,7 +24,6 @@ from .base import Base
 
 
 class EdicionLibro(Base):
-
     __tablename__ = "edicion_libro"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -63,7 +62,6 @@ class EdicionLibro(Base):
 
 
 class ConfiguracionColegioEditorial(Base):
-
     __tablename__ = "configuracion_colegio_editorial"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -88,7 +86,6 @@ class ConfiguracionColegioEditorial(Base):
 
 
 class VersionVigente(Base):
-
     __tablename__ = "version_vigente"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -123,7 +120,6 @@ class VersionVigente(Base):
 
 
 class PropuestaVersion(Base):
-
     __tablename__ = "propuesta_version"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)

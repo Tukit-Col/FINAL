@@ -9,7 +9,6 @@ from tukit_catalogo.extraccion import (
 
 
 class TestAtributos:
-
     def test_lee_el_tamano_escolar(self):
         assert (
             extraer_atributos("Paquete Cartulina Octavos x25 Unds Negra", ("tamano",))["tamano"] == "octavo"
@@ -109,7 +108,6 @@ class TestAtributos:
 
 
 class TestPersonaje:
-
     def test_reconoce_los_personajes_del_catalogo(self):
         assert extraer_personaje("Regla  Barbie Love") == "Barbie"
         assert extraer_personaje("Vaso de 530 ml plástico con pitillo Spiderman") == "Spiderman"
@@ -125,7 +123,6 @@ class TestPersonaje:
 
 
 class TestAtributosExigidosQueElNombreTrae:
-
     def test_la_agenda_escolar_cubre_dos_anos(self):
         assert extraer_atributos("Agenda Chica Kawai 2026 2027", ("ano",))["ano"] == "2026-2027"
         assert extraer_atributos("Agenda ejecutiva permanente con solapa", ("ano",))["ano"] == "permanente"
@@ -168,7 +165,6 @@ class TestAtributosExigidosQueElNombreTrae:
 
 
 class TestAtributosQueLasListasPiden:
-
     def test_el_idioma_del_diccionario(self):
         assert extraer_atributos("diccionario en español", ("idioma",)) == {"idioma": "espanol"}
         assert extraer_atributos("diccionario de inglés", ("idioma",)) == {"idioma": "ingles"}
@@ -240,7 +236,6 @@ class TestAtributosQueLasListasPiden:
 
 
 class TestRayadoYForma:
-
     @pytest.mark.parametrize(
         ("texto", "esperado"),
         [
@@ -274,7 +269,6 @@ class TestRayadoYForma:
 
 
 class TestCuandoElSilencioSignificaAlgo:
-
     def test_un_cuaderno_que_no_dice_nada_es_de_una_materia(self):
         assert extraer_atributos("Cuaderno Stitch 100 Hojas", ("materias",)) == {"materias": 1}
 
@@ -291,7 +285,6 @@ class TestCuandoElSilencioSignificaAlgo:
 
 
 class TestAtributosDeUnaListaDeSeptimo:
-
     def test_rayas_es_rayado(self):
         nombre = "Cuaderno Argollado 105 Scribe Master Pasta Dura Hombre 80 Hojas Rayas Pasta Dura Grande"
         assert extraer_atributos(nombre, ("rayado",)) == {"rayado": "rayado"}
@@ -442,7 +435,6 @@ class TestAtributosDeUnaListaDeSeptimo:
 
 
 class TestPalabrasDelVocabularioDelCatalogo:
-
     def test_el_tamano_a4_se_lee_aunque_la_normalizacion_lo_despegue(self):
         assert extraer_atributos("Block para bocetos A4, x 60 hojas 110g", ("tamano", "tipo")) == {
             "tamano": "a4",
@@ -469,7 +461,6 @@ class TestPalabrasDelVocabularioDelCatalogo:
 
 
 class TestUnRenglonQueEnumeraVariosValoresNoExigeNinguno:
-
     def test_el_kit_de_pinceles_surtidos_no_exige_forma(self):
         renglon = "Kit de 12 pinceles sintéticos. delgados, planos redondos y abanico"
         assert "forma" not in extraer_atributos(renglon, ("forma", "grosor"))
@@ -516,7 +507,6 @@ def test_doble_punta_no_se_lee_como_punta_fina():
 
 
 class TestVocabularioDeElectronica:
-
     def test_el_valor_de_una_resistencia(self):
         assert extraer_atributos("resistencias de 330 ohm", ("valor",)) == {"valor": "330 ohm"}
         assert extraer_atributos("Resistencia 1K Ohm 1/4W x10", ("valor",)) == {"valor": "1 kohm"}

@@ -87,7 +87,6 @@ class TestSugerenciaDeUnPadre:
 
 
 class TestElBacklogDeSugerencias:
-
     async def test_lista_solo_las_sugerencias_con_campos_seguros(self, cliente):
         referencia = str(uuid.uuid4())
         await cliente.post("/v1/admin/sugerencias", json=_cuerpo_sugerencia(contacto_referencia=referencia))

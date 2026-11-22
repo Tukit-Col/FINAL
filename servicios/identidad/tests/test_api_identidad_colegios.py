@@ -8,7 +8,6 @@ from tukit_identidad.routers.identidad import GRADOS
 
 
 class TestElDirectorioNoFiltraDeMas:
-
     async def test_por_defecto_solo_devuelve_los_campos_del_alta(self, cliente):
         from tukit_identidad.dominio.directorio import (
             _indice_por_dane,
@@ -46,7 +45,6 @@ class TestElAcudienteEscogeColegioYGrado:
 
 
 class TestElPerfilDelColegio:
-
     async def test_el_detalle_trae_logo_sitio_y_contactos(self, cliente):
         cid = str(derivar("colegio", "2.4"))
         cuerpo = (await cliente.get(f"/v1/colegios/{cid}")).json()
@@ -87,7 +85,6 @@ class TestElPerfilDelColegio:
 
 
 class TestEditarElPerfilDelColegio:
-
     async def test_editar_persiste_y_hace_round_trip_por_el_get(self, cliente):
         cid = str(derivar("colegio", "9.9"))
         respuesta = await cliente.patch(

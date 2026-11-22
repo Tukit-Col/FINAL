@@ -42,7 +42,6 @@ def _sesion(usuario: str, rol: str) -> dict:
 
 
 class IdentidadFalsa:
-
     def __init__(self, usuario_id: str | None = None, *, caida: bool = False) -> None:
         self.usuario_id = usuario_id or str(uuid.uuid4())
         self.llamadas: list[tuple[str, str | None]] = []
@@ -72,7 +71,6 @@ TOKEN_OTRO = "token-otro"
 
 
 class IdentidadConSesiones(IdentidadFalsa):
-
     def __init__(self, caida: bool = False) -> None:
         super().__init__()
         self.caida = caida

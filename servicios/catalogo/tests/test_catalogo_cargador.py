@@ -13,7 +13,6 @@ from tukit_catalogo.cargador import (
 
 
 class TestIsbn:
-
     @pytest.mark.parametrize(
         "isbn",
         [
@@ -55,7 +54,6 @@ class TestIsbn:
 
 
 class TestPrecios:
-
     def test_convierte_pesos_enteros_a_centavos(self):
         assert pesos_a_centavos(34200) == 3420000
         assert pesos_a_centavos("42000") == 4200000
@@ -71,7 +69,6 @@ class TestPrecios:
 
 
 class TestReferencias:
-
     def test_no_reporta_nada_cuando_todo_cuadra(self):
         problemas = validar_referencias(
             conceptos={"c1"},
@@ -126,7 +123,6 @@ class TestProblema:
 
 
 class TestElCargadorNoDeshaceElEnriquecimiento:
-
     def test_las_columnas_enriquecidas_estan_declaradas(self):
         assert {
             "imagen_url",
@@ -149,7 +145,6 @@ class TestElCargadorNoDeshaceElEnriquecimiento:
 
 
 class TestLosAtributosViajanEnElCsv:
-
     def test_lee_los_atributos_exportados(self):
         assert atributos_de_csv('{"tamano": "grande"}') == {"tamano": "grande"}
 

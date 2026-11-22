@@ -47,7 +47,6 @@ _ANTES_DE_LA_ENTREGA = frozenset(
 
 @dataclass(frozen=True)
 class EstadoRetracto:
-
     puede: bool
     razon: str | None
     vence_en: datetime | None

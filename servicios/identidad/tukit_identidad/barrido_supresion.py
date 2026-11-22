@@ -51,7 +51,6 @@ def _con_zona(momento: datetime) -> datetime:
 
 @dataclass
 class Reporte:
-
     revisadas: int = 0
     reenviadas: list[str] = field(default_factory=list)
     vencidas: list[str] = field(default_factory=list)

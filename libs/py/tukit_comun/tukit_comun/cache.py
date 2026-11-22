@@ -51,21 +51,18 @@ return salida
 
 
 class Motor(Protocol):
-
     errores: tuple[type[BaseException], ...]
 
     async def leer_varias(self, claves: Sequence[str]) -> list[bytes | None]: ...
 
     async def guardar_varias(self, pares: Mapping[str, bytes], ttl: int) -> None: ...
 
-    async def contar(self, claves: Sequence[tuple[str, int]]) -> list[tuple[int, int]]:
-        ...
+    async def contar(self, claves: Sequence[tuple[str, int]]) -> list[tuple[int, int]]: ...
 
     async def cerrar(self) -> None: ...
 
 
 class MotorEnMemoria:
-
     errores: tuple[type[BaseException], ...] = ()
 
     def __init__(self, *, reloj: Callable[[], float] = time.monotonic, tope: int = TOPE_EN_MEMORIA) -> None:
@@ -123,7 +120,6 @@ class MotorEnMemoria:
 
 
 class MotorRedis:
-
     def __init__(self, url: str, *, espera: float) -> None:
         from redis import exceptions
 
@@ -184,7 +180,6 @@ _SIN_REDIS = _SinRedis()
 
 
 class ClienteRedis:
-
     def __init__(
         self,
         motor: Motor | None,

@@ -34,7 +34,6 @@ _ABIERTAS = ("pendiente", "propagando")
 
 @dataclass
 class Cierre:
-
     motor: MotorServicio
 
     async def manejar(self, evento: Evento) -> Resultado:

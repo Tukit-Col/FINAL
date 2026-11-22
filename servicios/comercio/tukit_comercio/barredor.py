@@ -91,7 +91,7 @@ async def _bucle(intervalo: float, *, dormir: Callable[[float], Awaitable[None]]
 
 def main(argv: list[str] | None = None) -> int:
     analizador = argparse.ArgumentParser(
-        description="Libera reservas de inventario cuyo pago no confirmo dentro del TTL (ADR 0023, C1)."
+        description="Libera reservas de inventario cuyo pago no confirmo dentro del TTL."
     )
     analizador.add_argument("--seguir", action="store_true", help="Corre en bucle en vez de una pasada.")
     analizador.add_argument("--intervalo", type=float, default=60.0, help="Segundos entre pasadas.")

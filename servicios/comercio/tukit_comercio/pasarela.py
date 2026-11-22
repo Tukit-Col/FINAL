@@ -47,7 +47,6 @@ class TransaccionNoExiste(Exception):
 
 @dataclass(frozen=True)
 class TransaccionCreada:
-
     referencia: str
     transaccion_id: str | None
     estado: EstadoPago
@@ -57,7 +56,6 @@ class TransaccionCreada:
 
 @dataclass(frozen=True)
 class EventoPasarela:
-
     evento_id: str
     referencia: str | None
     transaccion_id: str | None
@@ -67,7 +65,6 @@ class EventoPasarela:
 
 
 class PasarelaPago(Protocol):
-
     async def crear_transaccion(
         self,
         *,
@@ -155,7 +152,6 @@ def _valor_por_ruta(datos: dict[str, Any], ruta: str) -> Any:
 
 @dataclass
 class WompiSandbox:
-
     llave_publica: str = ""
     llave_privada: str = ""
     secreto_eventos: str = ""
@@ -259,7 +255,6 @@ class WompiSandbox:
 
 @dataclass
 class PasarelaFalsa:
-
     secreto_eventos: str = "test_events_falso"
     secreto_integridad: str = "test_integrity_falso"
     creadas: list[TransaccionCreada] = field(default_factory=list)

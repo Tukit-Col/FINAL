@@ -81,7 +81,6 @@ class PeticionInterpretar(BaseModel):
 
 
 class PedidoAnterior(BaseModel):
-
     model_config = ConfigDict(extra="forbid")
     accion: Literal["mas_barato", "mejor_calidad", "variar"]
     categoria: str = Field(min_length=3, max_length=24, pattern="^[a-zñáéíóúü]+$")

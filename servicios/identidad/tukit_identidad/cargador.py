@@ -26,7 +26,6 @@ SEDE_POR_OMISION = "Sede unica"
 
 @dataclass(frozen=True)
 class Problema:
-
     bloqueante: bool
     clase: str
     detalle: str
@@ -38,7 +37,6 @@ class Problema:
 
 @dataclass
 class Informe:
-
     escritos: dict[str, int] = field(default_factory=dict)
     problemas: list[Problema] = field(default_factory=list)
     carencias: dict[str, tuple[int, int]] = field(default_factory=dict)

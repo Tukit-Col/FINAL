@@ -6,12 +6,10 @@
 # puerto y su propia base. Lo que se comparte es el Dockerfile, igual que se
 # comparte el `alembic.ini` sin que eso junte las historias de migracion.
 #
-# Se hace asi porque hoy los cuatro son Python 3.12 con las mismas tres
-# dependencias de web y difieren en una linea. Cuatro Dockerfile identicos
-# salvo el `CMD` es el mismo copiar y pegar que el ADR 0014 vino a quitar: el
-# quinto se desincroniza. El dia que uno necesite algo propio (modelos
-# descargados en `inteligencia`, por ejemplo) se le saca su Dockerfile y este
-# se queda con los demas.
+# Los cuatro son Python 3.12 con las mismas tres dependencias de web y difieren en
+# una linea; cuatro Dockerfile identicos salvo el `CMD` se desincronizan. El dia que uno
+# necesite algo propio (modelos descargados en `inteligencia`, por ejemplo) se le saca su
+# Dockerfile y este se queda con los demas.
 
 FROM python:3.12-slim
 

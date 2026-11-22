@@ -20,7 +20,6 @@ OTRO_COLEGIO = "33333333-3333-5333-8333-333333333333"
 
 @dataclass
 class ComercioFalso:
-
     pagados: list[dict[str, Any]] = field(default_factory=list)
 
     async def pedidos_pagados(self) -> list[dict[str, Any]]:
@@ -152,7 +151,6 @@ COLEGIO = "22222222-2222-5222-8222-222222222222"
 
 @dataclass
 class IdentidadFalsa:
-
     roles_por_token: dict[str, list[str]] = field(default_factory=dict)
     caida: bool = False
 

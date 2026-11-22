@@ -31,7 +31,6 @@ URL_RESULTADO = "http://localhost:3000/pago/resultado"
 
 
 class CatalogoFalso:
-
     def __init__(self, precios: dict[str, int] | None = None) -> None:
         self.precios = precios or {}
 
@@ -46,7 +45,6 @@ class CatalogoFalso:
 
 
 class PasarelaQueNoResponde(PasarelaFalsa):
-
     async def crear_transaccion(self, **_: object) -> TransaccionCreada:
         raise httpx.ConnectError("wompi no responde")
 

@@ -7,7 +7,6 @@ from tukit_catalogo.enriquecer import (
 
 
 class TestPoblarEmbeddings:
-
     PRODUCTOS = [
         {
             "id": "p1",

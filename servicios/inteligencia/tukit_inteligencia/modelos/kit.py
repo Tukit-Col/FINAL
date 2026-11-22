@@ -25,7 +25,6 @@ _ESTADOS = ", ".join(f"'{e.value}'" for e in EstadoResolucion)
 
 
 class Kit(Base):
-
     __tablename__ = "kit"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -57,7 +56,6 @@ class Kit(Base):
 
 
 class LineaKit(Base):
-
     __tablename__ = "linea_kit"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)

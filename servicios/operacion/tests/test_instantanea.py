@@ -47,7 +47,6 @@ _METRICAS = [
 
 
 class MetricasFalsas:
-
     def __init__(self, resumen=_RESUMEN, colegios=None, metricas=None) -> None:
         self.resumen = resumen
         if colegios is None:

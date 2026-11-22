@@ -46,7 +46,6 @@ def reset_correlacion(token: contextvars.Token[str | None]) -> None:
 
 
 class ErrorDominio(Exception):
-
     def __init__(self, error: str, mensaje: str, *, estado: int = 400, campo: str | None = None) -> None:
         super().__init__(mensaje)
         self.error = error

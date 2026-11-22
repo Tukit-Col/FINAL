@@ -12,7 +12,6 @@ NOTIFICACION = Base.metadata.tables["notificacion"]
 
 
 class RepoNotificaciones:
-
     def __init__(self, conexion: Any) -> None:
         self.conexion = conexion
 

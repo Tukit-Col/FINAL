@@ -64,7 +64,6 @@ class IdentidadCaida(Exception):
 
 @dataclass
 class ClienteIdentidad:
-
     base: str = ""
     cliente: httpx.AsyncClient | None = None
 

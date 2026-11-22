@@ -40,7 +40,6 @@ Manejar = Callable[[Evento], Awaitable[Resultado]]
 
 
 class Decision(enum.StrEnum):
-
     HECHO = "hecho"
     OMITIDO = "omitido"
     DUPLICADO = "duplicado"
@@ -49,7 +48,6 @@ class Decision(enum.StrEnum):
 
 
 class Registro(Protocol):
-
     async def ya_procesado(self, origen: str, evento_id: int) -> bool: ...
 
     async def marcar(self, origen: str, evento_id: int) -> None: ...
@@ -57,7 +55,6 @@ class Registro(Protocol):
 
 @dataclass
 class RegistroEnMemoria:
-
     vistos: set[tuple[str, int]] = field(default_factory=set)
 
     async def ya_procesado(self, origen: str, evento_id: int) -> bool:
@@ -92,7 +89,6 @@ async def marcar_procesado(conexion: Any, origen: str, evento_id: int) -> bool:
 
 @dataclass
 class RegistroEnTabla:
-
     motor: AsyncEngine
 
     async def ya_procesado(self, origen: str, evento_id: int) -> bool:
@@ -109,7 +105,6 @@ class RegistroEnTabla:
 
 
 class Reenvio(Protocol):
-
     async def __call__(self, mensaje: Any, *, cola: str, cabeceras: dict[str, Any]) -> None: ...
 
 
@@ -126,7 +121,6 @@ def _cabeceras_propias(mensaje: Any) -> dict[str, Any]:
 
 @dataclass
 class Consumidor:
-
     cola: Cola
     manejar: Manejar
     reenviar: Reenvio | None = None

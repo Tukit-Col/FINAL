@@ -6,7 +6,6 @@ from pydantic import BaseModel
 
 
 class ConfigBD(BaseModel):
-
     host: str = "localhost"
     puerto: int = 5432
     usuario: str = "tukit"

@@ -7,7 +7,6 @@ from tukit_catalogo.enriquecer import (
 
 
 class TestEmpaqueContraContenido:
-
     @pytest.mark.parametrize(
         ("nombre", "esperado"),
         [
@@ -50,7 +49,6 @@ class TestEmpaqueContraContenido:
 
 
 class TestHojasSegunElConcepto:
-
     def test_las_hojas_de_un_cuaderno_no_son_cien_cuadernos(self):
         empaque = extraer_empaque(
             "Cuaderno cosido doble línea de 100 hojas (surtido)",

@@ -7,7 +7,6 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class LineaResuelta:
-
     sku: str
     precio_aprobado: int
     cantidad: int
@@ -17,7 +16,6 @@ class LineaResuelta:
 
 @dataclass(frozen=True)
 class CambioPrecio:
-
     sku: str
     precio_aprobado: int
     precio_actual: int | None

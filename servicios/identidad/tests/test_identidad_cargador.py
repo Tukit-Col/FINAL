@@ -28,7 +28,6 @@ def escribir_colegios(directorio: Path, filas: list[tuple[str, str, str]]) -> Pa
 
 
 class TestIdentificadores:
-
     def test_el_id_del_colegio_sale_del_codigo_y_de_nada_mas(self):
         assert id_colegio("2.4") == derivar("colegio", "2.4")
 
@@ -84,7 +83,6 @@ class TestArmado:
 
 
 class TestCarencias:
-
     def test_cuenta_los_colegios_que_el_papa_ve_como_un_codigo(self, tmp_path: Path):
         cargador = Cargador(
             escribir_colegios(
@@ -116,7 +114,6 @@ class TestElProblemaSeLee:
 
 
 class TestCsvVersionado:
-
     def test_el_corpus_aporta_los_17_colegios(self):
         cargador = Cargador(DATOS)
         datos = cargador.armar()
@@ -133,7 +130,6 @@ class TestCsvVersionado:
 
 
 class TestContraElEsquema:
-
     @pytest.mark.asyncio
     async def test_las_filas_armadas_se_insertan_tal_cual(self, db: AsyncSession, tmp_path: Path):
         datos = Cargador(

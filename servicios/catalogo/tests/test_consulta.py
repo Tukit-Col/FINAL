@@ -140,7 +140,6 @@ class TestLoQueNoSeReconoceOQueNoTieneProducto:
 
 
 class TestLaFaltaDeOrtografiaSeAcercaAlCatalogo:
-
     def test_una_sola_palabra_cercana_se_corrige(self):
         from tukit_catalogo.transcripcion import corregir
 
@@ -216,7 +215,6 @@ class TestElAcudienteNoSaleALaRed:
 
 
 class TestUnLibroConTituloSoloSeSurteConEseTitulo:
-
     LIBRO = uuid.UUID("00000000-0000-0000-0000-000000000134")
     CONCEPTO = {
         "id": LIBRO,

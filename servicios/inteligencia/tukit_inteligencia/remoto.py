@@ -26,7 +26,6 @@ ESPERA_SEGUNDOS = 60.0
 
 
 class RemotoCaido(Exception):
-
     def __init__(self, servicio: str, detalle: str, estado: int | None = None) -> None:
         super().__init__(f"{servicio}: {detalle}")
         self.servicio = servicio
@@ -65,7 +64,6 @@ def _clave_de_personaje(p: dict[str, Any]) -> tuple[Any, ...]:
 
 @dataclass
 class ClienteCatalogo:
-
     base: str = ""
     cliente: httpx.AsyncClient | None = None
 
@@ -200,7 +198,6 @@ class ClienteCatalogo:
 
 @dataclass
 class ClienteIdentidad:
-
     base: str = ""
     cliente: httpx.AsyncClient | None = None
 
@@ -282,7 +279,6 @@ class ClienteIdentidad:
 
 @dataclass
 class ClienteComercio:
-
     base: str = ""
     cliente: httpx.AsyncClient | None = None
 

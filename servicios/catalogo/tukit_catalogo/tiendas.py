@@ -44,7 +44,6 @@ CACHE = Path(__file__).resolve().parents[3] / "datos" / "catalogo" / "cache_tien
 
 @dataclass(frozen=True)
 class Oferta:
-
     tienda: str
     nombre: str
     precio_cop: int

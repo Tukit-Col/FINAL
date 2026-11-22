@@ -31,7 +31,6 @@ EXTENSIONES: tuple[str, ...] = ("vector", "pg_trgm")
 
 @dataclass
 class MotorServicio:
-
     servicio: str
     engine: AsyncEngine
     _fabrica: async_sessionmaker[AsyncSession]

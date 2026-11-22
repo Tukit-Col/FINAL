@@ -34,7 +34,6 @@ _ESTADOS = ("pendiente", "aprobada", "rechazada")
 
 
 class PropuestaProducto(Base):
-
     __tablename__ = "propuesta_producto"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)

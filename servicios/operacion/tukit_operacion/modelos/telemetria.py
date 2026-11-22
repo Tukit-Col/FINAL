@@ -20,7 +20,6 @@ from .base import Base, Texto
 
 
 class EventoClickout(Base):
-
     __tablename__ = "evento_clickout"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -38,7 +37,6 @@ class EventoClickout(Base):
 
 
 class RegistroAuditoria(Base):
-
     __tablename__ = "registro_auditoria"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -58,7 +56,6 @@ class RegistroAuditoria(Base):
 
 
 class MetricaDiaria(Base):
-
     __tablename__ = "metrica_diaria"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)

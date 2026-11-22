@@ -86,7 +86,6 @@ class ClienteIdentidad:
 
 @dataclass
 class ClienteMetricas:
-
     cliente: httpx.AsyncClient | None = None
     base_catalogo: str = ""
     base_identidad: str = ""

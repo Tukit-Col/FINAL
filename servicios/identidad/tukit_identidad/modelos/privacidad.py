@@ -32,7 +32,6 @@ _LISTA_ESTADOS = ", ".join(f"'{e}'" for e in ESTADOS_SUPRESION)
 
 
 class PerfilSocioeconomico(Base):
-
     __tablename__ = "perfil_socioeconomico"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -49,7 +48,6 @@ class PerfilSocioeconomico(Base):
 
 
 class Consentimiento(Base):
-
     __tablename__ = "consentimiento"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -84,7 +82,6 @@ class Consentimiento(Base):
 
 
 class ConsentimientoFinalidad(Base):
-
     __tablename__ = "consentimiento_finalidad"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -120,7 +117,6 @@ class ConsentimientoFinalidad(Base):
 
 
 class SolicitudSupresion(Base):
-
     __tablename__ = "solicitud_supresion"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)

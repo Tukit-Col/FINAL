@@ -30,7 +30,6 @@ def bearer(token: str) -> dict[str, str]:
 
 
 class IdentidadFalsa:
-
     def __init__(self, sesiones: dict[str, dict[str, Any]] | None = None, *, caida: bool = False) -> None:
         self.sesiones = sesiones if sesiones is not None else sesiones_por_omision()
         self.caida = caida

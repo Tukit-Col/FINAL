@@ -40,7 +40,6 @@ DIAGNOSTICO = "titular_suprimido"
 
 @dataclass
 class Supresor:
-
     motor: MotorServicio
 
     async def manejar(self, evento: Evento) -> Resultado:

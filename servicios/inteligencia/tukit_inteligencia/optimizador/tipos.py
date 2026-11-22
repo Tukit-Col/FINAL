@@ -38,7 +38,6 @@ NOTA_CONSOLIDADA = "Se compra junto con "
 
 @dataclass(frozen=True)
 class Candidato:
-
     sku: str
     nombre: str
     nivel: str
@@ -59,7 +58,6 @@ class Candidato:
 
 @dataclass(frozen=True)
 class Renglon:
-
     hijo: str
     orden: int
     texto: str
@@ -90,7 +88,6 @@ class Renglon:
 
 @dataclass(frozen=True)
 class LineaKit:
-
     hijo: str
     orden: int
     descripcion: str
@@ -130,7 +127,6 @@ class KitArmado:
 
 @dataclass(frozen=True)
 class SolucionFrente:
-
     asignacion: dict[tuple[str, int], str]
     costo: int
     fidelidad: float

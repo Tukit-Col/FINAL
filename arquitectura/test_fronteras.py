@@ -86,7 +86,7 @@ def test_el_manifiesto_cuadra_con_el_esquema_objetivo():
     assert total == esperado, (
         f"El manifiesto declara {total} tablas y el esquema objetivo define {esperado}.\n"
         f"Si agregaste o quitaste una tabla a proposito, actualiza tambien "
-        f"`total_tablas_esperado` y Arquitectura/ESQUEMA_OBJETIVO.md."
+        f"`total_tablas_esperado`."
     )
 
 

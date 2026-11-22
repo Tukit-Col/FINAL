@@ -59,7 +59,6 @@ class Sede(Base):
 
 
 class Estudiante(Base):
-
     __tablename__ = "estudiante"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -82,7 +81,6 @@ class Estudiante(Base):
 
 
 class Matricula(Base):
-
     __tablename__ = "matricula"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -114,7 +112,6 @@ class Matricula(Base):
 
 
 class AcudienteMatricula(Base):
-
     __tablename__ = "acudiente_matricula"
 
     usuario_id: Mapped[uuid.UUID] = mapped_column(

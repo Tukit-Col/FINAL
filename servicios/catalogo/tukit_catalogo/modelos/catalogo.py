@@ -31,7 +31,6 @@ _UNIDADES_BASE = ", ".join(f"'{u.value}'" for u in UnidadBase)
 
 
 class Concepto(Base):
-
     __tablename__ = "concepto"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -79,7 +78,6 @@ class Concepto(Base):
 
 
 class GrupoVariante(Base):
-
     __tablename__ = "grupo_variante"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -104,7 +102,6 @@ class GrupoVariante(Base):
 
 
 class ProductoCanonico(Base):
-
     __tablename__ = "producto_canonico"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -160,7 +157,6 @@ class ProductoCanonico(Base):
 
 
 class ConceptoRutaCategoria(Base):
-
     __tablename__ = "concepto_ruta_categoria"
 
     concepto_id: Mapped[uuid.UUID] = mapped_column(
@@ -174,7 +170,6 @@ class ConceptoRutaCategoria(Base):
 
 
 class SustituibilidadConcepto(Base):
-
     __tablename__ = "sustituibilidad_concepto"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)

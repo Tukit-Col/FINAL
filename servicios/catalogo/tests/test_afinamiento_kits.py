@@ -23,7 +23,6 @@ def _p(sku: str, atributos: dict, nivel: str = "confiable", precio: int = 1000, 
 
 
 class TestComoSeComparaCadaAtributo:
-
     def test_las_hojas_valen_si_son_al_menos_las_pedidas(self):
         assert _cumple(_p("a", {"hojas": 100}), {"hojas": 80})
         assert not _cumple(_p("a", {"hojas": 50}), {"hojas": 80})
@@ -262,7 +261,6 @@ class TestLosRenglonesDeUnaVersion:
 
 
 class TestLoQueEncontraronLosAgentesDeSurtido:
-
     def test_dos_medidas_a_los_lados_de_la_x_no_son_un_empaque(self):
         assert extraer_empaque("CARTULINA PLIEGO 70X100 BLANCO").unidades == 1
         assert extraer_empaque("Caja De Lapiz Kores Jumbo Hb #2 X12 Negro").unidades == 12
@@ -286,7 +284,6 @@ class TestLoQueEncontraronLosAgentesDeSurtido:
 
 
 class TestLasVariantesSoloSiSePiden:
-
     def test_una_cartulina_generica_no_recibe_la_fluorescente(self):
         productos = [
             _p("fluor", {"acabado": "fluorescente", "tamano": "octavo"}, precio=3600),
@@ -325,7 +322,6 @@ class TestLasVariantesSoloSiSePiden:
 
 
 class TestElTamanoDelCuadernoSeExigeSiAlguienLoDeclara:
-
     def test_si_hay_uno_grande_el_que_no_dice_tamano_queda_fuera(self):
         productos = [
             _p("sin-tamano", {"rayado": "cuadriculado", "hojas": 100}, precio=5990),

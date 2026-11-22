@@ -19,7 +19,6 @@ def _hipervolumen(kits, ref_costo: int) -> float:
 
 
 class TestElFrenteDePareto:
-
     RENGLONES = [
         renglon_optimizador(
             1,
@@ -98,7 +97,6 @@ class TestElFrenteDePareto:
 
 
 class TestElFanNoRepiteElMismoProducto:
-
     SPIDEY = candidato("SPIDEY", "confiable", 36900, personaje="spiderman")
     OTRO_DISENO = candidato("SPIDEY-2", "confiable", 12000, personaje="spiderman")
     NEUTRO = candidato("NEUTRO", "economico", 7990)
@@ -153,7 +151,6 @@ class TestElFanNoRepiteElMismoProducto:
 
 
 class TestElFrenteNSGAEnEspacioGrande:
-
     def _renglones_grandes(self):
         niveles = ("economico", "confiable", "premium", "confiable")
         precios = (3000, 6000, 12000, 7000)
@@ -254,7 +251,6 @@ class TestElFrenteNSGAEnEspacioGrande:
 
 
 class TestBordesDelOptimizador:
-
     def test_sin_renglones_el_frente_es_vacio(self):
         assert optimizar_frente([], {}) == []
 

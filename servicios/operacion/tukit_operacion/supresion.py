@@ -36,7 +36,6 @@ _CLAVES_TEXTO = ("texto",)
 
 @dataclass
 class Supresor:
-
     motor: MotorServicio
 
     async def manejar(self, evento: Evento) -> Resultado:

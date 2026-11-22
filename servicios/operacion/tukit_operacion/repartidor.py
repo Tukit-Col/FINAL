@@ -57,7 +57,6 @@ def _trabajo_reflejado() -> Table:
 
 @dataclass
 class Repartidor:
-
     origen: str | None
     motor_operacion: Any
     motor_origen: AsyncEngine | None

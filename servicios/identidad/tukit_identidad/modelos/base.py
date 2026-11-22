@@ -10,7 +10,6 @@ class Base(DeclarativeBase):
 
 
 class Clasificacion(enum.StrEnum):
-
     PUBLICO = "publico"
     INTERNO = "interno"
     PERSONAL = "personal"
@@ -28,7 +27,6 @@ ORDEN_CLASIFICACION: dict[Clasificacion, int] = {
 
 
 class AmbitoTipo(enum.StrEnum):
-
     GLOBAL = "global"
     COLEGIO = "colegio"
     SEDE = "sede"
@@ -36,7 +34,6 @@ class AmbitoTipo(enum.StrEnum):
 
 
 class EstadoMatricula(enum.StrEnum):
-
     ACTIVA = "activa"
     RETIRADA = "retirada"
     GRADUADA = "graduada"

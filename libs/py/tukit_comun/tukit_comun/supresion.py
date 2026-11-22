@@ -18,7 +18,6 @@ SUSCRIPTORES_SUPRESION: frozenset[str] = frozenset({"comercio", "operacion", "in
 
 @dataclass(frozen=True)
 class Supresion:
-
     usuario_id: uuid.UUID
     solicitud_id: uuid.UUID
 

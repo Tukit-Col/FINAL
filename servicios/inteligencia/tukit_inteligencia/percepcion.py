@@ -58,14 +58,12 @@ _BACHILLERATO_POR_ANO = {1: "Septimo", 2: "Octavo", 3: "Noveno", 4: "Decimo", 5:
 
 
 class ItemExtraido(BaseModel):
-
     descripcion: str
     cantidad: int | None = None
     confianza: float | None = None
 
 
 class PaginaLeida(BaseModel):
-
     grados: list[str] = Field(default_factory=list)
     completa: bool = True
     items: list[ItemExtraido] = Field(default_factory=list)
@@ -81,7 +79,6 @@ Renderizar = Callable[[bytes], list[bytes]]
 
 @dataclass(frozen=True)
 class Percepcion:
-
     aceptada: bool
     grados: tuple[str, ...] = ()
     paginas: int = 0

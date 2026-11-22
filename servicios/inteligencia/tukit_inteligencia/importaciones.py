@@ -52,7 +52,6 @@ def clave_de(subida_id: uuid.UUID, destino: Destino) -> uuid.UUID:
 
 @dataclass
 class Destino:
-
     colegio_id: str
     grado: str
     anio_lectivo: int
@@ -66,7 +65,6 @@ class Destino:
 
 @dataclass(frozen=True)
 class Intento:
-
     estado: str
     version_id: str | None = None
     error: RemotoCaido | None = None

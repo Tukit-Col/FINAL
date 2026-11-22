@@ -62,7 +62,6 @@ _VENTANA_GASTO = 3600.0
 
 
 class LimiteExcedido(Exception):
-
     def __init__(self, motivo: Literal["tasa", "tokens"], espera: int) -> None:
         super().__init__(motivo)
         self.motivo = motivo
@@ -70,7 +69,6 @@ class LimiteExcedido(Exception):
 
 
 class LimitadorSesion:
-
     def __init__(self) -> None:
         self._llamadas: dict[str, deque[float]] = {}
         self._tokens: dict[str, deque[tuple[float, int]]] = {}
@@ -267,7 +265,6 @@ class PreferenciasPRM(BaseModel):
 
 
 class RestriccionesR(BaseModel):
-
     model_config = ConfigDict(extra="forbid")
     filtros_duros: FiltrosDuros
     pesos_NSGA: PesosNSGA

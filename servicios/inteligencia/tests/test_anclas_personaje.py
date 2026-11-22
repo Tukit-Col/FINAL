@@ -141,7 +141,6 @@ async def test_los_avisos_de_ancla_tienen_tope():
 
 
 class TestElegirProductoDePersonaje:
-
     def test_elegir_producto_de_personaje_es_determinista(self):
         a = {"sku": "B", "nivel": "confiable", "precio_desde": 100}
         b = {"sku": "A", "nivel": "confiable", "precio_desde": 100}

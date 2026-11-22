@@ -98,7 +98,6 @@ class TestElPipelineDejaTresKits:
 
 
 class TestFijarProductoPorNivel:
-
     async def test_fijar_cambia_solo_ese_kit_y_recalcula_el_total(self, motor):
         catalogo = catalogo_simple()
         trabajo_id, _ = await crear_y_procesar(motor, catalogo)
@@ -196,7 +195,6 @@ class TestFijarProductoPorNivel:
 
 
 class TestLaTraduccionDeEstados:
-
     @pytest.mark.parametrize(
         ("estado_catalogo", "esperado"),
         [
@@ -275,7 +273,6 @@ class TestDegradarNuncaTumbar:
 
 
 class TestPublicarDirectoDesdeListaVerificada:
-
     async def _crear_lista_verificada_y_procesar(self, motor):
         respuesta = await trabajos.crear(
             motor,
@@ -335,7 +332,6 @@ class TestElEventoLlevaTodasLasListas:
 
 
 class TestElEventoDeOutboxNoEsDualWrite:
-
     async def test_la_fila_no_sobrevive_a_un_rollback_a_mitad(self, motor):
         from sqlalchemy import func, select
         from tukit_inteligencia.repositorios.trabajos import RepoTrabajos

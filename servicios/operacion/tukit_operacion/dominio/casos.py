@@ -18,7 +18,6 @@ _RANGO_DESCONOCIDO = 99
 
 @dataclass(frozen=True)
 class CategoriaRechazada:
-
     razon: str
     estado: int
 
@@ -66,7 +65,6 @@ LONGITUD_MAXIMA_RESPUESTA = 2000
 
 @dataclass(frozen=True)
 class CambioRechazado:
-
     razon: str
     estado: int
     campo: str = "estado"

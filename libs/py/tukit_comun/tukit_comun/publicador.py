@@ -34,7 +34,6 @@ LIMITE_POR_OMISION = 100
 
 
 class Destino(Protocol):
-
     async def publicar(self, evento: Evento) -> None: ...
 
 
@@ -83,7 +82,6 @@ async def vaciar(
 
 @dataclass
 class PublicadorAmqp:
-
     url: str
     topologia: Topologia = TOPOLOGIA
     _conexion: Any = None

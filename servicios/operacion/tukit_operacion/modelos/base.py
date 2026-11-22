@@ -15,7 +15,6 @@ Texto = JSON().with_variant(JSONB(), "postgresql")
 
 
 class OrigenCaso(enum.StrEnum):
-
     ACUDIENTE = "acudiente"
     COLEGIO = "colegio"
     OPERADOR = "operador"
@@ -23,7 +22,6 @@ class OrigenCaso(enum.StrEnum):
 
 
 class CategoriaCaso(enum.StrEnum):
-
     PAGO = "pago"
     STOCK = "stock"
     ENTREGA = "entrega"
@@ -48,7 +46,6 @@ CATEGORIAS_CASO_ACUDIENTE: frozenset[CategoriaCaso] = frozenset(
 
 
 class EstadoCaso(enum.StrEnum):
-
     ABIERTO = "abierto"
     EN_GESTION = "en_gestion"
     ESPERANDO_TERCERO = "esperando_tercero"
@@ -61,7 +58,6 @@ class EstadoCaso(enum.StrEnum):
 
 
 class Prioridad(enum.StrEnum):
-
     URGENTE = "urgente"
     ALTA = "alta"
     MEDIA = "media"

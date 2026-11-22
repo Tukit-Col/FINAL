@@ -172,7 +172,6 @@ class TestNiveles:
 
 
 class TestEjesOrtogonales:
-
     def test_un_producto_premium_tambien_puede_ser_de_spiderman(self, sesion):
         concepto = crear_concepto(sesion, "cuaderno", admite_personaje=True)
         cuaderno = crear_producto(sesion, concepto, Nivel.PREMIUM, personaje="spiderman")
@@ -208,7 +207,6 @@ class TestEjesOrtogonales:
 
 
 class TestUnidadDeCompra:
-
     def test_por_omision_un_producto_se_vende_de_a_una_unidad(self, sesion):
         producto = crear_producto(sesion, crear_concepto(sesion))
         assert (producto.unidad_base, producto.unidades_por_empaque) == ("unidad", 1)
@@ -241,7 +239,6 @@ class TestUnidadDeCompra:
 
 
 class TestTipoItem:
-
     def test_por_omision_un_concepto_es_papeleria_comprable(self, sesion):
         assert crear_concepto(sesion).tipo_item == "util"
 
@@ -277,7 +274,6 @@ class TestTipoItem:
 
 
 class TestElEsquemaSePuedeMigrar:
-
     def test_ninguna_tabla_queda_fuera_del_orden_de_creacion(self):
         import warnings
 
@@ -320,7 +316,6 @@ class TestElEsquemaSePuedeMigrar:
 
 
 class TestTipoItemPorRenglon:
-
     def _version(self, sesion) -> VersionListaOficial:
         lista = ListaOficial(colegio_id=uuid.uuid4(), grado="3", anio_lectivo=2026)
         sesion.add(lista)
@@ -433,7 +428,6 @@ class TestTipoItemPorRenglon:
 
 
 class TestVocabularioDeUnidad:
-
     def _item(self, sesion, **kw) -> ItemListaOficial:
         lista = ListaOficial(colegio_id=uuid.uuid4(), grado="3", anio_lectivo=2026)
         sesion.add(lista)

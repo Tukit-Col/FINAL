@@ -21,7 +21,6 @@ from .base import Base
 
 
 class Proveedor(Base):
-
     __tablename__ = "proveedor"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -35,7 +34,6 @@ class Proveedor(Base):
 
 
 class CondicionComercial(Base):
-
     __tablename__ = "condicion_comercial"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -57,7 +55,6 @@ class CondicionComercial(Base):
 
 
 class PrecioProveedor(Base):
-
     __tablename__ = "precio_proveedor"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -78,7 +75,6 @@ class PrecioProveedor(Base):
 
 
 class InventarioProveedor(Base):
-
     __tablename__ = "inventario_proveedor"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -98,7 +94,6 @@ class InventarioProveedor(Base):
 
 
 class PedidoMayorista(Base):
-
     __tablename__ = "pedido_mayorista"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -119,7 +114,6 @@ class PedidoMayorista(Base):
 
 
 class ItemPedidoMayorista(Base):
-
     __tablename__ = "item_pedido_mayorista"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)

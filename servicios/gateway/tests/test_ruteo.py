@@ -66,7 +66,6 @@ class TestElPrefijoMasLargoGana:
 
 
 class TestNingunaRutaSeAnunciaComoPendiente:
-
     def test_el_checkout_y_el_webhook_no_estan_pendientes(self):
         from tukit_gateway.api import PENDIENTES, pendiente
 
@@ -76,7 +75,6 @@ class TestNingunaRutaSeAnunciaComoPendiente:
 
 
 class TestLasRutasInternasNoSeExponen:
-
     def test_pedidos_pagados_esta_bloqueada(self):
         assert bloqueada("/v1/comercio/pedidos-pagados") is True
 
@@ -152,7 +150,6 @@ async def _respuesta_cruda(ruta: str) -> tuple[int, bytes]:
 
 
 class TestLosSegmentosPuntoNoSaltanElBloqueo:
-
     @pytest.mark.parametrize(
         "ruta",
         [
@@ -187,7 +184,6 @@ class TestLosSegmentosPuntoNoSaltanElBloqueo:
 
 
 class TestElEndpointInternoDeCatalogoNoSeExpone:
-
     RUTA = "/interno/listas-por-contacto/aaaaaaaa-aaaa-5aaa-8aaa-aaaaaaaaaaaa"
 
     def test_destino_es_none(self):
@@ -229,7 +225,6 @@ class TestLaRespuestaCuandoNoSabe:
 
 
 class TestElCuerpoMultipartViajaIntacto:
-
     def test_content_type_no_se_salta(self):
         assert "content-type" not in CABECERAS_SALTADAS
 

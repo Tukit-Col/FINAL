@@ -24,7 +24,6 @@ GRADOS = (
 
 @dataclass
 class HijoMatricula:
-
     colegio_id: uuid.UUID
     grado: str
     apodo: str | None = None

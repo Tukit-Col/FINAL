@@ -18,7 +18,6 @@ VARIABLE_LLAVE = "TUKIT_LLAVE_CIFRADO"
 
 
 class Cifrador(Protocol):
-
     nombre: str
 
     def cifrar(self, datos: bytes) -> bytes: ...
@@ -45,7 +44,6 @@ class _Base:
 
 
 class CifradorEnClaro(_Base):
-
     nombre = "en_claro"
     cifra_de_verdad = False
 
@@ -57,7 +55,6 @@ class CifradorEnClaro(_Base):
 
 
 class CifradorFernet(_Base):
-
     nombre = "fernet"
     cifra_de_verdad = True
 

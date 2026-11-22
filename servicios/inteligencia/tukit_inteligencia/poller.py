@@ -42,7 +42,6 @@ _TIPO_CANONICO = "lista_aprobada"
 
 @dataclass
 class Poller:
-
     motor_inteligencia: Any
     motor_catalogo: AsyncEngine | None
     catalogo: ClienteCatalogo

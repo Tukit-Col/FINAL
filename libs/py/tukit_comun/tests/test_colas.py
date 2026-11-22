@@ -230,7 +230,6 @@ async def _pendientes(motor: AsyncEngine) -> list[int]:
 
 
 class _Destino:
-
     def __init__(self, *, falla_en: int | None = None, error: Exception | None = None) -> None:
         self.publicados: list[Evento] = []
         self.falla_en = falla_en
@@ -328,7 +327,6 @@ def test_sin_rabbitmq_url_el_publicador_no_arranca(monkeypatch, capsys):
 
 
 class _Mensaje:
-
     def __init__(self, datos: bytes, *, cabeceras: dict[str, Any] | None = None) -> None:
         self.body = datos
         self.headers = cabeceras or {}

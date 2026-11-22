@@ -34,7 +34,6 @@ class TestMisMatriculasExigenToken:
 
 
 class TestGuardarMatriculasConSesion:
-
     async def _token(self, cliente, correo: str) -> str:
         await cliente.post(
             "/v1/registro",
@@ -174,7 +173,6 @@ class TestGuardarMatriculasConSesion:
 
 
 class TestQuitarYCambiarHijos:
-
     async def _cuenta_con_hijo(self, cliente, correo: str, apodo: str = "Pipe") -> tuple[dict, str]:
         await cliente.post(
             "/v1/registro",

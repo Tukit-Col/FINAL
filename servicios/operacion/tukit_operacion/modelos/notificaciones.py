@@ -20,7 +20,6 @@ from .base import Base, Texto
 
 
 class Notificacion(Base):
-
     __tablename__ = "notificacion"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -54,7 +53,6 @@ class Notificacion(Base):
 
 
 class PreferenciaNotificacion(Base):
-
     __tablename__ = "preferencia_notificacion"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)

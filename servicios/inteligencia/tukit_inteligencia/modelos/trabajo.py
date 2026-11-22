@@ -39,7 +39,6 @@ ETAPAS = ("percepcion", "normalizacion", "resolucion", "optimizacion")
 
 
 class TrabajoPipeline(Base):
-
     __tablename__ = "trabajo_pipeline"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -96,7 +95,6 @@ class TrabajoPipeline(Base):
 
 
 class EtapaTrabajo(Base):
-
     __tablename__ = "etapa_trabajo"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -119,7 +117,6 @@ class EtapaTrabajo(Base):
 
 
 class BandejaSalida(Base):
-
     __tablename__ = "bandeja_salida"
 
     id: Mapped[int] = mapped_column(
@@ -147,7 +144,6 @@ class BandejaSalida(Base):
 
 
 class KitCanonico(Base):
-
     __tablename__ = "kit_canonico"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)

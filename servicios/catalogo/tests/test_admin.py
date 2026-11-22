@@ -62,7 +62,6 @@ class TestElPrecioSeVeEnPesos:
 
 
 class TestLaPaginaPinta:
-
     def test_pinta_el_concepto_con_su_producto(self):
         html = admin.construir([_concepto()], _resumen())
         assert "cuaderno" in html
@@ -105,7 +104,6 @@ class TestLaPaginaPinta:
 
 
 class TestLaCuraduriaNoAbreLaPuertaDelAcudiente:
-
     def test_admin_no_importa_ni_usa_la_puerta(self):
         arbol = ast.parse(inspect.getsource(admin))
         nombres_puerta = {"abrir_revision", "exigir_sin_revisar", "PuertaCerrada"}
@@ -138,7 +136,6 @@ class TestLaCuraduriaNoAbreLaPuertaDelAcudiente:
 
 
 class TestElServidorNoSeCaeConUnError:
-
     def test_los_post_estan_envueltos_en_try(self):
         cuerpo = inspect.getsource(admin._Manejador.do_POST)
         assert "try:" in cuerpo
@@ -151,7 +148,6 @@ class TestElServidorNoSeCaeConUnError:
 
 
 class TestEditarYBorrarUnProductoSuelto:
-
     def test_la_tarjeta_trae_los_datos_para_editar(self):
         html = admin.construir([_concepto()], _resumen())
         assert 'data-pid="11111111-1111-1111-1111-111111111111"' in html
@@ -256,7 +252,6 @@ def _grupo_cola(**kw: Any) -> dict[str, Any]:
 
 
 class TestLaColaDeRevisionPinta:
-
     def test_pinta_el_candidato_con_su_precio_y_foto(self):
         h = admin.construir_cola([_grupo_cola()], 1)
         assert "FLAUTA DULCE SOPRANO HAMMELIN" in h
@@ -302,7 +297,6 @@ class TestLaColaDeRevisionPinta:
 
 
 class TestAprobarYRechazarPasanPorResolver:
-
     def test_aprobar_propuesta_llama_resolver_con_aprobar_true(self):
         cuerpo = inspect.getsource(admin.aprobar_propuesta)
         assert "resolver(" in cuerpo

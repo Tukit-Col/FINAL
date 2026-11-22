@@ -67,7 +67,6 @@ def ahora() -> datetime:
 
 
 class SolicitudNoCancelable(Exception):
-
     def __init__(self, codigo: str, mensaje: str, estado: int = 409) -> None:
         super().__init__(mensaje)
         self.codigo = codigo
@@ -76,7 +75,6 @@ class SolicitudNoCancelable(Exception):
 
 
 class CambioNoPermitido(Exception):
-
     def __init__(self, codigo: str, mensaje: str, estado: int = 409) -> None:
         super().__init__(mensaje)
         self.codigo = codigo
@@ -85,7 +83,6 @@ class CambioNoPermitido(Exception):
 
 
 class CheckoutRechazado(Exception):
-
     def __init__(self, estado: int, cuerpo: dict[str, Any]) -> None:
         super().__init__(str(cuerpo.get("error") or estado))
         self.estado = estado
@@ -93,14 +90,12 @@ class CheckoutRechazado(Exception):
 
 
 class TrabajoProtegido(Exception):
-
     def __init__(self, estado: str) -> None:
         super().__init__(f"un trabajo en {estado} esta protegido contra borrado")
         self.estado = estado
 
 
 class SinProductoQueValidar(Exception):
-
     def __init__(self, sku: str | None) -> None:
         super().__init__(sku or "sin_sku")
         self.sku = sku

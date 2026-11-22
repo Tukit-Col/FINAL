@@ -22,7 +22,6 @@ ESPERA_SEGUNDOS = 5.0
 
 @dataclass(frozen=True)
 class Fuente:
-
     seccion: str
     variable: str
     por_omision: str
@@ -61,7 +60,6 @@ FUENTES: tuple[Fuente, ...] = (
 
 @dataclass
 class InventarioRemoto:
-
     cliente: httpx.AsyncClient | None = None
     fuentes: tuple[Fuente, ...] = field(default=FUENTES)
 

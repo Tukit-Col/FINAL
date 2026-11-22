@@ -9,7 +9,6 @@ from .base import Base
 
 
 class EventoProcesado(Base):
-
     __tablename__ = "evento_procesado"
 
     origen: Mapped[str] = mapped_column(String(32), primary_key=True)

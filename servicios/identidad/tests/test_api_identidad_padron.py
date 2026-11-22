@@ -6,7 +6,6 @@ from tests._ayudas_identidad import sembrar_usuario_con_rol
 
 
 class TestElPadronDeAcudientes:
-
     async def _registrar(self, cliente, correo, apodo=None):
         hijo = {"colegio_id": str(derivar("colegio", "2.4")), "grado": "Quinto"}
         if apodo is not None:

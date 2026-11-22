@@ -27,7 +27,6 @@ _SIN_PAGAR = "pendiente_pago"
 
 @dataclass(frozen=True)
 class Paso:
-
     paso: str
     accion: str
     compensacion: str | None

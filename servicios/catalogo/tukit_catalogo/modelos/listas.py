@@ -33,7 +33,6 @@ _MODOS_SURTIBLES = ", ".join(f"'{m.value}'" for m in sorted(MODOS_SURTIBLES))
 
 
 class ListaOficial(Base):
-
     __tablename__ = "lista_oficial"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -50,7 +49,6 @@ class ListaOficial(Base):
 
 
 class VersionListaOficial(Base):
-
     __tablename__ = "version_lista_oficial"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -85,7 +83,6 @@ class VersionListaOficial(Base):
 
 
 class ItemListaOficial(Base):
-
     __tablename__ = "item_lista_oficial"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -147,7 +144,6 @@ class ItemListaOficial(Base):
 
 
 class TareaImportacion(Base):
-
     __tablename__ = "tarea_importacion"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -203,7 +199,6 @@ class TareaImportacion(Base):
 
 
 class BandejaSalida(Base):
-
     __tablename__ = "bandeja_salida"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -229,7 +224,6 @@ class BandejaSalida(Base):
 
 
 class CorreccionLista(Base):
-
     __tablename__ = "correccion_lista"
     __table_args__ = (
         Index("ix_correccion_lista_version", "version_id"),

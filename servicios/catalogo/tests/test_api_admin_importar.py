@@ -214,7 +214,6 @@ class TestImportarListaDesdeOnboarding:
 
 
 class TestImportarConClaveDeIdempotencia:
-
     async def _versiones(self, cliente) -> list[dict]:
         listas = (await cliente.get(f"/v1/admin/listas?colegio_id={COLEGIO}&grado=Sexto")).json()
         return listas["listas"]
@@ -291,7 +290,6 @@ class TestImportarConClaveDeIdempotencia:
 
 
 class TestEditarDatosDelColegioEnLaRevision:
-
     async def test_la_revision_expone_los_datos_del_colegio_nuevo(self, cliente):
         colegio_datos = {"dane": "311001105731", "nombre": "ACADEMIA CENTRAL DE SISTEMAS"}
         vid = (

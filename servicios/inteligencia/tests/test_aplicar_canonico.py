@@ -17,7 +17,6 @@ from tukit_inteligencia.modelos import EstadoTrabajo
 
 
 class TestAplicarCanonico:
-
     async def test_aplicar_no_copia_kits_y_congela_el_pedido(self, motor):
         from sqlalchemy import func, select
 
@@ -246,7 +245,6 @@ class TestAplicarCanonico:
 
 
 class TestElAcudienteCambiaSuKit:
-
     async def _ruta_rapida(self, motor, usuario_id=None):
         canonico = await sembrar_canonico(motor)
         resultado = await trabajos.aplicar_canonico(
@@ -461,7 +459,6 @@ class TestLosPersonajesDelKitAplicado:
 
 
 class TestElApodoEnLaRutaRapida:
-
     async def test_la_ruta_rapida_guarda_el_apodo_y_el_kit_lo_muestra(self, motor):
         from sqlalchemy import select
 

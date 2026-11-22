@@ -49,7 +49,6 @@ class _Estado(Enum):
 
 
 class Disyuntor:
-
     def __init__(
         self,
         destino: str,

@@ -62,7 +62,6 @@ def _plano(texto: str) -> str:
 
 @dataclass(frozen=True)
 class Demanda:
-
     texto: str
     tipo_item: str
     modo_adquisicion: str

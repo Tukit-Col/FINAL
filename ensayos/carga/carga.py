@@ -25,7 +25,6 @@ TIEMPO_MAXIMO_S = 10.0
 
 @dataclass(frozen=True)
 class Punto:
-
     nombre: str
     base: str
     ruta: str

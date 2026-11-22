@@ -42,7 +42,6 @@ class PagoVisto:
 
 @dataclass(frozen=True)
 class AvanceVisto:
-
     estado_desde: str
     estado_hacia: str
     tipo_incidencia: str | None
@@ -51,7 +50,6 @@ class AvanceVisto:
 
 @dataclass(frozen=True)
 class EnvioVisto:
-
     repartidor_nombre: str | None
     entrega_estimada: datetime | None
     entregado_en: datetime | None

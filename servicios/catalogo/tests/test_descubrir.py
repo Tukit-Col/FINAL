@@ -39,7 +39,6 @@ from tukit_catalogo.descubrir import (
 
 
 class TestElPluralNoDebeCambiarLaCosa:
-
     @pytest.mark.parametrize(
         ("plural", "singular_esperado"),
         [
@@ -65,7 +64,6 @@ class TestElPluralNoDebeCambiarLaCosa:
 
 
 class TestLaPuertaQueDejaSalirALaTienda:
-
     def test_una_lista_sin_revisar_abre_la_puerta(self):
         assert exigir_sin_revisar("abc123", existe=True, revisada_en=None) is None
 
@@ -84,7 +82,6 @@ class TestLaPuertaQueDejaSalirALaTienda:
 
 
 class TestLaReglaNoDependeDeQueNadieSeEquivoque:
-
     def test_lo_que_sale_a_la_red_exige_una_revision(self):
         for funcion in (proponer, crear_libro, crear_util):
             primero = next(iter(inspect.signature(funcion).parameters.values()))
@@ -142,7 +139,6 @@ CATALOGO = [
 
 
 class TestLaCabezaDeLaFrase:
-
     def test_toma_el_sustantivo_y_no_el_adjetivo(self):
         assert cabeza("pompones de colores para manualidades") == "pompones"
         assert cabeza("3 bolsas de aserrin de colores surtidos") == "aserrin"
@@ -203,7 +199,6 @@ class TestClasificarContraNuestroCatalogo:
 
 
 class TestLaConsultaQueSeLeMandaALaTienda:
-
     def test_quita_cantidades_y_empaques(self):
         assert consulta_desde_renglon("3 bolsas de aserrin de colores surtidos") == "aserrin colores surtidos"
         assert consulta_desde_renglon("2 paquetes de plastilina") == "plastilina"
@@ -216,7 +211,6 @@ class TestLaConsultaQueSeLeMandaALaTienda:
 
 
 class TestDescartarPuedeCerrarElConcepto:
-
     def test_solo_con_no_surtir_se_marca_no_comprar(self):
         cuerpo = inspect.getsource(resolver)
         marca = cuerpo.find('tipo_item="no_comprar"')
@@ -314,7 +308,6 @@ def test_la_cantidad_en_palabras_no_es_la_cosa_pedida():
 
 
 class TestElEncabezadoDeGrupoNoEsLaCosaPedida:
-
     CONCEPTOS = [
         _concepto("panuelos", "panuelos faciales"),
         _concepto("pasteles secos"),

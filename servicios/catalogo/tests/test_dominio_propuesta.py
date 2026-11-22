@@ -76,7 +76,6 @@ _FILTROS_EAN = pytest.mark.parametrize(
 
 
 class TestElEanQueTraeLaTiendaSoloEntraSiEsUno:
-
     @_FILTROS_EAN
     @pytest.mark.parametrize("bueno", ["12345678", "123456789012", "1234567890123", "9781234567897"])
     def test_acepta_8_12_o_13_digitos(self, ean_valido, bueno):

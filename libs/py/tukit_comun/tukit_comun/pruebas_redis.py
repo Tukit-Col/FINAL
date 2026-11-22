@@ -18,7 +18,6 @@ class RedisCaido(ConnectionError):
 
 
 class RedisEnMemoria(MotorEnMemoria):
-
     errores: tuple[type[BaseException], ...] = (RedisCaido,)
 
     def __init__(self, *, reloj: Callable[[], float] = time.monotonic) -> None:
@@ -109,7 +108,6 @@ async def borrar_prefijo(url: str, prefijo: str) -> int:
 
 @dataclass(frozen=True)
 class Guardado:
-
     valor: bytes
     vence_en_ms: int
 
