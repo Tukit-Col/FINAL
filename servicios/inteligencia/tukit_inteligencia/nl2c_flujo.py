@@ -1,12 +1,3 @@
-"""Los dos planes fijos del asistente, sin HTTP.
-
-Las rutas (routers/nl2c.py) y el banco de ensayos (ensayos/nl2c) llaman a estas
-mismas funciones, de modo que lo que se mide es el codigo que se despliega.
-Cada plan: sanear el texto -> una llamada al modelo con funciones de lista blanca
--> validar y proyectar en el servidor -> armar la spec de UI. Nada aqui escribe
-en el kit ni en las preferencias.
-"""
-
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
@@ -16,7 +7,7 @@ from . import nl2c, nl2c_kit, nl2c_lote
 
 
 class TextoVacio(Exception):
-    """Despues de sanear no queda texto que interpretar."""
+    pass
 
 
 def _medidas(respuesta: nl2c.RespuestaModelo, ms: int) -> dict[str, Any]:
@@ -27,17 +18,10 @@ def _medidas(respuesta: nl2c.RespuestaModelo, ms: int) -> dict[str, Any]:
 
 
 def _palabras_de(personajes: list[str] | set[str] | frozenset[str]) -> frozenset[str]:
-    """Las palabras de los personajes ("Minnie Mouse" -> minnie, mouse): no se redactan como
-    nombre del menor aunque coincidan con un nombre de pila."""
     return frozenset(w for p in personajes for w in str(p).replace("-", " ").lower().split())
 
 
 async def interpretar_texto(texto: str, personajes: list[str], usuario: Any = None) -> dict[str, Any]:
-    """Texto libre -> `{estado: propuesta|sin_accion|invalido, ...}`.
-
-    Lanza `TextoVacio` si el saneado lo deja vacio y `nl2c.AsistenteNoDisponible`
-    si el modelo no responde; la ruta traduce ambos a su codigo HTTP.
-    """
     limpio = nl2c.sanitizar(texto, conservar=_palabras_de(personajes))
     if not limpio.texto:
         raise TextoVacio
@@ -63,7 +47,6 @@ async def interpretar_texto(texto: str, personajes: list[str], usuario: Any = No
             ),
             "ambiguo",
         )
-        # El motivo lo escribe el modelo: a la bitacora solo entra si es de la lista.
         razon = razon if razon in nl2c.MOTIVOS_SIN_ACCION else "ambiguo"
         nl2c.auditar(
             "interpretar_sin_accion",
@@ -117,7 +100,6 @@ async def interpretar_texto(texto: str, personajes: list[str], usuario: Any = No
     }
 
 
-# Lee las opciones del carrusel de UNA linea (la misma regla que `GET .../opciones`).
 OpcionesDe = Callable[[dict[str, Any]], Awaitable[list[dict[str, Any]]]]
 
 
@@ -131,17 +113,6 @@ async def proponer_en_kit(
     opciones_de: OpcionesDe | None = None,
     personajes_por_hijo: dict[str, list[str]] | None = None,
 ) -> tuple[dict[str, Any], nl2c_kit.ResultadoPropuestas | None]:
-    """Pedido sobre un kit -> (respuesta JSON, resultado de validacion).
-
-    El resultado de validacion (con los codigos de rechazo) es para el banco de
-    ensayos; la ruta solo devuelve la respuesta.
-
-    `anterior` es el pedido previo ({accion, categoria}) que el navegador recuerda para
-    resolver "y en colores tambien"; se valida contra el kit antes de usarlo. `opciones_de`
-    trae las opciones del carrusel de un renglon para el pedido de variedad; sin el, se
-    usan las alternativas guardadas en el kit. `personajes_por_hijo` (de `trabajos.ver`)
-    deja fuera de la variedad los personajes que ningun hijo pidio.
-    """
     ctx = nl2c_kit.contexto_del_kit(kit, anterior)
     del_kit = {
         str(prod.get("personaje"))
@@ -153,8 +124,6 @@ async def proponer_en_kit(
     limpio = nl2c.sanitizar(texto, conservar=_palabras_de(del_kit | pedidos))
     if not limpio.texto or not ctx.lineas:
         raise TextoVacio
-    # "Que puedes hacer" no necesita al modelo: antes se lo llevaba a "explicar el kit".
-    # Es una regla corta sobre un texto corto; no hay nada que inyectar ni que cobrar.
     if nl2c_lote.pide_ayuda(limpio.texto):
         nl2c.auditar(
             "proponer_ayuda",
@@ -205,9 +174,6 @@ async def proponer_en_kit(
     )
     if res.ayuda and not res.propuestas and res.explicacion is None and res.lote is None:
         return {**nl2c_kit.respuesta_ayuda(ctx), **base}, res
-    # Resumen + hasta MAX_PROPUESTAS_LOTE propuestas ya llenan el tope de componentes que acepta
-    # el navegador (MAX_COMPONENTES en espec.ts); si ademas viniera la explicacion, la UI entera
-    # se descartaria como invalida. La explicacion se omite en ese caso extremo.
     base_ui = ([res.resumen] if res.resumen else []) + list(res.propuestas)
     explicacion = [res.explicacion] if res.explicacion and len(base_ui) < nl2c.MAX_PROPUESTAS_LOTE + 1 else []
     componentes = base_ui + explicacion
@@ -228,6 +194,5 @@ async def proponer_en_kit(
         **base,
     }
     if res.lote:
-        # Lo que el navegador recuerda para el turno siguiente: dos palabras acotadas.
         cuerpo["contexto"] = {"accion": res.lote["accion"], "categoria": res.lote["categoria"]}
     return cuerpo, res

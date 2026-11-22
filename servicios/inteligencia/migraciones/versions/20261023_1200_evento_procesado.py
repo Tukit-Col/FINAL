@@ -1,16 +1,3 @@
-"""tabla evento_procesado
-
-Revision: 3c7d9e1f5a28
-Anterior: 6a2f8c4e1d57
-Fecha:    2026-10-23 12:00:00.000000+00:00
-
-Por que este cambio: con RabbitMQ (ADR 0046) el sondeador de listas recibe sus
-eventos por la cola `inteligencia.listas`, y la entrega es al menos una vez. Un
-`lista_verificada` repetido creaba otro trabajo y otro kit para el mismo padre.
-Esta tabla guarda los eventos ya procesados por origen e id; la marca entra en
-la misma transaccion que crea el trabajo.
-"""
-
 from __future__ import annotations
 
 from collections.abc import Sequence

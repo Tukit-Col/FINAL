@@ -1,12 +1,3 @@
-"""Editar los kits ya publicados de una lista es publicar una version nueva.
-
-El canonico vigente no se toca: `abrir_borrador` lo copia entero (items,
-candidatos, resoluciones, kits y lineas) a un trabajo en `espera_revision`, el
-admin lo corrige en la consola y `fijar_como_canonico` lo publica y mueve el
-puntero. El canonico anterior queda publicado: el acudiente que ya empezo sigue
-apuntando a el (`hijos[0].canonico_trabajo_id`) y ve los kits con que pago.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -60,10 +51,8 @@ class TestAbrirBorrador:
         assert [(fila.perfil, fila.descripcion, fila.sku) for fila in copiadas] == [
             (fila.perfil, fila.descripcion, fila.sku) for fila in originales
         ]
-        # Ids nuevos: ni la linea ni su item crudo se comparten con el original.
         assert not {fila.id for fila in copiadas} & {fila.id for fila in originales}
         assert not {fila.item_crudo_id for fila in copiadas} & {fila.item_crudo_id for fila in originales}
-        # El original sigue intacto y vigente.
         assert (await _trabajo(motor, canonico)).estado == EstadoTrabajo.PUBLICADO.value
         assert await puntero_canonico(motor) == canonico
 
@@ -177,7 +166,6 @@ class TestPublicarBorrador:
     async def test_un_borrador_de_una_version_reemplazada_no_se_publica(self, motor):
         canonico = await _canonico(motor)
         borrador = uuid.UUID((await trabajos.abrir_borrador(motor, canonico))["trabajo_id"])
-        # Mientras tanto la lista se reaprobo y hay otro canonico vigente.
         nuevo = await _canonico(motor)
 
         with pytest.raises(trabajos.BorradorDesactualizado):

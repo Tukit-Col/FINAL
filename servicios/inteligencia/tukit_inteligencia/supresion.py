@@ -1,31 +1,13 @@
-"""La supresion del titular en Inteligencia (Ley 1581, ADR 0048).
+"""Supresion del titular en Inteligencia (Ley 1581).
 
-Identidad publica `titular_suprimido`; este proceso lo consume de
-`inteligencia.supresion`. Lo que Inteligencia guarda del titular:
-
-- `trabajo_pipeline.preferencias_cifradas`: los pesos y el presupuesto del
-  hogar, derivados de su encuesta socioeconomica. **Se borra.**
-- `trabajo_pipeline.hijos[].apodo`: como el acudiente llama a cada hijo (dato de
-  un menor). **Se quita** de cada hijo; el resto del hijo se queda.
-- `kit.pesos_usados_cifrados`: los mismos pesos, congelados en cada kit de sus
-  trabajos. **Se borra.**
-- `apodo_subida`: el apodo de un hijo cuya lista subida espera aprobacion (dato
-  de un menor). **Se borra.**
-- `importacion_lista.documento` (el PDF o la foto que subio) y `carga` (lo
-  percibido de el, con sus preferencias). **Se borran**, y se suelta
-  `contacto_referencia`. Una importacion aun pendiente ya no tiene que mandar:
-  queda `fallida` con el diagnostico `titular_suprimido`.
-
-Lo que se queda: los kits, sus lineas, su total y el texto de los renglones
-(`item_crudo.texto`), que es la lista del colegio y no un dato del titular.
-`hijos` queda solo con referencia, colegio y grado (el esquema no admite el
-nombre de un menor y el apodo se quita). `usuario_id` se queda como referencia seudonima.
-
-Confirma con `supresion_confirmada` en su bandeja, en la misma transaccion, y
-es idempotente.
-
-    python -m tukit_inteligencia.supresion           # lo que hay en la cola
-    python -m tukit_inteligencia.supresion --seguir  # escucha
+Decisiones:
+- Se borran `trabajo_pipeline.preferencias_cifradas`, `kit.pesos_usados_cifrados`, `apodo_subida` y
+  `importacion_lista.documento` y `carga`; se quita el apodo de cada hijo y se suelta
+  `contacto_referencia`. Una importacion pendiente queda `fallida` con el diagnostico
+  `titular_suprimido`.
+- Se conservan los kits, sus lineas, su total y el texto de los renglones, que es la lista del
+  colegio y no un dato del titular. `hijos` queda solo con referencia, colegio y grado y
+  `usuario_id` queda como referencia seudonima.
 """
 
 from __future__ import annotations
@@ -58,7 +40,6 @@ DIAGNOSTICO = "titular_suprimido"
 
 @dataclass
 class Supresor:
-    """Borra lo del titular en Inteligencia y confirma."""
 
     motor: MotorServicio
 
@@ -98,7 +79,6 @@ class Supresor:
             await conexion.execute(
                 update(_IMPORTACION).where(suyas).values(documento=None, carga=None, contacto_referencia=None)
             )
-            # El apodo de un hijo cuya lista subida aun no se aprueba (dato de un menor).
             await conexion.execute(
                 delete(_APODO_SUBIDA).where(_APODO_SUBIDA.c.contacto_referencia == str(uid))
             )
@@ -107,7 +87,6 @@ class Supresor:
 
 
 async def escuchar_cola(url: str, *, seguir: bool, intervalo: float = 5.0) -> int:
-    """Consume `inteligencia.supresion`. Solo abre la base de Inteligencia."""
     motor = crear_motor(SERVICIO)
     try:
         return await consumir(

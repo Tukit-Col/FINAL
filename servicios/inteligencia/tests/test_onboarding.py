@@ -1,20 +1,3 @@
-"""El onboarding multipart: un PDF entra, percepcion decide, catalogo recibe.
-
-Se prueba con `ASGITransport` y el motor de prueba, igual que el resto de la
-superficie HTTP. Los dos puertos de percepcion (`renderizar` y `leer`) se
-sustituyen por dobles para no depender ni de pypdfium2 ni de una llave de
-Gemini, y el cliente del catalogo se inyecta en `app.state` como una
-implementacion en memoria que registra la llamada a `importar_lista`.
-
-Lo que se fija aqui es el contrato entre servicios: que percepcion se llame
-con los bytes subidos, que un `descripcion` se mapee a `texto_original`, que
-una `cantidad` en null se vuelva 1, que el PDF viaje en base64 y que un
-archivo de varios grados se rechace con 422 sin devolver el archivo.
-
-Es una ruta de staff: sin Bearer de operador/admin no se lee el formulario ni
-se gasta una percepcion. Las pruebas usan por defecto un token de operador.
-"""
-
 from __future__ import annotations
 
 import base64
@@ -32,7 +15,6 @@ COLEGIO = "11111111-1111-5111-8111-111111111111"
 
 
 class CatalogoImportador:
-    """Doble del puerto del catalogo que solo necesita `importar_lista`."""
 
     def __init__(self) -> None:
         self.llamadas: list[dict] = []
@@ -68,10 +50,6 @@ class CatalogoImportador:
 
 
 class IdentidadDirectorio:
-    """Doble de Identidad: `/v1/directorio/{dane}` y la sesion del portador.
-
-    `sesion` mapea token -> roles; un token ausente vale como invalido (`None`)
-    y `caida` simula que Identidad no responde."""
 
     def __init__(self) -> None:
         self.directorio: dict[str, dict] = {}
@@ -112,7 +90,6 @@ def identidad():
 
 @pytest.fixture()
 def lecturas():
-    """Las paginas que leyo la percepcion: una lista vacia es que no se gasto."""
     return []
 
 
@@ -122,8 +99,6 @@ async def cliente(motor, catalogo, identidad, lecturas):
     app.state.catalogo = catalogo
     app.state.identidad = identidad
 
-    # Los dos puertos de percepcion se sustituyen por dobles: una pagina con
-    # un grado y dos items, uno de ellos sin cantidad.
     def _renderizar(_contenido: bytes) -> list[bytes]:
         return [b"p1"]
 
@@ -152,7 +127,6 @@ async def cliente(motor, catalogo, identidad, lecturas):
 def _multipart(contenido: bytes = b"%PDF-falso", **campos):
     datos = {"colegio_id": COLEGIO, "grado": "Cuarto", "anio_lectivo": "2026"}
     datos.update({k: str(v) for k, v in campos.items()})
-    # `colegio_id=None` lo quita: el admin designo el colegio de otra forma.
     datos = {k: v for k, v in datos.items() if v != "None"}
     return {"data": datos, "files": {"archivo": ("lista.pdf", contenido, "application/pdf")}}
 
@@ -181,7 +155,6 @@ class TestOnboardingFeliz:
         assert items[0]["texto_original"] == "2 cuadernos cuadriculados"
         assert items[0]["cantidad"] == 2
         assert items[0]["confianza"] == 0.91
-        # Una cantidad en null se vuelve 1: un item pedido al menos una vez.
         assert items[1]["texto_original"] == "1 caja de colores"
         assert items[1]["cantidad"] == 1
 
@@ -199,7 +172,6 @@ class TestOnboardingFeliz:
 
 class TestGradoConfirmadoPorElAdmin:
     async def test_el_grado_confirmado_gana_sobre_lo_que_leyo_el_modelo(self, cliente, catalogo):
-        # Madre Matilde "2do Año" es Octavo; el modelo a veces lee solo "Segundo".
         def _leer(_png: bytes, _n: int) -> PaginaLeida:
             return PaginaLeida(grados=["Segundo"], items=[ItemExtraido(descripcion="cuaderno")])
 
@@ -238,13 +210,11 @@ class TestOnboardingRechazado:
         cuerpo = respuesta.json()
         assert cuerpo["error"] == "lista_de_varios_grados"
         assert cuerpo["grados_detectados"] == ["Cuarto", "Quinto"]
-        # El archivo del cliente NUNCA vuelve en el error.
         assert base64.b64encode(marcador).decode() not in respuesta.text
         assert "marcador-secreto" not in respuesta.text
         assert catalogo.llamadas == []
 
     async def test_una_percepcion_rechazada_no_toca_el_catalogo(self, cliente, catalogo, lecturas):
-        # Un archivo vacio lo rechaza la percepcion misma, antes de leer pagina alguna.
         respuesta = await cliente.post("/v1/admin/onboarding", **_multipart(b""))
 
         assert respuesta.status_code == 422
@@ -254,9 +224,6 @@ class TestOnboardingRechazado:
 
 
 class TestOnboardingConElCatalogoCaido:
-    """El administrador necesita el `version_id` en el acto para pasar a la
-    curaduria, asi que el onboarding no difiere la importacion como la subida
-    del acudiente (ADR 0040): responde un 503 claro y el reintento es suyo."""
 
     async def test_es_503_y_dice_que_no_se_guardo(self, cliente, catalogo, monkeypatch):
         async def _caido(**_kw):
@@ -287,11 +254,6 @@ DANE_SALITRE = "311001093652"
 
 
 class TestOnboardingDeUnColegioQueTukitNoTiene:
-    """El staff sube desde la cola la lista de un colegio que Tukit aun no
-    conoce: elegido del directorio de Bogota (DANE + nombre) o escrito a mano.
-    Se resuelve con la MISMA regla de la subida del acudiente (`ColegioElegido`),
-    y los datos del colegio viajan al catalogo para que la cola muestre su nombre
-    y la aprobacion lo cree en Identidad."""
 
     async def test_del_directorio_deriva_el_id_del_dane_y_manda_sus_datos(self, cliente, catalogo, identidad):
         identidad.directorio[DANE_SALITRE] = {
@@ -308,7 +270,6 @@ class TestOnboardingDeUnColegioQueTukitNoTiene:
         assert respuesta.status_code == 200
         llamada = catalogo.llamadas[0]
         assert llamada["colegio_id"] == str(derivar("colegio", DANE_SALITRE))
-        # El nombre elegido manda; el directorio solo tapa huecos.
         assert llamada["colegio_datos"] == {
             "dane": DANE_SALITRE,
             "nombre": "Agustiniano Salitre",
@@ -316,7 +277,6 @@ class TestOnboardingDeUnColegioQueTukitNoTiene:
             "sitio_web": "www.agustinianosalitre.edu.co",
         }
         assert identidad.consultas == [DANE_SALITRE]
-        # Es una subida del staff: no hay acudiente esperando ni cambia el origen.
         assert llamada["origen"] == "onboarding"
         assert llamada["contacto_referencia"] is None
 
@@ -346,7 +306,6 @@ class TestOnboardingDeUnColegioQueTukitNoTiene:
         await cliente.post("/v1/admin/onboarding", **_multipart(colegio_dane=DANE_SALITRE))
 
         llamada = catalogo.llamadas[0]
-        # Un colegio conocido gana sobre cualquier otra designacion: igual que hoy.
         assert llamada["colegio_id"] == COLEGIO
         assert llamada["colegio_datos"] is None
         assert identidad.consultas == []
@@ -368,8 +327,6 @@ class TestOnboardingDeUnColegioQueTukitNoTiene:
 
 
 class TestOnboardingExigeStaff:
-    """La misma puerta que `/v1/admin/acudientes`: 401 sin sesion, 403 sin rol
-    de staff, 503 si Identidad no responde. Antes de leer el PDF."""
 
     @pytest.mark.parametrize(
         ("cabeceras", "estado", "error"),
@@ -407,7 +364,6 @@ class TestOnboardingExigeStaff:
 
 
 class TestColegioElegido:
-    """La regla que comparten la subida del acudiente y el onboarding del staff."""
 
     def test_el_colegio_id_gana(self):
         elegido = ColegioElegido(colegio_id=COLEGIO, colegio_dane=DANE_SALITRE, colegio_nombre="X")

@@ -1,17 +1,3 @@
-"""Dobles y sembradores que comparten varios archivos de prueba de Inteligencia.
-
-Antes vivian dentro de un archivo de prueba y los demas los importaban de ahi
-(`from test_fastroute import ...`), lo que ataba cada archivo a la forma de
-otro. Aqui solo hay ayudas: ninguna prueba.
-
-- `CatalogoVerificado` y sus variantes: el catalogo con la lista ya revisada y
-  el endpoint `/resueltos` (la ruta rapida).
-- `catalogo_simple()`: la lista de cuatro renglones de la ruta lenta.
-- Sembradores de la bandeja del Catalogo, de trabajos y de previews.
-- Los dobles de una base que se cae y vuelve, para los bucles de fondo.
-- `candidato` y `renglon_optimizador`: las piezas de entrada del optimizador.
-"""
-
 from __future__ import annotations
 
 import socket
@@ -31,11 +17,8 @@ from tukit_inteligencia.optimizador import Candidato, Renglon
 from tukit_inteligencia.remoto import RemotoCaido
 
 TRABAJO = Base.metadata.tables["trabajo_pipeline"]
-# El colegio de las pruebas de "Mis solicitudes" y de cancelar: otro que el de
-# `conftest`, para que una fila sembrada aqui no se confunda con las de alla.
 COLEGIO_SOLICITUDES = "22222222-2222-5222-8222-222222222222"
 VERSION_VIGENTE = "ver-vigente-1"
-# Dos acudientes reales (UUID validos): el token resuelve a uno de ellos.
 PADRE = uuid.UUID("aaaaaaaa-aaaa-5aaa-8aaa-aaaaaaaaaaaa")
 OTRO_PADRE = uuid.UUID("bbbbbbbb-bbbb-5bbb-8bbb-bbbbbbbbbbbb")
 
@@ -74,7 +57,6 @@ def item_resuelto(
 
 @dataclass
 class CatalogoVerificado(CatalogoFalso):
-    """Catalogo con la lista marcada como revisada y el endpoint /resueltos."""
 
     revisada: bool = True
     items_resueltos: list[dict[str, Any]] = field(default_factory=list)
@@ -105,10 +87,6 @@ class CatalogoVerificado(CatalogoFalso):
         }
 
     async def revision(self, version_id: str) -> dict[str, Any]:
-        # Misma forma que `lista()` pero por `version_id` explicito: es el camino
-        # que toma el pipeline cuando el poller estampa el `version_id` del evento
-        # en el hijo (para unir la lista aprobada con su trabajo en "Mis
-        # solicitudes"). El fake devuelve la version pedida, revisada, con items.
         self.llamadas.append("revision")
         return {
             "lista_id": "lista-1",
@@ -175,7 +153,6 @@ def catalogo_verificado(personaje: str | None = None) -> CatalogoVerificado:
 
 
 async def crear_y_procesar(motor, catalogo=None, preferencias=None):
-    """Un trabajo de un hijo, creado y procesado; por omision con `catalogo_simple()`."""
     catalogo = catalogo or catalogo_simple()
     respuesta = await trabajos.crear(
         motor,
@@ -189,24 +166,11 @@ async def crear_y_procesar(motor, catalogo=None, preferencias=None):
 
 @dataclass
 class CatalogoRealista(CatalogoVerificado):
-    """Modela el catalogo REAL: /resueltos NO trae la variante de personaje.
-
-    El bug que esto defiende: `_elegir_por_nivel` del catalogo colapsa a una
-    opcion por nivel y deja fuera la de personaje (es una via aparte, curada),
-    asi que `/resueltos` nunca la entrega. El interruptor del Fan la pide por
-    separado con `producto_de_personaje`. La fixture vieja horneaba el personaje
-    dentro de los candidatos de /resueltos —ficcion que el catalogo real no
-    produce— y por eso el bug pasaba verde.
-    """
 
     async def producto_de_personaje(self, concepto: str, personaje: str) -> dict[str, Any] | None:
         self.llamadas.append("producto_de_personaje")
-        # El catalogo real compara normalizado ("Spider-Man" == "spiderman").
         if normalizar_personaje(personaje) != "spiderman":
             return None
-        # El catalogo surte las cuatro anclas con spiderman (precio_desde, como
-        # el endpoint publico de productos). La maleta (C086) no esta en la lista
-        # de esta prueba, asi que solo C001/C009 caen en anclas presentes.
         return {
             "sku": f"SPIDEY-{concepto}",
             "nombre": f"{concepto} Spiderman",
@@ -219,15 +183,12 @@ class CatalogoRealista(CatalogoVerificado):
 
 
 def catalogo_realista() -> CatalogoRealista:
-    # Mismos items que catalogo_verificado pero SIN personaje en /resueltos:
-    # es lo que el catalogo real entrega tras _elegir_por_nivel.
     base = catalogo_verificado(personaje=None)
     return CatalogoRealista(revisada=True, items_resueltos=base.items_resueltos)
 
 
 @dataclass
 class CatalogoDosPersonajes(CatalogoRealista):
-    """Surte spiderman y frozen en las cuatro anclas; el resto no lo surte."""
 
     async def producto_de_personaje(self, concepto: str, personaje: str) -> dict[str, Any] | None:
         self.llamadas.append("producto_de_personaje")
@@ -276,8 +237,6 @@ def catalogo_simple() -> CatalogoFalso:
 
 
 async def sembrar_canonico(motor, catalogo=None):
-    """El kit canonico del grado como nace en produccion: de la LISTA aprobada
-    (`canonico_lista`, sin acudiente ni preferencias), no del trabajo de un papa."""
     respuesta = await trabajos.crear(
         motor,
         hijos=[{"referencia": "canonico", "colegio_id": COLEGIO, "grado": "Cuarto"}],
@@ -299,16 +258,10 @@ def total_del_kit(vista: dict, perfil: str) -> int:
     return next(k for k in vista["kits"] if k["perfil"] == perfil)["total"]
 
 
-# La bandeja del Catalogo, aqui montada sobre el MISMO SQLite de prueba: tiene
-# la forma comun de bandeja (identica en todos los servicios), asi que la tabla
-# reflejada del poller la lee igual que en produccion.
 BANDEJA_CATALOGO = bandeja_reflejada(MetaData())
 
 
 async def sembrar_bandeja(motor, *, agregado_id: uuid.UUID | None = None, **carga: Any) -> uuid.UUID:
-    """Crea la tabla de bandeja del catalogo en el SQLite de prueba y le mete
-    un evento `lista_verificada` con la carga dada. Devuelve el `agregado_id`
-    (el `version_id` de la version aprobada) para poder aseverarlo."""
     agregado_id = agregado_id or uuid.uuid4()
     async with motor.engine.begin() as conexion:
         await conexion.run_sync(BANDEJA_CATALOGO.metadata.create_all)
@@ -352,7 +305,6 @@ GRADO = "Cuarto"
 
 
 async def sembrar_preview(motor, version_id: uuid.UUID) -> uuid.UUID:
-    """Un preview de onboarding ya procesado, en `espera_revision`."""
     creado = await trabajos.crear(
         motor,
         hijos=[
@@ -387,14 +339,6 @@ async def puntero_canonico(motor) -> Any:
 
 
 class CatalogoPreview(CatalogoFalso):
-    """CatalogoFalso que resuelve versiones por id con `revision()`.
-
-    `self.versiones` es el conjunto de version_id que EXISTEN para
-    (COLEGIO, self.grado, 2026); `revision(vid)` devuelve la cabecera + items de
-    una de ellas, o levanta `RemotoCaido` (que el endpoint traduce a 404) si no
-    existe —igual que el catalogo real, que resuelve `/revision` por version_id
-    sin importar si es la vigente—. Registra las llamadas en `self.llamadas`.
-    """
 
     def __init__(self, *, version_vigente: str | None = VERSION_VIGENTE, versiones=None, **kw):
         super().__init__(**kw)
@@ -420,9 +364,6 @@ class CatalogoPreview(CatalogoFalso):
 
 @dataclass
 class IdentidadFalsa:
-    """Doble del puerto hacia identidad: token→usuario_id (UUID). Un token
-    ausente vale como inválido (`None` => 401); `caida=True` lanza `RemotoCaido`
-    para probar el fallo cerrado (503)."""
 
     usuario_por_token: dict[str, uuid.UUID] = field(default_factory=dict)
     caida: bool = False
@@ -491,7 +432,7 @@ INTERVALO_BUCLE = 5.0
 
 
 class CorteDelBucle(Exception):
-    """La lanza el `dormir` de la prueba para salir del bucle infinito."""
+    pass
 
 
 def caidas_de_postgres() -> list[BaseException]:
@@ -503,12 +444,6 @@ def caidas_de_postgres() -> list[BaseException]:
 
 
 class EngineIntermitente:
-    """Un `AsyncEngine` cuya base no responde las primeras veces que se abre.
-
-    Lanza los errores dados, en orden, al abrir una transaccion o una conexion,
-    como asyncpg con Postgres caido; despues delega en el engine de verdad. No
-    se cierra: la base en memoria de la prueba se perderia.
-    """
 
     def __init__(self, real: Any, *errores: BaseException) -> None:
         self.real = real
@@ -538,7 +473,6 @@ class EngineIntermitente:
 
 
 class MotorDePrueba:
-    """El `MotorServicio` de la prueba, con el engine dado, que no se cierra."""
 
     def __init__(self, real: Any, engine: Any = None) -> None:
         self.real = real

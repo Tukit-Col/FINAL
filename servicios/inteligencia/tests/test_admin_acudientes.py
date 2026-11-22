@@ -1,11 +1,3 @@
-"""AD — los acudientes de un colegio con el estado de su trabajo más reciente.
-
-El panel del back-office agrupa por `usuario_id` (el identificador del
-acudiente, nunca su correo ni el nombre de un menor) y se queda con el trabajo
-vivo: el más reciente de cada acudiente. El colegio no es una columna del
-trabajo —vive dentro del JSON `hijos`—, así que el filtro es por ese campo.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -54,7 +46,6 @@ class TestAcudientesDeColegio:
     async def test_agrupa_por_usuario_con_ultimo_estado(self, cliente, motor):
         u1, u2 = uuid.uuid4(), uuid.uuid4()
         base = datetime(2026, 9, 1, tzinfo=UTC)
-        # u1 tiene dos trabajos: el publicado es más viejo; el vivo es procesando.
         await _sembrar(motor, usuario_id=u1, estado="publicado", colegio=COLEGIO, actualizado_en=base)
         await _sembrar(
             motor,
@@ -75,9 +66,9 @@ class TestAcudientesDeColegio:
 
         assert respuesta.status_code == 200
         filas = respuesta.json()["acudientes"]
-        assert len(filas) == 2  # agrupado por usuario, no por trabajo
+        assert len(filas) == 2
         por_id = {f["usuario_id"]: f for f in filas}
-        assert por_id[str(u1)]["estado"] == "procesando"  # el más reciente
+        assert por_id[str(u1)]["estado"] == "procesando"
         assert por_id[str(u2)]["estado"] == "espera_revision"
         assert "actualizado_en" in por_id[str(u1)]
         assert "trabajo_id" in por_id[str(u1)]
@@ -86,7 +77,6 @@ class TestAcudientesDeColegio:
         u1 = uuid.uuid4()
         base = datetime(2026, 9, 1, tzinfo=UTC)
         await _sembrar(motor, usuario_id=u1, estado="publicado", colegio=OTRO, actualizado_en=base)
-        # Trabajo anónimo (sin usuario_id): no se agrupa, no se lista.
         await _sembrar(motor, usuario_id=None, estado="encolado", colegio=COLEGIO, actualizado_en=base)
 
         respuesta = await cliente.get(f"/v1/admin/colegios/{COLEGIO}/acudientes")
@@ -105,9 +95,6 @@ class TestAcudientesDeColegio:
         )
         respuesta = await cliente.get(f"/v1/admin/colegios/{COLEGIO}/acudientes")
         cuerpo = respuesta.json()["acudientes"][0]
-        # usuario_id + estado + fecha + trabajo_id + grados + preferencias: NUNCA
-        # el apodo del menor ni el correo. `grados` y `preferencias` son dato de
-        # negocio (grado pedido, pesos del hogar), no PII.
         assert set(cuerpo) == {
             "usuario_id",
             "estado",
@@ -121,8 +108,6 @@ class TestAcudientesDeColegio:
         u1 = uuid.uuid4()
         base = datetime(2026, 9, 1, tzinfo=UTC)
         prefs = {"presupuesto_por_hijo": 700000, "dolor_declarado": "libros"}
-        # Un trabajo de este colegio (grado Quinto) con preferencias, y uno de
-        # OTRO colegio (Sexto) que no debe colarse en `grados`.
         await _sembrar(
             motor,
             usuario_id=u1,
@@ -142,5 +127,5 @@ class TestAcudientesDeColegio:
         )
         respuesta = await cliente.get(f"/v1/admin/colegios/{COLEGIO}/acudientes")
         cuerpo = respuesta.json()["acudientes"][0]
-        assert cuerpo["grados"] == ["Quinto"]  # solo el grado en ESTE colegio
+        assert cuerpo["grados"] == ["Quinto"]
         assert cuerpo["preferencias"] == prefs

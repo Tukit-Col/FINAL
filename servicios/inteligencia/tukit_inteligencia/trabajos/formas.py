@@ -1,5 +1,3 @@
-"""Forma publica de las lineas del kit y aplicacion de los cambios pendientes del acudiente."""
-
 from __future__ import annotations
 
 import uuid
@@ -32,10 +30,6 @@ def _linea_publica(fila: Any) -> dict[str, Any]:
         "subtotal_linea": fila.subtotal_cop,
         "mensaje": fila.mensaje,
     }
-    # El codigo del concepto (`C001`) sale de RESOLUCION, no de LINEA: es la
-    # llave con la que la matriz agrupa y con la que el interruptor de personaje
-    # del Fan encuentra sus anclas. `getattr` porque los otros llamadores de
-    # `_linea_publica` pasan una fila de solo-LINEA sin el join.
     concepto = getattr(fila, "concepto_codigo", None)
     if concepto:
         cuerpo["concepto"] = concepto
@@ -61,12 +55,10 @@ def _linea_publica(fila: Any) -> dict[str, Any]:
 
 
 def _sin_apodo(hijo: Any) -> Any:
-    """El hijo sin su `apodo`: lo que ve quien no es el acudiente."""
     return {k: v for k, v in hijo.items() if k != "apodo"} if isinstance(hijo, dict) else hijo
 
 
 def _identidad_de_grado(hijos: Any) -> tuple[str, str, int, str | None] | None:
-    """(colegio, grado, anio, version_id) de un trabajo de UN solo hijo, o None."""
     lista = list(hijos or ())
     if len(lista) != 1:
         return None
@@ -81,15 +73,6 @@ def _identidad_de_grado(hijos: Any) -> tuple[str, str, int, str | None] | None:
 
 
 def _objetivos_de_lineas(lineas: list[dict[str, Any]], total: int) -> dict[str, float | int]:
-    """Los objetivos de display de un kit aplicado, desde sus lineas publicas.
-
-    El kit de la ruta rapida no tiene fila propia en `kit` (es un puntero al
-    canonico, con el personaje aplicado), asi que sus objetivos se recalculan
-    con la misma regla que `optimizador._objetivos`: solo lo comprable, la
-    fidelidad como nivel de marca promedio en [0, 1] y la disponibilidad como
-    fraccion de lineas con precio. Sin esto iban vacios y la web pintaba
-    "NaN% con precio confirmado".
-    """
     comprables = [linea for linea in lineas if not linea["informativa"] and not linea.get("descartado")]
     if not comprables:
         return {"costo": total, "fidelidad": 0.0, "disponibilidad": 0.0}
@@ -112,7 +95,6 @@ def _objetivos_de_lineas(lineas: list[dict[str, Any]], total: int) -> dict[str, 
 
 
 def _alternativa_de(producto: dict[str, Any]) -> dict[str, Any]:
-    """Un producto elegido, con la forma de una alternativa guardada en la linea."""
     return {
         "sku": producto.get("sku"),
         "nombre": producto.get("nombre"),
@@ -125,19 +107,6 @@ def _alternativa_de(producto: dict[str, Any]) -> dict[str, Any]:
 def _aplicar_cambios(
     lineas: list[dict[str, Any]], cambios_del_kit: dict[str, Any]
 ) -> tuple[list[dict[str, Any]], int]:
-    """Las lineas de un kit con lo que el acudiente cambio, y su total.
-
-    Un cambio puede traer un producto elegido (`sku`) y/o la marca `descartado`.
-    El producto elegido reemplaza al de su linea con la misma aritmetica del
-    armado (techo(pedida/empaque)) y deja el sugerido como una alternativa mas,
-    para que siempre se pueda volver a el; la linea queda marcada
-    (`cambiado_por_acudiente`, `sku_sugerido`) para que la pantalla lo diga.
-    Una linea descartada ("ya lo tengo") se queda en el kit, marcada
-    `descartado`, pero sin subtotal: no suma al total y no entra a la orden. Su
-    subtotal anterior viaja en `subtotal_descartado` para poder mostrar cuanto
-    se ahorra y deshacerlo. El total se vuelve a sumar desde las lineas, que es
-    como lo suma el armado (`_recalcular_total_kit`).
-    """
     salida: list[dict[str, Any]] = []
     for linea in lineas:
         cambio = cambios_del_kit.get(str(linea.get("item_id")))
@@ -149,7 +118,7 @@ def _aplicar_cambios(
                 precio = cambio.get("precio")
                 unidades = unidades_a_comprar(int(linea.get("cantidad_pedida") or 0), empaque)
                 if linea.get("unidades_a_comprar") == 0:
-                    unidades = 0  # otra linea ya la cubre («Ya va en la linea 58»)
+                    unidades = 0
                 linea["producto_elegido"] = {
                     "sku": cambio.get("sku"),
                     "nombre": cambio.get("nombre"),
@@ -183,17 +152,6 @@ def _aplicar_cambios(
 async def _lineas_aplicadas(
     conexion: Any, canonico_trabajo_id: uuid.UUID, perfil: str, swaps: dict[str, list[dict[str, Any]]]
 ) -> tuple[list[dict[str, Any]], int, list[dict[str, str]]]:
-    """Las lineas del kit canonico de un perfil, con el personaje aplicado, el total y lo que no cupo.
-
-    El tercer valor es `personaje_sin_encaje` (misma forma que en el armado):
-    cada concepto ancla con variantes de personaje pero sin renglon que las acepte.
-
-    Es la fuente unica del kit aplicado: la usan tanto `aplicar_canonico` (para
-    congelar el pedido) como `ver` (para pintarle al acudiente su kit sin copiar
-    filas). Sobre un ancla con personaje elegido congela el producto del
-    personaje en vez del neutral, con la misma aritmetica del armado
-    (techo(pedida/empaque)); una linea informativa nunca lleva precio.
-    """
     kit = (
         await conexion.execute(
             select(KIT.c.id, KIT.c.perfil).where(
@@ -220,10 +178,6 @@ async def _lineas_aplicadas(
     )
     filas = list(filas)
 
-    # El producto de personaje no va en cada renglon del concepto: se reparte con
-    # la misma regla del armado (una vez por hijo, solo donde el renglon lo
-    # acepta; ver `renglones_con_personaje`). Sin esto, el kit Fan de la ruta
-    # rapida repetia el mismo cuaderno de personaje en todos los cuadernos.
     grupos: dict[str, list[tuple[int, str, dict[str, Any], str]]] = {}
     for indice, fila in enumerate(filas):
         concepto = getattr(fila, "concepto_codigo", None)
@@ -231,8 +185,6 @@ async def _lineas_aplicadas(
             grupos.setdefault(concepto, []).append(
                 (indice, fila.hijo_referencia, dict(fila.atributos_impuestos or {}), fila.descripcion)
             )
-    # Cada renglon que lleva personaje recibe la variante que mejor le encaja
-    # (misma regla que `inyectar_personaje_fan`), no siempre la primera.
     llevan: dict[int, dict[str, Any]] = {}
     sin_encaje: list[dict[str, str]] = []
     for concepto, renglones_del_concepto in grupos.items():
@@ -252,7 +204,7 @@ async def _lineas_aplicadas(
             precio = swap.get("precio_desde")
             unidades = unidades_a_comprar(int(fila.cantidad_pedida or 0), empaque)
             if fila.sku and fila.unidades_a_comprar == 0:
-                unidades = 0  # otra linea ya la cubre: no se cobra dos veces
+                unidades = 0
             linea["producto_elegido"] = {
                 "sku": swap.get("sku"),
                 "nombre": swap.get("nombre"),

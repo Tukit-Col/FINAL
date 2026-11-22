@@ -1,12 +1,3 @@
-"""Las metricas de colegio, calculadas en vivo sobre trabajos publicados.
-
-Se siembra directo sobre las tablas (trabajo_pipeline, kit, linea_kit) con el
-motor SQLite del conftest, y se comprueba lo que el panel promete: kits
-recomendados publicados, cobertura sobre lineas comprables (no informativas) y
-el ahorro que la consolidacion imputo. Un colegio sin trabajos publicados
-responde con ceros, no con 404.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -32,8 +23,6 @@ async def _sembrar_trabajo(
     lineas: list[tuple[str, bool]],
     ahorro: int = 0,
 ) -> uuid.UUID:
-    """Un trabajo con un kit recomendado. `lineas` es (estado_resolucion,
-    informativa) por renglon comprable/informativo."""
     trabajo_id = uuid.uuid4()
     kit_id = uuid.uuid4()
     async with motor.sesion() as db:
@@ -95,7 +84,6 @@ async def test_colegio_sin_trabajos_da_ceros(motor):
 
 
 async def test_cuenta_kits_cobertura_y_ahorro(motor):
-    # Dos comprables (una resuelta, una ambigua) y una informativa que NO cuenta.
     await _sembrar_trabajo(
         motor,
         COLEGIO,
@@ -115,16 +103,13 @@ async def test_cuenta_kits_cobertura_y_ahorro(motor):
 
 
 async def test_ignora_no_publicados_y_otros_colegios(motor):
-    # Publicado del colegio pedido: cuenta.
     await _sembrar_trabajo(motor, COLEGIO, lineas=[(EstadoResolucion.RESUELTO_AUTO.value, False)])
-    # En espera de revision: NO cuenta aunque sea del mismo colegio.
     await _sembrar_trabajo(
         motor,
         COLEGIO,
         estado=EstadoTrabajo.ESPERA_REVISION.value,
         lineas=[(EstadoResolucion.RESUELTO_AUTO.value, False)],
     )
-    # Publicado de otro colegio: NO cuenta.
     await _sembrar_trabajo(motor, OTRO_COLEGIO, lineas=[(EstadoResolucion.RESUELTO_AUTO.value, False)])
 
     metricas = await metricas_de_colegio(motor, COLEGIO)

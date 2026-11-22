@@ -1,17 +1,3 @@
-"""apodo_subida: el apodo del hijo de una lista subida, cifrado, hasta que se arma su kit
-
-Revision: 4d9a1c7e2b58
-Anterior: 8b2e4d6f0a13
-Fecha:    2026-11-13 12:00:00.000000+00:00
-
-Por que este cambio: el kit que se arma al aprobar la lista que un acudiente
-subio no traia el apodo del hijo, y la pagina tenia que adivinarlo cruzando
-colegio y grado con las matriculas (falla con hermanos del mismo grado). El
-apodo no puede viajar por el Catalogo (no guarda datos de menores, Ley 1581),
-asi que se queda aqui, cifrado y ligado a la version importada, y el poller lo
-copia al trabajo. La supresion del titular lo borra.
-"""
-
 from __future__ import annotations
 
 from collections.abc import Sequence

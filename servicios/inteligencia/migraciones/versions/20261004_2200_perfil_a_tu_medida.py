@@ -1,15 +1,3 @@
-"""perfil A tu Medida
-
-Revision: 7d4b2c9e1f36
-Anterior: 5c1e8a3f9b20
-Fecha:    2026-10-04 22:00:00.000000+00:00
-
-Por que este cambio: el kit del punto medio deja de ser un Premium ajustado y
-pasa a ser un kit propio, `A tu Medida` (ADR 0030). El CHECK de `kit.perfil`
-tiene que admitirlo. Va con `batch_alter_table` porque SQLite no altera un
-CHECK en sitio; en Postgres es un DROP + ADD normal.
-"""
-
 from __future__ import annotations
 
 from collections.abc import Sequence

@@ -1,13 +1,3 @@
-"""El ciclo del trabajo en `trabajos.py`: crear, procesar, degradar y emitir.
-
-Lo que estas pruebas defienden es que el estado del pipeline vive en la base
-y no en el proceso. Es la propiedad que hace que `POST /v1/trabajos` pueda
-devolver un 202 con sentido: si el estado no se persiste, el 202 promete un
-identificador que despues nadie puede responder. La revision humana vive en
-`test_revision_humana.py` y la ruta rapida del acudiente en
-`test_aplicar_canonico.py`.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -39,8 +29,6 @@ class TestElTrabajoNaceConsultable:
         assert all(e["estado"] == "pendiente" for e in vista["etapas"])
 
     async def test_las_preferencias_no_quedan_legibles_en_la_columna(self, motor):
-        """No es criptografia de verdad todavia, pero si el puerto. Lo que se
-        comprueba es que el dato pasa por el cifrador y vuelve entero."""
         from sqlalchemy import select
         from tukit_comun.cifrado import cifrador_desde_entorno
 
@@ -74,8 +62,6 @@ class TestElPipelineDejaTresKits:
         assert {k["perfil"] for k in vista["kits"]} == {"Ahorrador", "Premium"}
 
     async def test_el_acudiente_no_ve_kits_antes_de_que_los_revisen(self, motor):
-        """La razon de ser de `espera_revision` y de AD-06. El mismo lector
-        con la bandera puesta si los devuelve, porque Admin tiene que verlos."""
         trabajo_id, _ = await crear_y_procesar(motor)
 
         assert (await trabajos.ver(motor, trabajo_id))["kits"] == []
@@ -90,7 +76,6 @@ class TestElPipelineDejaTresKits:
         licencia = next(linea for linea in ahorrador["lineas"] if linea["informativa"])
         assert licencia["subtotal_linea"] is None
         assert licencia["instruccion_colegio"] == "Se adquiere con QUOVIX."
-        # 2 cuadernos economicos a 4500 mas una caja de colores a 24900.
         assert ahorrador["total"] == 2 * 4500 + 24900
 
     async def test_el_renglon_que_el_catalogo_no_reconoce_queda_visible(self, motor):
@@ -109,16 +94,10 @@ class TestElPipelineDejaTresKits:
         trabajo_id, _ = await crear_y_procesar(motor)
         async with motor.engine.begin() as conexion:
             total = await conexion.scalar(select(func.count()).select_from(trabajos.CANDIDATO))
-        # Dos del cuaderno y uno de los colores.
         assert total == 3
 
 
 class TestFijarProductoPorNivel:
-    """Fijar un producto escribe LINEA de UN kit y recalcula su total.
-
-    Es la ruta que faltaba: antes solo se escribia RESOLUCION (por item, los
-    tres kits a la vez) y el producto elegido nunca llegaba al kit publicado.
-    """
 
     async def test_fijar_cambia_solo_ese_kit_y_recalcula_el_total(self, motor):
         catalogo = catalogo_simple()
@@ -131,7 +110,6 @@ class TestFijarProductoPorNivel:
         )
         assert cuaderno["producto_elegido"]["sku"] == "TK-C001-ECO"
 
-        # Al premium: 2 cuadernos a 12000 en vez de 4500.
         await trabajos.fijar_producto_en_linea(
             motor,
             trabajo_id,
@@ -151,9 +129,6 @@ class TestFijarProductoPorNivel:
         assert ahorrador["total"] == total_antes + 2 * (12000 - 4500)
 
     async def test_fijar_en_todos_pone_el_producto_en_cada_kit_y_lo_vuelve_comprable(self, motor):
-        # El revisor resolvio un hueco («Diccionario Ingles – Ingles») y el
-        # producto solo quedaba en el kit abierto; el «Broche de 9V» que era
-        # informativo seguia diciendo «se compra por tu cuenta» con foto.
         from sqlalchemy import update
 
         catalogo = catalogo_simple()
@@ -221,12 +196,6 @@ class TestFijarProductoPorNivel:
 
 
 class TestLaTraduccionDeEstados:
-    """`abstencion` del catalogo es `HUECO_CATALOGO` y no `SIN_MATCH`.
-
-    Es la distincion que permite decir "te entendi y no lo tengo" en vez de
-    "no te entendi", y solo la primera se puede responder con una
-    alternativa.
-    """
 
     @pytest.mark.parametrize(
         ("estado_catalogo", "esperado"),
@@ -271,11 +240,6 @@ class TestDegradarNuncaTumbar:
         assert "se puede reintentar" in vista["mensaje"]
 
     async def test_un_hijo_sin_lista_degrada_percepcion_pero_no_tumba(self, motor):
-        # Caracterizacion (I-2): con DOS hijos donde solo uno tiene lista
-        # publicada, el trabajo NO falla —el otro hijo aporta renglones— pero
-        # la etapa percepcion queda DEGRADADA, no OK: la seccion 8 exige decir
-        # que falto en vez de fingir un kit completo. Es la rama
-        # `detalle["sin_lista"]` de procesar que ningun test cubria.
         respuesta = await trabajos.crear(
             motor,
             hijos=[
@@ -311,11 +275,6 @@ class TestDegradarNuncaTumbar:
 
 
 class TestPublicarDirectoDesdeListaVerificada:
-    """Caracterizacion (I-2) del `publicar_directo`: un trabajo con
-    origen='lista_verificada' (el kit del padre cuya lista un admin ya aprobo)
-    se publica SIN pasar por la cola de revision y deja `kits_publicados` en la
-    MISMA transaccion que el cambio a PUBLICADO. Es la rama de _finalizar que
-    solo cubria el preview (por la negativa) y `revisar` (por la ruta manual)."""
 
     async def _crear_lista_verificada_y_procesar(self, motor):
         respuesta = await trabajos.crear(
@@ -333,7 +292,6 @@ class TestPublicarDirectoDesdeListaVerificada:
         assert estado == EstadoTrabajo.PUBLICADO.value
         vista = await trabajos.ver(motor, trabajo_id, incluir_kits=True)
         assert vista["estado"] == EstadoTrabajo.PUBLICADO.value
-        # Sin personaje ni `equilibrio` pedidos: Ahorrador y Premium (ADR 0030).
         assert [k["perfil"] for k in vista["kits"]] == ["Ahorrador", "Premium"]
 
     async def test_deja_kits_publicados_en_la_bandeja(self, motor):
@@ -355,7 +313,6 @@ class TestElEventoLlevaTodasLasListas:
         hijos = [
             {"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Septimo", "apodo": "Sofi"},
             {"referencia": "hijo-2", "colegio_id": COLEGIO, "grado": "Jardin", "apodo": "Tomas"},
-            # Un hermano en la misma lista no la repite.
             {"referencia": "hijo-3", "colegio_id": COLEGIO, "grado": "Jardin"},
         ]
         async with motor.engine.begin() as conexion:
@@ -371,7 +328,6 @@ class TestElEventoLlevaTodasLasListas:
             {"colegio_id": COLEGIO, "grado": "Septimo"},
             {"colegio_id": COLEGIO, "grado": "Jardin"},
         ]
-        # Compatibilidad con el repartidor de antes: el primer hijo sigue suelto.
         assert carga["colegio_id"] == COLEGIO and carga["grado"] == "Septimo"
         texto = str(carga)
         assert "referencia" not in texto and "apodo" not in texto
@@ -379,18 +335,12 @@ class TestElEventoLlevaTodasLasListas:
 
 
 class TestElEventoDeOutboxNoEsDualWrite:
-    """I3.d: `emitir_evento` no abre transaccion propia. Si el orquestador hace
-    rollback despues de emitirlo, la fila de la bandeja NO debe sobrevivir: eso
-    es lo que separa un outbox transaccional de un dual-write que deja eventos
-    huerfanos que el repartidor reintenta sin fin."""
 
     async def test_la_fila_no_sobrevive_a_un_rollback_a_mitad(self, motor):
         from sqlalchemy import func, select
         from tukit_inteligencia.repositorios.trabajos import RepoTrabajos
 
         trabajo_id = uuid.uuid4()
-        # Se emite el evento y se ABORTA la transaccion (rollback) sin commit:
-        # begin() hace rollback si el bloque sale por excepcion.
         with pytest.raises(RuntimeError):
             async with motor.engine.begin() as conexion:
                 await RepoTrabajos(conexion).emitir_evento(trabajo_id)
@@ -411,7 +361,6 @@ class TestElEventoOmiteAlHijoSinLista:
         trabajo_id = uuid.uuid4()
         hijos = [
             {"referencia": "hijo-1", "colegio_id": COLEGIO, "grado": "Septimo"},
-            # hijo-2 quedo en sin_lista: no tiene lineas, no debe ir al correo.
             {"referencia": "hijo-2", "colegio_id": COLEGIO, "grado": "Jardin"},
         ]
         kit_id, item_id = uuid.uuid4(), uuid.uuid4()

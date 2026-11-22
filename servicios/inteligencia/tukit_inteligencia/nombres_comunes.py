@@ -1,13 +1,3 @@
-"""Nombres de pila frecuentes en Colombia, para redactar el nombre de un menor
-aunque el padre no use frase gatillo ("Sofia quiere Bluey") ni mayuscula
-("mi hijo juan esteban").
-
-En minuscula y sin tildes. Quedan fuera a proposito los que tambien son palabras
-del dominio o del idioma (rosa, luz, sol, paz, mar, cruz, angel, victoria,
-esperanza, blanca, pilar, leon, reyes...) y los que son personajes (elsa): borrar
-"cuaderno rosa" o "quiere Elsa" le quita al modelo justo lo que necesita.
-"""
-
 from __future__ import annotations
 
 _LISTA = """

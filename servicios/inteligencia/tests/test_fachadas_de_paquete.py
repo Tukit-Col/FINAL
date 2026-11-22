@@ -1,9 +1,3 @@
-"""Las fachadas de `optimizador` y `trabajos` reexportan lo que dicen y sin copias.
-
-Partir un modulo en un paquete no debe cambiar lo que el resto del servicio importa:
-cada nombre de `__all__` resuelve, y es el mismo objeto que define un submodulo.
-"""
-
 import importlib
 import pkgutil
 

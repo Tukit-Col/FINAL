@@ -1,17 +1,3 @@
-"""El SQL por-transaccion del pipeline de trabajos (ADR 0019).
-
-`RepoTrabajos` se ata a una conexion en `__init__` y expone un metodo por
-consulta, con el SQL verbatim que vivia en `trabajos/`. No abre ni cierra la
-transaccion ni traduce excepciones: eso queda en el orquestador (`trabajos/`),
-que es quien decide los limites de cada `async with` —en particular el que
-mantiene `emitir_evento` (outbox) y el cambio de estado que lo dispara en una
-SOLA transaccion, para que un evento no sobreviva a un rollback (no dual-write)—.
-
-El guard de la maquina de estados (`puede_pasar`) SI vive dentro de `pasar_a`:
-es una invariante transaccional, no una regla de presentacion, y el repo es
-quien escribe el cambio que la puede violar.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -54,12 +40,9 @@ def _ahora() -> datetime:
 
 
 class RepoTrabajos:
-    """Las consultas del pipeline, atadas a una conexion abierta por el orquestador."""
 
     def __init__(self, conexion: Any) -> None:
         self.c = conexion
-
-    # --- etapas y estado ---------------------------------------------------
 
     async def marcar_etapa(
         self,
@@ -83,16 +66,12 @@ class RepoTrabajos:
         return str(valor)
 
     async def pasar_a(self, trabajo_id: uuid.UUID, nuevo: str, **extra: Any) -> None:
-        # El guard vive aqui, junto a la escritura que puede violar la maquina:
-        # es una invariante transaccional, no una regla de presentacion.
         actual = await self.estado(trabajo_id)
         if actual == nuevo:
             return
         if not puede_pasar(actual, nuevo):
             raise TransicionIlegal(actual, nuevo)
         await self.c.execute(update(TRABAJO).where(TRABAJO.c.id == trabajo_id).values(estado=nuevo, **extra))
-
-    # --- escritura de kits -------------------------------------------------
 
     async def escribir_kits(
         self,
@@ -104,7 +83,6 @@ class RepoTrabajos:
         *,
         ms: int,
     ) -> None:
-        """Persiste KIT+LINEA y marca la etapa de optimizacion. Comun a las dos rutas."""
         for kit in kits:
             kit_id = uuid.uuid4()
             await self.c.execute(
@@ -187,8 +165,6 @@ class RepoTrabajos:
         )
         await self.c.execute(update(KIT).where(KIT.c.id == kit_id).values(total_cop=int(total or 0)))
 
-    # --- resolucion --------------------------------------------------------
-
     async def resolucion_de(self, trabajo_id: uuid.UUID, item_id: uuid.UUID) -> Any:
         return (
             await self.c.execute(
@@ -198,23 +174,7 @@ class RepoTrabajos:
             )
         ).one_or_none()
 
-    # --- outbox: MISMA transaccion que el cambio de estado ----------------
-
     async def emitir_evento(self, trabajo_id: uuid.UUID) -> None:
-        """Deja `kits_publicados` en la bandeja, en la MISMA transaccion.
-
-        El repartidor de Operacion (`tukit_operacion.repartidor`) lo recibe y avisa
-        al acudiente. La carga trae su `usuario_id` (ADR 0046): con RabbitMQ el
-        repartidor no lee `trabajo_pipeline`, asi que el destinatario tiene que
-        viajar en el evento. Sin broker lo sigue resolviendo desde la tabla. Por eso
-        este evento solo tiene sentido en un trabajo con acudiente; un preview
-        (`usuario_id` NULL) no llega aca —`revisar` lo rechaza antes— para no dejar
-        un evento sin destinatario que el repartidor reintente sin fin.
-
-        No abre transaccion: el orquestador lo llama dentro del mismo `async with`
-        que el paso a PUBLICADO, de modo que un rollback a mitad se lleva el evento
-        con el cambio de estado (no dual-write).
-        """
         fila = (
             await self.c.execute(
                 select(TRABAJO.c.usuario_id, TRABAJO.c.hijos).where(TRABAJO.c.id == trabajo_id)
@@ -224,16 +184,7 @@ class RepoTrabajos:
         carga: dict[str, Any] = {"trabajo_id": str(trabajo_id), "publicado_en": _ahora().isoformat()}
         if usuario_id is not None:
             carga["usuario_id"] = str(usuario_id)
-        # Para el correo "Tu kit esta listo": colegio y grado de cada lista del
-        # hogar, que identifican la lista y no a un menor. NUNCA la referencia ni
-        # el apodo. `listas` va deduplicada por (colegio, grado) en el orden de los
-        # hijos; `colegio_id`/`grado` sueltos (del primer hijo) se conservan para
-        # un repartidor de antes que aun no lea `listas`.
         hijos = [h for h in (fila.hijos or ()) if isinstance(h, dict)] if fila is not None else []
-        # Solo los hijos cuyo kit se armo de verdad: un hermano que quedo en
-        # `sin_lista` (sin lista escolar) no tiene lineas y NO debe nombrarse en el
-        # correo "Tu kit esta listo". Si no hay lineas (p. ej. un trabajo sin kits),
-        # no se filtra, para no quedar sin destinatario.
         con_lineas = {
             ref
             for ref in (
@@ -269,13 +220,6 @@ class RepoTrabajos:
         )
 
     async def avisar_encolado(self, trabajo_id: uuid.UUID) -> None:
-        """Deja `trabajo_encolado` en la bandeja, en la MISMA transaccion (ADR 0046).
-
-        Con RabbitMQ, el publicador de Inteligencia lo lleva a la cola
-        `inteligencia.trabajos` y el trabajador reclama la fila al recibirlo, en
-        vez de sondear la tabla. Si el aviso se pierde, el barrido del trabajador
-        recoge el trabajo igual. Quien llama decide si hay broker.
-        """
         await self.c.execute(
             insert(BANDEJA).values(
                 tipo="trabajo_encolado",
@@ -285,19 +229,7 @@ class RepoTrabajos:
             )
         )
 
-    # --- cache canonica del grado -----------------------------------------
-
     async def fijar_canonico(self, trabajo_id: uuid.UUID) -> None:
-        """Al publicar, apunta la cache canonica de (colegio, grado, anio) a este trabajo.
-
-        Solo cuando el trabajo tiene UNA identidad de grado clara: un solo hijo con
-        colegio y grado (el caso de onboarding y de la ruta de acudiente por grado).
-        Un trabajo multi-hogar, o sin colegio/grado, no define una cache de grado y
-        se deja sin puntero —publicar igual funciona, solo no se cachea—.
-
-        Publicar de nuevo para el mismo grado REEMPLAZA el puntero (delete + insert
-        sobre la llave unica): una sola cache bendita por grado.
-        """
         fila = (await self.c.execute(select(TRABAJO.c.hijos).where(TRABAJO.c.id == trabajo_id))).one_or_none()
         hijos = list(fila.hijos or ()) if fila else []
         if len(hijos) != 1:
@@ -305,16 +237,10 @@ class RepoTrabajos:
         hijo = hijos[0]
         colegio_id = str(hijo.get("colegio_id") or "")
         grado = str(hijo.get("grado") or "")
-        # Mismo anio bajo el que se construyeron los kits (ver `procesar`): si el
-        # hijo no lo trajo, se cachea bajo el de omision para que la busqueda por
-        # grado en /empezar caiga en la misma fila.
         anio = int(hijo.get("anio_lectivo") or ANIO_LECTIVO_POR_OMISION)
         if not (colegio_id and grado):
             return
 
-        # Reemplaza el puntero del grado: la cache es una sola. No es un upsert de
-        # ON CONFLICT para no atarse al dialecto —delete+insert corre igual en
-        # SQLite (pruebas) y en Postgres (real)—.
         await self.c.execute(
             delete(KIT_CANONICO).where(
                 KIT_CANONICO.c.colegio_id == colegio_id,

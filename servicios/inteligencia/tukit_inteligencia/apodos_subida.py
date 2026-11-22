@@ -1,9 +1,3 @@
-"""Guarda y entrega el apodo de los hijos de una lista subida (ver `ApodoSubida`).
-
-El apodo va cifrado (mismo cifrador que las preferencias). `tomar` lo entrega y
-lo borra en la misma transaccion: una vez en el trabajo, no queda copia aqui.
-"""
-
 from __future__ import annotations
 
 from typing import Any
@@ -31,7 +25,6 @@ def _filas(version_id: str, contacto: str | None, apodos: dict[str, str]) -> lis
 
 
 async def guardar(motor: Any, version_id: str, contacto: str | None, apodos: dict[str, str]) -> None:
-    """Guarda `{referencia: apodo}` de una version importada. Sin apodos, nada."""
     filas = _filas(version_id, contacto, apodos)
     if not filas:
         return
@@ -51,20 +44,18 @@ def _descifrar(filas: Any) -> dict[str, str]:
     for f in filas:
         try:
             salida[f.referencia] = cifrador.descifrar(f.apodo_cifrado).decode("utf-8", errors="replace")
-        except Exception:  # una llave rotada no tumba el armado del kit: sale sin apodo
+        except Exception:
             continue
     return salida
 
 
 async def apodos_de(motor: Any, version_id: str) -> dict[str, str]:
-    """`{referencia: apodo}` guardados para esa version (lectura, sin borrar)."""
     async with motor.engine.connect() as conexion:
         filas = await conexion.execute(select(APODO).where(APODO.c.version_id == str(version_id)))
         return _descifrar(filas)
 
 
 async def tomar(conexion: Any, version_id: str) -> dict[str, str]:
-    """Entrega los apodos de la version y los borra, en la transaccion del llamador."""
     filas = list(await conexion.execute(select(APODO).where(APODO.c.version_id == str(version_id))))
     if filas:
         await conexion.execute(delete(APODO).where(APODO.c.version_id == str(version_id)))
