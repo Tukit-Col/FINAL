@@ -66,7 +66,8 @@ def main(argv: list[str] | None = None) -> int:
         os.environ.pop("GEMINI_API_KEY", None)
 
     from tukit_catalogo.consulta import _embeder_por_entorno, calcular_vectores, emparejar
-    from tukit_inteligencia.trabajos import _candidato, _normalizar, estado_desde_emparejamiento, tau
+    from tukit_inteligencia.dominio.pipeline import _candidato, _normalizar, estado_desde_emparejamiento
+    from tukit_inteligencia.trabajos import tau
 
     t0 = time.perf_counter()
     conceptos, productos = asyncio.run(_indice())

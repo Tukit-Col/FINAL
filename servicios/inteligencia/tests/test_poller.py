@@ -63,7 +63,7 @@ class TestPollerArmaElKitDelPadre:
     async def test_un_evento_arma_un_trabajo_dirigido_por_ruta_rapida(self, motor, monkeypatch):
         # Identidad NO se debe tocar: el poller ya tiene el usuario del evento.
         identidad = _CatalogoNoIdentidad()
-        monkeypatch.setattr(trabajos, "ClienteIdentidad", lambda *a, **k: identidad)
+        monkeypatch.setattr(trabajos.pipeline, "ClienteIdentidad", lambda *a, **k: identidad)
 
         contacto = str(uuid.uuid4())
         await sembrar_bandeja(motor, **carga_lista_verificada(contacto))
@@ -121,7 +121,7 @@ class TestPollerArmaElKitDelPadre:
         assert await poller.pasada() == 1
 
         # Las preferencias se guardan cifradas; se leen con el mismo cifrador.
-        from tukit_inteligencia.trabajos import cifrador_desde_entorno
+        from tukit_comun.cifrado import cifrador_desde_entorno
 
         async with motor.engine.begin() as conexion:
             cifradas = (await conexion.execute(select(trabajos.TRABAJO.c.preferencias_cifradas))).scalar_one()
@@ -423,16 +423,16 @@ async def test_dos_entregas_que_llegan_a_crear_arman_un_solo_kit(motor):
 async def test_si_crear_falla_la_marca_vuelve_atras(motor, monkeypatch):
     poller = _poller(motor)
     evento = _evento(8, contacto_referencia=str(uuid.uuid4()))
-    etapas = trabajos.ETAPAS
+    etapas = trabajos.pipeline.ETAPAS
     # Una etapa sin nombre viola el NOT NULL despues de la marca y del trabajo.
-    monkeypatch.setattr(trabajos, "ETAPAS", (None,))
+    monkeypatch.setattr(trabajos.pipeline, "ETAPAS", (None,))
 
     with pytest.raises(Exception, match="NOT NULL"):
         await poller.manejar(evento)
     assert await _cuantos(motor, EventoProcesado) == 0
     assert await _cuantos(motor, trabajos.TRABAJO) == 0
 
-    monkeypatch.setattr(trabajos, "ETAPAS", etapas)
+    monkeypatch.setattr(trabajos.pipeline, "ETAPAS", etapas)
     assert await poller.manejar(evento) is Resultado.HECHO
     assert await _cuantos(motor, trabajos.TRABAJO) == 1
 
