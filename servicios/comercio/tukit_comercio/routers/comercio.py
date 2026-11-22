@@ -877,10 +877,18 @@ _MENSAJE_RETRACTO = {
 
 @router.post("/v1/ordenes/{pedido_id}/retracto", status_code=201, summary="Retracto o devolucion (FU-04)")
 async def retractar_orden(
-    request: Request, pedido_id: uuid.UUID, solicitud: SolicitudRetracto
+    request: Request,
+    pedido_id: uuid.UUID,
+    solicitud: SolicitudRetracto,
+    authorization: Annotated[str | None, Header()] = None,
 ) -> dict[str, Any]:
     """Registra la devolucion, cancela el pedido si la transicion lo permite y
-    marca el pago para reembolso. El monto del reembolso es el total pagado."""
+    marca el pago para reembolso. El monto del reembolso es el total pagado.
+
+    La ruta es interna, pero si llega una sesion el pedido tiene que ser de ella: un acudiente
+    no retracta el pedido de otro (H-C-06)."""
+    if token_bearer(authorization):
+        await _pedido_del_portador(request, pedido_id, authorization)
     async with request.app.state.motor.sesion() as db:
         repo = _repo(await db.connection())
         pedido = await repo.obtener(pedido_id)
