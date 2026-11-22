@@ -43,9 +43,7 @@ def jaccard(a: frozenset[str], b: frozenset[str]) -> float:
 def f1_contra(items: list[str], oro: list[str], umbral: float = 0.5) -> dict:
     a = [norma(x) for x in items]
     g = [norma(x) for x in oro]
-    pares = sorted(
-        ((jaccard(x, y), i, j) for i, x in enumerate(a) for j, y in enumerate(g)), reverse=True
-    )
+    pares = sorted(((jaccard(x, y), i, j) for i, x in enumerate(a) for j, y in enumerate(g)), reverse=True)
     ua, ug, tp = set(), set(), 0
     for s, i, j in pares:
         if s < umbral:
@@ -147,7 +145,9 @@ def main() -> int:
             )
             print(nombre, k + 1, r.aceptada, len(items), flush=True)
         ok = [c for c in corridas if c["aceptada"]]
-        huellas = [json.dumps({"g": c["grados"], "i": c["items"]}, sort_keys=True, ensure_ascii=False) for c in ok]
+        huellas = [
+            json.dumps({"g": c["grados"], "i": c["items"]}, sort_keys=True, ensure_ascii=False) for c in ok
+        ]
         mas_comun = Counter(huellas).most_common(1)[0][1] if huellas else 0
         f1s = [f1_contra([i["descripcion"] for i in c["items"]], oro)["f1"] for c in ok] if oro else []
         dif = [diferencias(ok[0]["items"], c["items"]) for c in ok[1:]]
@@ -182,8 +182,12 @@ def main() -> int:
         resultado["resumen"] = {
             "documentos_con_las_5_identicas": sum(1 for d in docs if d["corridas_identicas_pct"] == 100.0),
             "documentos": len(docs),
-            "corridas_identicas_pct_promedio": round(statistics.mean(d["corridas_identicas_pct"] for d in docs), 1),
-            "renglones_inestables_total": sum(d["renglones_inestables_union_menos_interseccion"] for d in docs),
+            "corridas_identicas_pct_promedio": round(
+                statistics.mean(d["corridas_identicas_pct"] for d in docs), 1
+            ),
+            "renglones_inestables_total": sum(
+                d["renglones_inestables_union_menos_interseccion"] for d in docs
+            ),
             "f1_rango_max": max(d["f1_rango"] for d in docs if d["f1_rango"] is not None),
         }
     SALIDA.write_text(json.dumps(resultado, ensure_ascii=False, indent=1))

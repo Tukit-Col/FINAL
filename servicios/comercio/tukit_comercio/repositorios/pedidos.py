@@ -105,7 +105,6 @@ def _serializar_linea(fila: Any) -> dict[str, Any]:
 
 @dataclass(frozen=True)
 class ResultadoAplicacion:
-
     estado: str
     pedido_id: uuid.UUID | None
     estado_pago: str | None
@@ -115,7 +114,6 @@ class ResultadoAplicacion:
 
 
 class RepoPedidos:
-
     def __init__(self, conexion: Any) -> None:
         self.conexion = conexion
 
@@ -196,7 +194,11 @@ class RepoPedidos:
         return completos
 
     async def _alertas_de(
-        self, filas: list[Any], pago_por_pedido: dict[Any, Any] | None = None, *, ahora: datetime | None = None
+        self,
+        filas: list[Any],
+        pago_por_pedido: dict[Any, Any] | None = None,
+        *,
+        ahora: datetime | None = None,
     ) -> dict[Any, tuple[str, ...]]:
         ahora = ahora or datetime.now(UTC)
         candidatas = [
@@ -262,7 +264,11 @@ class RepoPedidos:
             await self.conexion.execute(
                 select(PEDIDO).where(
                     PEDIDO.c.estado.in_(
-                        [EstadoPedido.PAGADO.value, EstadoPedido.PENDIENTE_PAGO.value, EstadoPedido.INCIDENCIA.value]
+                        [
+                            EstadoPedido.PAGADO.value,
+                            EstadoPedido.PENDIENTE_PAGO.value,
+                            EstadoPedido.INCIDENCIA.value,
+                        ]
                     )
                 )
             )
@@ -280,9 +286,13 @@ class RepoPedidos:
             "alertas": conteo_alertas,
         }
 
-    async def devoluciones_de(self, pedido_id: uuid.UUID, entregado_en: datetime | None) -> list[dict[str, Any]]:
+    async def devoluciones_de(
+        self, pedido_id: uuid.UUID, entregado_en: datetime | None
+    ) -> list[dict[str, Any]]:
         filas = await self.conexion.execute(
-            select(DEVOLUCION).where(DEVOLUCION.c.pedido_id == pedido_id).order_by(DEVOLUCION.c.creado_en.desc())
+            select(DEVOLUCION)
+            .where(DEVOLUCION.c.pedido_id == pedido_id)
+            .order_by(DEVOLUCION.c.creado_en.desc())
         )
         return [
             {

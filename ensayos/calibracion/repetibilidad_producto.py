@@ -41,13 +41,29 @@ def main() -> int:
     cent = dict(zip(z["codigos"].tolist(), z["centroides"].astype(float), strict=True))
     conceptos = []
     for c in cat["conceptos"]:
-        conceptos.append({"id": c["id"], "codigo": c["codigo"], "nombre": c["nombre"], "sinonimos": list(c["sinonimos"]),
-                          "discriminantes": tuple(c["discriminantes"]), "tipo_item": c["tipo_item"],
-                          "embedding": cent[c["codigo"]].tolist() if c["codigo"] in cent else None})
+        conceptos.append(
+            {
+                "id": c["id"],
+                "codigo": c["codigo"],
+                "nombre": c["nombre"],
+                "sinonimos": list(c["sinonimos"]),
+                "discriminantes": tuple(c["discriminantes"]),
+                "tipo_item": c["tipo_item"],
+                "embedding": cent[c["codigo"]].tolist() if c["codigo"] in cent else None,
+            }
+        )
     lex = lexico_de(conceptos)
     nombre = {c["id"]: c["nombre"] for c in conceptos}
 
-    textos = sorted({i["descripcion"] for d in ent["documentos"] for c in d["corridas"] if c["aceptada"] for i in c["items"]})
+    textos = sorted(
+        {
+            i["descripcion"]
+            for d in ent["documentos"]
+            for c in d["corridas"]
+            if c["aceptada"]
+            for i in c["items"]
+        }
+    )
     vec: dict[str, np.ndarray] = {}
     if CACHE.exists():
         zz = np.load(CACHE, allow_pickle=False)
@@ -92,7 +108,10 @@ def main() -> int:
         for k, c in enumerate(corr):
             its = [(i["descripcion"], i["cantidad"], norma(i["descripcion"])) for i in c["items"]]
             usados = set()
-            pares = sorted(((jac(its[a][2], grupos[g]["n"]), a, g) for a in range(len(its)) for g in range(len(grupos))), reverse=True)
+            pares = sorted(
+                ((jac(its[a][2], grupos[g]["n"]), a, g) for a in range(len(its)) for g in range(len(grupos))),
+                reverse=True,
+            )
             gu = set()
             for s, a, g in pares:
                 if s < 0.5:
@@ -131,8 +150,15 @@ def main() -> int:
             else:
                 absorbidos += 1
             if len(detalle_cambios) < 12:
-                detalle_cambios.append({"ejemplo": next(iter(g["r"].values()))[0], "corridas_presente": len(g["r"]),
-                                        "resultados": sorted({(nombre.get(r[0], "sin concepto"), r[2]) for r in res.values()})})
+                detalle_cambios.append(
+                    {
+                        "ejemplo": next(iter(g["r"].values()))[0],
+                        "corridas_presente": len(g["r"]),
+                        "resultados": sorted(
+                            {(nombre.get(r[0], "sin concepto"), r[2]) for r in res.values()}
+                        ),
+                    }
+                )
         total = len(grupos)
         conj = []
         for c in corr:
@@ -158,32 +184,45 @@ def main() -> int:
             for i in c["items"]:
                 cnt[resolver(i["descripcion"])[2]] += 1
             est_run.append(cnt)
-        docs.append({
-            "documento": d["documento"], "corridas": n,
-            "renglones_agrupados_entre_corridas": total,
-            "a_renglones_presentes_en_las_5": presentes_todas,
-            "a_pct_renglones_estables_(presente_en_las_5_y_mismo_resultado)": round(100 * estables / total, 1),
-            "a_pct_mismo_concepto_entre_los_presentes_en_las_5": round(100 * concepto_igual_todas / presentes_todas, 1) if presentes_todas else None,
-            "a_renglones_presentes_en_las_5_con_cantidad_distinta": cantidad_cambia,
-            "b_conceptos_auto_por_corrida": [len(a) for a in auto],
-            "b_conceptos_union": len(union), "b_conceptos_en_las_5": len(inter),
-            "b_conceptos_que_aparecen_o_desaparecen": len(variables),
-            "b_vs_primera_corrida": vs_primera,
-            "b_jaccard_conjunto_entre_corridas_media": round(float(np.mean(pares_j)), 4),
-            "b_jaccard_conjunto_entre_corridas_min": round(float(min(pares_j)), 4),
-            "b_conceptos_variables": sorted(nombre[c] for c in variables),
-            "b_de_ellos_que_aparecen_en_revision_en_alguna_corrida": len(en_revision_alguna),
-            "c_renglones_inestables": total - estables,
-            "c_inestables_solo_por_ausencia_en_alguna_corrida": solo_ausencia,
-            "c_inestables_con_resultado_distinto_(concepto_o_estado)": concepto_distinto,
-            "c_absorbidos_por_guardrail_(nunca_>=tau)": absorbidos,
-            "c_con_alguna_aceptacion_automatica": auto_cambia,
-            "estados_por_corrida": est_run,
-            "ejemplos_inestables": detalle_cambios,
-        })
+        docs.append(
+            {
+                "documento": d["documento"],
+                "corridas": n,
+                "renglones_agrupados_entre_corridas": total,
+                "a_renglones_presentes_en_las_5": presentes_todas,
+                "a_pct_renglones_estables_(presente_en_las_5_y_mismo_resultado)": round(
+                    100 * estables / total, 1
+                ),
+                "a_pct_mismo_concepto_entre_los_presentes_en_las_5": round(
+                    100 * concepto_igual_todas / presentes_todas, 1
+                )
+                if presentes_todas
+                else None,
+                "a_renglones_presentes_en_las_5_con_cantidad_distinta": cantidad_cambia,
+                "b_conceptos_auto_por_corrida": [len(a) for a in auto],
+                "b_conceptos_union": len(union),
+                "b_conceptos_en_las_5": len(inter),
+                "b_conceptos_que_aparecen_o_desaparecen": len(variables),
+                "b_vs_primera_corrida": vs_primera,
+                "b_jaccard_conjunto_entre_corridas_media": round(float(np.mean(pares_j)), 4),
+                "b_jaccard_conjunto_entre_corridas_min": round(float(min(pares_j)), 4),
+                "b_conceptos_variables": sorted(nombre[c] for c in variables),
+                "b_de_ellos_que_aparecen_en_revision_en_alguna_corrida": len(en_revision_alguna),
+                "c_renglones_inestables": total - estables,
+                "c_inestables_solo_por_ausencia_en_alguna_corrida": solo_ausencia,
+                "c_inestables_con_resultado_distinto_(concepto_o_estado)": concepto_distinto,
+                "c_absorbidos_por_guardrail_(nunca_>=tau)": absorbidos,
+                "c_con_alguna_aceptacion_automatica": auto_cambia,
+                "estados_por_corrida": est_run,
+                "ejemplos_inestables": detalle_cambios,
+            }
+        )
     T = lambda k: sum(x[k] for x in docs)  # noqa: E731
     resumen = {
-        "tau": TAU, "corte_sin_match": CORTE, "lecturas_nuevas": 0, "textos_unicos_resueltos": len(memo),
+        "tau": TAU,
+        "corte_sin_match": CORTE,
+        "lecturas_nuevas": 0,
+        "textos_unicos_resueltos": len(memo),
         "textos_sin_vector_(coseno=0)": sin_vector,
         "renglones_agrupados": T("renglones_agrupados_entre_corridas"),
         "renglones_inestables": T("c_renglones_inestables"),
@@ -197,23 +236,58 @@ def main() -> int:
     import subprocess
 
     try:
-        q = ("select count(*), count(*) filter (where v.vigente and v.revisada_en is not null) "
-             "from lista_oficial l join version_lista_oficial v on v.lista_id=l.id and v.vigente")
-        o = subprocess.run(["psql", "tukit_catalogo", "-At", "-F", ",", "-c", q], capture_output=True, text=True, timeout=20).stdout.strip().split(",")
-        ruta = {"listas_oficiales": int(o[0]), "con_version_vigente_revisada": int(o[1]),
-                "memoria_dice": "76 grados de 7 colegios, cada lista aprobada por una persona",
-                "nota": "La base de desarrollo no reproduce el 76: hay mas listas y mas revisadas. Cuadrar la cifra antes de citarla."}
+        q = (
+            "select count(*), count(*) filter (where v.vigente and v.revisada_en is not null) "
+            "from lista_oficial l join version_lista_oficial v on v.lista_id=l.id and v.vigente"
+        )
+        o = (
+            subprocess.run(
+                ["psql", "tukit_catalogo", "-At", "-F", ",", "-c", q],
+                capture_output=True,
+                text=True,
+                timeout=20,
+            )
+            .stdout.strip()
+            .split(",")
+        )
+        ruta = {
+            "listas_oficiales": int(o[0]),
+            "con_version_vigente_revisada": int(o[1]),
+            "memoria_dice": "76 grados de 7 colegios, cada lista aprobada por una persona",
+            "nota": "La base de desarrollo no reproduce el 76: hay mas listas y mas revisadas. Cuadrar la cifra antes de citarla.",
+        }
     except Exception as e:  # noqa: BLE001
         ruta = {"error": str(e)}
     resumen["d_ruta_rapida"] = ruta
     SALIDA.write_text(json.dumps({"resumen": resumen, "documentos": docs}, ensure_ascii=False, indent=1))
     print(json.dumps(resumen, indent=1))
     for x in docs:
-        print(x["documento"], x["renglones_agrupados_entre_corridas"], x["a_pct_renglones_estables_(presente_en_las_5_y_mismo_resultado)"],
-              x["a_pct_mismo_concepto_entre_los_presentes_en_las_5"], "union", x["b_conceptos_union"], "var", x["b_conceptos_que_aparecen_o_desaparecen"],
-              "revis", x["b_de_ellos_que_aparecen_en_revision_en_alguna_corrida"], "J", x["b_jaccard_conjunto_entre_corridas_media"],
-              "inest", x["c_renglones_inestables"], "abs", x["c_absorbidos_por_guardrail_(nunca_>=tau)"], "auto", x["c_con_alguna_aceptacion_automatica"],
-              "ausencia", x["c_inestables_solo_por_ausencia_en_alguna_corrida"], "distinto", x["c_inestables_con_resultado_distinto_(concepto_o_estado)"], "cant", x["a_renglones_presentes_en_las_5_con_cantidad_distinta"])
+        print(
+            x["documento"],
+            x["renglones_agrupados_entre_corridas"],
+            x["a_pct_renglones_estables_(presente_en_las_5_y_mismo_resultado)"],
+            x["a_pct_mismo_concepto_entre_los_presentes_en_las_5"],
+            "union",
+            x["b_conceptos_union"],
+            "var",
+            x["b_conceptos_que_aparecen_o_desaparecen"],
+            "revis",
+            x["b_de_ellos_que_aparecen_en_revision_en_alguna_corrida"],
+            "J",
+            x["b_jaccard_conjunto_entre_corridas_media"],
+            "inest",
+            x["c_renglones_inestables"],
+            "abs",
+            x["c_absorbidos_por_guardrail_(nunca_>=tau)"],
+            "auto",
+            x["c_con_alguna_aceptacion_automatica"],
+            "ausencia",
+            x["c_inestables_solo_por_ausencia_en_alguna_corrida"],
+            "distinto",
+            x["c_inestables_con_resultado_distinto_(concepto_o_estado)"],
+            "cant",
+            x["a_renglones_presentes_en_las_5_con_cantidad_distinta"],
+        )
     return 0
 
 

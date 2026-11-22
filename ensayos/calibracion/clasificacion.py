@@ -20,7 +20,6 @@ for ruta in (str(RAIZ / "servicios" / "catalogo"), str(RAIZ / "libs" / "py" / "t
         sys.path.insert(0, ruta)
 
 from tukit_catalogo import clasificacion as D  # noqa: E402
-from tukit_catalogo.routers.admin import sinonimo_de_renglon  # noqa: E402
 from tukit_catalogo.transcripcion import corregir, lexico_de  # noqa: E402
 
 ACTUAL = {
@@ -57,7 +56,7 @@ def cargar_filas() -> list[dict]:
                 "grado": x["grado"],
                 "texto": x["texto_original"],
                 "etiqueta": x["concepto_codigo"] or None,
-                "lista": f'{x["colegio"]}|{x["grado"]}',
+                "lista": f"{x['colegio']}|{x['grado']}",
             }
         )
     return filas
@@ -175,9 +174,19 @@ def construir_rasgos(d: Datos, pool: list[tuple[int, str]] | None = None) -> Ras
         cosc = np.zeros((U, len(d.conceptos)))
     col_c = np.array([c for c, _, _ in cols])
     orden = np.lexsort((np.arange(K), col_c))
-    r = Rasgos(jac, caso, cosc[:, col_c], col_c, [t for _, t, _ in cols], [k for _, _, k in cols], np.argsort(orden))
+    r = Rasgos(
+        jac, caso, cosc[:, col_c], col_c, [t for _, t, _ in cols], [k for _, _, k in cols], np.argsort(orden)
+    )
     p = orden
-    return Rasgos(r.jac[:, p], r.caso[:, p], r.cos[:, p], r.col_concepto[p], [r.col_texto[i] for i in p], [r.col_tipo[i] for i in p], np.arange(K))
+    return Rasgos(
+        r.jac[:, p],
+        r.caso[:, p],
+        r.cos[:, p],
+        r.col_concepto[p],
+        [r.col_texto[i] for i in p],
+        [r.col_tipo[i] for i in p],
+        np.arange(K),
+    )
 
 
 def puntuar(r: Rasgos, cfg: dict, activas: np.ndarray | None = None, filas: np.ndarray | None = None):

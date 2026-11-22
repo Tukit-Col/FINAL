@@ -19,14 +19,18 @@ MIN_RENGLONES = 150
 ORDENES = 5
 
 
-def ic_listas(cx: b.Contexto, mask: np.ndarray, p: np.ndarray, s: np.ndarray, corte: float, rep: int = 1000) -> list[float] | None:
+def ic_listas(
+    cx: b.Contexto, mask: np.ndarray, p: np.ndarray, s: np.ndarray, corte: float, rep: int = 1000
+) -> list[float] | None:
     ok = np.where(s >= corte, p, -1) == cx.y
     listas = np.unique(cx.lista[mask])
     if len(listas) < 3:
         return None
     por = {l: np.where(mask & (cx.lista == l))[0] for l in listas}
     rng = np.random.default_rng(20261101)
-    v = [100 * ok[np.concatenate([por[l] for l in rng.choice(listas, len(listas))])].mean() for _ in range(rep)]
+    v = [
+        100 * ok[np.concatenate([por[l] for l in rng.choice(listas, len(listas))])].mean() for _ in range(rep)
+    ]
     return [float(np.percentile(v, 2.5)), float(np.percentile(v, 97.5))]
 
 
@@ -75,13 +79,22 @@ def main() -> int:
         p0, s0 = sim.evaluar(sim.inicial(frio=True), np.where(pr)[0])
         sin_aprender = k.metricas(p0, s0, cx.y[pr], act["corte"], act["tau"])
         fila["frio_sin_aprender"] = sin_aprender
-        fila["frio_aprendiendo_de_los_otros_6"] = {m: float(np.mean([r[m] for r in res])) for m in res[0] if m != "n"} | {
-            "rango_exactitud": [min(r["exactitud"] for r in res), max(r["exactitud"] for r in res)]
-        }
+        fila["frio_aprendiendo_de_los_otros_6"] = {
+            m: float(np.mean([r[m] for r in res])) for m in res[0] if m != "n"
+        } | {"rango_exactitud": [min(r["exactitud"] for r in res), max(r["exactitud"] for r in res)]}
         filas_sal.append(fila)
-        print(col[:28], fila["renglones"], round(100 * fila["actual_tau_0.75"]["exactitud"], 1), round(100 * fila["elegido_tau_0.75"]["exactitud"], 1), round(100 * fila["frio_sin_aprender"]["exactitud"], 1), round(100 * fila["frio_aprendiendo_de_los_otros_6"]["exactitud"], 1))
+        print(
+            col[:28],
+            fila["renglones"],
+            round(100 * fila["actual_tau_0.75"]["exactitud"], 1),
+            round(100 * fila["elegido_tau_0.75"]["exactitud"], 1),
+            round(100 * fila["frio_sin_aprender"]["exactitud"], 1),
+            round(100 * fila["frio_aprendiendo_de_los_otros_6"]["exactitud"], 1),
+        )
+
     def micro(clave, m):
         return float(np.mean([f[clave][m] for f in filas_sal]))
+
     sal = {
         "descripcion": "Leave-one-school-out entre los 7 colegios. Ver docstring de generalizacion.py.",
         "min_renglones_para_confiar": MIN_RENGLONES,
@@ -90,10 +103,19 @@ def main() -> int:
             v: {m: micro(v, m) for m in ("exactitud", "aceptada", "precision_aceptada", "revision_humana")}
             for v in ("actual_tau_0.75", "elegido_tau_0.75", "elegido_tau_regla_0.98", "frio_sin_aprender")
         }
-        | {"frio_aprendiendo_de_los_otros_6": {m: micro("frio_aprendiendo_de_los_otros_6", m) for m in ("exactitud", "aceptada", "precision_aceptada", "revision_humana")}},
-        "elegido_menos_actual_exactitud_pp": [100 * (f["elegido_tau_0.75"]["exactitud"] - f["actual_tau_0.75"]["exactitud"]) for f in filas_sal],
+        | {
+            "frio_aprendiendo_de_los_otros_6": {
+                m: micro("frio_aprendiendo_de_los_otros_6", m)
+                for m in ("exactitud", "aceptada", "precision_aceptada", "revision_humana")
+            }
+        },
+        "elegido_menos_actual_exactitud_pp": [
+            100 * (f["elegido_tau_0.75"]["exactitud"] - f["actual_tau_0.75"]["exactitud"]) for f in filas_sal
+        ],
     }
-    (k.SALIDA / "generalizacion.json").write_text(json.dumps(sal, ensure_ascii=False, indent=1, default=float), encoding="utf-8")
+    (k.SALIDA / "generalizacion.json").write_text(
+        json.dumps(sal, ensure_ascii=False, indent=1, default=float), encoding="utf-8"
+    )
     print(sal["media_simple_7_colegios"])
     return 0
 

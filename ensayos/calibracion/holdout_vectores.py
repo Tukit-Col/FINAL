@@ -44,14 +44,17 @@ def main():
     textos = [f["texto"] for f in filas]
     cache = {**cargar(NPZ_VIEJO), **cargar(NPZ_NUEVO)}
     faltan = list(dict.fromkeys(t for t in textos if t not in cache))
-    por_col = {c: len({f["texto"] for f in filas if f["colegio"] == c} - set(cache)) for c in {f["colegio"] for f in filas}}
+    por_col = {
+        c: len({f["texto"] for f in filas if f["colegio"] == c} - set(cache))
+        for c in {f["colegio"] for f in filas}
+    }
     print("faltan", len(faltan), por_col)
     if faltan:
         urllib.request.urlopen = _contando  # type: ignore[assignment]
         EM.urllib.request.urlopen = _contando
         nuevos = {}
         for i in range(0, len(faltan), 100):
-            lote = faltan[i:i + 100]
+            lote = faltan[i : i + 100]
             for t, v in zip(lote, EM.embeder_gemini(lote), strict=True):
                 nuevos[t] = np.array(v, dtype=np.float32)
             np.savez(NPZ_NUEVO, textos=np.array(list(nuevos)), vectores=np.stack(list(nuevos.values())))
@@ -66,7 +69,9 @@ def main():
     out = []
     for f, e, e1, v in zip(filas, real, sin_enc, vecs, strict=True):
         estado = estado_desde_emparejamiento(e.a_dict(), RR.TAU)
-        titulo = e.concepto_codigo and RR.C.pide_titulo(por_codigo[e.concepto_codigo].get("discriminantes") or ())
+        titulo = e.concepto_codigo and RR.C.pide_titulo(
+            por_codigo[e.concepto_codigo].get("discriminantes") or ()
+        )
         if e.estado == "sin_match":
             rama = "sin_match"
         elif e1.concepto_codigo != e.concepto_codigo or abs(e1.parecido - e.parecido) > 1e-9:
@@ -77,11 +82,20 @@ def main():
             rama = "lexica_abstencion_atributos"
         else:
             rama = "lexica"
-        out.append({"colegio": f["colegio"], "grado": f["grado"], "id": f["id"], "texto": f["texto"],
-                    "concepto": e.concepto_codigo or "NINGUNO", "puntaje": f"{e.parecido:.4f}",
-                    "estado": estado, "aceptado": "si" if estado == "RESUELTO_AUTO" else "no",
-                    "rama": rama + ("" if v is not None else "+sin_vector"),
-                    "comparable": "si" if v is not None else "no"})
+        out.append(
+            {
+                "colegio": f["colegio"],
+                "grado": f["grado"],
+                "id": f["id"],
+                "texto": f["texto"],
+                "concepto": e.concepto_codigo or "NINGUNO",
+                "puntaje": f"{e.parecido:.4f}",
+                "estado": estado,
+                "aceptado": "si" if estado == "RESUELTO_AUTO" else "no",
+                "rama": rama + ("" if v is not None else "+sin_vector"),
+                "comparable": "si" if v is not None else "no",
+            }
+        )
     with SALIDA.open("w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=list(out[0]))
         w.writeheader()
@@ -93,11 +107,26 @@ def main():
         acept = est["RESUELTO_AUTO"]
         cambia_e = sum(out[i]["estado"] != filas[i]["estado"] for i in idx)
         cambia_c = sum(out[i]["concepto"] != filas[i]["concepto"] for i in idx)
-        cambia_ec = sum(out[i]["estado"] != filas[i]["estado"] or out[i]["concepto"] != filas[i]["concepto"] for i in idx)
+        cambia_ec = sum(
+            out[i]["estado"] != filas[i]["estado"] or out[i]["concepto"] != filas[i]["concepto"] for i in idx
+        )
         sv = sum(out[i]["comparable"] == "no" for i in idx)
         sv0 = sum("sin_vector" in filas[i]["rama"] for i in idx)
-        print(col, n, dict(est), "aceptada %.3f revision %.3f" % (acept / n, (n - acept) / n),
-              "sin_vector v1/v2", sv0, sv, "cambian estado", cambia_e, "concepto", cambia_c, "alguno", cambia_ec)
+        print(
+            col,
+            n,
+            dict(est),
+            "aceptada %.3f revision %.3f" % (acept / n, (n - acept) / n),
+            "sin_vector v1/v2",
+            sv0,
+            sv,
+            "cambian estado",
+            cambia_e,
+            "concepto",
+            cambia_c,
+            "alguno",
+            cambia_ec,
+        )
 
 
 if __name__ == "__main__":

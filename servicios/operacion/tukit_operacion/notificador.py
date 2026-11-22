@@ -28,7 +28,6 @@ _log = logging.getLogger("tukit.correo")
 
 @dataclass(frozen=True)
 class Contacto:
-
     usuario_id: str
     correo: str | None = None
     celular: str | None = None
@@ -36,7 +35,6 @@ class Contacto:
 
 @dataclass(frozen=True)
 class Envio:
-
     canal: str
     exito: bool
     enlace: str | None = None
@@ -62,7 +60,6 @@ def destino_enviable(correo: str) -> bool:
 
 
 class Notificador(Protocol):
-
     async def enviar(self, contacto: Contacto, plantilla: str, datos: dict[str, object]) -> Envio: ...
 
 
@@ -71,7 +68,9 @@ _PLANTILLAS = {
         "Tu kit esta listo. Armamos la lista de {lugar}. "
         "Revisa los productos y elige cuando comprar: {enlace}"
     ),
-    "pedido_pagado": "Recibimos tu pago del pedido {pedido}. Ya empezamos a preparar tu kit; te avisamos cuando salga.",
+    "pedido_pagado": (
+        "Recibimos tu pago del pedido {pedido}. Ya empezamos a preparar tu kit; te avisamos cuando salga."
+    ),
     "pedido_en_preparacion": "Estamos preparando el kit de tu pedido {pedido}. Te avisamos cuando salga.",
     "pedido_despachado": "Tu pedido {pedido} salió y va con {repartidor}.",
     "pedido_en_reparto": "Tu pedido {pedido} llega hoy.",
@@ -82,7 +81,9 @@ _PLANTILLAS = {
 }
 
 _TEXTOS_VARIANTE = {
-    "pedido_en_preparacion:retoma": "Retomamos tu pedido {pedido} y volvemos a preparar tu kit. Te avisamos cuando salga.",
+    "pedido_en_preparacion:retoma": (
+        "Retomamos tu pedido {pedido} y volvemos a preparar tu kit. Te avisamos cuando salga."
+    ),
     "incidencia:cobro_tras_cancelacion": (
         "Recibimos un pago del pedido {pedido}, que ya estaba cancelado. Lo devolvemos a tu medio de pago."
     ),
@@ -173,8 +174,7 @@ def _encabezado_html() -> str:
         logo = "cid:logo-tukit"
     if logo is None:
         marca = (
-            '<p style="margin:0;font-size:22px;letter-spacing:3px;color:#ffffff;'
-            'font-weight:bold">TUKIT</p>'
+            '<p style="margin:0;font-size:22px;letter-spacing:3px;color:#ffffff;font-weight:bold">TUKIT</p>'
         )
     else:
         marca = (
@@ -231,7 +231,8 @@ def _pie_html() -> str:
         f'<p style="{estilo}">Tratamos tus datos seg&uacute;n la Ley 1581 de 2012 (habeas data). '
         "Nunca ponemos el nombre ni el apodo de tus hijos en un correo. Puedes consultar, corregir "
         "o pedir que borremos tus datos escribi&eacute;ndonos.</p>"
-        f'<p style="{estilo}"><a href="{base}/legal/privacidad" style="{enlace}">Pol&iacute;tica de privacidad</a>'
+        f'<p style="{estilo}"><a href="{base}/legal/privacidad" style="{enlace}">Pol&iacute;tica de '
+        f"privacidad</a>"
         f' &middot; <a href="{base}/legal/terminos" style="{enlace}">T&eacute;rminos</a>'
         f' &middot; <a href="{base}/ayuda" style="{enlace}">Ayuda</a></p>'
         f'<p style="margin:0;font-size:12px;color:{_APAGADO}">TUKIT &middot; Bogot&aacute;, Colombia</p>'
@@ -259,14 +260,12 @@ def _envolver_html(
             f'text-decoration:none;font-size:16px;font-weight:bold">{html.escape(etiqueta)}</a>'
             "</td></tr></table>"
             f'<p style="margin:0 0 4px;font-size:12px;line-height:1.5;color:{_APAGADO}">Si el bot&oacute;n '
-            f'no abre, copia este enlace en tu navegador:<br>'
+            f"no abre, copia este enlace en tu navegador:<br>"
             f'<a href="{url_e}" style="color:{_AZUL};word-break:break-all">{url_e}</a></p>'
         )
     alterno = ""
     if enlace_alterno:
-        alterno = (
-            f'<p style="margin:12px 0 0;font-size:13px;color:{_APAGADO}">{enlace_alterno}</p>'
-        )
+        alterno = f'<p style="margin:12px 0 0;font-size:13px;color:{_APAGADO}">{enlace_alterno}</p>'
     icono_html = (
         f'<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 16px"><tr>'
         f'<td width="56" height="56" align="center" bgcolor="{_SUAVE}" style="background:{_SUAVE};'
@@ -292,9 +291,11 @@ def _envolver_html(
         'box-shadow:0 2px 12px rgba(27,37,64,0.08)">'
         f"{_encabezado_html()}"
         f'<tr><td style="padding:32px 32px 8px">{icono_html}'
-        f'<h1 style="margin:0 0 12px;font-size:26px;line-height:1.25;color:{_TINTA}">{html.escape(titulo)}</h1>'
+        f'<h1 style="margin:0 0 '
+        f'12px;font-size:26px;line-height:1.25;color:{_TINTA}">{html.escape(titulo)}</h1>'
         f"{cuerpo}{boton_html}{alterno}</td></tr>"
-        f'<tr><td style="padding:0 32px"><hr style="border:0;border-top:1px solid #e3e8f5;margin:8px 0 0"></td></tr>'
+        f'<tr><td style="padding:0 32px"><hr style="border:0;border-top:1px solid '
+        f'#e3e8f5;margin:8px 0 0"></td></tr>'
         f"{_pie_html()}"
         "</table></td></tr></table></body></html>"
     )
@@ -305,7 +306,8 @@ def _detalle_html(filas: list[tuple[str, str]]) -> str:
         return ""
     cuerpo = "".join(
         f'<tr><td style="padding:5px 0;font-size:13px;color:{_APAGADO}">{etiqueta}</td>'
-        f'<td align="right" style="padding:5px 0;font-size:14px;font-weight:bold;color:{_TINTA}">{valor}</td></tr>'
+        f'<td align="right" style="padding:5px '
+        f'0;font-size:14px;font-weight:bold;color:{_TINTA}">{valor}</td></tr>'
         for etiqueta, valor in filas
     )
     return (
@@ -318,9 +320,13 @@ def _detalle_html(filas: list[tuple[str, str]]) -> str:
 
 _VISTAS: dict[str, dict[str, object]] = {
     "kits_publicados": {
-        "icono": "&#127890;", "titulo": "Tu kit est&aacute; listo", "fase": None,
+        "icono": "&#127890;",
+        "titulo": "Tu kit est&aacute; listo",
+        "fase": None,
         "parrafo": "Armamos la lista de {lugar}. Revisa los productos y elige cu&aacute;ndo comprar.",
-        "boton": "Ver mi kit", "ruta": "/dashboard", "usa_enlace": True,
+        "boton": "Ver mi kit",
+        "ruta": "/dashboard",
+        "usa_enlace": True,
         "previa": "Revisa tu kit y elige cuándo comprar.",
         "variantes": {
             "varias_listas": {
@@ -330,15 +336,23 @@ _VISTAS: dict[str, dict[str, object]] = {
         },
     },
     "pedido_pagado": {
-        "icono": "&#9989;", "titulo": "Recibimos tu pago", "fase": 0,
+        "icono": "&#9989;",
+        "titulo": "Recibimos tu pago",
+        "fase": 0,
         "parrafo": "Tu pago lleg&oacute; bien. Ya empezamos a armar tu kit y te avisamos cuando salga.",
-        "boton": "Ver mi pedido", "ruta": "/dashboard#pedidos", "usa_enlace": True,
+        "boton": "Ver mi pedido",
+        "ruta": "/dashboard#pedidos",
+        "usa_enlace": True,
         "previa": "Tu pago llegó. Ya armamos tu kit.",
     },
     "pedido_en_preparacion": {
-        "icono": "&#9986;&#65039;", "titulo": "Estamos preparando tu kit", "fase": 1,
+        "icono": "&#9986;&#65039;",
+        "titulo": "Estamos preparando tu kit",
+        "fase": 1,
         "parrafo": "Estamos armando y revisando cada producto de tu kit. Te avisamos cuando salga.",
-        "boton": "Ver mi pedido", "ruta": "/dashboard#pedidos", "usa_enlace": True,
+        "boton": "Ver mi pedido",
+        "ruta": "/dashboard#pedidos",
+        "usa_enlace": True,
         "previa": "Estamos armando tu kit.",
         "variantes": {
             "retoma": {
@@ -348,44 +362,76 @@ _VISTAS: dict[str, dict[str, object]] = {
         },
     },
     "pedido_despachado": {
-        "icono": "&#128230;", "titulo": "Tu pedido sali&oacute;", "fase": 2,
+        "icono": "&#128230;",
+        "titulo": "Tu pedido sali&oacute;",
+        "fase": 2,
         "parrafo": "Tu pedido va en camino con <b>{repartidor}</b>.",
-        "boton": "Seguir mi pedido", "ruta": "/dashboard#pedidos", "usa_enlace": True,
+        "boton": "Seguir mi pedido",
+        "ruta": "/dashboard#pedidos",
+        "usa_enlace": True,
         "previa": "Tu pedido salió y va en camino.",
     },
     "pedido_en_reparto": {
-        "icono": "&#128666;", "titulo": "Tu pedido llega hoy", "fase": 3,
+        "icono": "&#128666;",
+        "titulo": "Tu pedido llega hoy",
+        "fase": 3,
         "parrafo": "Tu pedido est&aacute; en reparto y llega hoy. Ten a alguien en casa para recibirlo.",
-        "boton": "Seguir mi pedido", "ruta": "/dashboard#pedidos", "usa_enlace": True,
+        "boton": "Seguir mi pedido",
+        "ruta": "/dashboard#pedidos",
+        "usa_enlace": True,
         "previa": "Tu pedido llega hoy.",
     },
     "pedido_entregado": {
-        "icono": "&#127881;", "titulo": "Tu pedido fue entregado", "fase": 4,
-        "parrafo": "Entregamos tu pedido. &iexcl;Gracias por confiar en TUKIT! Si algo no est&aacute; bien, cu&eacute;ntanos.",
-        "boton": "Ver mi pedido", "ruta": "/dashboard#pedidos", "usa_enlace": True,
+        "icono": "&#127881;",
+        "titulo": "Tu pedido fue entregado",
+        "fase": 4,
+        "parrafo": (
+            "Entregamos tu pedido. &iexcl;Gracias por confiar en TUKIT! Si algo no "
+            "est&aacute; bien, cu&eacute;ntanos."
+        ),
+        "boton": "Ver mi pedido",
+        "ruta": "/dashboard#pedidos",
+        "usa_enlace": True,
         "previa": "Entregamos tu pedido. ¡Gracias!",
-        "alterno": '&iquest;Algo no est&aacute; bien? <a href="{base}/dashboard#casos" style="color:' + _AZUL + '">Abre un caso</a>.',
+        "alterno": '&iquest;Algo no est&aacute; bien? <a href="{base}/dashboard#casos" style="color:'
+        + _AZUL
+        + '">Abre un caso</a>.',
     },
     "incidencia": {
-        "icono": "&#9888;&#65039;", "titulo": "Novedad con tu pedido", "fase": None,
+        "icono": "&#9888;&#65039;",
+        "titulo": "Novedad con tu pedido",
+        "fase": None,
         "parrafo": "Hubo una novedad con tu pedido. Ya la estamos revisando y te vamos a contactar.",
-        "boton": "Ver mi pedido", "ruta": "/dashboard#pedidos", "usa_enlace": True,
+        "boton": "Ver mi pedido",
+        "ruta": "/dashboard#pedidos",
+        "usa_enlace": True,
         "previa": "Hubo una novedad con tu pedido.",
-        "alterno": 'Si necesitas ayuda ya, <a href="{base}/dashboard#casos" style="color:' + _AZUL + '">abre un caso</a>.',
+        "alterno": 'Si necesitas ayuda ya, <a href="{base}/dashboard#casos" style="color:'
+        + _AZUL
+        + '">abre un caso</a>.',
         "variantes": {
             "cobro_tras_cancelacion": {
                 "titulo": "Devolvemos un pago",
-                "parrafo": "Recibimos un pago de un pedido que ya estaba cancelado. Lo devolvemos a tu medio de pago; "
-                "el banco puede tardar unos d&iacute;as en reflejarlo.",
+                "parrafo": (
+                    "Recibimos un pago de un pedido que ya estaba cancelado. Lo devolvemos a "
+                    "tu medio de pago; "
+                    "el banco puede tardar unos d&iacute;as en reflejarlo."
+                ),
             }
         },
     },
     "pedido_cancelado": {
-        "icono": "&#10060;", "titulo": "Cancelamos tu pedido", "fase": None,
+        "icono": "&#10060;",
+        "titulo": "Cancelamos tu pedido",
+        "fase": None,
         "parrafo": "Cancelamos tu pedido.",
-        "boton": "Ver mi pedido", "ruta": "/dashboard#pedidos", "usa_enlace": True,
+        "boton": "Ver mi pedido",
+        "ruta": "/dashboard#pedidos",
+        "usa_enlace": True,
         "previa": "Cancelamos tu pedido.",
-        "alterno": '&iquest;Dudas? <a href="{base}/dashboard#casos" style="color:' + _AZUL + '">Abre un caso</a>.',
+        "alterno": '&iquest;Dudas? <a href="{base}/dashboard#casos" style="color:'
+        + _AZUL
+        + '">Abre un caso</a>.',
         "variantes": {
             "reembolso": {
                 "parrafo": "Cancelamos tu pedido y te devolvemos el pago a tu medio de pago. "
@@ -395,9 +441,13 @@ _VISTAS: dict[str, dict[str, object]] = {
         },
     },
     "caso_respuesta": {
-        "icono": "&#128172;", "titulo": "Respondimos tu caso", "fase": None,
+        "icono": "&#128172;",
+        "titulo": "Respondimos tu caso",
+        "fase": None,
         "parrafo": "Ya hay una respuesta a tu caso. Entra a TUKIT para leerla.",
-        "boton": "Leer la respuesta", "ruta": "/dashboard#casos", "usa_enlace": False,
+        "boton": "Leer la respuesta",
+        "ruta": "/dashboard#casos",
+        "usa_enlace": False,
         "previa": "Tu caso tiene respuesta.",
     },
 }
@@ -486,7 +536,6 @@ def _buzon() -> Path | None:
 
 @dataclass
 class WaLink:
-
     async def enviar(self, contacto: Contacto, plantilla: str, datos: dict[str, object]) -> Envio:
         if not contacto.celular:
             return Envio(canal="wa_link", exito=False, detalle="sin_celular")
@@ -498,7 +547,6 @@ class WaLink:
 
 @dataclass
 class Correo:
-
     remitente: str = ""
 
     def _smtp_host(self) -> str | None:
@@ -582,7 +630,6 @@ class Correo:
 
 @dataclass
 class NotificadorFalso:
-
     enviados: list[dict[str, object]] = field(default_factory=list)
     canal: str = "correo"
 
@@ -601,7 +648,6 @@ class NotificadorFalso:
 
 @dataclass
 class NotificadorCompuesto:
-
     wa: Notificador = field(default_factory=WaLink)
     correo: Notificador = field(default_factory=Correo)
 

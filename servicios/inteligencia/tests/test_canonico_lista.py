@@ -40,9 +40,7 @@ async def _avisos(motor) -> list[Any]:
 class TestListaAprobadaArmaLosCanonicos:
     async def test_el_poller_arma_publica_sin_avisar_y_fija_el_puntero(self, motor):
         await _evento_lista_aprobada(motor, uuid.uuid4())
-        poller = Poller(
-            motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo_verificado()
-        )
+        poller = Poller(motor_inteligencia=motor, motor_catalogo=motor.engine, catalogo=catalogo_verificado())
 
         assert await poller.pasada() == 1
 

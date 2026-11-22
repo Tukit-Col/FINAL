@@ -21,7 +21,7 @@ for ruta in (str(RAIZ / "servicios" / "inteligencia"), str(RAIZ / "libs" / "py" 
     if ruta not in sys.path:
         sys.path.insert(0, ruta)
 
-from comun import cargar_json, decidibles, renglones_de  # noqa: E402  (bench_laya)
+from comun import cargar_json, decidibles  # noqa: E402  (bench_laya)
 from tukit_inteligencia.optimizador import (  # noqa: E402
     Renglon,
     SolucionFrente,
@@ -75,7 +75,9 @@ def espacio_de(opciones: list[list]) -> int:
     return math.prod(len(o) for o in opciones)
 
 
-def subproblema(renglones: list[Renglon], bits: int, rng: random.Random) -> tuple[list[Renglon], list[list]] | None:
+def subproblema(
+    renglones: list[Renglon], bits: int, rng: random.Random
+) -> tuple[list[Renglon], list[list]] | None:
     dec = decidibles(renglones)
     dec = [r for r in dec if len(_admisibles(r)) > 1]
     rng.shuffle(dec)
@@ -130,7 +132,9 @@ def frente_exacto_por_podas(
     return _no_dominadas(soluciones)
 
 
-def _podar(puntos: list[tuple[int, float, int, int, tuple[int, ...]]]) -> list[tuple[int, float, int, int, tuple[int, ...]]]:
+def _podar(
+    puntos: list[tuple[int, float, int, int, tuple[int, ...]]],
+) -> list[tuple[int, float, int, int, tuple[int, ...]]]:
     unicos: dict[tuple[int, float, int, int], tuple[int, ...]] = {}
     for costo, fid, disp, pers, idx in puntos:
         unicos.setdefault((costo, round(fid, 9), disp, pers), idx)
@@ -171,10 +175,7 @@ def hipervolumen(frente: list[SolucionFrente], lo: int, hi: int) -> float:
         return 0.0
     ancho = max(1, hi - lo)
     puntos = np.array(
-        [
-            [(s.costo - lo) / ancho, 1 - s.fidelidad, 1 - s.disponibilidad, 1 - s.personaje]
-            for s in frente
-        ]
+        [[(s.costo - lo) / ancho, 1 - s.fidelidad, 1 - s.disponibilidad, 1 - s.personaje] for s in frente]
     )
     return float(HV(ref_point=np.full(4, REFERENCIA))(puntos))
 

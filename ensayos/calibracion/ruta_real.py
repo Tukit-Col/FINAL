@@ -60,7 +60,10 @@ def correr(textos, vecs, conceptos, productos, *, limpiador=True, libros=True):
     C._sin_encabezado_de_grupo = D._sin_encabezado_de_grupo
     C.pide_titulo = _PIDE if libros else (lambda d: False)
     try:
-        return [C.emparejar(t, conceptos, productos, embedding_renglon=v) for t, v in zip(textos, vecs, strict=True)]
+        return [
+            C.emparejar(t, conceptos, productos, embedding_renglon=v)
+            for t, v in zip(textos, vecs, strict=True)
+        ]
     finally:
         D._sin_encabezado_de_grupo = _LIMPIADOR
         C.pide_titulo = _PIDE
@@ -73,7 +76,9 @@ def vieja(textos, vecs):
     d.vectores = np.array(vecs)
     r = CL.construir_rasgos(d)
     idx, s = CL.puntuar(r, CL.ACTUAL)
-    return [(d.codigos[i] if (i >= 0 and sc >= CL.ACTUAL["corte"]) else None, float(sc)) for i, sc in zip(idx, s)]
+    return [
+        (d.codigos[i] if (i >= 0 and sc >= CL.ACTUAL["corte"]) else None, float(sc)) for i, sc in zip(idx, s)
+    ]
 
 
 def main():
@@ -93,12 +98,16 @@ def main():
         return estado_desde_emparejamiento(e.a_dict(), TAU) == "RESUELTO_AUTO"
 
     salida, difs = [], []
-    for f, t, e, e1, e2, e3, (cv, pv) in zip(filas, textos, real, sin_enc, sin_lib, sin_ambos, ant, strict=True):
+    for f, t, e, e1, e2, e3, (cv, pv) in zip(
+        filas, textos, real, sin_enc, sin_lib, sin_ambos, ant, strict=True
+    ):
         dem = parsear_renglon(t)
         busca = dem.tipo_item in BUSCA_EN_CATALOGO
         estado = estado_desde_emparejamiento(e.a_dict(), TAU)
         concepto = e.concepto_codigo or "NINGUNO"
-        titulo = e.concepto_codigo and C.pide_titulo(por_codigo[e.concepto_codigo].get("discriminantes") or ())
+        titulo = e.concepto_codigo and C.pide_titulo(
+            por_codigo[e.concepto_codigo].get("discriminantes") or ()
+        )
         if e.estado == "sin_match":
             rama = "sin_match"
         elif e1.concepto_codigo != e.concepto_codigo or abs(e1.parecido - e.parecido) > 1e-9:
@@ -138,7 +147,9 @@ def main():
                 causa = "sin_producto_en_catalogo_actual"
             else:
                 causa = "otro_puntaje(centroides vivos)"
-            difs.append((f["id"], t, cv, round(pv, 3), e.concepto_codigo, round(e.parecido, 3), estado, causa))
+            difs.append(
+                (f["id"], t, cv, round(pv, 3), e.concepto_codigo, round(e.parecido, 3), estado, causa)
+            )
     with (SALIDA / "ruta_real_muestra.csv").open("w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=list(salida[0]))
         w.writeheader()
@@ -149,8 +160,12 @@ def main():
     print("estados", dict(Counter(s["estado"] for s in salida)))
     print("aceptados", sum(s["aceptado"] == "si" for s in salida))
     print("ramas", dict(Counter(s["rama"].split("+")[0] for s in salida)))
-    print("concepto distinto", sum(1 for t_, e, (cv, _) in zip(textos, real, ant) if e.concepto_codigo != cv),
-          "| puntaje distinto >0.001", sum(1 for e, (cv, pv) in zip(real, ant) if abs(e.parecido - pv) > 1e-3 and e.concepto_codigo == cv))
+    print(
+        "concepto distinto",
+        sum(1 for t_, e, (cv, _) in zip(textos, real, ant) if e.concepto_codigo != cv),
+        "| puntaje distinto >0.001",
+        sum(1 for e, (cv, pv) in zip(real, ant) if abs(e.parecido - pv) > 1e-3 and e.concepto_codigo == cv),
+    )
     print("diferencias", len(difs), dict(Counter(d[-1] for d in difs)))
     for d in difs:
         print(" | ".join(map(str, d)))

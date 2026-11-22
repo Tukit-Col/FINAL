@@ -30,7 +30,7 @@ def test_cada_linea_con_isbn_tiene_su_edicion_en_el_catalogo():
         json.loads(p["atributos"] or "{}").get("isbn13") or p["ean"]
         for p in _leer("catalogo/productos_canonicos.csv")
     }
-    productos |= {l["isbn13"] for l in _leer("catalogo/libros_firecrawl.csv")}
+    productos |= {libro["isbn13"] for libro in _leer("catalogo/libros_firecrawl.csv")}
     pedidos = []
     for linea in _leer("curaduria/listas_revisadas.csv"):
         if linea["concepto"] != "C134" or not linea["atributos"]:
@@ -46,7 +46,9 @@ def test_cada_linea_con_isbn_tiene_su_edicion_en_el_catalogo():
 
 def test_lo_que_no_tiene_edicion_dice_que_se_compra_en_libreria():
     sin_edicion = [
-        l for l in _leer("curaduria/listas_revisadas.csv") if l["concepto"] == "C134" and not l["atributos"]
+        fila
+        for fila in _leer("curaduria/listas_revisadas.csv")
+        if fila["concepto"] == "C134" and not fila["atributos"]
     ]
     assert sin_edicion
     for linea in sin_edicion:
@@ -72,7 +74,7 @@ def test_un_libro_ya_cubierto_por_otra_linea_del_grado_no_se_ofrece_como_pendien
             por_grado.setdefault(linea["grado"], []).append(linea)
     revisados = 0
     for grado, lineas in por_grado.items():
-        if not any(l["tipo_item"] == "libro_libre" and l["atributos"] for l in lineas):
+        if not any(linea["tipo_item"] == "libro_libre" and linea["atributos"] for linea in lineas):
             continue
         for linea in lineas:
             revisados += 1
