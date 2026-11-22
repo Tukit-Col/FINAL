@@ -19,7 +19,10 @@ import secrets
 import time
 import uuid
 
+from tukit_comun.entorno import exigir_en_produccion
+
 VARIABLE_LLAVE = "TUKIT_LLAVE_SESION"
+_LARGO_MINIMO_PRODUCCION = 32
 _LLAVE_DESARROLLO = "tukit-desarrollo-no-usar-en-produccion"
 
 VIDA_SEGUNDOS = 8 * 60 * 60
@@ -60,6 +63,11 @@ def verificar_clave(clave: str, guardado: str) -> bool:
 
 def _llave() -> bytes:
     cruda = os.environ.get(VARIABLE_LLAVE, "").strip()
+    exigir_en_produccion(
+        len(cruda) >= _LARGO_MINIMO_PRODUCCION and cruda != _LLAVE_DESARROLLO,
+        f"{VARIABLE_LLAVE} falta, es la de desarrollo o tiene menos de {_LARGO_MINIMO_PRODUCCION} "
+        "caracteres; cualquiera podria firmar una sesion.",
+    )
     if not cruda:
         print(
             f"[sesiones] {VARIABLE_LLAVE} no esta puesta: los tokens se firman con "

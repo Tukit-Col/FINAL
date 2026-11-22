@@ -59,7 +59,8 @@ async def test_dos_clientes_comparten_la_cuenta():
 
 
 async def test_el_conteo_es_atomico_con_peticiones_a_la_vez():
-    async with clientes_de_prueba(2) as (uno, otro):
+    # Se prueba la atomicidad, no la espera: con 1 s una maquina cargada cae a memoria.
+    async with clientes_de_prueba(2, espera=5.0) as (uno, otro):
         tareas = [(uno if i % 2 else otro).contar([("ip:y", 60)]) for i in range(100)]
         cuentas = sorted(resultado[0][0] for resultado in await asyncio.gather(*tareas))
 

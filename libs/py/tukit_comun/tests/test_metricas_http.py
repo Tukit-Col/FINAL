@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import pytest
 
-# OpenTelemetry es un extra opcional (`tukit-comun[otel]`): los trabajos de CI
-# que no lo instalan (Redis, RabbitMQ) saltan esta prueba en vez de romperse.
 pytest.importorskip("opentelemetry.sdk")
 
 from opentelemetry import metrics as otel_metrics  # noqa: E402

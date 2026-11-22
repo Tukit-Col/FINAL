@@ -1,12 +1,33 @@
+<div align="center">
+
 # Tukit
 
-Armado asistido de kits escolares. Un acudiente sube la lista de útiles que le dio el
-colegio, el sistema la interpreta, la normaliza contra un catálogo canónico y le arma kits
-optimizados que balancean precio, calidad y preferencias.
+**Armado asistido de kits escolares**
+
+[![CI](https://github.com/Tukit-Col/FINAL/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Tukit-Col/FINAL/actions/workflows/ci.yml)
+![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![Next.js 16](https://img.shields.io/badge/Next.js-16-000000?logo=nextdotjs&logoColor=white)
+![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16%20%2B%20pgvector-4169E1?logo=postgresql&logoColor=white)
+![Licencia](https://img.shields.io/badge/licencia-todos%20los%20derechos%20reservados-lightgrey)
+
+</div>
+
+Un acudiente sube la lista de útiles que le dio el colegio (PDF, foto o texto). Tukit la lee,
+cruza cada renglón con un catálogo canónico y le arma tres kits optimizados que balancean
+precio, calidad y preferencias. El equipo de operación revisa, ajusta y despacha desde un
+back-office propio.
+
+| | |
+|---|---|
+| **Lectura de listas** | Percepción de PDF e imágenes, normalización y emparejamiento léxico + semántico contra el catálogo |
+| **Kits optimizados** | Frente de Pareto (enumeración exacta y NSGA-II) y recomendación multiatributo |
+| **Cola de revisión** | Lo dudoso pasa por una persona antes de llegar al acudiente |
+| **Compra y entrega** | Pedidos, reservas con vencimiento, pagos con Wompi y avisos por correo en cada etapa |
+| **Arquitectura** | Seis servicios con base propia, fronteras verificadas en cada CI, outbox y RabbitMQ |
 
 ```bash
 make preparar     # entorno y dependencias
-make fronteras    # verifica las fronteras de arquitectura
+make backend      # migra, siembra y levanta los servicios
 make verificar    # todo lo que corre la integración continua
 ```
 
@@ -72,6 +93,10 @@ make bd-crear     # las bases + extensiones             (sin Docker, Postgres 16
 make backend      # migra, siembra y levanta los procesos
 make humo         # golpea la API y falla si algún endpoint viene vacío
 ```
+
+En Windows, `.\tukit.ps1 arriba` hace lo mismo que `make arriba` y además escribe los
+`.env.local` de las dos apps desde el `.env` de la raíz (`abajo`, `estado`, `importar` y
+`exportar` también existen).
 
 `make backend` encadena `bd-migrar`, `bd-sembrar` y `arriba`, y las tres son idempotentes.
 `make estado` pregunta al gateway cuáles servicios responden y `make abajo` los detiene.
@@ -227,6 +252,21 @@ alcanzarlo. Para probarlo desde tu máquina expón el gateway (`cloudflared tunn
 y pega `https://<túnel>/v1/webhooks/wompi` en el panel de Wompi. Sin túnel, la página de resultado
 confirma igual.
 
+## Producción: llaves obligatorias
+
+**Regla:** todo servidor real corre con `TUKIT_ENTORNO=produccion`, y con eso el código exige las
+dos llaves. Sin ellas identidad e inteligencia no arrancan (`ConfiguracionInsegura`); no hay forma
+de saltarse el chequeo con un aviso en consola.
+
+| Variable | Qué protege | Se genera con |
+|---|---|---|
+| `TUKIT_LLAVE_SESION` | La firma de los tokens. Sin ella se usa la de desarrollo, que está en este repo público: cualquiera fabricaría una sesión de admin. Mínimo 32 caracteres. | `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
+| `TUKIT_LLAVE_CIFRADO` | Los datos personales derivados (nombres de los hijos, preferencias). Sin ella se guardan en claro. | `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
+
+Las llaves no se suben a git ni se comparten por chat. Lo guardado en claro antes de poner
+`TUKIT_LLAVE_CIFRADO` se sigue leyendo (lleva el prefijo `claro:`); lo nuevo sale cifrado. Cambiar
+una llave de cifrado ya usada deja ilegible lo que cifró: no se rota sin migrar los datos.
+
 ## Base de datos
 
 `libs/py/tukit_comun` tiene el motor, las sesiones y la configuración por entorno, y `infra/`
@@ -267,3 +307,9 @@ pedir con `IF NOT EXISTS` antes de crear tablas.
   lecturas como el respaldo sin broker.
 - `make bd-deriva` necesita un Postgres vivo y no corre en integración continua.
 - El bloque `api` del compose no se ha ejecutado; el camino verificado es `make arriba`.
+
+## Licencia
+
+© 2026 Equipo Tukit. Todos los derechos reservados. El código es público solo para consulta: no
+se puede copiar, modificar ni usar sin permiso escrito ([LICENSE](LICENSE)). Para reportar una
+vulnerabilidad, ver [SECURITY.md](SECURITY.md).

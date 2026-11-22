@@ -73,8 +73,7 @@ class TestTresCapas:
     def test_un_precio_cerrado_no_bloquea_al_siguiente(self, sesion):
         concepto = crear_concepto(sesion)
         oferta = crear_oferta(sesion, crear_producto(sesion, concepto), crear_tienda(sesion))
-        # Un segundo atras: en Windows dos `ahora()` seguidos pueden dar el mismo
-        # instante (reloj de ~15 ms) y `vigente_hasta > vigente_desde` fallaria.
+        # En Windows dos `ahora()` seguidos pueden coincidir.
         viejo = PrecioOferta(
             oferta_id=oferta.id,
             valor_centavos=400_000,

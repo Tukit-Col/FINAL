@@ -12,7 +12,7 @@
 #   .\tukit.ps1 importar    # = make curaduria-importar: datos/ -> base (tras un git pull)
 #
 # Las llaves (GEMINI_API_KEY, SMTP, etc.) van en `.env`, en la raiz: git lo ignora.
-# Es el UNICO archivo de entorno: `arriba` escribe apps/web y apps/admin/.env.local desde el.
+# `arriba` escribe apps/web y apps/admin/.env.local desde ese mismo archivo.
 
 param([ValidateSet('arriba', 'abajo', 'estado', 'embeddings', 'exportar', 'importar')][string]$accion = 'arriba')
 
@@ -41,8 +41,6 @@ if (Test-Path $archivoEnv) {
     }
 }
 
-# Un solo `.env` para todo: las apps de Next leen su `.env.local`, que se
-# escribe aqui desde el de la raiz para no mantener tres archivos a mano.
 function Escribir-EnvApps {
     $api = if ($env:TUKIT_API_URL) { $env:TUKIT_API_URL } else { 'http://127.0.0.1:8010' }
     $lineas = @("# Generado por tukit.ps1 desde el .env de la raiz. No editar aqui.", "TUKIT_API_URL=$api")
@@ -70,10 +68,7 @@ $trabajadores = [ordered]@{
     # sin pagar cuando vence la ventana de pago.
     'barredor'         = @('-m', 'tukit_comercio.barredor', '--seguir')
 }
-# Con RABBITMQ_URL los consumidores (el repartidor de avisos, los pollers)
-# escuchan colas y ya no leen las bandejas; alguien tiene que pasar cada
-# bandeja a RabbitMQ. Sin publicadores ningun evento sale y no llega ni un
-# correo de pedido pagado, despachado, etc.
+# Con broker, sin publicadores ningun evento sale de las bandejas.
 if ($env:RABBITMQ_URL) {
     foreach ($s in 'catalogo', 'comercio', 'inteligencia', 'identidad') {
         $trabajadores["publicador-$s"] = @('-m', "tukit_$s.publicador", '--seguir')

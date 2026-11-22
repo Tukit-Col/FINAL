@@ -136,9 +136,7 @@ async def test_un_evento_que_siempre_falla_termina_en_descartados(topologia, son
         return Resultado.REINTENTAR
 
     consumidor = Consumidor(cola=cola, manejar=manejar, max_intentos=3)
-    # El consumidor publica en descartados y DESPUES confirma el mensaje. Ver la
-    # copia en descartados no basta: si se cancela antes del ack, el broker
-    # devuelve el original a la cola. Se espera a que `procesar` termine.
+    # La copia llega a descartados antes del ack: cancelar ahi devuelve el original.
     procesado = asyncio.Event()
     procesar = consumidor.procesar
 

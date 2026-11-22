@@ -18,6 +18,7 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 from tukit_comun.bd import crear_motor
+from tukit_comun.cifrado import cifrador_desde_entorno
 from tukit_comun.http import crear_app, crear_pool
 from tukit_comun.telemetria import instrumentar_motor
 
@@ -80,6 +81,7 @@ async def _usuario_de_la_peticion(peticion: Request) -> str | None:
 
 
 async def _arrancar(app: FastAPI) -> None:
+    cifrador_desde_entorno()  # valida la llave al arrancar y no en la primera peticion
     app.state.motor = crear_motor("inteligencia")
     instrumentar_motor(app.state.motor.engine)
     if trabajos.autopublicar():
