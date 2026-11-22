@@ -295,7 +295,7 @@ def es_consola(metodo: str, ruta: str) -> bool:
 
 
 def _token_bearer(authorization: str | None) -> str | None:
-    """El token del encabezado `Authorization`. Como `_token_del_encabezado` de
+    """El token del encabezado `Authorization`. Como `token_bearer` de
     identidad: acepta `Bearer <token>` y tambien el token pelado."""
     if not authorization:
         return None

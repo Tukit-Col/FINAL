@@ -19,13 +19,14 @@ from typing import Annotated, Any, Literal
 from fastapi import APIRouter, Header, Request
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
+from tukit_comun.autenticacion import token_bearer
 from tukit_comun.http import ErrorDominio
 from tukit_comun.red import ip_de_peticion
 
 from .. import api, nl2c, nl2c_flujo, nl2c_kit, trabajos
 from ..modelos import EstadoTrabajo
 from ..remoto import RemotoCaido
-from .inteligencia import _token_bearer, _usuario_de_sesion
+from .inteligencia import _usuario_de_sesion
 
 router = APIRouter(tags=["asistente"])
 
@@ -134,7 +135,7 @@ async def interpretar(
     cuerpo: PeticionInterpretar, peticion: Request, authorization: Annotated[str | None, Header()] = None
 ) -> dict[str, Any]:
     _exigir_activo()
-    usuario = await _usuario_de_sesion(authorization) if _token_bearer(authorization) else None
+    usuario = await _usuario_de_sesion(authorization) if token_bearer(authorization) else None
     clave = _clave_de(usuario, peticion)
     _admitir(clave)
     try:
@@ -213,7 +214,7 @@ async def decision(
     cuerpo: PeticionDecision, authorization: Annotated[str | None, Header()] = None
 ) -> dict[str, str]:
     _exigir_activo()
-    usuario = await _usuario_de_sesion(authorization) if _token_bearer(authorization) else None
+    usuario = await _usuario_de_sesion(authorization) if token_bearer(authorization) else None
     emision = nl2c_kit.emision_de(cuerpo.propuesta_id, usuario)
     # Una decision solo puede citar una propuesta que este servidor emitio, al mismo portador,
     # y con un tipo que esa propuesta traia: la bitacora no puede decir "descarte" de un cambio.

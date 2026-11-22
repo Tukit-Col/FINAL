@@ -30,6 +30,7 @@ from pydantic import (
     model_validator,
 )
 from tukit_comun import derivar
+from tukit_comun.autenticacion import token_bearer
 from tukit_comun.http import ErrorDominio
 
 from .. import api, apodos_subida, importaciones, metricas, trabajos
@@ -45,17 +46,6 @@ router = APIRouter()
 _ROLES_STAFF = ("admin", "operador")
 
 
-def _token_bearer(authorization: str | None) -> str | None:
-    """El token del encabezado `Authorization`. Refleja `_token_del_encabezado`
-    de identidad: acepta `Bearer <token>` y tambien el token pelado."""
-    if not authorization:
-        return None
-    partes = authorization.split(" ", 1)
-    if len(partes) == 2 and partes[0].lower() == "bearer":
-        return partes[1].strip()
-    return authorization.strip()
-
-
 async def _exigir_staff(authorization: str | None) -> None:
     """Puerta operador/admin con la MISMA semantica que `/v1/admin/acudientes`:
     401 sin token o con token invalido/revocado, 403 si el rol no es staff.
@@ -64,7 +54,7 @@ async def _exigir_staff(authorization: str | None) -> None:
     por HTTP contra `GET /v1/sesiones/actual`, el chequeo autoritativo que ya
     compara `version_permisos`. Falla CERRADA (503) si identidad no responde:
     no autorizar por no poder preguntar seria abrir el acceso."""
-    token = _token_bearer(authorization)
+    token = token_bearer(authorization)
     if not token:
         raise ErrorDominio("sesion_invalida", "El token no es valido o expiro.", estado=401)
     try:
@@ -87,7 +77,7 @@ async def _usuario_de_sesion(authorization: str | None) -> uuid.UUID:
     con token invalido/revocado, 503 si identidad no responde), pero devuelve el
     `usuario_id` de la sesion en vez de comprobar roles. Es lo que deja que "Mis
     solicitudes" use el id del PORTADOR y nunca uno que venga del navegador."""
-    token = _token_bearer(authorization)
+    token = token_bearer(authorization)
     if not token:
         raise ErrorDominio("sesion_invalida", "El token no es valido o expiro.", estado=401)
     try:
@@ -122,7 +112,7 @@ async def _exigir_dueno_del_trabajo(trabajo_id: uuid.UUID, authorization: str | 
     if propietario is None:
         return
 
-    token = _token_bearer(authorization)
+    token = token_bearer(authorization)
     sesion: dict[str, Any] | None = None
     if token:
         try:
@@ -445,7 +435,7 @@ async def cambiar_producto_del_acudiente(
     el trabajo tiene dueno, `trabajos` exige que la sesion sea la suya. El
     cambio se guarda en el trabajo del acudiente, nunca en el kit canonico.
     """
-    usuario_id = await _usuario_de_sesion(authorization) if _token_bearer(authorization) else None
+    usuario_id = await _usuario_de_sesion(authorization) if token_bearer(authorization) else None
     try:
         return await trabajos.cambiar_producto_del_acudiente(
             api.app.state.motor,
@@ -499,7 +489,7 @@ async def descartar_linea_del_acudiente(
     authorization: Annotated[str | None, Header()] = None,
 ) -> dict[str, Any]:
     """Mismas reglas de dueno que el cambio de producto; reversible."""
-    usuario_id = await _usuario_de_sesion(authorization) if _token_bearer(authorization) else None
+    usuario_id = await _usuario_de_sesion(authorization) if token_bearer(authorization) else None
     try:
         return await trabajos.descartar_linea_del_acudiente(
             api.app.state.motor,
@@ -531,7 +521,7 @@ async def cancelar_solicitud(
             api.app.state.motor,
             trabajo_id,
             usuario_id=usuario_id,
-            token=_token_bearer(authorization) or "",
+            token=token_bearer(authorization) or "",
             comercio=api._comercio(),
             catalogo=api._catalogo(),
         )
@@ -602,7 +592,7 @@ async def ordenar_trabajo(
     es opcional como al cambiar un producto: la ruta rapida admite trabajos sin
     cuenta, pero si el trabajo tiene dueno solo el lo paga.
     """
-    portador = await _usuario_de_sesion(authorization) if _token_bearer(authorization) else None
+    portador = await _usuario_de_sesion(authorization) if token_bearer(authorization) else None
     try:
         return await trabajos.ordenar(
             api.app.state.motor,
