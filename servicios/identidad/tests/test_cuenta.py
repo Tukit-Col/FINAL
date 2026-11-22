@@ -1,17 +1,3 @@
-"""La superficie de "mi cuenta": quien soy y mi libreta de direcciones.
-
-El dashboard del padre corria sobre datos de muestra porque esta superficie no
-existia. Aqui se prueba sobre el token real que emite `iniciar_sesion`, con
-SQLite en memoria y sin base externa.
-
-Lo que se defiende:
-
-- Todo exige el token: sin el, 401. Con el, solo se ve y se toca lo PROPIO.
-- La linea de la direccion se guarda cifrada y se devuelve descifrada a su
-  dueno; en desarrollo el cifrador es `CifradorEnClaro`, que lo dice.
-- El borrado es baja logica (ADR 0015): la direccion se archiva, no se pierde.
-"""
-
 from __future__ import annotations
 
 import uuid
@@ -25,7 +11,6 @@ from tests._ayudas_identidad import cliente_api
 
 @pytest.fixture()
 async def cliente():
-    """Un cliente que ya porta el token de `mama@ejemplo.com`."""
     sembrado: dict[str, uuid.UUID] = {}
 
     async def _sembrar(sesion) -> None:
@@ -88,7 +73,6 @@ async def test_solo_una_predeterminada(cliente):
 
 
 async def test_editar_direccion_ajena_da_404(cliente):
-    # Un id que no es del portador (ni existe) no se puede editar.
     respuesta = await cliente.patch(
         f"/v1/cuenta/direcciones/{uuid.uuid4()}",
         json={"ciudad": "Cali", "linea": "Avenida 3"},
@@ -110,6 +94,5 @@ async def test_archivar_es_baja_logica(cliente):
 
     lista = (await cliente.get("/v1/cuenta/direcciones")).json()
     assert lista["total"] == 0
-    # Segundo borrado ya no la encuentra activa: 404.
     otra_vez = await cliente.delete(f"/v1/cuenta/direcciones/{creada['direccion_id']}")
     assert otra_vez.status_code == 404

@@ -1,26 +1,3 @@
-"""bandeja de identidad con la forma comun
-
-Revision: b7d4e1f20a93
-Anterior: 6e2f9a4c1d83
-Fecha:    2026-11-01 12:00:00.000000+00:00
-
-Por que este cambio: la supresion del titular (Ley 1581) sale de Identidad por
-evento hacia Comercio, Operacion e Inteligencia (ADR 0048). El publicador comun
-(`tukit_comun.publicador`, ADR 0046) lee la bandeja con la forma que comparten
-los demas servicios: `tipo`, `agregado_tipo`, `agregado_id`. La de Identidad
-nacio como `tipo_evento` y `clave_agregado` (texto) y sin `agregado_tipo`, y
-nadie la publicaba. Esta revision la alinea:
-
-- `tipo_evento` pasa a llamarse `tipo`.
-- `agregado_tipo` aparece; las filas viejas quedan como `usuario`.
-- `clave_agregado` (texto) se vuelve `agregado_id` (uuid). Toda fila que ha
-  escrito Identidad lleva ahi un id de usuario. Una que no se pueda leer como
-  uuid hace fallar la revision, a proposito: es un evento que nadie sabria a
-  quien atribuir.
-
-El downgrade devuelve los nombres y el texto.
-"""
-
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -60,7 +37,6 @@ def downgrade() -> None:
     if _es_postgres():
         op.execute("UPDATE bandeja_salida SET clave_agregado = agregado_id::text")
     else:
-        # SQLite guarda el uuid como 32 hex sin guiones; se devuelven con guiones.
         op.execute(
             "UPDATE bandeja_salida SET clave_agregado = lower("
             "substr(agregado_id, 1, 8) || '-' || substr(agregado_id, 9, 4) || '-' || "

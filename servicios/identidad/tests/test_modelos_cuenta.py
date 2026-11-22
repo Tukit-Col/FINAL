@@ -1,5 +1,3 @@
-"""Las dos columnas que la cuenta del acudiente agrega al esquema."""
-
 from __future__ import annotations
 
 import pytest

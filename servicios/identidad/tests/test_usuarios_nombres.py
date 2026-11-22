@@ -1,13 +1,3 @@
-"""El nombre del acudiente adulto por id, para el panel de acudientes del admin.
-
-`GET /v1/usuarios/nombres?ids=...` resuelve uno o varios `usuario_id` a su
-nombre en claro. Es PII (§Anexo M: el nombre del adulto es PERSONAL, no MENOR),
-asi que la puerta es el permiso `usuario:leer:nombre` sobre el ambito global,
-que solo admin y operador tienen. Sin ese permiso es 403; sin token, 401. Nunca
-sale un nombre de menor: solo lee la tabla `usuario` (adultos), jamas
-`estudiante`.
-"""
-
 from __future__ import annotations
 
 import httpx
@@ -31,8 +21,6 @@ from tukit_identidad.modelos import (
 
 @pytest.fixture()
 async def entorno():
-    """Un admin (con `usuario:leer:nombre` global), un acudiente sin ese permiso,
-    y un tercer usuario `papa` con nombre cifrado que es a quien se resuelve."""
     engine = create_async_engine(
         "sqlite+aiosqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
     )
@@ -111,12 +99,10 @@ async def test_acudiente_sin_permiso_es_403(entorno):
 
 
 async def test_id_sin_nombre_no_aparece(entorno):
-    """Un usuario sin `nombre_cifrado` (un contacto invitado) simplemente no
-    aparece en el mapa: no se inventa el correo como nombre."""
     http, ids, vps = entorno
     r = await http.get(
         "/v1/usuarios/nombres",
-        params={"ids": str(ids["admin"])},  # admin no tiene nombre_cifrado
+        params={"ids": str(ids["admin"])},
         headers=_bearer(ids["admin"], vps["admin"]),
     )
     assert r.status_code == 200

@@ -1,18 +1,3 @@
-"""Las reglas puras del panel de privacidad (Ley 1581 de 2012, Decreto 1377 de 2013).
-
-Tres cosas que no tocan la base y por eso viven aqui:
-
-- **Enmascarar el contacto.** El inventario le muestra al titular que dato
-  tenemos sin repetirlo entero en una pantalla que se puede fotografiar o
-  quedar abierta. La exportacion si lo lleva completo: es su copia.
-- **La confirmacion escrita.** Suprimir no tiene vuelta atras, asi que se pide
-  una frase exacta. Se compara sin mayusculas, sin tildes y con los espacios
-  colapsados, porque lo que se quiere probar es intencion, no ortografia.
-- **Lo que se borra y lo que se conserva, con su fundamento.** La respuesta de
-  la supresion y la pantalla del panel leen la misma lista, asi que no pueden
-  contar historias distintas.
-"""
-
 from __future__ import annotations
 
 import unicodedata
@@ -26,12 +11,10 @@ def _normalizar(texto: str) -> str:
 
 
 def confirmacion_valida(texto: str | None) -> bool:
-    """¿Escribio el titular la frase de confirmacion?"""
     return texto is not None and _normalizar(texto) == FRASE_CONFIRMACION
 
 
 def enmascarar_correo(correo: str | None) -> str | None:
-    """`ana.maria@ejemplo.com` -> `a***@ejemplo.com`. Sin arroba, todo tapado."""
     if not correo:
         return None
     usuario, arroba, dominio = correo.partition("@")
@@ -41,7 +24,6 @@ def enmascarar_correo(correo: str | None) -> str | None:
 
 
 def enmascarar_telefono(telefono: str | None) -> str | None:
-    """Deja ver solo los ultimos cuatro digitos: `*** *** 4567`."""
     if not telefono:
         return None
     digitos = [c for c in telefono if c.isdigit()]
@@ -51,13 +33,9 @@ def enmascarar_telefono(telefono: str | None) -> str | None:
 
 
 def correo_suprimido(usuario_id: str) -> str:
-    """El correo que queda en la fila anonimizada. `.invalid` es un dominio
-    reservado (RFC 2606): nunca le llega un correo a nadie, y como lleva el id
-    no choca con el indice unico del correo."""
     return f"suprimido-{usuario_id}@tukit.invalid"
 
 
-# Lo que la supresion borra de Identidad. Va en palabras del titular.
 SUPRIMIDO: tuple[dict[str, str], ...] = (
     {"dato": "nombre", "detalle": "Tu nombre."},
     {"dato": "correo", "detalle": "Tu correo. Ya no podras entrar con el."},
@@ -69,7 +47,6 @@ SUPRIMIDO: tuple[dict[str, str], ...] = (
     {"dato": "consentimientos", "detalle": "Tus autorizaciones quedan revocadas desde hoy."},
 )
 
-# Lo que la ley obliga a conservar. No se borra: se desvincula de la persona.
 CONSERVADO: tuple[dict[str, str], ...] = (
     {
         "dato": "pedidos_y_facturas",

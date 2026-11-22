@@ -1,21 +1,8 @@
-"""Las rutas de Identidad: parsear, verificar token, llamar al repo, traducir.
+"""Rutas de Identidad: parsear, verificar el token, llamar al repositorio y traducir.
 
-Tres superficies, todas de la seccion 12.4 del contrato:
-
-- **Colegios y grados** (`GET /v1/colegios`, `/{id}`, `PATCH /{id}`,
-  `/v1/directorio/{dane}`, `/v1/grados`): el catalogo institucional que el
-  acudiente escoge antes de que exista nada mas.
-- **Contacto** (`POST /v1/contactos`, `GET /v1/contactos/{id}`): convierte un
-  correo en un identificador y de vuelta, para que el pipeline nunca copie el
-  correo.
-- **Sesion y cuenta** (`/v1/sesiones*`, `/v1/cuenta*`): autenticacion por token
-  con revocacion por `version_permisos`, y la libreta de direcciones del
-  acudiente, cifrada en reposo.
-
-Lo que NO hay, y la ausencia es la parte importante: nada que devuelva un
-estudiante, un nombre de menor ni una matricula (Anexo M). El router parsea,
-resuelve el token y traduce; el SQL vive en `repositorios/identidad.py` y las
-reglas puras en `dominio/` (ADR 0019).
+Decisiones:
+- Ninguna ruta devuelve un estudiante, el nombre de un menor ni una matricula.
+- El SQL vive en `repositorios/identidad.py` y las reglas puras en `dominio/`.
 """
 
 from __future__ import annotations
@@ -38,14 +25,8 @@ from ..repositorios import RepoIdentidad
 
 router = APIRouter()
 
-# Forma minima de un correo: algo, arroba, algo con punto. No pretende cubrir
-# la RFC; pretende que `papa` o `papa@ejemplo` no creen una cuenta.
 _FORMA_CORREO = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 
-# Los quince grados del corpus, en orden escolar. Va como constante y no como
-# consulta porque no es un dato del sistema sino del sistema educativo
-# colombiano: derivarlo de las listas cargadas haria que un colegio sin lista
-# publicada desapareciera del desplegable.
 GRADOS = (
     "Parvulos",
     "Prejardin",
@@ -64,14 +45,6 @@ GRADOS = (
     "Once",
 )
 
-# Los campos institucionales que el administrador puede completar. `nombre` y
-# `nit` NO estan aqui a proposito: son la identidad de la institucion y Catalogo
-# la referencia por id derivado. Son datos de la INSTITUCION, no del menor: no
-# les toca el cifrado del Anexo M, por eso viajan y se guardan en claro.
-# El `dane` SI es editable: aqui el `colegio_id` es un UUID ya fijado al crear el
-# colegio (no se re-deriva del DANE en esta base), asi que escribir el codigo DANE
-# cuando falta —para poder leer su ficha del directorio— no mueve ninguna
-# referencia. Distinto del NIT, que sigue fijo.
 _CAMPOS_PERFIL = (
     "dane",
     "logo_url",
@@ -84,13 +57,7 @@ _CAMPOS_PERFIL = (
 _CAMPOS_FIJOS = ("nombre", "nit")
 
 
-# --------------------------------------------------------------- puras
-# Parseo y forma; no tocan la base.
-
-
 def _direccion_publica(fila: Any) -> dict[str, Any]:
-    """Una direccion descifrada para que la vea su dueno. La linea y el contacto
-    se descifran aqui; en la base viajan cifrados."""
     cifrador = cifrador_desde_entorno()
     linea = cifrador.descifrar(fila.linea_cifrada).decode("utf-8", errors="replace")
     contacto = None
@@ -108,8 +75,6 @@ def _direccion_publica(fila: Any) -> dict[str, Any]:
 
 
 async def _usuario_del_token(authorization: str | None, repo: RepoIdentidad) -> Any:
-    """El usuario activo portador del token, o 401. Reusa la verificacion de
-    firma/expiracion y la revocacion por `version_permisos`."""
     token = token_bearer(authorization)
     payload = leer_token(token) if token else None
     if payload is None:
@@ -123,8 +88,6 @@ async def _usuario_del_token(authorization: str | None, repo: RepoIdentidad) -> 
 
 
 async def _detalle_colegio(repo: RepoIdentidad, colegio_id: uuid.UUID) -> dict[str, Any]:
-    """El colegio con sus sedes, o 404. Compartido por `ver_colegio` y por el
-    refresco que devuelve `editar_colegio`."""
     fila = await repo.ver_colegio(colegio_id)
     if fila is None:
         raise ErrorDominio("colegio_no_existe", "No hay ningun colegio con ese identificador.", estado=404)
@@ -143,30 +106,19 @@ async def _detalle_colegio(repo: RepoIdentidad, colegio_id: uuid.UUID) -> dict[s
     }
 
 
-# --------------------------------------------------------------- modelos de entrada
-
-
 class Contacto(BaseModel):
-    """Como avisarle al acudiente cuando su trabajo termine. El correo se valida
-    por forma y no con `EmailStr`, que arrastraria `email-validator`."""
 
     correo: str = Field(min_length=5, max_length=320)
     celular: str | None = Field(default=None, max_length=32)
 
 
 class Credenciales(BaseModel):
-    """Lo minimo para autenticar. La clave no se valida por forma: o coincide
-    con el hash guardado o no, y el mensaje de error no dice cual de las dos
-    partes fallo, para no ayudar a enumerar correos."""
 
     correo: str = Field(min_length=5, max_length=320)
     clave: str = Field(min_length=1, max_length=256)
 
 
 class DireccionEntrada(BaseModel):
-    """Lo que el acudiente escribe en su libreta. `ciudad`/`localidad` quedan en
-    claro (de ellas depende la zona de reparto); la linea y el contacto se
-    cifran antes de guardarse."""
 
     etiqueta: str = Field(default="casa", max_length=64)
     ciudad: str = Field(min_length=1, max_length=128)
@@ -176,9 +128,6 @@ class DireccionEntrada(BaseModel):
     predeterminada: bool = False
 
 
-# --------------------------------------------------------------- colegios y grados
-
-
 @router.get("/v1/colegios", tags=["colegios"], summary="Colegios activos, con su numero de sedes")
 async def listar_colegios(
     peticion: Request,
@@ -186,8 +135,6 @@ async def listar_colegios(
 ) -> dict[str, Any]:
     async with peticion.app.state.motor.sesion() as db:
         filas = await RepoIdentidad(await db.connection()).listar_colegios(busqueda)
-    # El logo va aqui porque el desplegable del padre pinta la tarjeta sin abrir
-    # el detalle; los contactos no, que son de la pantalla admin.
     datos = [
         {
             "colegio_id": str(f.id),
@@ -247,9 +194,6 @@ async def editar_colegio(peticion: Request, colegio_id: uuid.UUID, cuerpo: dict[
                 estado=400,
                 campo=campo,
             )
-    # El DANE es la llave del directorio DUEB: o son 12 digitos exactos, o `null`
-    # para vaciarlo. Cualquier otra cosa se rechaza antes de escribir, para no
-    # guardar una llave que nunca casara con el directorio.
     if "dane" in cuerpo:
         dane = cuerpo["dane"]
         if dane is not None and not (isinstance(dane, str) and dane.isdigit() and len(dane) == 12):
@@ -274,9 +218,6 @@ async def editar_colegio(peticion: Request, colegio_id: uuid.UUID, cuerpo: dict[
 @router.get("/v1/grados", tags=["colegios"], summary="Los grados, en orden escolar")
 async def listar_grados() -> dict[str, Any]:
     return {"total": len(GRADOS), "grados": list(GRADOS)}
-
-
-# --------------------------------------------------------------- contacto
 
 
 @router.post(
@@ -370,9 +311,6 @@ async def nombres_de_usuarios(
         return {"nombres": await repo.nombres_de(ids)}
 
 
-# --------------------------------------------------------------- cuenta del acudiente
-
-
 class NuevaCuenta(BaseModel):
     correo: str = Field(min_length=5, max_length=320)
     clave: str = Field(min_length=1, max_length=256)
@@ -391,16 +329,10 @@ class NuevoHijo(BaseModel):
 
 
 _VERSION_CONSENTIMIENTO_MENOR = "2026-09"
-# Version de la politica de datos y los terminos que el titular acepta al
-# registrarse (los textos de `/legal` en la web). Sube cuando el texto cambie.
 _VERSION_TERMINOS_TITULAR = "2026-11"
 
 
 class HijoRegistro(BaseModel):
-    """Un hijo tal como el formulario lo manda: colegio y grado bastan para armar
-    el kit. El `apodo` es opcional y es lo unico que identifica al menor; se
-    guarda cifrado. NO se pide el nombre legal: no hace falta para la finalidad
-    (armar la lista) y recolectarlo violaria el principio de necesidad."""
 
     colegio_id: uuid.UUID
     grado: str = Field(min_length=1, max_length=32)
@@ -411,22 +343,15 @@ class HijoRegistro(BaseModel):
 
 
 class Registro(BaseModel):
-    """El alta del acudiente nuevo: su credencial, su celular para el aviso y sus
-    hijos. La clave pide un minimo de 8 para no crear cuentas triviales; no se
-    valida mas forma porque la politica real vive en un solo sitio."""
 
     correo: str = Field(min_length=5, max_length=320)
     clave: str = Field(min_length=8, max_length=256)
     celular: str | None = Field(default=None, max_length=32)
     hijos: list[HijoRegistro] = Field(default_factory=list)
-    # El titular marco la casilla de la politica de datos y los terminos. Se
-    # registra como consentimiento `registro_titular` solo al crear la cuenta.
     acepta_terminos: bool = False
 
 
 class MatriculasNuevas(BaseModel):
-    """Hijos que un acudiente YA autenticado agrega a su cuenta desde `/empezar`.
-    Reusa `HijoRegistro`: misma forma y mismas reglas de validacion."""
 
     hijos: list[HijoRegistro] = Field(default_factory=list)
 
@@ -444,11 +369,6 @@ async def registrar_acudiente(peticion: Request, registro: Registro) -> dict[str
     deriva para ser idempotente; y si el correo ya tiene credencial REAL no
     escribe nada, para que un tercero sin sesion no inyecte matriculas en la
     cuenta de otra familia."""
-    # El consentimiento se exige aqui y no solo en la casilla del formulario: un
-    # cliente que llame directo a la API se saltaria la casilla y la cuenta
-    # nacera sin el registro de consentimiento que pide la Ley 1581. Se rechaza
-    # antes de tocar nada. Los demas altas (contacto del pago, cuenta, staff) son
-    # otras rutas y no pasan por aqui.
     if not registro.acepta_terminos:
         raise ErrorDominio(
             "consentimiento_requerido",
@@ -461,10 +381,6 @@ async def registrar_acudiente(peticion: Request, registro: Registro) -> dict[str
         raise ErrorDominio(
             "correo_invalido", "El correo no tiene una forma valida.", estado=422, campo="correo"
         )
-    # Pre-check de grado ANTES de la transaccion y para TODOS los caminos (incluido
-    # el correo ya-registrado que retorna temprano): redundante con la validacion
-    # del repo, pero deliberado, para que un grado invalido sea 422 aunque no se
-    # llegue a materializar.
     for hijo in registro.hijos:
         if hijo.grado not in GRADOS:
             raise ErrorDominio(
@@ -492,8 +408,6 @@ async def registrar_acudiente(peticion: Request, registro: Registro) -> dict[str
 async def crear_cuenta(peticion: Request, datos: NuevaCuenta) -> dict[str, Any]:
     from ..dominio.cuenta import ClaveDebil, Decision, validar_clave
 
-    # Mismo consentimiento que pide /v1/registro: esta ruta tambien crea cuentas
-    # con clave, y sin esta exigencia seria el camino para saltarse la Ley 1581.
     if not datos.acepta_terminos:
         raise ErrorDominio(
             "consentimiento_requerido",
@@ -624,7 +538,6 @@ async def guardar_matriculas(
 
 
 class CambioDeHijo(BaseModel):
-    """El colegio y el grado nuevos de un hijo; el apodo, si se quiere cambiar."""
 
     colegio_id: uuid.UUID
     grado: str = Field(min_length=1, max_length=32)
@@ -689,13 +602,6 @@ async def cambiar_matricula(
     return {"total": total}
 
 
-# --------------------------------------------------------------- admin
-#
-# La primera puerta que expone dato de menor (el apodo) por la superficie
-# publica, y por eso la mas vigilada: se abre SOLO al equipo interno
-# (admin/operador) y devuelve unicamente a las familias registradas.
-
-
 @router.get(
     "/v1/admin/acudientes",
     tags=["admin"],
@@ -708,16 +614,11 @@ async def listar_acudientes(
 ) -> dict[str, Any]:
     async with peticion.app.state.motor.sesion() as db:
         repo = RepoIdentidad(await db.connection())
-        # 1) Puerta: token valido (401 si no) ...
         solicitante = await _usuario_del_token(authorization, repo)
-        # 2) ... y rol de staff VIGENTE (403 si no).
         if not await repo.es_staff_vigente(solicitante.id):
             raise ErrorDominio(
                 "acceso_denegado", "Esta vista es solo para el equipo interno de Tukit.", estado=403
             )
-        # ids -> lista de UUID, ya PASADA la puerta: un id mal formado responde 400,
-        # pero solo a quien ya autentico. Antes del gate, un `?ids=nope` sin token
-        # sigue siendo 401 (no revelar la forma del endpoint).
         ids_filtrados: list[uuid.UUID] | None = None
         if ids is not None:
             crudos = [p.strip() for p in ids.split(",") if p.strip()]
@@ -731,17 +632,12 @@ async def listar_acudientes(
     return {"total": len(acudientes), "acudientes": acudientes}
 
 
-# --------------------------------------------------------------- sesiones
-
-
 @router.post("/v1/sesiones", tags=["sesion"], summary="Inicia sesion: correo + clave -> token con roles.")
 async def iniciar_sesion(peticion: Request, credenciales: Credenciales) -> dict[str, Any]:
     correo = str(credenciales.correo).strip().lower()
     async with peticion.app.state.motor.sesion() as db:
         repo = RepoIdentidad(await db.connection())
         fila = await repo.usuario_por_correo(correo)
-        # Mismo mensaje para "no existe" y "clave mala": distinguirlos deja
-        # enumerar que correos tienen cuenta.
         if fila is None or not fila.activo or not verificar_clave(credenciales.clave, fila.clave_hash):
             raise ErrorDominio(
                 "credenciales_invalidas", "El correo o la clave no son correctos.", estado=401, campo="correo"
@@ -787,9 +683,6 @@ async def cerrar_sesion(peticion: Request, authorization: Annotated[str | None, 
             return None
         await repo.revocar_sesiones(fila.id)
     return None
-
-
-# --------------------------------------------------------------- cuenta
 
 
 @router.get("/v1/cuenta", tags=["cuenta"], summary="Quien soy: el portador de este token.")
@@ -903,13 +796,6 @@ async def archivar_direccion(
     return None
 
 
-# --------------------------------------------------------------- privacidad
-# Los derechos del titular (Ley 1581 de 2012, art. 8; Decreto 1377 de 2013):
-# conocer (inventario), obtener copia (exportacion), suprimir y revocar. Todo
-# sale del portador del token: no hay ruta con el id de otro titular, asi que
-# no hay forma de pedir los datos de nadie mas.
-
-
 class PeticionSupresion(BaseModel):
     confirmacion: str = Field(default="", max_length=64)
 
@@ -929,8 +815,6 @@ def _iso_o_none(valor: datetime | None) -> str | None:
 
 
 async def _mis_datos(peticion: Request, authorization: str | None, *, completo: bool) -> dict[str, Any]:
-    """El inventario del titular. `completo` es la copia exportable: el contacto
-    y las direcciones van enteros. Sin `completo`, enmascarados."""
     from ..dominio.privacidad import (
         CONSERVADO,
         FRASE_CONFIRMACION,
@@ -1071,10 +955,8 @@ async def suprimir_mis_datos(
 
     async with peticion.app.state.motor.sesion() as db:
         repo = RepoIdentidad(await db.connection())
-        # Se vuelve a verificar dentro de la transaccion que escribe.
         fila = await _usuario_del_token(authorization, repo)
         solicitud_id = await repo.suprimir_titular(fila.id, correo_nuevo=correo_suprimido(str(fila.id)))
-    # Bitacora sin datos personales: id seudonimo y solicitud, nada mas.
     logging.getLogger(__name__).info("supresion titular=%s solicitud=%s", fila.id, solicitud_id)
     return {
         "solicitud_id": str(solicitud_id),

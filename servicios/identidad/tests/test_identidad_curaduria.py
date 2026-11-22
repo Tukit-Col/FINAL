@@ -1,5 +1,3 @@
-"""Pruebas de los colegios que viajan con la curaduria de listas."""
-
 from __future__ import annotations
 
 import uuid
@@ -29,7 +27,6 @@ async def sembrar(db: AsyncSession) -> None:
 
 class TestExportar:
     async def test_el_contacto_no_viaja(self, db: AsyncSession):
-        """El correo de una persona del colegio no debe terminar en git."""
         await sembrar(db)
 
         colegios, sedes, faltantes = await exportar(db, {COLEGIO}, [])
