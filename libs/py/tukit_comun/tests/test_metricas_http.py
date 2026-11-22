@@ -1,12 +1,3 @@
-"""Metricas de dominio OTel (ADR 0021): cuentan en el MeterProvider que haya, y nada sin endpoint.
-
-Sin un collector no se puede ver un contador salir por OTLP; lo que si se fija
-es lo que llega al `MeterProvider`: se sustituye el `get_meter` de OTel (la
-frontera publica que usa `metricas`) por uno con un lector en memoria y se leen
-los puntos. Asi se prueba que contar suma lo pedido, que un conteo en cero no
-emite, y que el gauge del disyuntor solo se registra con endpoint.
-"""
-
 from __future__ import annotations
 
 import pytest
@@ -19,10 +10,6 @@ from tukit_comun.resiliencia import disyuntor_de
 
 @pytest.fixture
 def lector(monkeypatch) -> InMemoryMetricReader:
-    """Un MeterProvider propio con lector en memoria, sin tocar el global del proceso.
-
-    `metricas` guarda los contadores ya creados y si el gauge quedo registrado;
-    se vacian para que esta prueba cree los suyos sobre este proveedor."""
     lector = InMemoryMetricReader()
     proveedor = MeterProvider(metric_readers=[lector])
     monkeypatch.setattr(otel_metrics, "get_meter", lambda nombre, *a, **k: proveedor.get_meter(nombre))

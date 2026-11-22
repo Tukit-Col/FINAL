@@ -1,5 +1,3 @@
-"""`token_bearer`: lectura del encabezado `Authorization`."""
-
 import pytest
 from tukit_comun.autenticacion import token_bearer
 

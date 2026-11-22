@@ -1,11 +1,3 @@
-"""El cliente de Redis y su degradacion (ADR 0047), con el doble en memoria.
-
-Se fija que un Redis que falla no tumba nada: la lectura da "no esta", el
-guardado no hace nada y el conteo sigue en memoria; que se registra una vez por
-episodio, sin claves; que tras un fallo el cliente deja de preguntar un rato y
-despues vuelve; y que sin `REDIS_URL` el paquete `redis` ni se importa.
-"""
-
 from __future__ import annotations
 
 import logging
@@ -45,9 +37,6 @@ def motor(reloj: Reloj) -> RedisEnMemoria:
 @pytest.fixture
 def cliente(motor: RedisEnMemoria, reloj: Reloj) -> ClienteRedis:
     return cliente_en_memoria(motor, reloj=reloj)
-
-
-# --- Lectura, escritura y vencimiento --------------------------------------
 
 
 async def test_lo_guardado_se_lee_con_el_prefijo(cliente, motor):
@@ -99,9 +88,6 @@ async def test_el_vencimiento_es_el_pedido(cliente, motor):
     assert motor.vence_en("tukit:a") == pytest.approx(2_592_000)
 
 
-# --- El conteo del limite --------------------------------------------------
-
-
 async def test_contar_suma_y_dice_lo_que_falta_de_la_ventana(cliente, reloj):
     assert await cliente.contar([("token:x", 60), ("ip:y", 600)]) == [(1, 60_000), (1, 600_000)]
 
@@ -123,11 +109,7 @@ async def test_el_motor_en_memoria_poda_sin_pasar_del_tope(reloj):
         await motor.contar([(f"c{i}", 60 + i)])
 
     assert len(motor._cuentas) == 3
-    # Se fueron las que vencian antes.
     assert set(motor._cuentas) == {"c2", "c3", "c4"}
-
-
-# --- Caido y lento ---------------------------------------------------------
 
 
 async def test_caido_lee_como_si_no_estuviera(cliente, motor):
@@ -173,9 +155,6 @@ async def test_un_error_que_no_es_de_redis_sube(cliente, motor, monkeypatch):
 
     with pytest.raises(ValueError):
         await cliente.leer("vector", "a")
-
-
-# --- El episodio: un registro, la pausa y la vuelta -------------------------
 
 
 async def test_un_solo_warning_por_episodio_y_sin_claves(cliente, motor, reloj, caplog):
@@ -235,8 +214,6 @@ async def test_un_episodio_nuevo_vuelve_a_avisar(cliente, motor, reloj, caplog):
 
 
 async def test_el_conteo_en_memoria_no_se_mezcla_con_el_de_redis(cliente, motor, reloj):
-    # Lo que se conto en memoria durante el episodio se queda en el proceso;
-    # al volver, Redis sigue con su cuenta.
     await cliente.contar([("token:x", 60)])
     motor.caido = True
     await cliente.contar([("token:x", 60)])
@@ -244,9 +221,6 @@ async def test_el_conteo_en_memoria_no_se_mezcla_con_el_de_redis(cliente, motor,
     reloj.avanzar(6)
 
     assert await cliente.contar([("token:x", 60)]) == [(2, 54_000)]
-
-
-# --- Sin Redis --------------------------------------------------------------
 
 
 async def test_sin_motor_lee_nada_y_cuenta_en_memoria(reloj):
@@ -278,7 +252,6 @@ def test_sin_redis_url_no_hay_motor(monkeypatch):
 
 
 def test_sin_redis_url_no_se_importa_redis():
-    # En un proceso aparte: en este, otra prueba ya pudo importar `redis`.
     raiz = Path(__file__).resolve().parents[1]
     codigo = (
         "import asyncio, sys\n"
@@ -326,9 +299,6 @@ def test_un_entero_mal_escrito_usa_el_de_por_omision(monkeypatch, caplog):
     assert entero_de_entorno("TUKIT_CACHE_PRUEBA", 30) == 12
 
 
-# --- El cliente del proceso ------------------------------------------------
-
-
 async def test_el_cliente_del_proceso_se_puede_cambiar(monkeypatch):
     monkeypatch.delenv("REDIS_URL", raising=False)
     doble = cliente_en_memoria()
@@ -343,9 +313,6 @@ async def test_el_cliente_del_proceso_se_puede_cambiar(monkeypatch):
     cache.usar_cliente(None)
 
 
-# --- La comprobacion de `make arriba` ----------------------------------------
-
-
 def test_main_sin_url_devuelve_2(monkeypatch, capsys):
     monkeypatch.delenv("REDIS_URL", raising=False)
 
@@ -355,7 +322,6 @@ def test_main_sin_url_devuelve_2(monkeypatch, capsys):
 
 def test_main_con_un_redis_que_no_responde_devuelve_1_sin_la_clave(monkeypatch, capsys):
     pytest.importorskip("redis")
-    # El puerto 1 no tiene nada escuchando: la conexion se rechaza al momento.
     monkeypatch.setenv("REDIS_URL", "redis://:secreta@127.0.0.1:1/0")
 
     assert cache.main(espera=1.0) == 1

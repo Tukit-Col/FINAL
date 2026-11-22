@@ -1,11 +1,3 @@
-"""El `BrokerSink` y la degradacion honesta del entorno (ADR 0022).
-
-No se levanta RabbitMQ aqui: se fija (1) que sin `RABBITMQ_URL` el sink es
-`None` —la tesis corre sin broker—, (2) que con la URL es un `BrokerSink`, y
-(3) que `publicar` usa el TIPO del evento como routing key sobre un exchange
-falso (el `connect_robust` real necesitaria un broker vivo).
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -34,7 +26,7 @@ async def test_publicar_usa_el_tipo_como_routing_key():
             publicados.append((routing_key, mensaje.body))
 
     sink = BrokerSink(url="amqp://x")
-    sink._exchange = ExchangeFalso()  # salta connect_robust: no hay broker
+    sink._exchange = ExchangeFalso()
 
     fila = SimpleNamespace(id=7, tipo="pedido_pagado", carga={"pedido_id": "p1", "correlacion_id": "c1"})
     await sink.publicar(fila)
@@ -43,9 +35,6 @@ async def test_publicar_usa_el_tipo_como_routing_key():
     routing_key, cuerpo = publicados[0]
     assert routing_key == "pedido_pagado"
     assert b"p1" in cuerpo
-
-
-# --- La comprobacion que usa `make arriba` (ADR 0046) ----------------------
 
 
 class _ConexionFalsa:

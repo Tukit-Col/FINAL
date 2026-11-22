@@ -1,19 +1,3 @@
-"""El cliente contra un Redis de verdad (ADR 0047).
-
-Corren con el Redis de `TUKIT_PRUEBAS_REDIS_URL` (por omision la base 15 del
-local) y se saltan si no responde. Cada prueba usa su propio prefijo y borra sus
-claves al terminar. CI las corre contra `redis:7`, la imagen del compose; en la
-Mac de desarrollo, contra el 8 de Homebrew.
-
-Se fija aqui lo que el doble no puede probar:
-
-- `MGET` y `SET` con `EX` guardan y leen lo mismo, con el vencimiento pedido.
-- El script de conteo suma, pone la ventana y la respeta, en una sola llamada.
-- Dos clientes con su propia conexion comparten la cuenta, como dos gateways.
-- Muchas peticiones a la vez no pierden ninguna cuenta: el conteo es atomico.
-- Una clave que quedo sin vencimiento lo recupera al contar.
-"""
-
 from __future__ import annotations
 
 import asyncio

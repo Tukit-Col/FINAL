@@ -1,24 +1,3 @@
-"""Lo que comparten las pruebas de la cache y el limite (ADR 0047).
-
-Dos cosas:
-
-- **El doble.** `RedisEnMemoria` es el motor en memoria de `cache.py` con dos
-  modos de fallo (caido y lento) y un registro de lo que se le pidio. Con el, las
-  pruebas unitarias cuentan cuantas veces se leyo o se guardo sin un Redis de
-  verdad y sin `fakeredis`.
-- **El Redis de las pruebas de integracion.** Las marcadas `redis` hablan con el
-  Redis de `TUKIT_PRUEBAS_REDIS_URL` (por omision la base 15 del local, nunca la
-  0 de `.env.ejemplo`) y se saltan si no responde. Cada prueba usa un prefijo
-  propio y borra sus claves al terminar, con `SCAN` y `DEL`, que solo usan las
-  pruebas. Para mirar lo que quedo guardado usan `lo_guardado`: ni las pruebas
-  de los servicios importan `redis` (lo vigila `arquitectura/test_fronteras.py`).
-
-No es `REDIS_URL` a proposito: esa variable cambia el modo de los procesos, y
-una prueba no deberia cambiar de modo porque alguien la tenga exportada. Con
-`TUKIT_PRUEBAS_REDIS_OBLIGATORIO`, una prueba sin Redis falla en vez de
-saltarse; CI la pone.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -35,20 +14,10 @@ from .cache import ClienteRedis, MotorEnMemoria, MotorRedis, responde
 
 
 class RedisCaido(ConnectionError):
-    """Lo que levanta el doble cuando esta caido."""
+    pass
 
 
 class RedisEnMemoria(MotorEnMemoria):
-    """El motor en memoria, con fallos a pedido y un registro de llamadas.
-
-    - `caido = True`: cada operacion levanta `RedisCaido`, como un Redis que
-      cerro la conexion.
-    - `demora = s`: cada operacion espera `s` segundos antes de responder, como
-      un Redis lento. Con una `demora` mayor que la espera del cliente, el
-      cliente se rinde antes.
-    - `llamadas`: `(operacion, claves)` por cada llamada que llego al motor,
-      incluidas las que fallaron.
-    """
 
     errores: tuple[type[BaseException], ...] = (RedisCaido,)
 
@@ -59,7 +28,6 @@ class RedisEnMemoria(MotorEnMemoria):
         self.llamadas: list[tuple[str, tuple[str, ...]]] = []
 
     def operaciones(self, operacion: str) -> list[tuple[str, ...]]:
-        """Las claves de cada llamada a `operacion`."""
         return [claves for nombre, claves in self.llamadas if nombre == operacion]
 
     async def _antes(self, operacion: str, claves: Sequence[str]) -> None:
@@ -82,31 +50,25 @@ class RedisEnMemoria(MotorEnMemoria):
         return await super().contar(claves)
 
     def guardado(self, clave: str) -> bytes | None:
-        """El valor guardado en `clave` (con prefijo), sin pasar por el registro."""
         valor = self._valores.get(clave)
         return valor[0] if valor is not None else None
 
     def claves(self) -> list[str]:
-        """Las claves guardadas o contadas, con prefijo."""
         return [*self._valores, *self._cuentas]
 
 
 def cliente_en_memoria(
     motor: RedisEnMemoria | None = None, *, espera: float = 0.05, pausa: float = 5.0, **opciones: Any
 ) -> ClienteRedis:
-    """Un `ClienteRedis` sobre el doble, con una espera corta para que el modo
-    lento no demore la prueba."""
     motor = motor if motor is not None else RedisEnMemoria()
     return ClienteRedis(motor, espera=espera, pausa=pausa, **opciones)
 
 
 def url_de_pruebas() -> str:
-    """El Redis de las pruebas de integracion."""
     return os.environ.get("TUKIT_PRUEBAS_REDIS_URL", "redis://localhost:6379/15")
 
 
 def redis_obligatorio() -> bool:
-    """Si una prueba sin Redis debe fallar en vez de saltarse."""
     return bool(os.environ.get("TUKIT_PRUEBAS_REDIS_OBLIGATORIO"))
 
 
@@ -114,15 +76,12 @@ _disponible: dict[str, bool] = {}
 
 
 async def redis_disponible(url: str) -> bool:
-    """Si el Redis de `url` responde; se pregunta una vez por proceso."""
     if url not in _disponible:
         _disponible[url] = await responde(url) is None
     return _disponible[url]
 
 
 async def exigir_redis(url: str) -> None:
-    """Salta la prueba si el Redis de `url` no responde, o la hace fallar si
-    `TUKIT_PRUEBAS_REDIS_OBLIGATORIO` lo exige."""
     import pytest
 
     if not await redis_disponible(url):
@@ -132,12 +91,10 @@ async def exigir_redis(url: str) -> None:
 
 
 def prefijo_de_prueba() -> str:
-    """Un prefijo unico por prueba, para no pisar las claves de nadie."""
     return f"prueba-{uuid.uuid4().hex[:10]}:"
 
 
 async def borrar_prefijo(url: str, prefijo: str) -> int:
-    """Borra las claves que empiezan por `prefijo`; devuelve cuantas."""
     import redis.asyncio as redis_asincrono
 
     conexion = redis_asincrono.from_url(url)
@@ -152,14 +109,12 @@ async def borrar_prefijo(url: str, prefijo: str) -> int:
 
 @dataclass(frozen=True)
 class Guardado:
-    """Una clave tal como quedo en Redis: su valor y lo que le falta para vencer."""
 
     valor: bytes
     vence_en_ms: int
 
 
 async def lo_guardado(prefijo: str) -> dict[str, Guardado]:
-    """Lo que hay en el Redis de las pruebas bajo `prefijo`, por clave completa."""
     import redis.asyncio as redis_asincrono
 
     conexion = redis_asincrono.from_url(url_de_pruebas())
@@ -167,7 +122,6 @@ async def lo_guardado(prefijo: str) -> dict[str, Guardado]:
         guardado: dict[str, Guardado] = {}
         claves = [clave.decode() async for clave in conexion.scan_iter(match=prefijo + "*", count=500)]
         for clave in sorted(claves):
-            # Sin `decode_responses` el valor llega en bytes; `None` si vencio entre el SCAN y el GET.
             valor = await conexion.get(clave)
             if isinstance(valor, bytes):
                 guardado[clave] = Guardado(valor, await conexion.pttl(clave))
@@ -178,13 +132,6 @@ async def lo_guardado(prefijo: str) -> dict[str, Guardado]:
 
 @asynccontextmanager
 async def clientes_de_prueba(cuantos: int = 1, *, espera: float = 1.0) -> AsyncIterator[list[ClienteRedis]]:
-    """`cuantos` clientes contra el Redis de las pruebas, cada uno con su
-    conexion y todos con el mismo prefijo, como varias replicas de un servicio.
-    Al salir cierra las conexiones y borra lo que dejaron.
-
-    La espera es mas holgada que la de los servicios: aqui se prueba lo que
-    Redis guarda, no cuanto tarda, y un CI cargado no debe volver la prueba
-    intermitente."""
     url = url_de_pruebas()
     await exigir_redis(url)
     prefijo = prefijo_de_prueba()

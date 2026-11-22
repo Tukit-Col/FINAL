@@ -1,12 +1,3 @@
-"""La IP del cliente detras de proxies de confianza (ADR 0047).
-
-La comparten la puerta (limite de tasa) y los servicios que cuentan cupo por IP
-detras de ella (el asistente NL2C en Inteligencia). Si la conexion viene de un
-proxy de confianza (`TUKIT_PROXIES_CONFIANZA`; por omision `127.0.0.1,::1`), se
-recorre `X-Forwarded-For` de derecha a izquierda y la IP es la primera que no es
-de confianza. Si no viene de uno, la cabecera se ignora: la escribio el cliente.
-"""
-
 from __future__ import annotations
 
 import functools
@@ -51,8 +42,6 @@ def _ip(texto: str) -> Ip | None:
 
 
 def ip_del_cliente(conexion: str | None, reenviada: str | None, confianza: Sequence[Red]) -> str:
-    """La IP del cliente: la de la conexion, o la de `X-Forwarded-For` si la
-    conexion viene de un proxy de confianza."""
     directa = _ip(conexion or "")
     if directa is None:
         return conexion or "desconocida"
@@ -66,8 +55,6 @@ def ip_del_cliente(conexion: str | None, reenviada: str | None, confianza: Seque
     for entrada in reversed([e for e in reenviada.split(",") if e.strip()]):
         ip = _ip(entrada)
         if ip is None:
-            # Algo que no es una IP: lo que hay a su izquierda ya no se puede
-            # creer. Se queda la ultima de confianza.
             break
         if not de_confianza(ip):
             return str(ip)
@@ -76,7 +63,6 @@ def ip_del_cliente(conexion: str | None, reenviada: str | None, confianza: Seque
 
 
 def ip_de_peticion(conexion: str | None, cabeceras_reenviadas: Sequence[str]) -> str:
-    """`ip_del_cliente` con la configuracion del entorno, desde lo que trae la peticion."""
     return ip_del_cliente(conexion, ", ".join(cabeceras_reenviadas) or None, proxies_de_confianza())
 
 
