@@ -1,0 +1,12 @@
+# Exclusiones del gate de cobertura (job `cobertura` de CI, NFR-MAN-01).
+#
+# Son las mismas con que se midio la linea base, asi que la cifra del CI se
+# puede comparar con ella. No se fija `data_file`: en local, para no dejar un
+# `.coverage` suelto en la raiz, se define COVERAGE_FILE con una ruta fuera
+# del arbol.
+[run]
+omit =
+    */.venv/*
+    */node_modules/*
+    */tests/*
+    */migraciones/*

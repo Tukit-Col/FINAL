@@ -1,0 +1,15 @@
+{
+  "variante": "G04",
+  "archivo": "listas/G04-word.docx",
+  "descripcion": "Documento de Word: no es imagen ni PDF; el proveedor responde 400",
+  "aceptada": false,
+  "error": "percepcion_fallida",
+  "paginas": 1,
+  "degradaciones": [
+    "gemini"
+  ],
+  "grados": [],
+  "completa": null,
+  "items": [],
+  "renglones": []
+}
