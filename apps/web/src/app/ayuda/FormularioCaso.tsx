@@ -10,6 +10,7 @@ import {
   type CategoriaCaso,
 } from "@tukit/contrato";
 import { crearCaso, FalloApi } from "@/lib/api-navegador";
+import { fechaLegible } from "@/lib/panel-cuenta";
 import styles from "./Ayuda.module.css";
 
 const PISTA: Partial<Record<CategoriaCaso, string>> = {
@@ -20,14 +21,6 @@ const PISTA: Partial<Record<CategoriaCaso, string>> = {
   pago: "Algo relacionado con un pago.",
   entrega: "Algo relacionado con una entrega.",
 };
-
-function fechaLegible(iso: string): string {
-  return new Date(iso).toLocaleDateString("es-CO", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
 
 export default function FormularioCaso({ conSesion }: { conSesion: boolean }) {
   const idCategoria = useId();
@@ -101,7 +94,7 @@ export default function FormularioCaso({ conSesion }: { conSesion: boolean }) {
         </p>
         {creado.vence_en ? (
           <p className={styles.plazo}>
-            Te responderemos a más tardar el <strong>{fechaLegible(creado.vence_en)}</strong>{" "}
+            Te responderemos a más tardar el <strong>{fechaLegible(creado.vence_en, "long")}</strong>{" "}
             (término de ley para {ETIQUETA_CATEGORIA_CASO[creado.categoria].toLowerCase()}).
           </p>
         ) : (
