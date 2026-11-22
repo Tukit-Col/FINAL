@@ -33,7 +33,8 @@ from fastapi import APIRouter, Query, Response
 from sqlalchemy.exc import IntegrityError
 from tukit_comun.http import ErrorDominio
 
-from ..descubrir import atributos_al_aprobar, atributos_verificados, clasificar
+from ..clasificacion import clasificar
+from ..descubrir import atributos_al_aprobar, atributos_verificados
 from ..dominio.listas import (
     _cuidar_invariantes,
     _exigir_sin_revisar,
@@ -306,14 +307,14 @@ _POR_MATERIA = frozenset({"C001"})
 
 
 def _palabras(texto: str) -> set[str]:
-    from ..enriquecer import _normalizar
+    from ..extraccion import _normalizar
 
     return set(re.findall(r"[a-z0-9]+", _normalizar(texto)))
 
 
 def _color_del_texto(texto: str) -> str | None:
     """El color que nombra el renglon (el ultimo, que es el que lo distingue), o None."""
-    from ..enriquecer import COLORES
+    from ..extraccion import COLORES
 
     palabras = _palabras(texto)
     hallados = [
@@ -335,7 +336,7 @@ def _posibles_repetidos(
     de los atributos, `acrilico cian` y `acrilico magenta` salian repetidos:
     se parecen en todo menos en lo unico que importa.
     """
-    from ..enriquecer import extraer_atributos
+    from ..extraccion import extraer_atributos
 
     vistos: dict[tuple[str, tuple[tuple[str, str], ...]], list[tuple[int, set[str]]]] = {}
     salida: dict[int, int] = {}
@@ -415,7 +416,7 @@ def _lo_que_dice_el_texto(
     rapida leeria, por la misma regla y no por una copia.
     """
     from ..consulta import _NO_SE_EXIGEN
-    from ..enriquecer import _normalizar, atributos_ambiguos, extraer_atributos
+    from ..extraccion import _normalizar, atributos_ambiguos, extraer_atributos
 
     impuestos = {
         k: v for k, v in extraer_atributos(texto, discriminantes).items() if (k, v) not in _NO_SE_EXIGEN
@@ -476,7 +477,7 @@ _BLANDOS: dict[str, tuple[str, ...]] = {"C001": ("tamano",)}
 
 def _lo_blando(texto: str, curados: dict[str, Any], concepto: str | None) -> dict[str, Any]:
     """Lo que el renglon pide de los atributos blandos de su concepto, con la curaduria encima."""
-    from ..enriquecer import extraer_atributos
+    from ..extraccion import extraer_atributos
 
     blandos = _BLANDOS.get(concepto or "", ())
     if not blandos:

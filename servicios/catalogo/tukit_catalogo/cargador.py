@@ -54,7 +54,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from .enriquecer import extraer_atributos
+from .extraccion import extraer_atributos
 
 # ---------------------------------------------------------------------------
 # Piezas puras. Sin base de datos, sin lectura de ficheros: es lo que las

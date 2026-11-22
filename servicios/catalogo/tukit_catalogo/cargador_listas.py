@@ -58,7 +58,7 @@ from typing import Any
 
 from tukit_comun import derivar
 
-from .descubrir import clasificar
+from .clasificacion import clasificar
 from .modelos.base import MODOS_SURTIBLES, ModoAdquisicion, TipoItem
 
 ANIO_POR_OMISION = 2026

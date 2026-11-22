@@ -10,7 +10,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from tukit_catalogo.consulta import _cumple
-from tukit_catalogo.enriquecer import Empaque, empaque_combinado, extraer_atributos, extraer_empaque
+from tukit_catalogo.enriquecer import empaque_combinado
+from tukit_catalogo.extraccion import Empaque, extraer_atributos, extraer_empaque
 from tukit_catalogo.routers.admin import _renglon_resuelto, armar_items
 
 

@@ -9,7 +9,7 @@ irregulares, sus abreviaturas y sus cifras pegadas.
 from __future__ import annotations
 
 import pytest
-from tukit_catalogo.enriquecer import (
+from tukit_catalogo.extraccion import (
     atributos_ambiguos,
     extraer_atributos,
     extraer_personaje,

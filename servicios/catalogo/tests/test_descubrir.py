@@ -21,16 +21,19 @@ from tukit_catalogo.cargador import (
     normalizar_isbn,
     pesos_a_centavos,
 )
-from tukit_catalogo.descubrir import (
-    TIENDAS_LIBROS,
-    PuertaCerrada,
-    Revision,
+from tukit_catalogo.clasificacion import (
     _misma_cosa,
     _plano,
     _sin_encabezado_de_grupo,
     cabeza,
     clasificar,
     consulta_desde_renglon,
+    singular,
+)
+from tukit_catalogo.descubrir import (
+    TIENDAS_LIBROS,
+    PuertaCerrada,
+    Revision,
     consulta_libro,
     consulta_libro_en,
     crear_libro,
@@ -40,7 +43,6 @@ from tukit_catalogo.descubrir import (
     probar,
     proponer,
     resolver,
-    singular,
 )
 
 
@@ -374,7 +376,7 @@ class TestLibrosEnBuscalibreYLibreriaNacional:
 
 def test_el_prefijo_de_grupo_no_es_la_cosa_pedida():
     # "Kit de aseo personal: 1 caja de pañuelos" pide pañuelos, no un kit (13-nov).
-    from tukit_catalogo.descubrir import cabeza
+    from tukit_catalogo.clasificacion import cabeza
 
     con_grupo = cabeza("Kit de aseo personal: 1 caja de pañuelos faciales")
     assert con_grupo == cabeza("1 caja de pañuelos faciales")
@@ -384,7 +386,7 @@ def test_el_prefijo_de_grupo_no_es_la_cosa_pedida():
 
 def test_los_dos_puntos_tras_la_cosa_son_un_detalle():
     # Lo de despues de los dos puntos es tamano, materia o color: no es la cabeza.
-    from tukit_catalogo.descubrir import cabeza
+    from tukit_catalogo.clasificacion import cabeza
 
     assert cabeza("Cuaderno: Pequeño de una línea. ROBÓTICA") == "cuaderno"
     assert cabeza("Carpeta plástica oficio con gancho plástico: Inglés") == "carpeta"
@@ -394,7 +396,7 @@ def test_los_dos_puntos_tras_la_cosa_son_un_detalle():
 
 def test_la_cantidad_en_palabras_no_es_la_cosa_pedida():
     # "Una caja de pasteles secos" pide pasteles; "una" no es la cabeza (13-nov).
-    from tukit_catalogo.descubrir import cabeza
+    from tukit_catalogo.clasificacion import cabeza
 
     assert cabeza("Una caja de pasteles secos") == "pasteles"
     assert cabeza("dos paquetes de plastilina") == "plastilina"

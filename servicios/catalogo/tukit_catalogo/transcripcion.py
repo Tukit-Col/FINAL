@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 import unicodedata
 
-from .descubrir import singular
+from .clasificacion import singular
 
 _TOKEN = re.compile(r"[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+")
 _PREFIJO = re.compile(r"^@+\s*")

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import math
 
-from tukit_catalogo.descubrir import clasificar
+from tukit_catalogo.clasificacion import clasificar
 from tukit_catalogo.embeddings import (
     DIMENSION_EMBEDDING,
     coseno,

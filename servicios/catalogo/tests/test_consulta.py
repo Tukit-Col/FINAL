@@ -179,7 +179,7 @@ class TestLaFaltaDeOrtografiaSeAcercaAlCatalogo:
         assert corregir("block oficio", {"block", "oficio", "origami"}) == "block oficio"
 
     def test_el_vinilo_fluorescente_no_son_seis_colores(self):
-        from tukit_catalogo.enriquecer import extraer_atributos
+        from tukit_catalogo.extraccion import extraer_atributos
 
         attrs = extraer_atributos("ESTUCHE DE VINILO X 6 UNIDADES ESCOLAR FLUORESCENTE", ("colores",))
 
