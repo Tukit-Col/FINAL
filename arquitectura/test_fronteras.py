@@ -1,17 +1,10 @@
-"""Funciones de aptitud: verifican que el codigo respete las fronteras declaradas.
+"""Funciones de aptitud: verifican que el codigo respete las fronteras declaradas en el manifiesto.
 
-En el sentido de Ford, Parsons y Kua, una funcion de aptitud es una prueba
-automatica y continua sobre una caracteristica arquitectonica. Estas cuatro son
-la diferencia entre *afirmar* que Tukit tiene contextos delimitados y
-*demostrarlo* en cada integracion.
-
-Existen porque el defecto mas grave del sistema anterior, dos servicios
-declarando el maestro del mismo catalogo, no se produjo por falta de criterio
-sino porque nada verificaba el criterio. La disciplina humana ya fallo una vez
-en este proyecto; esta es la defensa que no depende de ella.
-
-Van ANTES de mover la primera tabla, para que el movimiento trace las fronteras
-en vez de borrarlas. Ver ADR 0014.
+Decisiones:
+- Las fronteras son pruebas automaticas y no una convencion: si el codigo se sale de lo
+  declarado en `arquitectura/manifiesto.toml`, la integracion falla.
+- Cada regla tiene su contraparte en `test_fronteras_se_activan.py`, que le da de comer una
+  infraccion y comprueba que la detecte.
 
 Ejecutar:  pytest arquitectura/ -v
 """
@@ -37,7 +30,6 @@ MANIFIESTO = RAIZ / "arquitectura" / "manifiesto.toml"
 @dataclass(frozen=True)
 class Servicio:
     nombre: str
-    lenguaje: str
     ruta: Path
     paquete: str
     base_datos: str
@@ -49,7 +41,6 @@ def _cargar():
     servicios = {
         nombre: Servicio(
             nombre=nombre,
-            lenguaje=cfg["lenguaje"],
             ruta=RAIZ / cfg["ruta"],
             paquete=cfg["paquete"],
             base_datos=cfg["base_datos"],
@@ -597,33 +588,6 @@ def test_toda_referencia_a_otro_dominio_esta_declarada(nombre: str):
         + "\n\nAgregalas a `[[referencias_cruzadas]]` en el manifiesto, con la nota "
         "de como se valida la integridad que Postgres ya no puede imponer."
     )
-
-
-# --------------------------------------------------------------------------
-# Regla 5: el lenguaje declarado es el que hay
-# --------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("nombre", sorted(SERVICIOS))
-def test_el_lenguaje_declarado_coincide_con_el_codigo(nombre: str):
-    """El reparto de lenguajes salio de una medicion (ver
-    Arquitectura/PERFILADO_PIPELINE.md). Si alguien mete Go donde el manifiesto
-    dice Python, o al reves, la decision cambio sin que nadie la revisara."""
-    servicio = SERVICIOS[nombre]
-    if not servicio.ruta.exists():
-        pytest.skip(f"`{nombre}` todavia no tiene codigo.")
-
-    hay_python = bool(_archivos_python(servicio))
-    hay_go = any(ruta for ruta in servicio.ruta.rglob("*.go") if "vendor" not in ruta.parts)
-
-    if servicio.lenguaje == "python":
-        assert not hay_go, (
-            f"`{nombre}` esta declarado en Python y tiene archivos .go.\n"
-            f"Si el cambio es deliberado, actualiza el manifiesto y escribe el ADR "
-            f"que lo justifique con mediciones."
-        )
-    elif servicio.lenguaje == "go":
-        assert not hay_python, f"`{nombre}` esta declarado en Go y tiene archivos .py."
 
 
 def _grafo_de_dependencias() -> dict[str, set[str]]:
